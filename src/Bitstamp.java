@@ -15,7 +15,6 @@ import java.util.List;
 // SEE HERE
 //  https://github.com/abwaters/bitstamp-api/blob/master/src/com/abwaters/bitstamp/Bitstamp.java
 //
-//
 
 public class Bitstamp {
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible; +https://github.com/abwaters/bitstamp-api)" ;
