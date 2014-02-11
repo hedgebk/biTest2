@@ -12,8 +12,9 @@ public class ChartSimulator {
     enum STATE { NONE, BOUGHT, SOLD }
 
     // earliest first
-    public void simulate(PaintChart.PriceDiffList[] diffsPerPoints, PaintChart.Axe difAxe, Graphics2D g, double[] movingAverage) {
-        //Map<Integer,Double> graph = new HashMap<Integer, Double>();
+    public void simulate(PaintChart.PriceDiffList[] diffsPerPoints, PaintChart.ChartAxe difAxe, Graphics2D g,
+                         double[] movingAverage, double halfTargetDelta, double commissionAmount) {
+        double targetDelta = halfTargetDelta * 2;
         int pause = 0;
         int length = diffsPerPoints.length;
         for (int i = 0; i < length; i++) {
@@ -23,8 +24,8 @@ public class ChartSimulator {
             PaintChart.PriceDiffList diffsPerPoint = diffsPerPoints[i];
             if (diffsPerPoint != null) {
                 double movingAvg = movingAverage[i];
-                double movingAvgUp = movingAvg + PaintChart.HALF_TARGET_DELTA;
-                double movingAvgDown = movingAvg - PaintChart.HALF_TARGET_DELTA;
+                double movingAvgUp = movingAvg + halfTargetDelta;
+                double movingAvgDown = movingAvg - halfTargetDelta;
                 int diffsPerPointSize = diffsPerPoint.size();
                 for (int j = 0; j < diffsPerPointSize; j++) {
                     double priceDif = diffsPerPoint.get(j);
@@ -44,7 +45,7 @@ public class ChartSimulator {
                             }
                         }
                     } else if (m_state == STATE.BOUGHT) {
-                        double okDif = m_lastDif + PaintChart.TARGET_DELTA;
+                        double okDif = m_lastDif + targetDelta;
                         if (priceDif > okDif) {
                             if(hasConfirmedUp(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
                                 double delta = priceDif - m_lastDif;
@@ -54,7 +55,7 @@ public class ChartSimulator {
                             }
                         }
                         if (PaintChart.DO_DROP) {
-                            if (movingAvg < m_lastDif - PaintChart.HALF_TARGET_DELTA* PaintChart.DROP_LEVEL) {
+                            if (movingAvg < m_lastDif - halfTargetDelta * PaintChart.DROP_LEVEL) {
                                 double delta = priceDif - m_lastDif;
                                 closeRun(difAxe, g, i, priceDif, delta, true);
                                 System.out.println("point " + i + " - DROP SOLD at " + priceDif + ", delta=" + delta);
@@ -63,7 +64,7 @@ public class ChartSimulator {
                             }
                         }
                     } else if (m_state == STATE.SOLD) {
-                        double okDif = m_lastDif - PaintChart.TARGET_DELTA;
+                        double okDif = m_lastDif - targetDelta;
                         if (priceDif < okDif) {
                             if(hasConfirmedDown(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
                                 double delta = m_lastDif - priceDif;
@@ -73,7 +74,7 @@ public class ChartSimulator {
                             }
                         }
                         if (PaintChart.DO_DROP) {
-                            if (movingAvg > m_lastDif + PaintChart.HALF_TARGET_DELTA* PaintChart.DROP_LEVEL) {
+                            if (movingAvg > m_lastDif + halfTargetDelta * PaintChart.DROP_LEVEL) {
                                 double delta = m_lastDif - priceDif;
                                 closeRun(difAxe, g, i, priceDif, delta, true);
                                 System.out.println("point " + i + " - DROP SOLD at " + priceDif + ", delta=" + delta);
@@ -85,7 +86,7 @@ public class ChartSimulator {
                 }
             }
         }
-        double commissions = PaintChart.COMMISSION_AMOUNT * m_runs;
+        double commissions = commissionAmount * m_runs;
         double gain = m_deltaSum - commissions;
         double perDay = gain / PaintChart.PERIOD_LENGTH_DAYS;
         double dayMult = 1 + perDay / 803 / 4;
@@ -106,7 +107,7 @@ public class ChartSimulator {
         g.drawString(str, 40, PaintChart.HEIGHT - 34);
     }
 
-    private void closeRun(PaintChart.Axe difAxe, Graphics2D g, int i, double priceDiff, double delta, boolean drop) {
+    private void closeRun(PaintChart.ChartAxe difAxe, Graphics2D g, int i, double priceDiff, double delta, boolean drop) {
         m_deltaSum += delta;
         m_runs++;
         if( drop ) {

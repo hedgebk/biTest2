@@ -11,16 +11,13 @@ import java.util.List;
 
 public class PaintChart extends DbReady {
     public static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 7; // the period width
-    public static final int MOVING_AVERAGE_POINTS = 300; // 300
-    public static final double EXPECTED_GAIN = 5; // 5
+    public static final int PERIOD_LENGTH_DAYS = 30; // the period width
+    public static final int MOVING_AVERAGE_POINTS = 200; // 300
+    public static final double EXPECTED_GAIN = 3; // 5
     public static final int MIN_CONFIRMED_DIFFS = 5;
     // BITSTAMP, BTCE, MTGOX, CAMPBX
     public static final Exchange EXCH1 = Exchange.BITSTAMP;
-    public static final Exchange EXCH2 = Exchange.BTCE;
-    public static final double COMMISSION_AMOUNT = 6.8; // 7 ... 19
-    public static final double TARGET_DELTA = COMMISSION_AMOUNT + EXPECTED_GAIN;
-    public static final double HALF_TARGET_DELTA = TARGET_DELTA / 2;
+    public static final Exchange EXCH2 = Exchange.MTGOX;
     public static final boolean DO_DROP = true;
     public static final double DROP_LEVEL = 0.3;
     public static final boolean LOCK_DIRECTION_ON_DROP = true;
@@ -29,7 +26,7 @@ public class PaintChart extends DbReady {
     private static final boolean PAINT_PRICE = true;
     private static final boolean PAINT_DIFF = true;
     // chart area
-    public static final int X_FACTOR = 8;
+    public static final int X_FACTOR = 16;
     public static final int WIDTH = 1680 * X_FACTOR;
     public static final int HEIGHT = 1000 * 2;
 
@@ -66,8 +63,8 @@ public class PaintChart extends DbReady {
         goWithDb(runnable);
     }
 
-    private static void drawTicks(List<Tick> ticks, Exchange exch1, Exchange exch2) {
-        int exch1id = exch1.m_databaseId;
+    private static void drawTicks(List<Tick> ticks, final Exchange exch1, final Exchange exch2) {
+        final int exch1id = exch1.m_databaseId;
         long one = System.currentTimeMillis();
         int ticksNum = ticks.size();
         System.out.println("ticks count = " + ticksNum);
@@ -108,9 +105,9 @@ public class PaintChart extends DbReady {
         double averagePriceDif = priceDifSum / difMap.size();
         System.out.println("min priceDif: " + minDif + ", max priceDif: " + maxDif + ", priceDif diff: " + difDiff + ", averagePriceDif = " + averagePriceDif);
 
-        Axe timeAxe = new Axe(minTimestamp, maxTimestamp, WIDTH);
-        Axe priceAxe = new Axe(minPrice, maxPrice, HEIGHT);
-        Axe difAxe = new Axe(minDif, maxDif, HEIGHT);
+        ChartAxe timeAxe = new ChartAxe(minTimestamp, maxTimestamp, WIDTH);
+        ChartAxe priceAxe = new ChartAxe(minPrice, maxPrice, HEIGHT);
+        ChartAxe difAxe = new ChartAxe(minDif, maxDif, HEIGHT);
         String timePpStr = "time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale);
         System.out.println(timePpStr);
 
@@ -121,7 +118,7 @@ public class PaintChart extends DbReady {
 
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC /*VALUE_INTERPOLATION_BILINEAR*/ );
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON );
@@ -148,14 +145,21 @@ public class PaintChart extends DbReady {
             paintPoints(ticksPerPoints, priceAxe, g, exch1id);
         }
 
+        double exch1commission = calculateExchCommission(ticks, exch1);
+        double exch2commission = calculateExchCommission(ticks, exch2);
+        double runComission = 2*(exch1commission + exch2commission);
+        double targetDelta = runComission + EXPECTED_GAIN;
+        System.out.println("runComission=" + runComission + ", targetDelta=" + targetDelta);
+        double halfTargetDelta = targetDelta/2;
+
         if (PAINT_DIFF) {
             // paint pricediffs
-            paintPriceDiffs(diffsPerPoints, difAxe, g, movingAverage, minDif, maxDif);
+            paintPriceDiffs(diffsPerPoints, difAxe, g, movingAverage, minDif, maxDif, halfTargetDelta);
 
-            new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage);
+            new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission);
 
             // paint price diff moving average
-            paintPriceDiffMovingAverage(difAxe, g, movingAverage);
+            paintPriceDiffMovingAverage(difAxe, g, movingAverage, halfTargetDelta);
 
             // paint average price diff line
             int yy = difAxe.getPointReverse(averagePriceDif);
@@ -204,6 +208,20 @@ public class PaintChart extends DbReady {
         }
     }
 
+    private static double calculateExchCommission(List<Tick> ticks, Exchange exch) {
+        double avgPrice1 = calculateAveragePrice(ticks, exch);
+        return avgPrice1 * exch.m_fee;
+    }
+
+    private static double calculateAveragePrice(List<Tick> ticks, final Exchange exch) {
+        return new DoubleAverageCalculator<Tick>() {
+                @Override public double getValue(Tick tick) { return tick.m_price; }
+                @Override protected double getWeight(Tick tick) {
+                    return tick.m_src == exch.m_databaseId ? tick.m_volume : 0;
+                }
+            }.getAverage(ticks);
+    }
+
     private static void paintLegend(Exchange exch1, Exchange exch2, Graphics2D g) {
         g.setFont(g.getFont().deriveFont(7.0f* X_FACTOR));
 
@@ -228,7 +246,7 @@ public class PaintChart extends DbReady {
     }
 
     // return older first
-    private static TickList[] calculateTicksPerPoints(List<Tick> ticks, Axe timeAxe) {
+    private static TickList[] calculateTicksPerPoints(List<Tick> ticks, ChartAxe timeAxe) {
         TickList[] ticksPerPoints = new TickList[WIDTH];
         for(Tick tick: ticks) {
             long stamp = tick.m_stamp;
@@ -248,7 +266,7 @@ public class PaintChart extends DbReady {
     }
 
     // return older first
-    private static PriceDiffList[] calculateDiffsPerPoints(Map<Long, Double> difMap, Axe timeAxe) {
+    private static PriceDiffList[] calculateDiffsPerPoints(Map<Long, Double> difMap, ChartAxe timeAxe) {
         PriceDiffList[] diffsPerPoints = new PriceDiffList[WIDTH];
         for (Map.Entry<Long, Double> entry : difMap.entrySet()) {
             long stamp = entry.getKey();
@@ -264,7 +282,7 @@ public class PaintChart extends DbReady {
         return diffsPerPoints;
     }
 
-    private static void paintLeftAxeAndGrid(double minPrice, double maxPrice, Axe priceAxe, Graphics2D g, int priceStep, int priceStart) {
+    private static void paintLeftAxeAndGrid(double minPrice, double maxPrice, ChartAxe priceAxe, Graphics2D g, int priceStep, int priceStart) {
         g.setPaint(new Color(128, 128, 128, 128)); // Color.gray
         final float dash1[] = {10.0f};
         BasicStroke dashedStroke = new BasicStroke(1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, dash1, 0.0f);
@@ -279,7 +297,7 @@ public class PaintChart extends DbReady {
         g.setStroke(oldStroke);
     }
 
-    private static void paintCandles(TickList[] ticksPerPoints, Axe priceAxe, Graphics2D g) {
+    private static void paintCandles(TickList[] ticksPerPoints, ChartAxe priceAxe, Graphics2D g) {
         g.setPaint(new Color(255, 255, 0, 35)); // Color.yellow
         for (int x = 0; x < WIDTH; x++) {
             TickList ticksPerPoint = ticksPerPoints[x];
@@ -297,7 +315,7 @@ public class PaintChart extends DbReady {
         }
     }
 
-    private static void paintPoints(TickList[] ticksPerPoints, Axe priceAxe, Graphics2D g, int exch1id) {
+    private static void paintPoints(TickList[] ticksPerPoints, ChartAxe priceAxe, Graphics2D g, int exch1id) {
         for (int x = 0; x < WIDTH; x++) {
             TickList ticksPerPoint = ticksPerPoints[x];
             if( ticksPerPoint != null ) {
@@ -352,7 +370,7 @@ public class PaintChart extends DbReady {
     }
 
     // earliest first
-    private static void paintPriceDiffMovingAverage(Axe difAxe, Graphics2D g, double[] movingAverage) {
+    private static void paintPriceDiffMovingAverage(ChartAxe difAxe, Graphics2D g, double[] movingAverage, double halfTargetDelta) {
         g.setPaint(Color.orange);
         for (int x = 0; x < WIDTH; x++) {
             double avg = movingAverage[x];
@@ -365,9 +383,9 @@ public class PaintChart extends DbReady {
         for (int x = 0; x < WIDTH; x++) {
             double avg = movingAverage[x];
             if (avg != Double.MAX_VALUE) {
-                int y = difAxe.getPointReverse(avg+HALF_TARGET_DELTA);
+                int y = difAxe.getPointReverse(avg+halfTargetDelta);
                 g.drawRect(x, y, 1, 1);
-                y = difAxe.getPointReverse(avg-HALF_TARGET_DELTA);
+                y = difAxe.getPointReverse(avg-halfTargetDelta);
                 g.drawRect(x, y, 1, 1);
             }
         }
@@ -379,11 +397,11 @@ public class PaintChart extends DbReady {
                 if (avg != Double.MAX_VALUE && avgOld != Double.MAX_VALUE) {
                     double avgDelta = avg - avgOld;
                     if( avgDelta > 0 ) {
-                        int y = difAxe.getPointReverse(avg+HALF_TARGET_DELTA + avgDelta*6);
+                        int y = difAxe.getPointReverse(avg+halfTargetDelta + avgDelta*6);
                         g.drawRect(x, y, 1, 1);
                     }
                     if( avgDelta < 0 ) {
-                        int y = difAxe.getPointReverse(avg-HALF_TARGET_DELTA + avgDelta*6);
+                        int y = difAxe.getPointReverse(avg-halfTargetDelta + avgDelta*6);
                         g.drawRect(x, y, 1, 1);
                     }
                 }
@@ -392,13 +410,14 @@ public class PaintChart extends DbReady {
     }
 
     // older first
-    private static void paintPriceDiffs(PriceDiffList[] diffsPerPoints, Axe difAxe, Graphics2D g, double[] movingAverage, double minDif, double maxDif) {
+    private static void paintPriceDiffs(PriceDiffList[] diffsPerPoints, ChartAxe difAxe, Graphics2D g, double[] movingAverage,
+                                        double minDif, double maxDif, double halfTargetDelta) {
         for (int x = 0; x < WIDTH; x++) {
             PriceDiffList diffsPerPoint = diffsPerPoints[x];
             if( diffsPerPoint != null ) {
                 double movingAvg = movingAverage[x];
-                double movingAvgUp = movingAvg + HALF_TARGET_DELTA;
-                double movingAvgLow = movingAvg - HALF_TARGET_DELTA;
+                double movingAvgUp = movingAvg + halfTargetDelta;
+                double movingAvgLow = movingAvg - halfTargetDelta;
                 for (double priceDif : diffsPerPoint) {
                     int y = difAxe.getPointReverse(priceDif);
                     boolean highlight = (priceDif > movingAvgUp) || (priceDif < movingAvgLow);
@@ -417,7 +436,7 @@ public class PaintChart extends DbReady {
         }
     }
 
-    private static void paintLeftAxeLabels(double minPrice, double maxPrice, Axe priceAxe, Graphics2D g, int priceStep, int priceStart) {
+    private static void paintLeftAxeLabels(double minPrice, double maxPrice, ChartAxe priceAxe, Graphics2D g, int priceStep, int priceStart) {
         g.setPaint(Color.black);
         g.setFont(g.getFont().deriveFont(20.0f));
         for (int price = priceStart; price < maxPrice; price += priceStep) {
@@ -428,7 +447,7 @@ public class PaintChart extends DbReady {
         }
     }
 
-    private static void paintRightAxeLabels(double minDif, double maxDif, Axe difAxe, Graphics2D g) {
+    private static void paintRightAxeLabels(double minDif, double maxDif, ChartAxe difAxe, Graphics2D g) {
         int priceDifStep = 5;
         int priceDifStart = ((int) minDif) / priceDifStep * priceDifStep;
         System.out.println("priceDifStart=" + priceDifStart);
@@ -445,7 +464,7 @@ public class PaintChart extends DbReady {
         }
     }
 
-    private static void paintTimeAxeLabels(long minTimestamp, long maxTimestamp, Axe timeAxe, Graphics2D g) {
+    private static void paintTimeAxeLabels(long minTimestamp, long maxTimestamp, ChartAxe timeAxe, Graphics2D g) {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(minTimestamp);
         Utils.setToDayStart(cal);
@@ -549,7 +568,7 @@ public class PaintChart extends DbReady {
         return difMap;
     }
 
-    private static double calcAverage(TickList ticks) {
+    private static double calcAverage(List<Tick> ticks) {
         if(ticks.isEmpty()) {
             return 0.0;
         }
@@ -624,12 +643,12 @@ public class PaintChart extends DbReady {
     public static class TickList extends ArrayList<Tick> {}
     public static class PriceDiffList extends ArrayList<Double> {}
 
-    public static class Axe {
+    public static class ChartAxe {
         private double m_min;
         private double m_scale;
         private int m_size;
 
-        public Axe(double min, double max, int size) {
+        public ChartAxe(double min, double max, int size) {
             m_min = min;
             m_size = size;
             double diff = max - min;
@@ -644,6 +663,25 @@ public class PaintChart extends DbReady {
         public int getPointReverse(double value) {
             int point = getPoint(value);
             return m_size - 1 - point;
+        }
+    }
+
+    public static abstract class DoubleAverageCalculator<O> {
+        public abstract double getValue(O obj);
+        protected double getWeight(O obj) { return 1; }
+
+        DoubleAverageCalculator() { }
+
+        public double getAverage(Iterable<O> data) {
+            double m_sum = 0;
+            double m_weightSum = 0;
+            for (O obj : data) {
+                double value = getValue(obj);
+                double weight = getWeight(obj);
+                m_sum += value * weight;
+                m_weightSum += weight;
+            }
+            return m_sum/m_weightSum;
         }
     }
 

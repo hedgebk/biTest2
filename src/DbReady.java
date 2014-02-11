@@ -25,9 +25,9 @@ public class DbReady {
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:"+(maxMemory/=1024) + ": m:" + (maxMemory/=1024) );
 
-        startAndInitDb();
+//        startAndInitDb();
         updateFromWeb();
-        dropTicks(Exchange.BITSTAMP, "0", "-3d");
+//        dropTicks(Exchange.BITSTAMP, "0", "-3d");
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
     }

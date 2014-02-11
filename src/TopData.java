@@ -3,6 +3,10 @@ public class TopData {
     public final double m_ask;
     public final double m_last;
 
+    public String bidStr() { return Utils.XX_YYYY.format(m_bid); }
+    public String askStr() { return Utils.XX_YYYY.format(m_ask); }
+    public String lastStr() { return Utils.XX_YYYY.format(m_last); }
+
     public TopData(String bid, String ask, String last) {
         this(Double.parseDouble(bid), Double.parseDouble(ask), Double.parseDouble(last));
     }
@@ -15,14 +19,16 @@ public class TopData {
 
     @Override public String toString() {
         return "TopData{" +
-                "bid=" + m_bid +
-                ", ask=" + m_ask +
+                "bid=" + bidStr() +
+                ", ask=" + askStr() +
                 ", last=" + m_last +
                 '}';
     }
 
     public static class TopDataEx extends TopData {
         public final double m_mid;
+
+        public String midStr() { return Utils.XX_YYYY.format(m_mid); }
 
         public TopDataEx(double bid, double ask, double last, double mid) {
             super(bid, ask, last);
@@ -31,10 +37,10 @@ public class TopData {
 
         @Override public String toString() {
             return "TopData{" +
-                    "bid=" + m_bid +
-                    ", ask=" + m_ask +
-                    ", last=" + m_last +
-                    ", mid=" + m_mid +
+                    "bid=" + bidStr() +
+                    ", ask=" + askStr() +
+                    ", last=" + lastStr() +
+                    ", mid=" + midStr() +
                     '}';
         }
     }

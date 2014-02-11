@@ -1,9 +1,12 @@
 import java.math.BigInteger;
+import java.text.DecimalFormat;
 import java.util.Calendar;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Utils {
+    public static final DecimalFormat XX_YYYY = new DecimalFormat("#,##0.0000");
+
     public static String encodeHexString(byte[] hash) {
         return String.format("%064x", new BigInteger(1, hash));
     }

@@ -4,17 +4,12 @@ import org.json.simple.parser.JSONParser;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 
 public class Fetcher {
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
-    public static final DecimalFormat XX_YYYY = new DecimalFormat("#,##0.0000");
     public static final int MIN_DELAY = 1500;
     public static final long MOVING_AVERAGE = 25 * 60 * 1000;
     public static final int EXPECTED_GAIN = 3; // 5
@@ -33,14 +28,6 @@ public class Fetcher {
     private static double s_totalGain;
     private static int s_totalRuns;
     private static long s_openMillis;
-    private static Double s_exch1buy;
-    private static Double s_exch1buyAmount;
-    private static Double s_exch1sell;
-    private static Double s_exch1sellAmount;
-    private static Double s_exch2buy;
-    private static Double s_exch2buyAmount;
-    private static Double s_exch2sell;
-    private static Double s_exch2sellAmount;
 
     public static void main(String[] args) {
         System.out.println("Started.  millis=" + System.currentTimeMillis());
@@ -65,7 +52,7 @@ public class Fetcher {
             System.out.println("error: " + e);
             e.printStackTrace();
         } finally {
-            System.out.println("@@@@@@@@@@@@@@  total: runs="+s_totalRuns+", gain=" + s_totalGain);
+            System.out.println("@@@@@@@@@@@@@@  total: runs=" + s_totalRuns + ", gain=" + s_totalGain);
         }
     }
 
@@ -84,58 +71,14 @@ public class Fetcher {
 
         long start = System.currentTimeMillis();
         AverageCounter averageCounter = new AverageCounter(MOVING_AVERAGE);
-//        TreeMap<Long,TopData.TopDataEx> diffs = new TreeMap<Long, TopData.TopDataEx>(); // sorted by time
         long delay; // start with 5sec
-        double sumBidAskDiff1 = 0, sumBidAskDiff2 = 0;
-        Long lastProcessedTradesTime1 = 0L, lastProcessedTradesTime2 = 0L;
-        int counter = 0;
+        int iterationCounter = 0;
         while(true) {
             System.out.println("----------------------------------------------");
+            iterationCounter++;
 
-            if ((s_exch1buy != null) || (s_exch1sell != null)) {
-                long millis0 = System.currentTimeMillis();
-                TradesData trades1 = fetchTrades(exch1);
-                long millis1 = System.currentTimeMillis();
-                TradesData newTrades = trades1.newTrades(lastProcessedTradesTime1);
-                System.out.println(" loaded " + trades1.size() + " trades for '" + exch1 + "' in "+(millis1 - millis0)+" ms; new " + newTrades.size() + " trades: " + newTrades);
-                for(TradesData.TradeData trade: newTrades.m_trades) {
-                    double price = trade.m_price; // ASK > BID
-                    if((s_exch1buy != null) && (s_exch1buy > price)) {
-                        System.out.println("@@@@@@@@@@@@@@ we can trade exch1buy @ "+price+", trade="+trade);
-                        s_exch1buy = null; // for now partial order execution is complex to handle - we will execute the rest by MKT price
-                    }
-                    if((s_exch1sell != null) && (s_exch1sell < price)) {
-                        System.out.println("@@@@@@@@@@@@@@ we can trade exch1sell @ "+price+", trade="+trade);
-                        s_exch1sell = null; // for now partial order execution is complex to handle - we will execute the rest by MKT price
-                    }
-                    long timestamp = trade.m_timestamp;
-                    if(timestamp > lastProcessedTradesTime1) {
-                        lastProcessedTradesTime1 = timestamp;
-                    }
-                }
-            }
-            if ((s_exch2buy != null) || (s_exch2sell != null)) {
-                long millis0 = System.currentTimeMillis();
-                TradesData trades2 = fetchTrades(exch2);
-                long millis1 = System.currentTimeMillis();
-                TradesData newTrades = trades2.newTrades(lastProcessedTradesTime2);
-                System.out.println(" loaded " + trades2.size() + " trades for '" + exch2 + "' in "+(millis1 - millis0)+" ms; new " + newTrades.size() + " trades: " + newTrades);
-                for(TradesData.TradeData trade: newTrades.m_trades) {
-                    double price = trade.m_price; // ASK > BID
-                    if((s_exch2buy != null) && (s_exch2buy > price)) {
-                        System.out.println("@@@@@@@@@@@@@@ we can trade exch2buy @ "+price+", trade="+trade);
-                        s_exch2buy = null;
-                    }
-                    if((s_exch2sell != null) && (s_exch2sell < price)) {
-                        System.out.println("@@@@@@@@@@@@@@ we can trade exch2sell @ "+price+", trade="+trade);
-                        s_exch2sell = null;
-                    }
-                    long timestamp = trade.m_timestamp;
-                    if(timestamp > lastProcessedTradesTime2) {
-                        lastProcessedTradesTime2 = timestamp;
-                    }
-                }
-            }
+            exch1data.checkExecutedBrackets();
+            exch2data.checkExecutedBrackets();
 
             long millis0 = System.currentTimeMillis();
             TopData top1 = fetchTop(exch1);
@@ -147,31 +90,28 @@ public class Fetcher {
             log(exch1, top1);
             log(exch2, top2);
             System.out.println();
-            long millis = System.currentTimeMillis();
-//            long limit = millis - MOVING_AVERAGE;
-//            System.out.println("millis="+millis+", limit="+limit);
-
-//            removeOld(limit, diffs);
 
             TopData.TopDataEx diff = calcDiff(top1, top2); // top1 - top2
-            System.out.print("diff=" + toStr(diff));
-//            diffs.put(millis, diff);
+            System.out.print("diff=" + diff);
+
             double midDiff = diff.m_mid;
+            long millis = System.currentTimeMillis();
             double midDiffAverage = averageCounter.add(millis, midDiff);
-            System.out.println(";  avg=" + XX_YYYY.format(midDiffAverage));
+            System.out.println(";  avg=" + Utils.XX_YYYY.format(midDiffAverage));
 
             double delta = midDiff - midDiffAverage;
 
-            sumBidAskDiff1 += (top1.m_ask - top1.m_bid); // ASK > BID
-            sumBidAskDiff2 += (top2.m_ask - top2.m_bid);
+            exch1data.m_sumBidAskDiff += (top1.m_ask - top1.m_bid); // ASK > BID
+            exch2data.m_sumBidAskDiff += (top2.m_ask - top2.m_bid);
+            exch1data.m_bidAskDiffCounter++;
+            exch2data.m_bidAskDiffCounter++;
 
-            counter++;
-            System.out.println("delta: " + XX_YYYY.format(delta) + ",  waiting for: "+HALF_TARGET_DELTA +
-                               ", avgBidAskDiff1="+XX_YYYY.format(sumBidAskDiff1/counter) +
-                               ", avgBidAskDiff2="+XX_YYYY.format(sumBidAskDiff2/counter) +
-                               ", millis="+millis +
-                               ", tile="+new Date(millis));
-            os.println(""+millis+"\t" + XX_YYYY.format(midDiff)+"\t" + XX_YYYY.format(midDiffAverage));
+            System.out.println("delta: " + Utils.XX_YYYY.format(delta) + ",  waiting for: " + HALF_TARGET_DELTA +
+                               ", avgBidAskDiff1=" + exch1data.avgBidAskDiffStr() +
+                               ", avgBidAskDiff2=" + exch2data.avgBidAskDiffStr() +
+                               ", millis=" + millis +
+                               ", tile=" + new Date(millis));
+            os.println("" + millis + "\t" + Utils.XX_YYYY.format(midDiff) + "\t" + Utils.XX_YYYY.format(midDiffAverage));
             double waitDistance = TARGET_DELTA;
             if( s_state == STATE.NONE ) {
                 double move2to1 = top1.m_bid - top2.m_ask;
@@ -185,58 +125,34 @@ public class Fetcher {
                     System.out.println("@@@@@@@@@@@@@@ we can open BOTTOM @ MKT");
                     open(exch2, exch1, top2, top1, diff, STATE.BOTTOM);
                 } else {
-                    double exch1buy = top2.m_bid - HALF_TARGET_DELTA + midDiffAverage;
-                    double exch1sell = top2.m_ask + HALF_TARGET_DELTA + midDiffAverage;
-                    double exch2buy = top1.m_bid - HALF_TARGET_DELTA - midDiffAverage;
-                    double exch2sell = top1.m_ask + HALF_TARGET_DELTA - midDiffAverage;
-
-                    System.out.println("1buy: "+( (s_exch1buy!=null) ? XX_YYYY.format(s_exch1buy) + "->" : "" )+XX_YYYY.format(exch1buy)+ "; " +
-                                       "2sell: "+( (s_exch2sell!=null) ? XX_YYYY.format(s_exch2sell) + "->" : "" )+XX_YYYY.format(exch2sell)+ "; " +
-                                       "2buy: "+( (s_exch2buy!=null) ? XX_YYYY.format(s_exch2buy) + "->" : "" )+XX_YYYY.format(exch2buy)+ "; " +
-                                       "1sell: "+( (s_exch1sell!=null) ? XX_YYYY.format(s_exch1sell) + "->" : "" )+XX_YYYY.format(exch1sell));
-
-//                    double w1 = exch1sell-top2.m_ask;
-//                    double w2 = exch2sell-top1.m_ask;
-//                    System.out.println("check: w1: "+XX_YYYY.format(w1)+
-//                                       ", w2: "+XX_YYYY.format(w2) +
-//                                       ", summ: "+XX_YYYY.format(w1+w2) );
-                    double amount = calcAmountToOpen();
-
-                    s_exch1buy = exch1buy;
-                    s_exch1buyAmount = amount;
-                    s_exch1sell = exch1sell;
-                    s_exch1sellAmount = amount;
-                    s_exch2buy = exch2buy;
-                    s_exch2buyAmount = amount;
-                    s_exch2sell = exch2sell;
-                    s_exch2sellAmount = amount;
-
+                    exch1data.placeBrackets(top1, top2, midDiffAverage);
+                    exch2data.placeBrackets(top2, top1, -midDiffAverage);
                     waitDistance = HALF_TARGET_DELTA - Math.abs(delta);
                 }
             } else if( s_state == STATE.TOP ) {
                 waitDistance = delta - (s_diff - TARGET_DELTA);
                 if( s_diff - midDiff > TARGET_DELTA ) {
                     System.out.println("@@@@@@@@@@@@@@ we can close TOP @ MKT");
-                    close(exch1, exch2, top1, top2);
+                    close(exch1data, exch2data, top1, top2);
                 } else if( midDiffAverage - s_diff > TARGET_DELTA ) {
                     System.out.println("@@@@@@@@@@@@@@ we should drop TOP");
-                    close(exch1, exch2, top1, top2);
+                    close(exch1data, exch2data, top1, top2);
                 }
             } else if( s_state == STATE.BOTTOM ) {
                 waitDistance = (s_diff + TARGET_DELTA) - delta;
                 if( midDiff - s_diff > TARGET_DELTA ) {
                     System.out.println("@@@@@@@@@@@@@@ we can close BOTTOM @ MKT");
-                    close(exch2, exch1, top2, top1);
+                    close(exch2data, exch1data, top2, top1);
                 } else if (s_diff - midDiffAverage > TARGET_DELTA) {
                     System.out.println("@@@@@@@@@@@@@@ we should drop BOTTOM");
-                    close(exch2, exch1, top2, top1);
+                    close(exch2data, exch1data, top2, top1);
                 }
             }
             System.out.println("waitDistance="+waitDistance);
             delay = (long) (MIN_DELAY + MIN_DELAY * 4 * Math.min(1, Math.abs(waitDistance) / HALF_TARGET_DELTA));
             delay = Math.max(delay,1000);
             long running = System.currentTimeMillis() - start;
-            System.out.println("wait "+delay+" ms. total running " + Utils.millisToDHMSStr(running) + ", counter="+counter);
+            System.out.println("wait "+delay+" ms. total running " + Utils.millisToDHMSStr(running) + ", counter="+iterationCounter);
             Thread.sleep(delay);
         }
     }
@@ -245,23 +161,14 @@ public class Fetcher {
         return 1.0; // 1.0 BTC
     }
 
-    private static String toStr(TopData.TopDataEx top) {
-        return "TopData{" +
-                "bid=" + XX_YYYY.format(top.m_bid) +
-                ", ask=" + XX_YYYY.format(top.m_ask) +
-                ", last=" + XX_YYYY.format(top.m_last) +
-                ", mid=" + XX_YYYY.format(top.m_mid) +
-                '}';
-    }
-
-    private static void close(Exchange exch1, Exchange exch2, TopData top1, TopData top2) {
+    private static void close(ExchangeData exch1data, ExchangeData exch2data, TopData top1, TopData top2) {
         double bid = top2.m_bid;
-        System.out.println("@@@@@@@@@@@@@@ will sell on "+exch2.m_name+" @ " + bid);
+        System.out.println("@@@@@@@@@@@@@@ will sell MKT on " + exch2data.exchName() + " @ " + bid);
         double gain2 = bid - s_ask;
         System.out.println("@@@@@@@@@@@@@@  was bought @ " + s_ask + ", gain=" + gain2);
 
         double ask = top1.m_ask;
-        System.out.println("@@@@@@@@@@@@@@ will buy at "+exch1.m_name+" @ " + ask);
+        System.out.println("@@@@@@@@@@@@@@ will buy MKT on " + exch1data.exchName() + " @ " + ask);
         double gain1 = s_bid - ask;
         System.out.println("@@@@@@@@@@@@@@  was sold @ " + s_bid + ", gain=" + gain1);
 
@@ -269,7 +176,7 @@ public class Fetcher {
         System.out.println("@@@@@@@@@@@@@@ this gain=" + gain);
         s_totalGain += gain;
         s_totalRuns++;
-        System.out.println("@@@@@@@@@@@@@@  total: runs="+s_totalRuns+", gain=" + s_totalGain);
+        System.out.println("@@@@@@@@@@@@@@  total: runs=" + s_totalRuns + ", gain=" + s_totalGain);
 
         s_state = STATE.NONE;
         long doneMillis = System.currentTimeMillis() - s_openMillis;
@@ -315,10 +222,10 @@ public class Fetcher {
             DeepData.Deep ask1 = deep1.m_asks.get(i);
             DeepData.Deep bid2 = deep2.m_bids.get(i);
             DeepData.Deep ask2 = deep2.m_asks.get(i);
-            System.out.println(XX_YYYY.format(bid1.m_size)+"@"+XX_YYYY.format(bid1.m_price)+"  " +
-                               XX_YYYY.format(ask1.m_size)+"@"+XX_YYYY.format(ask1.m_price)+"      " +
-                               XX_YYYY.format(bid2.m_size)+"@"+XX_YYYY.format(bid2.m_price)+"  " +
-                               XX_YYYY.format(ask2.m_size)+"@"+XX_YYYY.format(ask2.m_price)+"  ");
+            System.out.println(Utils.XX_YYYY.format(bid1.m_size)+"@"+ Utils.XX_YYYY.format(bid1.m_price)+"  " +
+                               Utils.XX_YYYY.format(ask1.m_size)+"@"+ Utils.XX_YYYY.format(ask1.m_price)+"      " +
+                               Utils.XX_YYYY.format(bid2.m_size)+"@"+ Utils.XX_YYYY.format(bid2.m_price)+"  " +
+                               Utils.XX_YYYY.format(ask2.m_size)+"@"+ Utils.XX_YYYY.format(ask2.m_price)+"  ");
         }
     }
 
@@ -351,47 +258,7 @@ public class Fetcher {
         long delay = START_REPEAT_DELAY;
         for( int attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt++ ) {
             try {
-                Reader reader;
-                if (command.useTestStr()) {
-                    String str = command.getTestStr(exchange);
-                    reader = new StringReader(str);
-                } else {
-                    String location = command.getApiEndpoint(exchange);
-                    System.out.print("loading from " + location + "...  ");
-                    URL url = new URL(location);
-                    HttpURLConnection con = (HttpURLConnection) url.openConnection();
-
-                    //con.setRequestMethod("POST");
-                    con.setUseCaches(false) ;
-                    con.setConnectTimeout(5000);
-                    con.setReadTimeout(7000);
-                    //con.setDoOutput(true);
-
-                    //con.setRequestProperty("Content-Type","application/x-www-form-urlencoded") ;
-                    con.setRequestProperty("User-Agent","Mozilla/5.0") ; //  USER_AGENT     // 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-                                        // "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible; +https://github.com/abwaters/bitstamp-api)"
-                    //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
-
-                    InputStream inputStream = con.getInputStream(); //url.openStream();
-                        // 502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
-                        // 403 Forbidden
-                    int responseCode = con.getResponseCode();
-                    if(responseCode != HttpURLConnection.HTTP_OK) {
-                        System.out.print(" responseCode: " + responseCode);
-                    }
-
-                    int available = inputStream.available();
-                    System.out.print(" available " + available + " bytes; ");
-                    reader = new InputStreamReader(inputStream);
-                }
-                try {
-                    JSONParser parser = new JSONParser();
-                    Object obj = parser.parse(reader);
-                    System.out.print("parsed; ");
-                    return obj;
-                } finally {
-                    reader.close();
-                }
+                return fetchOnce(exchange, command);
             } catch (Exception e) {
                 System.out.println(" loading error (attempt "+attempt+"): " + e);
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
@@ -402,12 +269,56 @@ public class Fetcher {
         throw new RuntimeException("unable to load after "+MAX_READ_ATTEMPTS+" attempts");
     }
 
+    private static Object fetchOnce(Exchange exchange, FetchCommand command) throws Exception {
+        Reader reader;
+        if (command.useTestStr()) {
+            String str = command.getTestStr(exchange);
+            reader = new StringReader(str);
+        } else {
+            String location = command.getApiEndpoint(exchange);
+            System.out.print("loading from " + location + "...  ");
+            URL url = new URL(location);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+
+            //con.setRequestMethod("POST");
+            con.setUseCaches(false) ;
+            con.setConnectTimeout(5000);
+            con.setReadTimeout(7000);
+            //con.setDoOutput(true);
+
+            //con.setRequestProperty("Content-Type","application/x-www-form-urlencoded") ;
+            con.setRequestProperty("User-Agent","Mozilla/5.0") ; //  USER_AGENT     // 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+                                // "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible; +https://github.com/abwaters/bitstamp-api)"
+            //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
+
+            InputStream inputStream = con.getInputStream(); //url.openStream();
+                // 502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
+                // 403 Forbidden
+            int responseCode = con.getResponseCode();
+            if(responseCode != HttpURLConnection.HTTP_OK) {
+                System.out.print(" responseCode: " + responseCode);
+            }
+
+            int available = inputStream.available();
+            System.out.print(" available " + available + " bytes; ");
+            reader = new InputStreamReader(inputStream);
+        }
+        try {
+            JSONParser parser = new JSONParser();
+            Object obj = parser.parse(reader);
+            System.out.print("parsed; ");
+            return obj;
+        } finally {
+            reader.close();
+        }
+    }
+
     private static void log(Exchange exch, TopData top) {
         System.out.print(exch.m_name +
-                ": bid: " + XX_YYYY.format(top.m_bid) +
-                ", ask: " + XX_YYYY.format(top.m_ask) +
-                ", last: " + XX_YYYY.format(top.m_last) +
-                ", bid_ask_dif: " + XX_YYYY.format(top.m_ask-top.m_bid) +
+                ": bid: " + Utils.XX_YYYY.format(top.m_bid) +
+                ", ask: " + Utils.XX_YYYY.format(top.m_ask) +
+                ", last: " + Utils.XX_YYYY.format(top.m_last) +
+                ", bid_ask_dif: " + Utils.XX_YYYY.format(top.m_ask-top.m_bid) +
                 "\t\t");
     }
 
@@ -463,10 +374,11 @@ public class Fetcher {
             @Override public boolean useTestStr() { return USE_TOP_TEST_STR; }
         },
         DEEP {
-            @Override public String getTestStr(Exchange exchange) { return exchange.m_deepTestStr; }
+            @Override public String getTestStr(Exchange exchange) { return exchange.deepTestStr(); }
             @Override public String getApiEndpoint(Exchange exchange) { return exchange.m_apiDeepEndpoint; }
             @Override public boolean useTestStr() { return USE_DEEP_TEST_STR; }
-        }, TRADES {
+        },
+        TRADES {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_tradesTestStr; }
             @Override public String getApiEndpoint(Exchange exchange) { return exchange.m_apiTradesEndpoint; }
             @Override public boolean useTestStr() { return USE_TRADES_TEST_STR; }
@@ -486,7 +398,7 @@ public class Fetcher {
         }
 
         public double add(long millis, double addValue) {
-            long limit = millis - MOVING_AVERAGE;
+            long limit = millis - m_limit;
             removeOld(limit, m_map);
             m_map.put(millis, addValue);
 
@@ -500,11 +412,116 @@ public class Fetcher {
         }
     }
 
-    private static class ExchangeData {
-        public final Exchange m_exch1;
+    public static class ExchangeData {
+        public final Exchange m_exch;
+        // to calc average diff between bid and ask on exchange
+        public double m_sumBidAskDiff = 0;
+        public int m_bidAskDiffCounter = 0;
+        //bitstamp avgBidAskDiff1=2.6743, btc-eavgBidAskDiff2=1.3724
+        //bitstamp avgBidAskDiff1=2.1741, btc-e avgBidAskDiff2=1.2498
+        //bitstamp avgBidAskDiff1=1.9107, btc-e avgBidAskDiff2=1.3497
 
-        public ExchangeData(Exchange exch1) {
-            m_exch1 = exch1;
+        // moving bracket orders
+        public OrderData m_buyBracketOrder;
+        public OrderData m_sellBracketOrder;
+        public Long m_lastProcessedTradesTime = 0l;
+        private OrderData m_buyMktBracketOrder;
+        private OrderData m_sellMktBracketOrder;
+
+        public ExchangeData(Exchange exch) {
+            m_exch = exch;
         }
+
+        public double avgBidAskDiff() { return m_sumBidAskDiff/m_bidAskDiffCounter; }
+        public String avgBidAskDiffStr() { return Utils.XX_YYYY.format(avgBidAskDiff()); }
+        private String exchName() { return m_exch.m_name; }
+
+        public void checkExecutedBrackets() throws Exception {
+            if ((m_buyBracketOrder != null) || (m_sellBracketOrder != null)) {
+                long millis0 = System.currentTimeMillis();
+                TradesData trades1 = fetchTrades(m_exch);
+                long millis1 = System.currentTimeMillis();
+                TradesData newTrades = trades1.newTrades(m_lastProcessedTradesTime);
+                System.out.println(" loaded " + trades1.size() + " trades for '" + exchName() + "' in "+(millis1 - millis0)+" ms; new " + newTrades.size() + " trades: " + newTrades);
+
+                List<TradesData.TradeData> newTradesList = newTrades.m_trades;
+                if(m_buyBracketOrder != null) {
+                    checkExecutedBracket(m_buyBracketOrder, newTradesList);
+                }
+                if(m_sellBracketOrder != null) {
+                    checkExecutedBracket(m_sellBracketOrder, newTradesList);
+                }
+
+                for(TradesData.TradeData trade: newTradesList) {
+                    long timestamp = trade.m_timestamp;
+                    if(timestamp > m_lastProcessedTradesTime) {
+                        m_lastProcessedTradesTime = timestamp;
+                    }
+                }
+            }
+        }
+
+        private void checkExecutedBracket(OrderData bracketOrder, List<TradesData.TradeData> tradesList) {
+            for(TradesData.TradeData trade: tradesList) {
+                double mktPrice = trade.m_price; // ASK > BID
+                if(bracketOrder.acceptPrice(mktPrice)) {
+                    double tradeAmount = trade.m_amount;
+                    System.out.println("@@@@@@@@@@@@@@ we have bracket trade "+bracketOrder.m_side+" " + tradeAmount +
+                                       " on '" + exchName() + "' @ " + Utils.XX_YYYY.format(mktPrice) +
+                                       ", waiting '" + bracketOrder.priceStr() + "', trade=" + trade);
+                    double orderAmount = bracketOrder.m_amount;
+                    if(orderAmount > tradeAmount) { // for now partial order execution it is complex to handle - we will execute the rest by MKT price
+                        System.out.println("@@@@@@@@@@@@@@  for now partial order execution it is complex to handle: orderAmount="+orderAmount+", tradeAmount="+tradeAmount);
+                        // m_buyMktBracketOrder = new OrderData(OrderSide.BUY, Double.MAX_VALUE, orderAmount - tradeAmount);
+                    }
+                }
+            }
+        }
+
+        public void placeBrackets(TopData top1, TopData otherTop, double midDiffAverage) {
+            double buy = otherTop.m_bid - HALF_TARGET_DELTA + midDiffAverage; // ASK > BID
+            double sell = otherTop.m_ask + HALF_TARGET_DELTA + midDiffAverage;
+
+            System.out.println("'"+ exchName() +"' buy: "+( (m_buyBracketOrder!=null) ? m_buyBracketOrder.priceStr() + "->" : "" )+ Utils.XX_YYYY.format(buy)+ ";  " +
+                                                  "sell: "+( (m_sellBracketOrder!=null) ? m_sellBracketOrder.priceStr() + "->" : "" )+ Utils.XX_YYYY.format(sell));
+
+            double amount = calcAmountToOpen(); // todo: get this based on both exch account info
+
+            m_buyBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
+            m_sellBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
+        }
+    }
+
+    public static class OrderData {
+        public OrderSide m_side;
+        public double m_price;
+        public double m_amount;
+
+        public String priceStr() { return Utils.XX_YYYY.format(m_price); }
+
+        public OrderData(OrderSide side, double price, double amount) {
+            m_side = side;
+            m_price = price;
+            m_amount = amount;
+        }
+
+        public boolean acceptPrice(double mktPrice) {
+            return m_side.acceptPrice( m_price, mktPrice );
+        }
+    }
+
+    public static enum OrderSide {
+        BUY {
+            @Override public boolean acceptPrice(double orderPrice, double mktPrice) {
+                return orderPrice >= mktPrice;
+            }
+        },
+        SELL {
+            @Override public boolean acceptPrice(double orderPrice, double mktPrice) {
+                return orderPrice <= mktPrice;
+            }
+        };
+
+        public boolean acceptPrice(double orderPrice, double mktPrice) { return false; }
     }
 }
