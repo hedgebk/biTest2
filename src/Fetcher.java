@@ -68,9 +68,29 @@ public class Fetcher {
     private static void pool(Exchange exch1, Exchange exch2, PrintStream os) throws Exception {
         ExchangeData exch1data = new ExchangeData(exch1);
         ExchangeData exch2data = new ExchangeData(exch2);
+        ExchangesData data = new ExchangesData(exch1data, exch2data);
+        long startMillis = System.currentTimeMillis();
+        int iterationCounter = 0;
+        while(true) {
+            System.out.println("----------------------------------------------");
+            iterationCounter++;
+
+            IterationContext iContext = new IterationContext();
+            data.checkState(iContext);
+
+            long delay = iContext.m_nextIterationDelay;
+            long running = System.currentTimeMillis() - startMillis;
+            System.out.println("wait "+delay+" ms. total running " + Utils.millisToDHMSStr(running) + ", counter="+iterationCounter);
+            Thread.sleep(delay);
+        }
+    }
+
+    private static void Oldpool(Exchange exch1, Exchange exch2, PrintStream os) throws Exception {
+        ExchangeData exch1data = new ExchangeData(exch1);
+        ExchangeData exch2data = new ExchangeData(exch2);
 
         long start = System.currentTimeMillis();
-        AverageCounter averageCounter = new AverageCounter(MOVING_AVERAGE);
+        AverageCounter diffAverageCounter = new AverageCounter(MOVING_AVERAGE);
         long delay; // start with 5sec
         int iterationCounter = 0;
         while(true) {
@@ -105,7 +125,7 @@ public class Fetcher {
 
             double midDiff = diff.m_mid;
             long millis = System.currentTimeMillis();
-            double midDiffAverage = averageCounter.add(millis, midDiff);
+            double midDiffAverage = diffAverageCounter.add(millis, midDiff);
             System.out.println(";  avg=" + Utils.XX_YYYY.format(midDiffAverage));
 
             double delta = midDiff - midDiffAverage;
@@ -273,6 +293,20 @@ public class Fetcher {
         return topData;
     }
 
+    private static TopData fetchTopOnce(Exchange exchange) throws Exception {
+        try {
+            Object jObj = fetchOnce(exchange, FetchCommand.TOP);
+            //System.out.println("jObj=" + jObj);
+            TopData topData = exchange.parseTop(jObj);
+            //System.out.println("topData=" + topData);
+            return topData;
+        } catch (Exception e) {
+            System.out.println(" loading error: " + e);
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     private static Object fetch(Exchange exchange, FetchCommand command) throws Exception {
 //        long millis = System.currentTimeMillis();
         long delay = START_REPEAT_DELAY;
@@ -281,7 +315,7 @@ public class Fetcher {
                 return fetchOnce(exchange, command);
             } catch (Exception e) {
                 System.out.println(" loading error (attempt "+attempt+"): " + e);
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                e.printStackTrace();
             }
             Thread.sleep(delay);
             delay += REPEAT_DELAY_INCREMENT;
@@ -418,10 +452,14 @@ public class Fetcher {
         }
 
         public double add(long millis, double addValue) {
+            justAdd(millis, addValue);
+            return get();
+        }
+
+        private void justAdd(long millis, double addValue) {
             long limit = millis - m_limit;
             removeOld(limit, m_map);
             m_map.put(millis, addValue);
-            return get();
         }
 
         public double get() {
@@ -437,6 +475,7 @@ public class Fetcher {
 
     public static class ExchangeData {
         public final Exchange m_exch;
+        public ExchangeState m_state = ExchangeState.NONE;
         // to calc average diff between bid and ask on exchange
         public double m_sumBidAskDiff = 0;
         public int m_bidAskDiffCounter = 0;
@@ -519,15 +558,59 @@ public class Fetcher {
             System.out.println("'"+ exchName() +"' buy: "+( (m_buyOpenBracketOrder !=null) ? m_buyOpenBracketOrder.priceStr() + "->" : "" )+ Utils.XX_YYYY.format(buy)+ ";  " +
                                                   "sell: "+( (m_sellOpenBracketOrder !=null) ? m_sellOpenBracketOrder.priceStr() + "->" : "" )+ Utils.XX_YYYY.format(sell));
 
-            double amount = calcAmountToOpen(); // todo: get this based on both exch account info
+            double amount = Fetcher.calcAmountToOpen(); // todo: get this based on both exch account info
 
             m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
             m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
         }
 
+        public boolean placeBrackets(IterationContext iContext, TopData otherTop, double midDiffAverage) {
+            double buy = otherTop.m_bid - HALF_TARGET_DELTA + midDiffAverage; // ASK > BID
+            double sell = otherTop.m_ask + HALF_TARGET_DELTA + midDiffAverage;
+
+            System.out.println("'"+ exchName() +"' buy: "+( (m_buyOpenBracketOrder !=null) ? m_buyOpenBracketOrder.priceStr() + "->" : "" )+ Utils.XX_YYYY.format(buy)+ ";  " +
+                                                  "sell: "+( (m_sellOpenBracketOrder !=null) ? m_sellOpenBracketOrder.priceStr() + "->" : "" )+ Utils.XX_YYYY.format(sell));
+
+            double amount = calcAmountToOpen();
+
+            m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
+            boolean success = placeOrder(m_buyOpenBracketOrder);
+            m_state = ExchangeState.ERROR; // error by default
+            iContext.delay(0);
+            if( success ) {
+                m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
+                success = placeOrder(m_sellOpenBracketOrder);
+                if( success ) {
+                    m_state = ExchangeState.WAITING_OPEN_BRACKETS;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean placeOrder(OrderData order) {
+            // todo: implement
+            return true;
+        }
+
+        private double calcAmountToOpen() {
+            return 1.0 /*BTC*/ ;  // todo: get this based on both exch account info
+        }
+
         public TopData fetchTop() throws Exception {
             m_lastTop = Fetcher.fetchTop(m_exch);
             m_averageCounter.add(System.currentTimeMillis(), m_lastTop.getMid());
+            return m_lastTop;
+        }
+
+        public TopData fetchTopOnce() throws Exception {
+            TopData top = Fetcher.fetchTopOnce(m_exch);
+            if( top != null ) { // we got fresh top data
+                m_lastTop = top; // update top
+                m_averageCounter.add(System.currentTimeMillis(), m_lastTop.getMid());
+            } else {
+                m_lastTop.setObsolete();
+            }
             return m_lastTop;
         }
 
@@ -553,19 +636,52 @@ public class Fetcher {
                 return false;
             }
         }
+
+        public void queryAccountData() {
+            // todo: implement
+        }
+
+        public boolean waitingForOpenBrackets() {
+            return m_state == ExchangeState.WAITING_OPEN_BRACKETS;
+        }
+
+        public enum ExchangeState {
+            NONE,
+            WAITING_OPEN_BRACKETS {
+                @Override public void checkState(ExchangeData exchData) {
+                    System.out.println("ExchangeState.WAITING_OPEN_BRACKETS. check orders status");
+                    // consider that both orders are placed fine
+                    // todo: check orders status here
+                    exchData.m_buyOpenBracketOrder.m_status = OrderStatus.SUBMITTED;
+                    exchData.m_sellOpenBracketOrder.m_status = OrderStatus.SUBMITTED;
+                    exchData.m_state = OPEN_BRACKETS_PLACED;
+                }
+            },
+            OPEN_BRACKETS_PLACED {
+                @Override public void checkState(ExchangeData exchData) {
+                    System.out.println("ExchangeState.OPEN_BRACKETS_PLACED. check orders status");
+                }
+            },
+            ERROR,
+            ;
+
+            public void checkState(ExchangeData exchData) {
+                System.out.println("checkState not implemented for " + this);
+            }
+        }
     }
 
     public static class OrderData {
-        public OrderStatus m_status;
+        public OrderStatus m_status = OrderStatus.NEW;
         public OrderSide m_side;
         public double m_price;
         public double m_amount;
+        public double m_filled;
         public List<Execution> m_executions;
 
         public String priceStr() { return Utils.XX_YYYY.format(m_price); }
 
         public OrderData(OrderSide side, double price, double amount) {
-            m_status = OrderStatus.NEW;
             m_side = side;
             m_price = price;
             m_amount = amount;
@@ -577,6 +693,12 @@ public class Fetcher {
 
         public void addExecution(double price, double amount) {
             m_executions.add(new Execution(price, amount));
+            m_filled += amount;
+            if (m_amount == m_filled) { // todo: add check for very small diff like 0.00001
+                m_status = OrderStatus.FILLED;
+            } else if (m_executions.size() == 1) { // got the first execution
+                m_status = OrderStatus.PARTIALLY_FILLED;
+            }
         }
     }
 
@@ -614,5 +736,149 @@ public class Fetcher {
         FILLED,
         REJECTED,
         CANCELLED
+    }
+
+    private static class ExchangesData {
+        public final ExchangeData m_exch1data;
+        public final ExchangeData m_exch2data;
+        public TopData.TopDataEx m_lastDiff;
+        public ExchangesState m_state = ExchangesState.NONE;
+        public AverageCounter m_diffAverageCounter = new AverageCounter(MOVING_AVERAGE);
+
+        public ExchangesData(ExchangeData exch1data, ExchangeData exch2data) {
+            m_exch1data = exch1data;
+            m_exch2data = exch2data;
+        }
+
+        public void checkState(IterationContext iContext) throws Exception {
+            m_exch1data.m_state.checkState(m_exch1data);
+            m_exch2data.m_state.checkState(m_exch1data);
+            m_state.checkState(iContext, this);
+        }
+
+        public void onTopsLoaded(TopDatas topDatas) {
+            m_lastDiff = topDatas.calculateDiff(); // top1 - top2
+            m_diffAverageCounter.justAdd(System.currentTimeMillis(), m_lastDiff.m_mid);
+        }
+
+        private enum ExchangesState {
+            NONE {
+                @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
+                    System.out.println("ExchangesState.NONE. queryAccountsData");
+                    exchangesData.queryAccountsData();
+                    exchangesData.m_state = START;
+                    iContext.delay(0);
+                }
+            },
+            START {
+                @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
+                    System.out.println("ExchangesState.START. try to place open bracket orders");
+                    TopDatas tops = iContext.getTopsData(exchangesData);
+                    if (tops.bothFresh()) {
+                        double midDiffAverage = exchangesData.m_diffAverageCounter.get();
+                        System.out.println("diff=" + exchangesData.m_lastDiff + ";  avg=" + Utils.XX_YYYY.format(midDiffAverage));
+
+                        exchangesData.m_state = ExchangesState.ERROR;
+                        boolean success = exchangesData.m_exch1data.placeBrackets(iContext, tops.m_top2, midDiffAverage);
+                        if( success ) {
+                            success = exchangesData.m_exch2data.placeBrackets(iContext, tops.m_top1, -midDiffAverage);
+                            if( success ) {
+                                exchangesData.m_state = ExchangesState.WAITING_OPEN_BRACKETS;
+                            }
+                        }
+                        iContext.delay(0); // no wait
+                    } else {
+                        System.out.println("some exchange top data is not fresh " +
+                                           "(fresh1=" + tops.m_top1.m_live + ", fresh2=" + tops.m_top2.m_live + ") - do nothing");
+                    }
+                }
+            },
+            WAITING_OPEN_BRACKETS {
+                @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
+                    System.out.println("ExchangesState.WAITING_OPEN_BRACKETS");
+                    // todo: check for order status here - can be complex here - some order can be already placed and partially or fully executed
+                    // can become SUBMITTED, REJECTED
+                    if(!exchangesData.waitingForOpenBrackets()) {
+                        exchangesData.m_state = ExchangesState.OPEN_BRACKETS_PLACED; // actually some order may have already another state
+                    }
+                }
+            },
+            OPEN_BRACKETS_PLACED {
+                @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
+                    System.out.println("ExchangesState.OPEN_BRACKETS_PLACED");
+                }
+            },
+            ERROR  {
+                // todo: close everything if opened
+            },
+            ;
+
+            public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
+                System.out.println("checkState not implemented for " + this);
+            }
+        }
+
+        private boolean waitingForOpenBrackets() {
+            return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets();
+        }
+
+        private void queryAccountsData() {
+            m_exch1data.queryAccountData();
+            m_exch2data.queryAccountData();
+        }
+    }
+
+    private static class IterationContext {
+        public TopDatas m_top;
+        public long m_nextIterationDelay = 1000; // 1 sec by def
+
+        public TopDatas getTopsData(ExchangesData exchangesData) throws Exception {
+            if( m_top == null ){
+                m_top = requestTopsData(exchangesData);
+            }
+            return m_top;
+        }
+
+        private TopDatas requestTopsData(ExchangesData exchangesData) throws Exception {
+            ExchangeData exch1data = exchangesData.m_exch1data;
+            ExchangeData exch2data = exchangesData.m_exch2data;
+
+            // load top mkt data
+            long millis0 = System.currentTimeMillis();
+            TopData top1 = exch1data.fetchTopOnce();
+            long top1Millis = System.currentTimeMillis();
+            TopData top2 = exch2data.fetchTopOnce();
+            long top2Millis = System.currentTimeMillis();
+            System.out.println("  loaded in " + (top1Millis - millis0) + " and " + (top2Millis - top1Millis) + " ms");
+            log(exch1data.m_exch, top1);
+            log(exch1data.m_exch, top2);
+            System.out.println();
+
+            TopDatas ret = new TopDatas(top1, top2);
+            exchangesData.onTopsLoaded(ret);
+            return ret;
+        }
+
+        public void delay(long millis) {
+            m_nextIterationDelay = millis;
+        }
+    }
+
+    private static class TopDatas {
+        public final TopData m_top1;
+        public final TopData m_top2;
+
+        public TopDatas(TopData top1, TopData top2) {
+            m_top1 = top1;
+            m_top2 = top2;
+        }
+
+        public boolean bothFresh() {
+            return m_top1.m_live && m_top2.m_live;
+        }
+
+        public TopData.TopDataEx calculateDiff() {  // top1 - top2
+            return calcDiff(m_top1, m_top2);
+        }
     }
 }

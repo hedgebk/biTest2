@@ -2,6 +2,7 @@ public class TopData {
     public final double m_bid; // ASK > BID
     public final double m_ask;
     public final double m_last;
+    public boolean m_live; // true if we got data from the last request, or false if obsolete
 
     public String bidStr() { return Utils.XX_YYYY.format(m_bid); }
     public String askStr() { return Utils.XX_YYYY.format(m_ask); }
@@ -16,6 +17,7 @@ public class TopData {
         m_bid = bid;
         m_ask = ask;
         m_last = last;
+        m_live = true;
     }
 
     @Override public String toString() {
@@ -24,6 +26,10 @@ public class TopData {
                 ", ask=" + askStr() +
                 ", last=" + m_last +
                 '}';
+    }
+
+    public void setObsolete() {
+        m_live = true;
     }
 
     public static class TopDataEx extends TopData {
