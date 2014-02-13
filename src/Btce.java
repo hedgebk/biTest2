@@ -161,9 +161,9 @@ public class Btce {
 //        System.out.println("BTCE.parseTop() " + jObj);
         JSONObject ticker = (JSONObject) jObj.get("btc_usd"); // ticker
 //        System.out.println(" class="+ticker.getClass()+", ticker=" + ticker);
-        double last = Fetcher.getDouble(ticker, "last");
-        double bid = Fetcher.getDouble(ticker, "sell");
-        double ask = Fetcher.getDouble(ticker, "buy");
+        double last = Utils.getDouble(ticker, "last");
+        double bid = Utils.getDouble(ticker, "sell");
+        double ask = Utils.getDouble(ticker, "buy");
 //        System.out.println("bid=" + bid + ", ask=" + ask + ", last=" + last);
         return new TopData(bid, ask, last);
     }
@@ -190,10 +190,10 @@ public class Btce {
         List<TradesData.TradeData> trades = new ArrayList<TradesData.TradeData>(len);
         for (int i = 0; i < len; i++) { // {"amount":7.23385,"timestamp":1391896680,"price":700.7,"tid":29248920,"type":"bid"}
             JSONObject tObj = (JSONObject) array.get(i);
-            double amount = Fetcher.getDouble(tObj.get("amount"));
-            double price = Fetcher.getDouble(tObj.get("price"));
-            long timestamp = Fetcher.getLong(tObj.get("timestamp")) * 1000;
-            long tid = Fetcher.getLong(tObj.get("tid"));
+            double amount = Utils.getDouble(tObj.get("amount"));
+            double price = Utils.getDouble(tObj.get("price"));
+            long timestamp = Utils.getLong(tObj.get("timestamp")) * 1000;
+            long tid = Utils.getLong(tObj.get("tid"));
             String typeStr = (String) tObj.get("type");
             TradesData.TradeType type = TradesData.TradeType.get(typeStr);
             TradesData.TradeData tdata = new TradesData.TradeData(amount, price, timestamp, tid, type);

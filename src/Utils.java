@@ -1,3 +1,5 @@
+import org.json.simple.JSONObject;
+
 import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.util.Calendar;
@@ -85,5 +87,102 @@ public class Utils {
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.HOUR_OF_DAY,0);
+    }
+
+    public static double getDouble(JSONObject object, String key) {
+        return getDouble(object.get(key));
+    }
+
+    public static double getDouble(Object obj) {
+        if(obj instanceof Double) {
+            return (Double) obj;
+        } else if(obj instanceof Long) {
+            return ((Long) obj).doubleValue();
+        } else if(obj instanceof String) {
+            return Double.parseDouble((String) obj);
+        } else {
+            throw new RuntimeException("un-supported class: " + obj.getClass());
+        }
+    }
+
+    public static long getLong(Object obj) {
+        if(obj instanceof Long) {
+            return (Long) obj;
+        } else if(obj instanceof String) {
+            return Long.parseLong((String) obj);
+        } else {
+            throw new RuntimeException("un-supported class: " + obj.getClass());
+        }
+    }
+
+    public static abstract class DoubleAverageCalculator<O> {
+        private double m_sum;
+        private double m_weightSum;
+
+        public abstract double getDoubleValue(O obj);
+        protected double getWeight(O obj) { return 1; }
+
+        DoubleAverageCalculator() { }
+
+        public void addValue(O obj) {
+            double value = getDoubleValue(obj);
+            double weight = getWeight(obj);
+            m_sum += value * weight;
+            m_weightSum += weight;
+        }
+
+        protected double getAverage() {
+            return m_sum/m_weightSum;
+        }
+
+        public double getAverage(Iterable<O> data) {
+            double sum = 0;
+            double weightSum = 0;
+            for (O obj : data) {
+                double value = getDoubleValue(obj);
+                double weight = getWeight(obj);
+                sum += value * weight;
+                weightSum += weight;
+            }
+            return sum/weightSum;
+        }
+    }
+
+    public static abstract class DoubleMinMaxCalculator<O> {
+        public Double m_minValue;
+        public Double m_maxValue;
+
+        public abstract Double getValue(O obj);
+
+        DoubleMinMaxCalculator(Iterable<O> data) {
+            for (O obj : data) {
+                Double value = getValue(obj);
+                if ((m_maxValue == null) || (value > m_maxValue)) {
+                    m_maxValue = value;
+                }
+                if ((m_minValue == null) || (value < m_minValue)) {
+                    m_minValue = value;
+                }
+            }
+        }
+    }
+
+    public static abstract class LongMinMaxCalculator<O> {
+        public Long m_minValue;
+        public Long m_maxValue;
+
+        public abstract Long getValue(O obj);
+
+        LongMinMaxCalculator(Iterable<O> data) {
+            for (O obj : data) {
+                Long value = getValue(obj);
+                if ((m_maxValue == null) || (value > m_maxValue)) {
+                    m_maxValue = value;
+                }
+                if ((m_minValue == null) || (value < m_minValue)) {
+                    m_minValue = value;
+                }
+            }
+        }
     }
 }

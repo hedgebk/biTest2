@@ -69,13 +69,13 @@ public class PaintChart extends DbReady {
         int ticksNum = ticks.size();
         System.out.println("ticks count = " + ticksNum);
 
-        DoubleMinMaxCalculator<Tick> priceCalc = new DoubleMinMaxCalculator<Tick>(ticks) {
+        Utils.DoubleMinMaxCalculator<Tick> priceCalc = new Utils.DoubleMinMaxCalculator<Tick>(ticks) {
             @Override public Double getValue(Tick tick) { return tick.m_price; }
         };
         double minPrice = priceCalc.m_minValue;
         double maxPrice = priceCalc.m_maxValue;
 
-        LongMinMaxCalculator<Tick> timeCalc = new LongMinMaxCalculator<Tick>(ticks) {
+        Utils.LongMinMaxCalculator<Tick> timeCalc = new Utils.LongMinMaxCalculator<Tick>(ticks) {
             @Override public Long getValue(Tick tick) { return tick.m_stamp; }
         };
         long minTimestamp = timeCalc.m_minValue;
@@ -90,7 +90,7 @@ public class PaintChart extends DbReady {
         long two = System.currentTimeMillis();
         System.out.println("PriceDiffs calculated in "+ Utils.millisToDHMSStr(two - one));
 
-        DoubleMinMaxCalculator<Double> priceDifCalc = new DoubleMinMaxCalculator<Double>(difMap.values()) {
+        Utils.DoubleMinMaxCalculator<Double> priceDifCalc = new Utils.DoubleMinMaxCalculator<Double>(difMap.values()) {
             @Override public Double getValue(Double priceDif) { return priceDif; }
         };
         double minDif = priceDifCalc.m_minValue;
@@ -214,8 +214,8 @@ public class PaintChart extends DbReady {
     }
 
     private static double calculateAveragePrice(List<Tick> ticks, final Exchange exch) {
-        return new DoubleAverageCalculator<Tick>() {
-                @Override public double getValue(Tick tick) { return tick.m_price; }
+        return new Utils.DoubleAverageCalculator<Tick>() {
+                @Override public double getDoubleValue(Tick tick) { return tick.m_price; }
                 @Override protected double getWeight(Tick tick) {
                     return tick.m_src == exch.m_databaseId ? tick.m_volume : 0;
                 }
@@ -304,7 +304,7 @@ public class PaintChart extends DbReady {
             if( ticksPerPoint != null ) {
                 int size = ticksPerPoint.size();
                 if(size > 0) {
-                    DoubleMinMaxCalculator<Tick> candleCalc = new DoubleMinMaxCalculator<Tick>(ticksPerPoint) {
+                    Utils.DoubleMinMaxCalculator<Tick> candleCalc = new Utils.DoubleMinMaxCalculator<Tick>(ticksPerPoint) {
                         @Override public Double getValue(Tick tick) { return tick.m_price; }
                     };
                     int y1 = priceAxe.getPointReverse(candleCalc.m_minValue);
@@ -663,63 +663,6 @@ public class PaintChart extends DbReady {
         public int getPointReverse(double value) {
             int point = getPoint(value);
             return m_size - 1 - point;
-        }
-    }
-
-    public static abstract class DoubleAverageCalculator<O> {
-        public abstract double getValue(O obj);
-        protected double getWeight(O obj) { return 1; }
-
-        DoubleAverageCalculator() { }
-
-        public double getAverage(Iterable<O> data) {
-            double m_sum = 0;
-            double m_weightSum = 0;
-            for (O obj : data) {
-                double value = getValue(obj);
-                double weight = getWeight(obj);
-                m_sum += value * weight;
-                m_weightSum += weight;
-            }
-            return m_sum/m_weightSum;
-        }
-    }
-
-    public static abstract class DoubleMinMaxCalculator<O> {
-        public Double m_minValue;
-        public Double m_maxValue;
-
-        public abstract Double getValue(O obj);
-
-        DoubleMinMaxCalculator(Iterable<O> data) {
-            for (O obj : data) {
-                Double value = getValue(obj);
-                if ((m_maxValue == null) || (value > m_maxValue)) {
-                    m_maxValue = value;
-                }
-                if ((m_minValue == null) || (value < m_minValue)) {
-                    m_minValue = value;
-                }
-            }
-        }
-    }
-
-    public static abstract class LongMinMaxCalculator<O> {
-        public Long m_minValue;
-        public Long m_maxValue;
-
-        public abstract Long getValue(O obj);
-
-        LongMinMaxCalculator(Iterable<O> data) {
-            for (O obj : data) {
-                Long value = getValue(obj);
-                if ((m_maxValue == null) || (value > m_maxValue)) {
-                    m_maxValue = value;
-                }
-                if ((m_minValue == null) || (value < m_minValue)) {
-                    m_minValue = value;
-                }
-            }
         }
     }
 

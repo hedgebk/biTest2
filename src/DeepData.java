@@ -1,8 +1,6 @@
 import org.json.simple.JSONArray;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 public class DeepData {
@@ -41,8 +39,8 @@ public class DeepData {
             List<Deep> ret = new ArrayList<Deep>(len);
             for (int i = 0; i < len; i++) {
                 JSONArray arr = (JSONArray) array.get(i);
-                double price = Fetcher.getDouble(arr.get(0));
-                double size = Fetcher.getDouble(arr.get(1));
+                double price = Utils.getDouble(arr.get(0));
+                double size = Utils.getDouble(arr.get(1));
                 Deep deep = new Deep(price, size);
                 ret.add(deep);
             }
