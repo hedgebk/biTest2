@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 import java.util.List;
 
+// todo: make it extends List<TradeData>
 public class TradesData {
     public final List<TradeData> m_trades;
 
