@@ -590,6 +590,33 @@ public class Fetcher {
             return false;
         }
 
+        public boolean moveBrackets(IterationContext iContext, TopData otherTop, double midDiffAverage) {
+            double buy = otherTop.m_bid - HALF_TARGET_DELTA + midDiffAverage; // ASK > BID
+            double sell = otherTop.m_ask + HALF_TARGET_DELTA + midDiffAverage;
+
+            System.out.println("'"+ exchName() +"' buy: "+( (m_buyOpenBracketOrder !=null) ? m_buyOpenBracketOrder.priceStr() + "->" : "" )+ Utils.XX_YYYY.format(buy)+ ";  " +
+                                                  "sell: "+( (m_sellOpenBracketOrder !=null) ? m_sellOpenBracketOrder.priceStr() + "->" : "" )+ Utils.XX_YYYY.format(sell));
+
+            double amount = calcAmountToOpen(); // todo: this can be changed over the time - take special care rater
+
+            // todo: do not move order if changed a little
+            iContext.delay(0);
+            m_state = ExchangeState.ERROR; // error by default
+            cancelOrder(m_buyOpenBracketOrder);
+            m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
+            boolean success = placeOrder(m_buyOpenBracketOrder);
+            if( success ) {
+                cancelOrder(m_sellOpenBracketOrder);
+                m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
+                success = placeOrder(m_sellOpenBracketOrder);
+                if( success ) {
+                    m_state = ExchangeState.OPEN_BRACKETS_WAITING;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private double calcAmountToOpen() {
             return 1.0 /*BTC*/ ;  // todo: get this based on both exch account info
         }
@@ -632,6 +659,12 @@ public class Fetcher {
                 System.out.println("@@@@@@@@@@@@@@ WARNING can not "+side+" MKT on " + exchName() + " @ " + mktPrice + ", MKT_ORDER_THRESHOLD exceed");
                 return false;
             }
+        }
+
+        private boolean cancelOrder(OrderData orderData) {
+            // todo: implement
+            System.out.println("cancelOrder() not implemented yet");
+            return true;
         }
 
         private boolean placeOrder(OrderData order) {
@@ -727,7 +760,7 @@ public class Fetcher {
             ;
 
             public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-                System.out.println("checkState not implemented for " + this);
+                System.out.println("checkState not implemented for ExchangeState." + this);
             }
         }
 
@@ -904,7 +937,7 @@ public class Fetcher {
         ;
 
         public void checkState(IterationContext iContext, ExchangeData exchangeData, OrderData orderData) throws Exception {
-            System.out.println("checkState not implemented for " + this);
+            System.out.println("checkState not implemented for OrderState." + this);
         }
     }
 
@@ -953,7 +986,8 @@ public class Fetcher {
                         if( success ) {
                             success = exchangesData.m_exch2data.placeBrackets(iContext, tops.m_top1, -midDiffAverage);
                             if( success ) {
-                                exchangesData.m_state = ExchangesState.WAITING_OPEN_BRACKETS;
+                                // i see the orders should be placed instantaneously
+                                exchangesData.m_state = ExchangesState.OPEN_BRACKETS_PLACED; // WAITING_OPEN_BRACKETS;
                             }
                         }
                         iContext.delay(0); // no wait
@@ -977,7 +1011,30 @@ public class Fetcher {
             },
             OPEN_BRACKETS_PLACED {
                 @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
-                    System.out.println("ExchangesState.OPEN_BRACKETS_PLACED");
+                    System.out.println("ExchangesState.OPEN_BRACKETS_PLACED move open bracket orders if needed");
+                    TopDatas tops = iContext.getTopsData(exchangesData);
+                    if (tops.bothFresh()) {
+                        double midDiffAverage = exchangesData.m_diffAverageCounter.get();
+                        System.out.println("diff=" + exchangesData.m_lastDiff + ";  avg=" + Utils.XX_YYYY.format(midDiffAverage));
+
+                        exchangesData.m_state = ExchangesState.ERROR;
+                        boolean success = exchangesData.m_exch1data.moveBrackets(iContext, tops.m_top2, midDiffAverage);
+                        if( success ) {
+                            success = exchangesData.m_exch2data.moveBrackets(iContext, tops.m_top1, -midDiffAverage);
+                            if( success ) {
+                                exchangesData.m_state = ExchangesState.OPEN_BRACKETS_PLACED;
+                            }
+                        }
+
+                        double waitDistance = TARGET_DELTA;
+                        System.out.println("waitDistance="+waitDistance);
+                        long delay = (long) (MIN_DELAY + MIN_DELAY * 4 * Math.min(1, Math.abs(waitDistance) / HALF_TARGET_DELTA));
+                        delay = Math.max(delay,1000);
+                        iContext.delay(delay);
+                    } else {
+                        System.out.println("some exchange top data is not fresh " +
+                                           "(fresh1=" + tops.m_top1.m_live + ", fresh2=" + tops.m_top2.m_live + ") - do nothing");
+                    }
                 }
             },
             ERROR  {
