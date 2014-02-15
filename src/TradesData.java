@@ -17,18 +17,17 @@ public class TradesData {
 
     public int size() { return m_trades.size(); }
 
-    public TradesData newTrades(Long lastProcessedTradesTime1) {
-        if( lastProcessedTradesTime1 == null ) {
+    public TradesData newTrades(Long lastProcessedTradesTime) {
+        if (lastProcessedTradesTime == null) {
             return this;
         }
         List<TradeData> newTrades = new ArrayList<TradeData>();
-        for(TradeData trade: m_trades) {
+        for (TradeData trade : m_trades) {
             long timestamp = trade.m_timestamp;
-            if(timestamp > lastProcessedTradesTime1) {
+            if (timestamp > lastProcessedTradesTime) {
                 newTrades.add(trade);
             }
         }
-
         return new TradesData(newTrades);
     }
 

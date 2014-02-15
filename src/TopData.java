@@ -9,6 +9,10 @@ public class TopData {
     public String lastStr() { return Utils.XX_YYYY.format(m_last); }
     public double getMid() { return (m_ask + m_bid) / 2; }
 
+    public void setObsolete() { m_live = true; }
+
+    public static boolean isLive(TopData top) { return (top != null) && top.m_live; }
+
     public TopData(String bid, String ask, String last) {
         this(Double.parseDouble(bid), Double.parseDouble(ask), Double.parseDouble(last));
     }
@@ -22,14 +26,15 @@ public class TopData {
 
     @Override public String toString() {
         return "TopData{" +
-                "bid=" + bidStr() +
-                ", ask=" + askStr() +
-                ", last=" + m_last +
+                toStringX() +
                 '}';
     }
 
-    public void setObsolete() {
-        m_live = true;
+    String toStringX() {
+        return (m_live ? "" : "OBSOLETE, ") +
+                "bid=" + bidStr() +
+                ", ask=" + askStr() +
+                ", last=" + lastStr();
     }
 
     public static class TopDataEx extends TopData {
@@ -44,9 +49,7 @@ public class TopData {
 
         @Override public String toString() {
             return "TopData{" +
-                    "bid=" + bidStr() +
-                    ", ask=" + askStr() +
-                    ", last=" + lastStr() +
+                    toStringX() +
                     ", mid=" + midStr() +
                     '}';
         }

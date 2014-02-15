@@ -280,10 +280,24 @@ public class Fetcher {
 
     private static TradesData fetchTrades(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TRADES);
-        System.out.println("jObj=" + jObj);
+//        System.out.println("jObj=" + jObj);
         TradesData tradesData = exchange.parseTrades(jObj);
-        System.out.println("tradesData=" + tradesData);
+//        System.out.println("tradesData=" + tradesData);
         return tradesData;
+    }
+
+    private static TradesData fetchTradesOnce(Exchange exchange) throws Exception {
+        try {
+            Object jObj = fetchOnce(exchange, FetchCommand.TRADES);
+//        System.out.println("jObj=" + jObj);
+            TradesData tradesData = exchange.parseTrades(jObj);
+//        System.out.println("tradesData=" + tradesData);
+            return tradesData;
+        } catch (Exception e) {
+            System.out.println(" loading error: " + e);
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private static DeepData fetchDeep(Exchange exchange) throws Exception {
@@ -380,14 +394,14 @@ public class Fetcher {
     }
 
     private static void log(Exchange exch, TopData top) {
-        if(top == null) {
-            System.out.print("NO top data for " + exch.m_name + "\t\t");
+        if (top == null) {
+            System.out.print("NO top data for '" + exch.m_name + "'\t\t");
         } else {
             System.out.print(exch.m_name +
                     ": bid: " + format(top.m_bid) +
                     ", ask: " + format(top.m_ask) +
                     ", last: " + format(top.m_last) +
-                    ", bid_ask_dif: " + format(top.m_ask-top.m_bid) +
+                    ", bid_ask_dif: " + format(top.m_ask - top.m_bid) +
                     "\t\t");
         }
     }
@@ -410,8 +424,8 @@ public class Fetcher {
 //      System.out.println(result.get("name").toString());
 //    }
 
-    private static String format(double mktPrice) {
-        return Utils.XX_YYYY.format(mktPrice);
+    private static String format(Double mktPrice) {
+        return (mktPrice == null) ? "-" : Utils.XX_YYYY.format(mktPrice);
     }
 
     public enum FetchCommand {
@@ -434,7 +448,7 @@ public class Fetcher {
         public String getTestStr(Exchange exchange) { return null; }
         public String getApiEndpoint(Exchange exchange) { return null; }
         public boolean useTestStr() { return false; }
-    }
+    } // FetchCommand
 
     public static class AverageCounter {
         public final TreeMap<Long,Double> m_map = new TreeMap<Long, Double>(); // sorted by time
@@ -464,7 +478,7 @@ public class Fetcher {
             }
             return summ/counter;
         }
-    }
+    } // AverageCounter
 
     public static class ExchangeData {
         private static final double MKT_ORDER_THRESHOLD = 1.3; // market order price allowance +-30%
@@ -488,7 +502,8 @@ public class Fetcher {
         public Long m_lastProcessedTradesTime = 0l;
         private TopData m_lastTop;
         public final AverageCounter m_averageCounter = new AverageCounter(MOVING_AVERAGE);
-        private boolean m_bracketExecuted;
+//        private boolean m_bracketExecuted;
+//        private Object openBracketOrder;
 
         public ExchangeData(Exchange exch) {
             m_exch = exch;
@@ -576,60 +591,70 @@ public class Fetcher {
             double buy = otherTop.m_bid - HALF_TARGET_DELTA + midDiffAverage; // ASK > BID
             double sell = otherTop.m_ask + HALF_TARGET_DELTA + midDiffAverage;
 
-            System.out.println("'"+ exchName() +"' buy: "+( (m_buyOpenBracketOrder !=null) ? m_buyOpenBracketOrder.priceStr() + "->" : "" )+ format(buy) + "  " +
-                                                "[bid=" + top.bidStr() + ", ask=" + top.askStr() + "]  " +
-                                                 "sell: "+( (m_sellOpenBracketOrder !=null) ? m_sellOpenBracketOrder.priceStr() + "->" : "" )+ format(sell));
+            logOrdersAndPrices(top, buy, sell);
 
             double amount = calcAmountToOpen();
 
-            iContext.delay(0);
             m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
-            boolean success = placeOrder(m_buyOpenBracketOrder);
+            boolean success = placeOrderBracket(m_buyOpenBracketOrder);
             if (success) {
                 m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
-                success = placeOrder(m_sellOpenBracketOrder);
+                success = placeOrderBracket(m_sellOpenBracketOrder);
                 if (success) {
-                    m_state = ExchangeState.OPEN_BRACKETS_WAITING;
+                    setState(ExchangeState.OPEN_BRACKETS_PLACED);
                 }
             }
             if (!success) {
                 System.out.println("ERROR: " + exchName() + " placeBrackets failed");
-                m_state = ExchangeState.ERROR;
+                setState(ExchangeState.ERROR);
             }
+            iContext.delay(0);
             return success;
+        }
+
+        private void setState(ExchangeState state) {
+            System.out.println("Exchange '" + exchName() + "' state " + m_state + " -> " + state);
+            m_state = state;
         }
 
         public boolean moveBrackets(IterationContext iContext, TopData top, TopData otherTop, double midDiffAverage) {
             double buy = otherTop.m_bid - HALF_TARGET_DELTA + midDiffAverage; // ASK > BID
             double sell = otherTop.m_ask + HALF_TARGET_DELTA + midDiffAverage;
 
-            System.out.println("'"+ exchName() + "' buy: "+( (m_buyOpenBracketOrder !=null) ? m_buyOpenBracketOrder.priceStr() + "->" : "" )+ format(buy) + "  " +
-                                                 " [bid=" + top.bidStr() + ", ask="+top.askStr() + "]  " +
-                                                   "sell: "+( (m_sellOpenBracketOrder !=null) ? m_sellOpenBracketOrder.priceStr() + "->" : "" )+ format(sell));
+            logOrdersAndPrices(top, buy, sell);
 
             double amount = calcAmountToOpen(); // todo: this can be changed over the time - take special care rater
 
-            // todo: do not move order if changed a little
-            iContext.delay(0);
+            // todo: do not move order if changed just a little - define accepted order change delta
             cancelOrder(m_buyOpenBracketOrder);
             m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
-            boolean success = placeOrder(m_buyOpenBracketOrder);
+            boolean success = placeOrderBracket(m_buyOpenBracketOrder);
             if (success) {
                 cancelOrder(m_sellOpenBracketOrder);
                 m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
-                success = placeOrder(m_sellOpenBracketOrder);
+                success = placeOrderBracket(m_sellOpenBracketOrder);
                 if (success) {
-                    m_state = ExchangeState.OPEN_BRACKETS_PLACED; // OPEN_BRACKETS_WAITING;
+                    setState(ExchangeState.OPEN_BRACKETS_PLACED);
                 }
             }
             if (!success) {
                 System.out.println("ERROR: " + exchName() + " moveBrackets failed");
-                m_state = ExchangeState.ERROR;
+                setState(ExchangeState.ERROR);
             }
+//            iContext.delay(0);
             return success;
         }
 
+        private void logOrdersAndPrices(TopData top, Double newBuyPrice, Double newSellPrice) {
+            System.out.println("'"+ exchName() +"' buy: "+( (m_buyOpenBracketOrder !=null) ? m_buyOpenBracketOrder.priceStr() + "->" : "" )+ format(newBuyPrice) + "  " +
+                                                ((newBuyPrice == null) ? "." : "<" + format(top.m_bid - newBuyPrice ) + ">") + "  " +
+                                                "[bid=" + top.bidStr() + ", ask=" + top.askStr() + "]  " +
+                                                ((newSellPrice == null) ? "." : "<" + format(newSellPrice - top.m_ask) + ">") + "  " +
+                                                 "sell: "+( (m_sellOpenBracketOrder !=null) ? m_sellOpenBracketOrder.priceStr() + "->" : "" )+ format(newSellPrice));
+        }
+
         private double calcAmountToOpen() {
+            // could be different depending on exchange since the price is different
             return 1.0 /*BTC*/ ;  // todo: get this based on both exch account info
         }
 
@@ -683,11 +708,16 @@ public class Fetcher {
             return true;
         }
 
-        private boolean placeOrder(OrderData orderData) {
+        private boolean placeOrderBracket(OrderData orderData) {
+            return placeOrder(orderData, OrderState.BRACKET_PLACED);
+        }
+
+        public boolean placeOrder(OrderData orderData, OrderState state) {
             // todo: implement
-            System.out.println("placeOrder() not implemented yet: " + orderData);
+            System.out.println("placeOrder() not implemented yet, on '"+exchName()+"': " + orderData);
             orderData.m_status = OrderStatus.SUBMITTED;
-            orderData.m_state = OrderState.BRACKET_PLACED;
+            orderData.m_state = state;
+
             return true;
         }
 
@@ -704,11 +734,11 @@ public class Fetcher {
 
         public TradesData fetchTrades() throws Exception {
             // todo: make fetch tradesOnce()
-            return Fetcher.fetchTrades(m_exch);
+            return Fetcher.fetchTradesOnce(m_exch);
         }
 
-        public TradesData filterOnlyNewTrades(TradesData muchTrades) {
-            TradesData newTrades = muchTrades.newTrades(m_lastProcessedTradesTime);
+        public TradesData filterOnlyNewTrades(TradesData trades) {
+            TradesData newTrades = trades.newTrades(m_lastProcessedTradesTime);
             for (TradesData.TradeData trade : newTrades.m_trades) {
                 long timestamp = trade.m_timestamp;
                 if (timestamp > m_lastProcessedTradesTime) {
@@ -724,103 +754,80 @@ public class Fetcher {
             m_state.checkState(iContext, this);
         }
 
+        public OrderData getOpenBracketOrder() {
+            return m_buyOpenBracketOrder.m_status == OrderStatus.FILLED
+                    ? m_buyOpenBracketOrder
+                    : m_sellOpenBracketOrder.m_status == OrderStatus.FILLED
+                        ? m_sellOpenBracketOrder
+                        : null;
+        }
+
         private void checkOrderState(OrderData orderData, IterationContext iContext) throws Exception {
             if (orderData != null) {
                 orderData.m_state.checkState(iContext, this, orderData);
             }
         }
 
-        public void onBracketExecuted(OrderData orderData) {
-            // set flag that at least one bracket is executed, actually can be both executed
-            // will be analyzed later
-            m_bracketExecuted = true;
-        }
+//        public void onBracketExecuted(OrderData orderData) {
+//            // set flag that at least one bracket is executed, actually can be both executed
+//            // will be analyzed later
+//            m_bracketExecuted = true;
+//        }
 
-        public enum ExchangeState {
-            NONE,
-            OPEN_BRACKETS_WAITING {
-                @Override public void checkState(IterationContext iContext, ExchangeData exchData) {
-                    System.out.println("ExchangeState.OPEN_BRACKETS_WAITING. check orders status");
-                    // todo: check orders status here, can be submited/queued, placed, rejected, and even filled/partially-filled
-                    LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
-
-                    // actually one can be placed and another not - should b ehandled separately
-                    { // pretend that both orders are placed fine
-                        exchData.xAllBracketsPlaced(iContext); // start listen for order changes
-                    }
-                }
-            },
-            OPEN_BRACKETS_PLACED {
-                @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-                    System.out.println("ExchangeState.OPEN_BRACKETS_PLACED. check if some order executed");
-
-                    exchData.checkSomeBracketExecuted(iContext);
-
-//                    // actually order execution should be checked via getLiveOrdersState()
-//                    LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
-//                    // but for simulation we are checking via trades
-//                    TradesData newTrades = iContext.getNewTradesData(exchData);
-//                    exchData.xCheckExecutedBrackets(newTrades);
-//
-//                    if( exchData.m_buyOpenBracketOrder.m_filled > 0 ) {
-//                        // for now we close opposite bracket order
-//                        exchData.closeOrder(exchData.m_sellOpenBracketOrder);
-//                        exchData.m_state = ONE_OPEN_BRACKET_EXECUTED;
-//                    }
-//                    if( exchData.m_sellOpenBracketOrder.m_filled > 0 ) {
-//                        // for now we close opposite bracket order
-//                        exchData.closeOrder(exchData.m_buyOpenBracketOrder);
-//                        exchData.m_state = ONE_OPEN_BRACKET_EXECUTED;
-//                    }
-                }
-            },
-            ONE_OPEN_BRACKET_EXECUTED {
-
-            },
-            ERROR,
-            ;
-
-            public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-                System.out.println("checkState not implemented for ExchangeState." + this);
-            }
+        public void closeOrders() {
+            closeBuyOrder();
+            closeSellOrder();
+            setState(ExchangeState.NONE); // nothing to wait
         }
 
         private void checkSomeBracketExecuted(IterationContext iContext) {
-            if (m_bracketExecuted) { // if some bracket executed - note: both can be executed in rare cases !!
-                System.out.println("got some_bracket_executed flag");
-                m_bracketExecuted = false;
-                OrderData openOrder = null;
-                if (m_buyOpenBracketOrder.m_status == OrderStatus.FILLED) {
-                    if (m_sellOpenBracketOrder.m_status == OrderStatus.FILLED) {
-                        // todo: very rare case - both brackets ar executed - fine - just cache-out
-                        System.out.println("!!! both brackets ar executed - BINGO - just cache-out");
-                    } else {
-                        // todo: if one of brackets is executed - the another one should be adjusted (for now cancel).
-                        System.out.println("closing opposite bracket: "+m_sellOpenBracketOrder);
-                        closeOrder(m_sellOpenBracketOrder); // close opposite
-                        m_sellOpenBracketOrder = null;
-                        openOrder = m_buyOpenBracketOrder;
-                    }
-                } else if (m_sellOpenBracketOrder.m_status == OrderStatus.FILLED) {
-                    // todo: if one of brackets is executed - the another one should be adjusted (for now cancel).
-                    System.out.println("closing opposite bracket: "+m_buyOpenBracketOrder);
-                    closeOrder(m_buyOpenBracketOrder); // close opposite
-                    openOrder = m_sellOpenBracketOrder;
+            System.out.println("check if some bracket executed"); // todo: note: both can be executed in rare cases !!
+            // todo: also some bracket can be partially executed - complex scenario
+            OrderData openOrder = null;
+            boolean buyExecuted = (m_buyOpenBracketOrder.m_status == OrderStatus.FILLED);
+            boolean sellExecuted = (m_sellOpenBracketOrder.m_status == OrderStatus.FILLED);
+            if (buyExecuted) {
+                if (sellExecuted) {
+                    // todo: very rare case - both brackets ar executed on the same exchange - fine - just cache-out - diff should be enough
+                    System.out.println("!!! both brackets ar executed - BINGO - just cache-out");
+                    setState(ExchangeState.ERROR);
                 } else {
-                    System.out.println("Error: braketExecuted, but no FILLED orders: m_buyOpenBracketOrder=" + m_buyOpenBracketOrder + ", m_sellOpenBracketOrder=" + m_sellOpenBracketOrder);
+                    // todo: if one of brackets is executed - the another one should be adjusted (for now cancel).
+                    System.out.println("BUY OpenBracketOrder FILLED, closing opposite bracket: " + m_sellOpenBracketOrder);
+                    // close opposite
+                    closeSellOrder();
+                    openOrder = m_buyOpenBracketOrder;
                 }
-                if (openOrder != null) {
-                    System.out.println("we have open bracket order: " + openOrder);
-                    m_state = ExchangeState.ONE_OPEN_BRACKET_EXECUTED;
-                    iContext.delay(0);
-                }
+            } else if (sellExecuted) {
+                // todo: if one of brackets is executed - the another one should be adjusted (for now cancel).
+                System.out.println("SELL OpenBracketOrder FILLED, closing opposite bracket: " + m_buyOpenBracketOrder);
+                // close opposite
+                closeBuyOrder();
+                openOrder = m_sellOpenBracketOrder;
+            } else {
+                System.out.println(" no FILLED bracket orders: m_buyOpenBracketOrder=" + m_buyOpenBracketOrder + ", m_sellOpenBracketOrder=" + m_sellOpenBracketOrder);
             }
+            if (openOrder != null) {
+                System.out.println("we have open bracket order on '" + exchName() + "': " + openOrder);
+                setState(ExchangeState.ONE_OPEN_BRACKET_EXECUTED);
+                iContext.delay(0);
+            }
+        }
+
+        private void closeBuyOrder() {
+            closeOrder(m_buyOpenBracketOrder);
+            m_buyOpenBracketOrder = null;
+        }
+
+        private void closeSellOrder() {
+            closeOrder(m_sellOpenBracketOrder);
+            m_sellOpenBracketOrder = null;
         }
 
         private void xAllBracketsPlaced(IterationContext iContext) {
             xBracketPlaced(m_buyOpenBracketOrder);
             xBracketPlaced(m_sellOpenBracketOrder);
-            m_state = ExchangeState.OPEN_BRACKETS_PLACED;
+            setState(ExchangeState.OPEN_BRACKETS_PLACED);
             iContext.delay(0);
         }
 
@@ -840,10 +847,78 @@ public class Fetcher {
 //            // todo: if one of brackets is executed - the another one should be adjusted (cancelled?).
 //        }
 
-        private void closeOrder(OrderData orderData) {
+        private boolean closeOrder(OrderData orderData) {
             System.out.println("closeOrder() not implemented: " + orderData);
+            if (orderData != null) {
+                orderData.m_status = OrderStatus.CANCELLED;
+                orderData.m_state = OrderState.NONE;
+            }
+            return true; // todo: but actually can be already executed
         }
-    }
+
+        public boolean openOrderAtMarket(OrderSide side, TopData top) {
+            boolean placed = false;
+            System.out.println("openOrderAtMarket() openedExch='"+exchName()+"', side=" + side);
+            if (TopData.isLive(top)) {
+                double price = side.mktPrice(top);
+
+                logOrdersAndPrices(top, (side == OrderSide.BUY) ? price : null, (side == OrderSide.SELL) ? price : null);
+
+                double amount = calcAmountToOpen();
+                OrderData order = new OrderData(side, price, amount);
+                boolean success = placeOrder(order, OrderState.MARKET_PLACED);
+                if (success) {
+                    placed = true;
+                    if (side == OrderSide.BUY) {
+                        m_buyOpenBracketOrder = order;
+                    } else {
+                        m_sellOpenBracketOrder = order;
+                    }
+                    setState(ExchangeState.OPEN_AT_MKT_PLACED);
+                } else {
+                    System.out.println("error opening order at MKT: " + order);
+                    setState(ExchangeState.ERROR);
+                }
+            } else {
+                System.out.println("will not open OrderAtMarket price - waiting - no live topData now : " + top);
+            }
+            return placed;
+        }
+    } // ExchangeData
+
+    public enum ExchangeState {
+        NONE,
+        OPEN_BRACKETS_WAITING {
+            @Override public void checkState(IterationContext iContext, ExchangeData exchData) {
+                System.out.println("ExchangeState.OPEN_BRACKETS_WAITING. check orders status");
+                // todo: check orders status here, can be submited/queued, placed, rejected, and even filled/partially-filled
+                LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
+
+                // actually one can be placed and another not - should b ehandled separately
+                { // pretend that both orders are placed fine
+                    exchData.xAllBracketsPlaced(iContext); // start listen for order changes
+                }
+            }
+        },
+        OPEN_BRACKETS_PLACED {
+            @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
+                System.out.println("ExchangeState.OPEN_BRACKETS_PLACED. check if some order executed");
+                exchData.checkSomeBracketExecuted(iContext);
+            }
+        },
+        ONE_OPEN_BRACKET_EXECUTED {
+
+        },
+        OPEN_AT_MKT_PLACED {
+
+        },
+        ERROR,
+        ;
+
+        public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
+            System.out.println("checkState not implemented for ExchangeState." + this);
+        }
+    } // ExchangeData
 
     public static class OrderData {
         public OrderStatus m_status = OrderStatus.NEW;
@@ -873,32 +948,48 @@ public class Fetcher {
             m_amount = amount;
         }
 
+        public boolean isActive() {
+            return m_status.isActive();
+        }
+
         public boolean acceptPrice(double mktPrice) {
-            if (SIMULATE_ACCEPT_ORDER_PRICE) {
-                System.out.println("@@@@@@@@@@@@@@  !!!!!!!! SIMULATE ACCEPT_ORDER_PRICE price=" + mktPrice + ", order=" + this);
-                return true;
-            }
             return m_side.acceptPrice(m_price, mktPrice);
         }
 
         public void addExecution(double price, double amount) {
-            m_executions.add(new Execution(price, amount));
+            List<Execution> executions = getExecutions();
+            executions.add(new Execution(price, amount));
             m_filled += amount;
             if (m_amount == m_filled) { // todo: add check for very small diff like 0.00001
                 m_status = OrderStatus.FILLED;
-            } else if (m_executions.size() == 1) { // got the first execution
+            } else if (executions.size() == 1) { // just got the very first execution
                 m_status = OrderStatus.PARTIALLY_FILLED;
             }
         }
 
-        public void xCheckExecutedBracket(ExchangeData exchData, OrderData orderData, TradesData newTrades) {
+        private List<Execution> getExecutions() {
+            if (m_executions == null) { // lazily create
+                m_executions = new ArrayList<Execution>();
+            }
+            return m_executions;
+        }
+
+        public boolean xCheckExecutedLimit(IterationContext iContext, ExchangeData exchData, OrderData orderData, TradesData newTrades) {
             OrderSide side = orderData.m_side;
             double orderAmount = orderData.m_amount;
             double price = orderData.m_price;
-            List<TradesData.TradeData> newTradesList = newTrades.m_trades;
-            for (TradesData.TradeData trade : newTradesList) {
+            for (TradesData.TradeData trade : newTrades.m_trades) {
                 double mktPrice = trade.m_price; // ASK > BID
-                if (orderData.acceptPrice(mktPrice)) {
+
+                boolean acceptPriceSimulated = false;
+                //noinspection PointlessBooleanExpression,ConstantConditions
+                if (SIMULATE_ACCEPT_ORDER_PRICE && !iContext.m_acceptPriceSimulated && new Random().nextBoolean()) {
+                    System.out.println("@@@@@@@@@@@@@@  !!!!!!!! SIMULATE ACCEPT_ORDER_PRICE mktPrice=" + format(mktPrice) + ", order=" + this);
+                    acceptPriceSimulated = true;
+                    iContext.m_acceptPriceSimulated = true; // one accept order price simulation per iteration
+                }
+
+                if (acceptPriceSimulated || orderData.acceptPrice(mktPrice)) {
                     double tradeAmount = trade.m_amount;
                     System.out.println("@@@@@@@@@@@@@@ we have bracket trade " + side + " " + tradeAmount +
                             " on '" + exchData.exchName() + "' @ " + format(mktPrice) +
@@ -909,10 +1000,12 @@ public class Fetcher {
                     }
                     // here we pretend that the whole order was executed for now
                     orderData.addExecution(price, orderAmount); // todo: add partial order execution support later.
+                    return true; // simulated that the whole order executed
                 }
             }
+            return false;
         }
-    }
+    } // OrderData
 
     public static class Execution {
         public final double m_price;
@@ -922,7 +1015,7 @@ public class Fetcher {
             m_price = price;
             m_amount = amount;
         }
-    }
+    } // Execution
 
     public static enum OrderSide {
         BUY {
@@ -939,7 +1032,7 @@ public class Fetcher {
         public boolean acceptPrice(double orderPrice, double mktPrice) { return false; }
         public OrderSide opposite() { return null; }
         public double mktPrice(TopData top) { return 0; } // ASK > BID
-    }
+    } // OrderSide
 
     public static enum OrderStatus {
         NEW,
@@ -947,7 +1040,11 @@ public class Fetcher {
         PARTIALLY_FILLED,
         FILLED,
         REJECTED,
-        CANCELLED
+        CANCELLED;
+
+        public boolean isActive() {
+            return (this == SUBMITTED) || (this == PARTIALLY_FILLED);
+        }
     }
 
     public static enum OrderState {
@@ -959,14 +1056,12 @@ public class Fetcher {
                 LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
                 // but for simulation we are checking via trades
                 TradesData newTrades = iContext.getNewTradesData(exchData);
-//                exchData.xCheckExecutedBrackets(newTrades);
 
-                orderData.xCheckExecutedBracket(exchData, orderData, newTrades);
+                orderData.xCheckExecutedLimit(iContext, exchData, orderData, newTrades);
 
                 if (orderData.m_filled > 0) {
                     double orderAmount = orderData.m_amount;
                     if (orderData.m_filled == orderAmount) { // FILLED
-                        exchData.onBracketExecuted(orderData);
                         orderData.m_state = NONE;
                     } else { // PARTIALLY FILLED
                         System.out.println("PARTIALLY FILLED, not supported yet - just wait more");
@@ -974,12 +1069,16 @@ public class Fetcher {
                 }
             }
         },
-        ;
+        MARKET_PLACED {
+            @Override public void checkState(IterationContext iContext, ExchangeData exchangeData, OrderData orderData) throws Exception {
+                System.out.println("OrderState.MARKET_PLACED. check if order executed");
+            }
+        };
 
         public void checkState(IterationContext iContext, ExchangeData exchangeData, OrderData orderData) throws Exception {
             System.out.println("checkState not implemented for OrderState." + this);
         }
-    }
+    } // OrderState
 
     private static class ExchangesData {
         public final ExchangeData m_exch1data;
@@ -988,8 +1087,8 @@ public class Fetcher {
         public ExchangesState m_state = ExchangesState.NONE;
         public AverageCounter m_diffAverageCounter = new AverageCounter(MOVING_AVERAGE);
 
-        private boolean hasBracketExecuted() { return m_exch1data.hasBracketExecuted() && m_exch2data.hasBracketExecuted(); }
-        private boolean waitingForOpenBrackets() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
+        private boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
+        private boolean hasAnyBracketExecuted() { return m_exch1data.hasBracketExecuted() || m_exch2data.hasBracketExecuted(); }
 
         public ExchangesData(ExchangeData exch1data, ExchangeData exch2data) {
             m_exch1data = exch1data;
@@ -997,6 +1096,13 @@ public class Fetcher {
         }
 
         public void checkState(IterationContext iContext) throws Exception {
+            System.out.println("Exchanges state: " + m_state);
+
+            if(m_state.queryTrades()) {
+                iContext.getNewTradesData(m_exch1data);
+                iContext.getNewTradesData(m_exch2data);
+            }
+
             m_exch1data.checkExchState(iContext);
             m_exch2data.checkExchState(iContext);
             m_state.checkState(iContext, this);
@@ -1007,9 +1113,11 @@ public class Fetcher {
             if (m_lastDiff != null) {
                 m_diffAverageCounter.justAdd(System.currentTimeMillis(), m_lastDiff.m_mid);
             }
+            m_exch1data.m_lastTop = topDatas.m_top1;
+            m_exch2data.m_lastTop = topDatas.m_top2;
         }
 
-        private void state(ExchangesState state) {
+        private void setState(ExchangesState state) {
             System.out.println("Exchanges state " + m_state + " -> " + state);
             m_state = state;
         }
@@ -1031,12 +1139,12 @@ public class Fetcher {
                 if( success ) {
                     success = m_exch2data.moveBrackets(iContext, tops.m_top2, tops.m_top1, -midDiffAverage);
                     if( success ) {
-                        System.out.println("  both open bracket orders are moved");
+                        System.out.println("  both exchanges open bracket orders are moved");
                     }
                 }
                 if (!success) {
                     System.out.println("ERROR: some exch moveBrackets failed");
-                    state(ExchangesState.ERROR);
+                    setState(ExchangesState.ERROR);
                 }
 
                 double waitDistance = TARGET_DELTA;
@@ -1046,7 +1154,7 @@ public class Fetcher {
                 iContext.delay(delay);
             } else {
                 System.out.println("some exchange top data is not fresh " +
-                                   "(fresh1=" + tops.m_top1.m_live + ", fresh2=" + tops.m_top2.m_live + ") - do nothing");
+                                   "(fresh1=" + TopData.isLive(tops.m_top1) + ", fresh2=" + TopData.isLive(tops.m_top2) + ") - do nothing");
             }
         }
 
@@ -1060,22 +1168,56 @@ public class Fetcher {
                 success = m_exch2data.placeBrackets(iContext, tops.m_top2, tops.m_top1, -midDiffAverage);
                 if( success ) {
                     // i see the orders should be placed instantaneously
-                    state(ExchangesState.OPEN_BRACKETS_PLACED); // WAITING_OPEN_BRACKETS;
+                    setState(ExchangesState.OPEN_BRACKETS_PLACED); // WAITING_OPEN_BRACKETS;
                 }
             }
             if(!success) {
                 System.out.println("ERROR: some exch placeBrackets failed");
-                state(ExchangesState.ERROR);
+                setState(ExchangesState.ERROR);
             }
             iContext.delay(0); // no wait
         }
 
+        private void openOtherSideAtMarket(IterationContext iContext) throws Exception {
+            TopDatas tops = iContext.getTopsData(this); // make sure top data is loaded
+            boolean hasBr1 = m_exch1data.hasBracketExecuted();
+            boolean hasBr2 = m_exch2data.hasBracketExecuted();
+            if(hasBr1 && hasBr2) { // todo: ok if at different sides, bad if at the same - complex. this need to be handled here
+                System.out.println("ERROR: both exchanges have bracket executed at this point.");
+                setState(ExchangesState.ERROR);
+            } else if(hasBr1) {
+                openOtherSideAtMarket( m_exch2data, m_exch1data, tops.m_top2);
+            } else if (hasBr2) {
+                openOtherSideAtMarket(m_exch1data, m_exch2data, tops.m_top1);
+            } else {
+                System.out.println("ERROR: no open orders found at both exch.");
+                setState(ExchangesState.ERROR);
+            }
+        }
+
+        private void openOtherSideAtMarket(ExchangeData toOpenExch, ExchangeData openedExch, TopData top) {
+            OrderData openedBracketOrder = openedExch.getOpenBracketOrder();
+            System.out.println("openOtherSideAtMarket() openedExch='" + openedExch.exchName() + "', openedBracketOrder=" + openedBracketOrder);
+            if (openedBracketOrder != null) {
+                OrderSide side = openedBracketOrder.m_side;
+                toOpenExch.closeOrders();
+                boolean placed = toOpenExch.openOrderAtMarket(side.opposite(), top);
+                if (placed) {
+                    setState(ExchangesState.WAITING_OTHER_SIDE_AT_MKT);
+                }
+            } else {
+                System.out.println("ERROR: no open orders found at " + openedExch);
+                setState(ExchangesState.ERROR);
+            }
+        }
+
         private enum ExchangesState {
             NONE {
+                @Override public boolean queryTrades() { return false; }
                 @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
                     System.out.println("ExchangesState.NONE. queryAccountsData");
                     exchangesData.queryAccountsData();
-                    exchangesData.state(START);
+                    exchangesData.setState(START);
                     iContext.delay(0);
                 }
             },
@@ -1087,7 +1229,7 @@ public class Fetcher {
                         exchangesData.placeBrackets(iContext, tops);
                     } else {
                         System.out.println("some exchange top data is not fresh " +
-                                           "(fresh1=" + tops.m_top1.m_live + ", fresh2=" + tops.m_top2.m_live + ") - do nothing");
+                                           "(fresh1=" + tops.top1fresh() + ", fresh2=" + tops.top2fresh() + ") - do nothing");
                     }
                 }
             },
@@ -1097,8 +1239,8 @@ public class Fetcher {
                     System.out.println("ExchangesState.OPEN_BRACKETS_WAITING");
                     // todo: check for order status here - can be complex here - some order can be already placed and partially or fully executed
                     // can become SUBMITTED, REJECTED
-                    if(!exchangesData.waitingForOpenBrackets()) {
-                        exchangesData.state(ExchangesState.OPEN_BRACKETS_PLACED); // actually some order may have already another state
+                    if(!exchangesData.waitingForAllBracketsOpen()) {
+                        exchangesData.setState(ExchangesState.OPEN_BRACKETS_PLACED); // actually some order may have already another state
                         iContext.delay(0); // no wait
                     }
                 }
@@ -1106,12 +1248,24 @@ public class Fetcher {
             OPEN_BRACKETS_PLACED {
                 @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
                     System.out.println("ExchangesState.OPEN_BRACKETS_PLACED checkState()");
-
-                    if( exchangesData.hasBracketExecuted()) {
-                        System.out.println(" some Bracket Executed !!!");
+                    if( exchangesData.hasAnyBracketExecuted()) {
+                        System.out.println(" Bracket on some exchnage Executed !!!");
+                        exchangesData.setState(OPENING_OTHER_SIDE_AT_MKT);
+                        exchangesData.openOtherSideAtMarket(iContext);
                     } else {
                         exchangesData.moveBracketsIfNeeded(iContext);
                     }
+                }
+            },
+            OPENING_OTHER_SIDE_AT_MKT {
+                @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
+                    System.out.println("ExchangesState.OPENING_OTHER_SIDE_AT_MKT checkState()");
+                    exchangesData.openOtherSideAtMarket(iContext);
+                }
+            },
+            WAITING_OTHER_SIDE_AT_MKT {
+                @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
+                    System.out.println("ExchangesState.WAITING_OTHER_SIDE_AT_MKT checkState()");
                 }
             },
             ERROR  {
@@ -1122,14 +1276,17 @@ public class Fetcher {
             public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
                 System.out.println("checkState not implemented for " + this);
             }
+
+            public boolean queryTrades() { return true; }
         }
-    }
+    } // ExchangesData
 
     private static class IterationContext {
         public TopDatas m_top;
         public Map<Integer,LiveOrdersData> m_liveOrders;
         public long m_nextIterationDelay = 1000; // 1 sec by def
         private Map<Integer, TradesData> m_newTrades;
+        public boolean m_acceptPriceSimulated;
 
         public TopDatas getTopsData(ExchangesData exchangesData) throws Exception {
             if( m_top == null ){
@@ -1165,11 +1322,16 @@ public class Fetcher {
             }
             if (data == null) {
                 long millis0 = System.currentTimeMillis();
-                TradesData muchTrades = exchData.fetchTrades();
-                data = exchData.filterOnlyNewTrades(muchTrades);
-                long millis1 = System.currentTimeMillis();
-                System.out.println(" loaded " + muchTrades.size() + " trades for '" + exchData.exchName() + "' " +
-                                   "in " + (millis1 - millis0) + " ms; new " + data.size() + " trades: " + data);
+                TradesData trades = exchData.fetchTrades();
+                if(trades == null) {
+                    System.out.println(" NO trades loaded for '" + exchData.exchName() + "' this time" );
+                    data = new TradesData(new ArrayList<TradesData.TradeData>()); // empty
+                } else {
+                    data = exchData.filterOnlyNewTrades(trades); // this will update last processed trade time
+                    long millis1 = System.currentTimeMillis();
+                    System.out.println(" loaded " + trades.size() + " trades for '" + exchData.exchName() + "' " +
+                                       "in " + (millis1 - millis0) + " ms; new " + data.size() + " trades: " + data);
+                }
                 m_newTrades.put(exchId, data);
             }
             return data;
@@ -1198,7 +1360,7 @@ public class Fetcher {
         public void delay(long millis) {
             m_nextIterationDelay = millis;
         }
-    }
+    } // IterationContext
 
     private static class LiveOrdersData {
 
@@ -1214,12 +1376,19 @@ public class Fetcher {
         }
 
         public boolean bothFresh() {
-            return (m_top1 != null) && m_top1.m_live
-                    && (m_top2 != null) && m_top2.m_live;
+            return top1fresh() && top2fresh();
+        }
+
+        private boolean top2fresh() {
+            return TopData.isLive(m_top2);
+        }
+
+        private boolean top1fresh() {
+            return TopData.isLive(m_top1);
         }
 
         public TopData.TopDataEx calculateDiff() {  // top1 - top2
             return calcDiff(m_top1, m_top2);
         }
-    }
+    } // TopDatas
 }

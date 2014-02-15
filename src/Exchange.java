@@ -23,6 +23,11 @@ public enum Exchange {
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
            null, null,
            "", "");
+    // ? https://www.bitfinex.com/
+    // ? www.itbit.com
+    //    http://docs.itbit.apiary.io/
+    //    https://www.itbit.com/api/feeds/ticker/XBTUSD
+    // ? bitcoin-central.net
 
     public final int m_databaseId;
     public final String m_name;

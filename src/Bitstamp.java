@@ -161,7 +161,7 @@ public class Bitstamp {
     }
 
     public static TradesData parseTrades(Object object) {
-        System.out.println("BITSTAMP.parseTrades() " + object);
+//        System.out.println("BITSTAMP.parseTrades() " + object);
         JSONArray array = (JSONArray)object;
         int len = array.size();
         List<TradesData.TradeData> trades = new ArrayList<TradesData.TradeData>(len);
