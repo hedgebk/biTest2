@@ -11,12 +11,11 @@ import java.text.ParseException;
 
 public class DbReady {
 
-    public static final String DELETE_TICKS_BETWEEN_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp > ? AND stamp < ?";
+    private static final String DELETE_TICKS_BETWEEN_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp > ? AND stamp < ?";
     public static final int IMPORT_DAYS = 4 * 30;
-    public static final int LOG_IMPORT_STAT_DELAY = 15000; // log import stat each X ms
-    public static final long ONE_DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
+    private static final int LOG_IMPORT_STAT_DELAY = 15000; // log import stat each X ms
     private static final String INSERT_TICKS_SQL = "INSERT INTO Ticks ( src, stamp, price, volume ) VALUES (?,?,?,?)";
-    public static final String DELETE_TICKS_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp = ?";
+    private static final String DELETE_TICKS_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp = ?";
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -252,7 +251,7 @@ public class DbReady {
         BufferedInputStream bis = new BufferedInputStream(is);
         try {
             long start = System.currentTimeMillis();
-            long oldestTickTime = start - IMPORT_DAYS * ONE_DAY_IN_MILLIS;
+            long oldestTickTime = start - IMPORT_DAYS * Utils.ONE_DAY_IN_MILLIS;
             readData(connection, exchange, available, bis, oldestTickTime);
         } finally {
             bis.close();

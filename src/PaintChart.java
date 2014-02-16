@@ -10,14 +10,14 @@ import java.util.*;
 import java.util.List;
 
 public class PaintChart extends DbReady {
-    public static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
+    private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
     public static final int PERIOD_LENGTH_DAYS = 7; // the period width
-    public static final int MOVING_AVERAGE_POINTS = 80; // 300
-    public static final double EXPECTED_GAIN = 5; // 5
+    private static final int MOVING_AVERAGE_POINTS = 80; // 300
+    private static final double EXPECTED_GAIN = 5; // 5
     public static final int MIN_CONFIRMED_DIFFS = 5;
     // BITSTAMP, BTCE, MTGOX, CAMPBX
-    public static final Exchange EXCH1 = Exchange.BITSTAMP;
-    public static final Exchange EXCH2 = Exchange.BTCE;
+    private static final Exchange EXCH1 = Exchange.BITSTAMP;
+    private static final Exchange EXCH2 = Exchange.BTCE;
     public static final boolean DO_DROP = true;
     public static final double DROP_LEVEL = 0.8;
     public static final boolean LOCK_DIRECTION_ON_DROP = true;
@@ -27,7 +27,7 @@ public class PaintChart extends DbReady {
     private static final boolean PAINT_DIFF = true;
     // chart area
     public static final int X_FACTOR = 4;
-    public static final int WIDTH = 1680 * X_FACTOR;
+    private static final int WIDTH = 1680 * X_FACTOR;
     public static final int HEIGHT = 1000 * 2;
 
     public static final DecimalFormat XX_YYYYY = new DecimalFormat("#,##0.0####");
@@ -48,8 +48,8 @@ public class PaintChart extends DbReady {
         IDbRunnable runnable = new IDbRunnable() {
             public void run(Connection connection) throws SQLException {
                 long now = System.currentTimeMillis();
-                long end = now - PERIOD_END_OFFSET_DAYS * ONE_DAY_IN_MILLIS;
-                long start = end - PERIOD_LENGTH_DAYS * ONE_DAY_IN_MILLIS;
+                long end = now - PERIOD_END_OFFSET_DAYS * Utils.ONE_DAY_IN_MILLIS;
+                long start = end - PERIOD_LENGTH_DAYS * Utils.ONE_DAY_IN_MILLIS;
 
                 System.out.println("selecting ticks");
                 List<Tick> ticks = selectTicks(connection, now, end, start, EXCH1, EXCH2);
@@ -111,9 +111,11 @@ public class PaintChart extends DbReady {
         String timePpStr = "time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale);
         System.out.println(timePpStr);
 
+        @SuppressWarnings("ConstantConditions")
         TickList[] ticksPerPoints = PAINT_PRICE ? calculateTicksPerPoints(ticks, timeAxe) : null;
 
         // older first
+        @SuppressWarnings("ConstantConditions")
         PriceDiffList[] diffsPerPoints = PAINT_DIFF ? calculateDiffsPerPoints(difMap, timeAxe) : null;
 
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
@@ -129,6 +131,7 @@ public class PaintChart extends DbReady {
         g.drawRect(0, 0, WIDTH - 1, HEIGHT - 1);
 
         // older first
+        @SuppressWarnings("ConstantConditions")
         double[] movingAverage = PAINT_DIFF ? calculateMovingAverage(diffsPerPoints) : null;
 
         int priceStep = 10;
@@ -470,7 +473,7 @@ public class PaintChart extends DbReady {
         Utils.setToDayStart(cal);
 
         long timePeriod = maxTimestamp - minTimestamp;
-        int timePeriodDays = (int) (timePeriod / ONE_DAY_IN_MILLIS);
+        int timePeriodDays = (int) (timePeriod / Utils.ONE_DAY_IN_MILLIS);
 
         // paint DAYS
         g.setFont(g.getFont().deriveFont(30.0f));
@@ -640,13 +643,13 @@ public class PaintChart extends DbReady {
         }
     }
 
-    public static class TickList extends ArrayList<Tick> {}
+    private static class TickList extends ArrayList<Tick> {}
     public static class PriceDiffList extends ArrayList<Double> {}
 
     public static class ChartAxe {
-        private double m_min;
-        private double m_scale;
-        private int m_size;
+        private final double m_min;
+        private final double m_scale;
+        private final int m_size;
 
         public ChartAxe(double min, double max, int size) {
             m_min = min;

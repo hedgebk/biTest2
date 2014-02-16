@@ -19,7 +19,7 @@ import java.util.Properties;
 
 public class Bitstamp {
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible; +https://github.com/abwaters/bitstamp-api)";
-    public static final String CRYPTO_ALGO = "HmacSHA512";
+    public static final String CRYPTO_ALGO = "HmacSHA256";
     private static final String SECRET;
     private static final String KEY;
     private static final String CLIENT_ID;

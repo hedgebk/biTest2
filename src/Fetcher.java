@@ -268,7 +268,7 @@ public class Fetcher {
         return tradesData;
     }
 
-    private static TradesData fetchTradesOnce(Exchange exchange) throws Exception {
+    private static TradesData fetchTradesOnce(Exchange exchange) {
         try {
             Object jObj = fetchOnce(exchange, FetchCommand.TRADES);
 //        System.out.println("jObj=" + jObj);
@@ -298,7 +298,7 @@ public class Fetcher {
         return topData;
     }
 
-    private static TopData fetchTopOnce(Exchange exchange) throws Exception {
+    private static TopData fetchTopOnce(Exchange exchange) {
         try {
             Object jObj = fetchOnce(exchange, FetchCommand.TOP);
             //System.out.println("jObj=" + jObj);
@@ -440,7 +440,7 @@ public class Fetcher {
         public ExchangeState m_state = ExchangeState.NONE;
 
         // to calc average diff between bid and ask on exchange
-        public Utils.DoubleAverageCalculator m_bidAskDiffCalculator = new Utils.DoubleAverageCalculator<Double>() {
+        public final Utils.DoubleAverageCalculator m_bidAskDiffCalculator = new Utils.DoubleAverageCalculator<Double>() {
             @Override public double getDoubleValue(Double tick) { return tick; }
         };
         //bitstamp avgBidAskDiff1=2.6743, btc-e avgBidAskDiff2=1.3724
@@ -984,9 +984,9 @@ public class Fetcher {
     public static class OrderData {
         public OrderStatus m_status = OrderStatus.NEW;
         public OrderState m_state = OrderState.NONE;
-        public OrderSide m_side;
+        public final OrderSide m_side;
         public double m_price;
-        public double m_amount;
+        public final double m_amount;
         public double m_filled;
         public List<Execution> m_executions;
 
@@ -1114,7 +1114,7 @@ public class Fetcher {
         public final ExchangeData m_exch2data;
         public TopData.TopDataEx m_lastDiff;
         public ExchangesState m_state = ExchangesState.NONE;
-        public Utils.AverageCounter m_diffAverageCounter = new Utils.AverageCounter(MOVING_AVERAGE);
+        public final Utils.AverageCounter m_diffAverageCounter = new Utils.AverageCounter(MOVING_AVERAGE);
         // OPEN sides
         private ExchangeData m_openBuyExchange;
         private ExchangeData m_openSellExchange;

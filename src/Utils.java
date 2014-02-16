@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 public class Utils {
     public static final DecimalFormat XX_YYYY = new DecimalFormat("#,##0.0000");
+    public static final long ONE_DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
 
     public static String encodeHexString(byte[] hash) {
         return String.format("%064x", new BigInteger(1, hash));
