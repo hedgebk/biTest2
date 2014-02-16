@@ -2,7 +2,10 @@ import org.json.simple.JSONObject;
 
 import java.math.BigInteger;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -185,4 +188,45 @@ public class Utils {
             }
         }
     }
+
+    public static class AverageCounter {
+        // probably better to have average counter which counts older ticks with lower ratio/weight
+        public final TreeMap<Long,Double> m_map = new TreeMap<Long, Double>(); // sorted by time
+        private final long m_limit;
+
+        public AverageCounter(long limit) {
+            m_limit = limit;
+        }
+
+        public double add(long millis, double addValue) {
+            justAdd(millis, addValue);
+            return get();
+        }
+
+        void justAdd(long millis, double addValue) {
+            long limit = millis - m_limit;
+            removeOld(limit, m_map);
+            m_map.put(millis, addValue);
+        }
+
+        private static <T> void removeOld(long limit, TreeMap<Long, T> map) {
+            SortedMap<Long, T> toRemove = map.headMap(limit);
+            if (!toRemove.isEmpty()) {
+                ArrayList<Long> keys = new ArrayList<Long>(toRemove.keySet());
+                for (Long key : keys) {
+                    map.remove(key);
+                }
+            }
+        }
+
+        public double get() {
+            double summ = 0.0;
+            int counter = 0;
+            for(Double value: m_map.values()) {
+                summ += value;
+                counter++;
+            }
+            return summ/counter;
+        }
+    } // AverageCounter
 }
