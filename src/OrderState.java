@@ -1,13 +1,13 @@
 public enum OrderState {
     NONE,
     BRACKET_PLACED {
-        @Override public void checkState(IterationContext iContext, Fetcher.ExchangeData exchData, OrderData orderData) throws Exception {
+        @Override public void checkState(IterationContext iContext, ExchangeData exchData, OrderData orderData) throws Exception {
             System.out.println("OrderState.BRACKET_PLACED. check if order executed");
             trackLimitOrderExecution(iContext, exchData, orderData);
         }
     },
     MARKET_PLACED {
-        @Override public void checkState(IterationContext iContext, Fetcher.ExchangeData exchData, OrderData orderData) throws Exception {
+        @Override public void checkState(IterationContext iContext, ExchangeData exchData, OrderData orderData) throws Exception {
             System.out.println("OrderState.MARKET_PLACED. check if order executed");
             boolean executed = trackLimitOrderExecution(iContext, exchData, orderData);
             if( executed ) {
@@ -18,9 +18,9 @@ public enum OrderState {
         }
     };
 
-    private static boolean trackLimitOrderExecution(IterationContext iContext, Fetcher.ExchangeData exchData, OrderData orderData) throws Exception {
+    private static boolean trackLimitOrderExecution(IterationContext iContext, ExchangeData exchData, OrderData orderData) throws Exception {
         // actually order execution should be checked via getLiveOrdersState()
-        Fetcher.LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
+        LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
         // but for simulation we are checking via trades
         TradesData newTrades = iContext.getNewTradesData(exchData);
         orderData.xCheckExecutedLimit(iContext, exchData, orderData, newTrades);
@@ -35,7 +35,7 @@ public enum OrderState {
         return false;
     }
 
-    public void checkState(IterationContext iContext, Fetcher.ExchangeData exchangeData, OrderData orderData) throws Exception {
+    public void checkState(IterationContext iContext, ExchangeData exchangeData, OrderData orderData) throws Exception {
         System.out.println("checkState not implemented for OrderState." + this);
     }
 } // OrderState

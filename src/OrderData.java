@@ -54,7 +54,7 @@ public class OrderData {
         return m_executions;
     }
 
-    public boolean xCheckExecutedLimit(IterationContext iContext, Fetcher.ExchangeData exchData, OrderData orderData, TradesData newTrades) {
+    public boolean xCheckExecutedLimit(IterationContext iContext, ExchangeData exchData, OrderData orderData, TradesData newTrades) {
         OrderSide orderSide = orderData.m_side;
         double orderAmount = orderData.m_amount;
         double price = orderData.m_price;

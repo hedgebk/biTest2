@@ -4,23 +4,23 @@ import java.util.Map;
 
 public class IterationContext {
     public TopDatas m_top;
-    public Map<Integer,Fetcher.LiveOrdersData> m_liveOrders;
+    public Map<Integer, LiveOrdersData> m_liveOrders;
     public long m_nextIterationDelay = 1000; // 1 sec by def
     private Map<Integer, TradesData> m_newTrades;
     public boolean m_acceptPriceSimulated;
 
-    public TopDatas getTopsData(Fetcher.ExchangesData exchangesData) throws Exception {
+    public TopDatas getTopsData(ExchangesData exchangesData) throws Exception {
         if( m_top == null ){
             m_top = requestTopsData(exchangesData);
         }
         return m_top;
     }
 
-    public Fetcher.LiveOrdersData getLiveOrdersState(Fetcher.ExchangeData exchangeData) {
+    public LiveOrdersData getLiveOrdersState(ExchangeData exchangeData) {
         int exchId = exchangeData.m_exch.m_databaseId;
-        Fetcher.LiveOrdersData data;
+        LiveOrdersData data;
         if(m_liveOrders == null) {
-            m_liveOrders = new HashMap<Integer, Fetcher.LiveOrdersData>();
+            m_liveOrders = new HashMap<Integer, LiveOrdersData>();
             data = null;
         } else {
             data = m_liveOrders.get(exchId);
@@ -32,7 +32,7 @@ public class IterationContext {
         return data;
     }
 
-    public TradesData getNewTradesData(Fetcher.ExchangeData exchData) throws Exception {
+    public TradesData getNewTradesData(ExchangeData exchData) throws Exception {
         int exchId = exchData.exchId();
         TradesData data;
         if (m_newTrades == null) {
@@ -58,9 +58,9 @@ public class IterationContext {
         return data;
     }
 
-    private TopDatas requestTopsData(Fetcher.ExchangesData exchangesData) throws Exception {
-        Fetcher.ExchangeData exch1data = exchangesData.m_exch1data;
-        Fetcher.ExchangeData exch2data = exchangesData.m_exch2data;
+    private TopDatas requestTopsData(ExchangesData exchangesData) throws Exception {
+        ExchangeData exch1data = exchangesData.m_exch1data;
+        ExchangeData exch2data = exchangesData.m_exch2data;
 
         // load top mkt data
         long millis0 = System.currentTimeMillis();
