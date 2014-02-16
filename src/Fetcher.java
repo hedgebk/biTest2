@@ -621,7 +621,7 @@ public class Fetcher {
             if (m_buyOpenBracketOrder != null) {
                 double buyDelta = m_buyOpenBracketOrder.m_price - buy;
                 if (Math.abs(buyDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little
-                    System.out.println("  do not mode BUY bracket, [" + m_buyOpenBracketOrder.priceStr() + "->" + format(buy) + "] delta=" + buyDelta);
+                    System.out.println("  do not move BUY bracket, [" + m_buyOpenBracketOrder.priceStr() + "->" + format(buy) + "] delta=" + buyDelta);
                 } else {
                     cancelOrder(m_buyOpenBracketOrder);
                     m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
@@ -633,7 +633,7 @@ public class Fetcher {
                 if (m_sellOpenBracketOrder != null) {
                     double sellDelta = sell - m_sellOpenBracketOrder.m_price;
                     if (Math.abs(sellDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little
-                        System.out.println("  do not mode DELL bracket, [" + m_sellOpenBracketOrder.priceStr() + "->" + format(sell) + "] delta=" + sellDelta);
+                        System.out.println("  do not move SELL bracket, [" + m_sellOpenBracketOrder.priceStr() + "->" + format(sell) + "] delta=" + sellDelta);
                     } else {
                         cancelOrder(m_sellOpenBracketOrder);
                         m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
@@ -1052,6 +1052,8 @@ public class Fetcher {
         private ExchangeData m_openSellExchange;
         private OrderData m_openBuyOrder;
         private OrderData m_openSellOrder;
+        private StringBuilder m_executionTrace = new StringBuilder();
+        private double m_earnThisRun;
 
         private boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
         private boolean hasAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
@@ -1268,9 +1270,14 @@ public class Fetcher {
                 m_openBuyOrder = buyExch.m_buyOpenBracketOrder;
                 m_openSellOrder = sellExch.m_sellOpenBracketOrder;
 
-                System.out.println("% BUY  on '" + buyExch.exchName() + "' @ " + m_openBuyOrder.priceStr());
+                String str1 = "% BUY  on '" + buyExch.exchName() + "' @ " + m_openBuyOrder.priceStr();
+                System.out.println(str1);
+                m_executionTrace.append(str1).append("\n");
                 m_openBuyExchange.logOrdersAndPrices(m_openBuyExchange.m_lastTop, null, null);
-                System.out.println("% SELL on '" + sellExch.exchName() + "' @ " + m_openSellOrder.priceStr());
+
+                String str2 = "% SELL on '" + sellExch.exchName() + "' @ " + m_openSellOrder.priceStr();
+                System.out.println(str2);
+                m_executionTrace.append(str2).append("\n");
                 m_openSellExchange.logOrdersAndPrices(m_openSellExchange.m_lastTop, null, null);
 
                 double midDiffAverage = m_diffAverageCounter.get();
@@ -1286,7 +1293,8 @@ public class Fetcher {
                 } else { // sell on exch 2
                     openEarn += midDiffAverage;
                 }
-                System.out.println("%   >>>  priceDiff=" + format(priceDiff) + ",  openEarn=" + format(openEarn));
+                m_earnThisRun += openEarn;
+                System.out.println("%   >>>  priceDiff=" + format(priceDiff) + ",  openEarn=" + format(openEarn) + ", earnThisRun=" + m_earnThisRun);
             } else {
                 setState(ExchangesState.ERROR);
             }
@@ -1346,6 +1354,15 @@ public class Fetcher {
                 }
             }
             return false;
+        }
+
+        public void endThisRun() {
+            System.out.println("@@@@@@@@@@@@@@@@@@@ END");
+            setState(ExchangesState.END);
+            System.out.println("****************************************************");
+            System.out.println(" execution log:");
+            System.out.println(m_executionTrace.toString());
+            System.out.println(" earnThisRun=" + m_earnThisRun);
         }
     } // ExchangesData
 
@@ -1433,15 +1450,13 @@ public class Fetcher {
             @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
                 System.out.println("ExchangesState.WAITING_CLOSE_OTHER_SIDE_AT_MKT checkState()");
                 if(exchangesData.waitingOtherSideAtMarket(iContext)) {
-                    System.out.println("@@@@@@@@@@@@@@@@@@@ END");
-                    exchangesData.setState(END);
+                    exchangesData.endThisRun();
                 }
             }
         },
         END  {
             @Override public boolean preCheckState(IterationContext iContext, ExchangesData exchangesData) {
-                System.out.println("ExchangesState.ERROR preCheckState() set all internal as ERROR...");
-                exchangesData.setAllAsError();
+                System.out.println("ExchangesState.END preCheckState()");
                 return true; // finish execution
             }
         },

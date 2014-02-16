@@ -13,7 +13,7 @@ public enum OrderState {
             if( executed ) {
                 System.out.println(" OPEN MKT bracket order executed. we are fully OPENED");
             } else {
-                System.out.println(" MKT order not yet executed - check and move ef needed");
+                System.out.println(" MKT order not yet executed - move if needed");
             }
         }
     };
