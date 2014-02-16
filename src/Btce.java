@@ -16,28 +16,37 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Btce {
-    private static String _secret = "09716def89537e2321fc3965130e158123fa9f3720fe8e9b695cef1e3a819259";
-    private static String _key = "FUBZD7QD-2636VLH1-OXZJ2WEP-XEN3AR8L-SN7ZXN8L";
-    private static int s_nonce = (int) (System.currentTimeMillis()/1000);
+    public static final String CRYPTO_ALGO = "HmacSHA512";
+    private static final String SECRET;
+    private static final String KEY;
+
+    private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
+
+    static {
+        try {
+            Properties properties = new Properties();
+            properties.load(new FileReader("keys.txt"));
+            SECRET = properties.getProperty("btce_secret");
+            KEY = properties.getProperty("btce_key");
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("error reading properties");
+        }
+    }
+
+    private static String getNextNonce() { return Integer.toString(s_nonce++); }
 
     public static void main(String[] args) {
         try {
-            //run("getInfo", null);
+            run("getInfo", null);
 //            run("TransHistory", null);
-            run("TradeHistory", null);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -50,22 +59,26 @@ public class Btce {
             arguments = new HashMap<String, String>();
         }
 
+        String nonce = getNextNonce();
+
         arguments.put("method", method);  // Add the method to the post data.
-        arguments.put("nonce", Integer.toString(s_nonce++));  // Add the dummy nonce.
+        arguments.put("nonce", nonce);
 
-        String postData = "";
-
+        StringBuilder buffer = new StringBuilder();
         for (Map.Entry<String, String> argument : arguments.entrySet()) {
-            if (postData.length() > 0) {
-                postData += "&";
+            if (buffer.length() > 0) {
+                buffer.append("&");
             }
-            postData += argument.getKey() + "=" + argument.getValue();
+            buffer.append(argument.getKey());
+            buffer.append("=");
+            buffer.append(argument.getValue());
         }
+        String postData = buffer.toString();
 
         // Create a new secret key
         SecretKeySpec key;
         try {
-            key = new SecretKeySpec(_secret.getBytes("UTF-8"), "HmacSHA512");
+            key = new SecretKeySpec(SECRET.getBytes("UTF-8"), CRYPTO_ALGO);
         } catch (UnsupportedEncodingException uee) {
             System.err.println("Unsupported encoding exception: " + uee.toString());
             return null;
@@ -74,7 +87,7 @@ public class Btce {
         // Create a new mac
         Mac mac;
         try {
-            mac = Mac.getInstance("HmacSHA512");
+            mac = Mac.getInstance(CRYPTO_ALGO);
         } catch (NoSuchAlgorithmException nsae) {
             System.err.println("No such algorithm exception: " + nsae.toString());
             return null;
@@ -89,7 +102,7 @@ public class Btce {
         }
 
         // Add the key to the header lines.
-        headerLines.put("Key", _key);
+        headerLines.put("Key", KEY);
 
         // Encode the post data by the secret and encode the result as base64.
         try {
@@ -107,41 +120,47 @@ public class Btce {
         URL url = new URL("https://btc-e.com/tapi");
 
         HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-        con.setRequestMethod("POST");
-        con.setUseCaches(false) ;
-        con.setDoOutput(true);
+        try {
+            con.setRequestMethod("POST");
+            con.setUseCaches(false);
+            con.setDoOutput(true);
 
-        con.setRequestProperty("Content-Type","application/x-www-form-urlencoded") ;
-        //con.setRequestProperty("User-Agent",USER_AGENT) ;
-        for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
-            con.setRequestProperty(headerLine.getKey(),headerLine.getValue()) ;
-        }
-
-        OutputStream os = con.getOutputStream();
-        os.write(postData.getBytes());
-        con.connect();
-
-        if (con.getResponseCode() == HttpsURLConnection.HTTP_OK) {
-            String json = "";
-            BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
-            String text;
-            while((text = br.readLine()) != null) {
-                json += text;
+            con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            //con.setRequestProperty("User-Agent",USER_AGENT) ;
+            for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
+                con.setRequestProperty(headerLine.getKey(), headerLine.getValue());
             }
-            br.close();
-            System.out.println("json: " + json);
-        }else{
-            ;
+
+            OutputStream os = con.getOutputStream();
+            try {
+                os.write(postData.getBytes());
+                con.connect();
+
+                int responseCode = con.getResponseCode();
+                if (responseCode == HttpsURLConnection.HTTP_OK) {
+                    StringBuilder json = new StringBuilder();
+                    BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                    try {
+                        String text;
+                        while ((text = br.readLine()) != null) {
+                            json.append(text);
+                        }
+                    } finally {
+                        br.close();
+                    }
+                    System.out.println("json: " + json);
+                } else {
+                    System.out.println("ERROR: unexpected ResponseCode: " + responseCode);
+                }
+                System.out.println("Code Response: " + responseCode);
+            } finally {
+                os.close();
+            }
+        } finally {
+            con.disconnect();
         }
-        con.disconnect();
-        System.out.println("Code Response: " + con.getResponseCode());
 
-
-        return null;  // The request failed.
-    }
-
-    private static String nonce() {
-        return Long.toString(System.currentTimeMillis());
+        return null;
     }
 
     public static String topTestStr() {

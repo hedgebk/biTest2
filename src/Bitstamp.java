@@ -10,6 +10,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 //
 // SEE HERE
@@ -17,38 +18,51 @@ import java.util.List;
 //
 
 public class Bitstamp {
-    private static final String USER_AGENT = "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible; +https://github.com/abwaters/bitstamp-api)" ;
-    // https://www.bitfinex.com/  ?
-    // crypto-trade.com ?
+    private static final String USER_AGENT = "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible; +https://github.com/abwaters/bitstamp-api)";
+    public static final String CRYPTO_ALGO = "HmacSHA512";
+    private static final String SECRET;
+    private static final String KEY;
+    private static final String CLIENT_ID;
+
     private static String s_bitstampDeepTestStr = null;
+
+    static {
+        try {
+            Properties properties = new Properties();
+            properties.load(new FileReader("keys.txt"));
+            SECRET = properties.getProperty("bitstamp_secret");
+            KEY = properties.getProperty("bitstamp_key");
+            CLIENT_ID = properties.getProperty("bitstamp_clientId");
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("error reading properties");
+        }
+    }
+
+    private static String getNextNonce() { return Long.toString(System.currentTimeMillis() / 100); }
 
     public static void main(String[] args) {
         try {
-            String key = "wGwivLv2Ue3IfSmEAzvFB1kzkmEx7Mka";
-            String secret="OEV0Hgx3a0r2jH9YJIl98ReElN4YGvar";
-            String clientId = "605976";
-            String nonce = String.valueOf(System.currentTimeMillis());
+            String nonce = getNextNonce();
 
-            //String message = nonce + clientId + key;
-
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
+            Mac mac = Mac.getInstance(CRYPTO_ALGO);
+            SecretKeySpec secretKey = new SecretKeySpec(SECRET.getBytes(), CRYPTO_ALGO);
             mac.init(secretKey);
 
-            mac.update(nonce.getBytes()) ;
-            mac.update(clientId.getBytes()) ;
-            mac.update(key.getBytes()) ;
+            mac.update(nonce.getBytes());
+            mac.update(CLIENT_ID.getBytes());
+            mac.update(KEY.getBytes());
 
-            byte[] hash = mac.doFinal(/*message.getBytes()*/);
+            byte[] hash = mac.doFinal();
 
             String signature = Utils.encodeHexString(hash).toUpperCase();
             System.out.println("signature: " + signature);
 
-            String query = "key="+ URLEncoder.encode(key);
+            String query = "key=" + URLEncoder.encode(KEY);
             query += "&";
-            query += "nonce="+ URLEncoder.encode(nonce);
+            query += "nonce=" + URLEncoder.encode(nonce);
             query += "&";
-            query += "signature="+URLEncoder.encode(signature);
+            query += "signature=" + URLEncoder.encode(signature);
 
             SSLContext sslctx = SSLContext.getInstance("SSL");
             sslctx.init(null, null, null);
@@ -57,37 +71,39 @@ public class Bitstamp {
             URL url = new URL("https://www.bitstamp.net/api/balance/");
 
             HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-            con.setRequestMethod("POST");
-            con.setUseCaches(false) ;
-            con.setDoOutput(true);
+            try {
+                con.setRequestMethod("POST");
+                con.setUseCaches(false);
+                con.setDoOutput(true);
 
-            con.setRequestProperty("Content-Type","application/x-www-form-urlencoded") ;
-            con.setRequestProperty("User-Agent",USER_AGENT) ;
+                con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                con.setRequestProperty("User-Agent", USER_AGENT);
 
-            OutputStream os = con.getOutputStream();
-            os.write(query.getBytes());
-            //PrintStream ps = new PrintStream(os);
-            //ps.println(query);
-            //ps.close();
-
-            con.connect();
-
-            if (con.getResponseCode() == HttpsURLConnection.HTTP_OK) {
-                String json = "";
-                BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
-                String text;
-                while((text = br.readLine()) != null) {
-                    json += text;
+                OutputStream os = con.getOutputStream();
+                try {
+                    os.write(query.getBytes());
+                    con.connect();
+                    if (con.getResponseCode() == HttpsURLConnection.HTTP_OK) {
+                        String json = "";
+                        BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                        try {
+                            String text;
+                            while ((text = br.readLine()) != null) {
+                                json += text;
+                            }
+                        } finally {
+                            br.close();
+                        }
+                        System.out.println("json: " + json);
+                    } else {
+                        System.out.println("ERROR: unexpected ResponseCode: " + con.getResponseCode());
+                    }
+                } finally {
+                    os.close();
                 }
-                br.close();
-                System.out.println("json: " + json);
-            }else{
-                ;
+            } finally {
+                con.disconnect();
             }
-            con.disconnect();
-            System.out.println("Code Response: " + con.getResponseCode());
-
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -116,14 +132,14 @@ public class Bitstamp {
     }
 
     public static String deepTestStr() {
-        if( s_bitstampDeepTestStr == null ) {
+        if (s_bitstampDeepTestStr == null) {
             StringBuilder sb = new StringBuilder();
             try {
                 Reader fr = new FileReader("bitstampDeep.json");
                 BufferedReader reader = new BufferedReader(fr);
                 try {
                     String line;
-                    while((line=reader.readLine())!=null) {
+                    while ((line = reader.readLine()) != null) {
                         sb.append(line);
                     }
                 } finally {
@@ -181,7 +197,6 @@ public class Bitstamp {
         return "[{\"amount\":\"0.02500000\",\"price\":\"683.00\",\"tid\":3406676,\"date\":\"1391901009\"},{\"amount\":\"3.44293760\",\"price\":\"680.10\",\"tid\":3406675,\"date\":\"1391901004\"},{\"amount\":\"0.35592240\",\"price\":\"681.95\",\"tid\":3406674,\"date\":\"1391901004\"},{\"amount\":\"0.06000000\",\"price\":\"681.95\",\"tid\":3406673,\"date\":\"1391901004\"},{\"amount\":\"3.93895847\",\"price\":\"684.90\",\"tid\":3406672,\"date\":\"1391900996\"},{\"amount\":\"1.96647298\",\"price\":\"684.90\",\"tid\":3406671,\"date\":\"1391900985\"},{\"amount\":\"2.03352702\",\"price\":\"684.90\",\"tid\":3406670,\"date\":\"1391900981\"},{\"amount\":\"2.96647298\",\"price\":\"684.89\",\"tid\":3406669,\"date\":\"1391900981\"},{\"amount\":\"0.13300000\",\"price\":\"684.89\",\"tid\":3406668,\"date\":\"1391900974\"},{\"amount\":\"0.74886633\",\"price\":\"684.89\",\"tid\":3406667,\"date\":\"1391900960\"},{\"amount\":\"0.32373920\",\"price\":\"684.00\",\"tid\":3406666,\"date\":\"1391900960\"},{\"amount\":\"1.00000000\",\"price\":\"681.02\",\"tid\":3406665,\"date\":\"1391900960\"},{\"amount\":\"5.82453974\",\"price\":\"680.02\",\"tid\":3406664,\"date\":\"1391900959\"},{\"amount\":\"4.17546026\",\"price\":\"680.04\",\"tid\":3406663,\"date\":\"1391900959\"},{\"amount\":\"0.02500000\",\"price\":\"684.00\",\"tid\":3406662,\"date\":\"1391900957\"}]";
     }
 }
-
 
 
 //////////////////////////////////////////////////////////////

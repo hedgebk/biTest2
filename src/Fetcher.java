@@ -21,6 +21,8 @@ public class Fetcher {
     private static final int MAX_READ_ATTEMPTS = 100; // 5;
     public static final int START_REPEAT_DELAY = 200;
     public static final int REPEAT_DELAY_INCREMENT = 200;
+    public static final int CONNECT_TIMEOUT = 5000;
+    public static final int READ_TIMEOUT = 7000;
 
     public static STATE s_state = STATE.NONE;
     private static double s_ask; // bought @
@@ -121,7 +123,7 @@ public class Fetcher {
                 s_state = STATE.ERROR; // close everything opened
             }
 
-            TopData.TopDataEx diff = calcDiff(top1, top2); // top1 - top2
+            TopData.TopDataEx diff = TopData.calcDiff(top1, top2); // top1 - top2
             System.out.print("diff=" + diff);
 
             double midDiff = diff.m_mid;
@@ -200,7 +202,7 @@ public class Fetcher {
         return 1.0; // 1.0 BTC
     }
 
-    private static void close(ExchangeData exch1data, ExchangeData exch2data, TopData top1, TopData top2) {
+    private static void oldClose(ExchangeData exch1data, ExchangeData exch2data, TopData top1, TopData top2) {
         double bid = top2.m_bid;
         System.out.println("@@@@@@@@@@@@@@ will sell MKT on " + exch2data.exchName() + " @ " + bid);
         double gain2 = bid - s_ask;
@@ -222,7 +224,7 @@ public class Fetcher {
         System.out.println("@@@@@@@@@@@@@@   done in " + Utils.millisToDHMSStr(doneMillis));
     }
 
-    private static void openAtMkt(Exchange sellExch, Exchange buyExch, TopData sellExchTop, TopData buyExchTop,
+    private static void oldOpenAtMkt(Exchange sellExch, Exchange buyExch, TopData sellExchTop, TopData buyExchTop,
                                   TopData.TopDataEx diff, STATE state) {
         // ASK > BID
         s_ask = buyExchTop.m_ask;
@@ -243,15 +245,6 @@ public class Fetcher {
         ERROR
 //        TOP,
 //        BOTTOM
-    }
-
-    private static TopData.TopDataEx calcDiff(TopData top1, TopData top2) {
-        if( (top1 != null) && (top2 != null)) {
-            return new TopData.TopDataEx(top1.m_bid - top2.m_bid, top1.m_ask - top2.m_ask, top1.m_last - top2.m_last,
-                                       ((top1.m_bid + top1.m_ask) - (top2.m_bid + top2.m_ask))/2 );
-        } else {
-            return null;
-        }
     }
 
     private static void printDeeps(DeepData deep1, DeepData deep2) {
@@ -347,8 +340,8 @@ public class Fetcher {
 
             //con.setRequestMethod("POST");
             con.setUseCaches(false) ;
-            con.setConnectTimeout(5000);
-            con.setReadTimeout(7000);
+            con.setConnectTimeout(CONNECT_TIMEOUT);
+            con.setReadTimeout(READ_TIMEOUT);
             //con.setDoOutput(true);
 
             //con.setRequestProperty("Content-Type","application/x-www-form-urlencoded") ;
@@ -448,10 +441,8 @@ public class Fetcher {
 
         // to calc average diff between bid and ask on exchange
         public Utils.DoubleAverageCalculator m_bidAskDiffCalculator = new Utils.DoubleAverageCalculator<Double>() {
-                        @Override public double getDoubleValue(Double tick) { return tick; }
-                    };
-//        public double m_sumBidAskDiff = 0;
-//        public int m_bidAskDiffCounter = 0;
+            @Override public double getDoubleValue(Double tick) { return tick; }
+        };
         //bitstamp avgBidAskDiff1=2.6743, btc-e avgBidAskDiff2=1.3724
         //bitstamp avgBidAskDiff1=2.1741, btc-e avgBidAskDiff2=1.2498
         //bitstamp avgBidAskDiff1=1.9107, btc-e avgBidAskDiff2=1.3497
@@ -462,8 +453,6 @@ public class Fetcher {
         public Long m_lastProcessedTradesTime = 0l;
         private TopData m_lastTop;
         public final Utils.AverageCounter m_averageCounter = new Utils.AverageCounter(MOVING_AVERAGE);
-//        private boolean m_bracketExecuted;
-//        private Object openBracketOrder;
 
         public ExchangeData(Exchange exch) {
             m_exch = exch;
@@ -477,7 +466,6 @@ public class Fetcher {
         }
 
         public int exchId() { return m_exch.m_databaseId; }
-//        public double avgBidAskDiff() { return m_sumBidAskDiff/m_bidAskDiffCounter; }
         public String avgBidAskDiffStr() { return format(m_bidAskDiffCalculator.getAverage()); }
         private String exchName() { return m_exch.m_name; }
         public boolean waitingForOpenBrackets() { return m_state == ExchangeState.OPEN_BRACKETS_WAITING; }
@@ -830,10 +818,10 @@ public class Fetcher {
         }
 
         private void checkSomeBracketExecuted(IterationContext iContext) {
-            System.out.println("check if some bracket executed"); // todo: note: both can be executed in rare cases !!
+            System.out.println("check if some bracket executed"); // todo: note: both can be executed (for OPEN case) in rare cases !!
             // todo: also some bracket can be partially executed - complex scenario
-            boolean buyExecuted = (m_buyOpenBracketOrder.m_status == OrderStatus.FILLED);
-            boolean sellExecuted = (m_sellOpenBracketOrder.m_status == OrderStatus.FILLED);
+            boolean buyExecuted = (m_buyOpenBracketOrder != null) && (m_buyOpenBracketOrder.m_status == OrderStatus.FILLED);
+            boolean sellExecuted = (m_sellOpenBracketOrder != null) && (m_sellOpenBracketOrder.m_status == OrderStatus.FILLED);
             OrderData openOrder = null;
             if (buyExecuted) {
                 if (sellExecuted) {
@@ -981,8 +969,8 @@ public class Fetcher {
         CLOSE_BRACKET_PLACED {
             @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
                 System.out.println("ExchangeState.CLOSE_BRACKET_PLACED(" + exchData.exchName() + "). check if some order executed");
-                //exchData.checkSomeBracketExecuted(iContext);
-                // here to finish
+                exchData.checkSomeBracketExecuted(iContext);
+                //here to finish
             }
         },
         ERROR,
@@ -1078,46 +1066,6 @@ public class Fetcher {
             return false;
         }
     } // OrderData
-
-    public static class Execution {
-        public final double m_price;
-        public final double m_amount;
-
-        public Execution(double price, double amount) {
-            m_price = price;
-            m_amount = amount;
-        }
-    } // Execution
-
-    public static enum OrderSide {
-        BUY {
-            @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice >= mktPrice; }
-            @Override public OrderSide opposite() { return SELL; }
-            @Override public double mktPrice(TopData top) { return top.m_ask; }
-        },
-        SELL {
-            @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice <= mktPrice; }
-            @Override public OrderSide opposite() { return BUY; }
-            @Override public double mktPrice(TopData top) { return top.m_bid; }
-        };
-
-        public boolean acceptPrice(double orderPrice, double mktPrice) { return false; }
-        public OrderSide opposite() { return null; }
-        public double mktPrice(TopData top) { return 0; } // ASK > BID
-    } // OrderSide
-
-    public static enum OrderStatus {
-        NEW,
-        SUBMITTED,
-        PARTIALLY_FILLED,
-        FILLED,
-        REJECTED,
-        CANCELLED;
-
-        public boolean isActive() {
-            return (this == SUBMITTED) || (this == PARTIALLY_FILLED);
-        }
-    }
 
     public static enum OrderState {
         NONE,
@@ -1583,29 +1531,4 @@ public class Fetcher {
 
     }
 
-    private static class TopDatas {
-        public final TopData m_top1;
-        public final TopData m_top2;
-
-        public TopDatas(TopData top1, TopData top2) {
-            m_top1 = top1;
-            m_top2 = top2;
-        }
-
-        public boolean bothFresh() {
-            return top1fresh() && top2fresh();
-        }
-
-        private boolean top2fresh() {
-            return TopData.isLive(m_top2);
-        }
-
-        private boolean top1fresh() {
-            return TopData.isLive(m_top1);
-        }
-
-        public TopData.TopDataEx calculateDiff() {  // top1 - top2
-            return calcDiff(m_top1, m_top2);
-        }
-    } // TopDatas
 }

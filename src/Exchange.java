@@ -28,6 +28,7 @@ public enum Exchange {
     //    http://docs.itbit.apiary.io/
     //    https://www.itbit.com/api/feeds/ticker/XBTUSD
     // ? bitcoin-central.net
+    // crypto-trade.com ?
 
     public final int m_databaseId;
     public final String m_name;

@@ -37,6 +37,15 @@ public class TopData {
                 ", last=" + lastStr();
     }
 
+    static TopDataEx calcDiff(TopData top1, TopData top2) {
+        if( (top1 != null) && (top2 != null)) {
+            return new TopDataEx(top1.m_bid - top2.m_bid, top1.m_ask - top2.m_ask, top1.m_last - top2.m_last,
+                                       ((top1.m_bid + top1.m_ask) - (top2.m_bid + top2.m_ask))/2 );
+        } else {
+            return null;
+        }
+    }
+
     public static class TopDataEx extends TopData {
         public final double m_mid;
 
