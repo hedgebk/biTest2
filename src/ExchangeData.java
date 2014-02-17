@@ -433,13 +433,13 @@ public class ExchangeData {
             OrderSide side = order.m_side;
             double mktPrice = side.mktPrice(m_shExchData.m_lastTop);
             OrderData newOrder = new OrderData(side, mktPrice, amount);
-            System.out.println(" moving MKT order price: "+order.priceStr() + " -> " + Fetcher.format(mktPrice));
+            System.out.println(" moving MKT order price: " + order.priceStr() + " -> " + Fetcher.format(mktPrice));
             boolean success = placeOrder(newOrder, OrderState.MARKET_PLACED);
             if (success) {
                 if (side == OrderSide.BUY) {
-                    m_buyOrder = order;
+                    m_buyOrder = newOrder;
                 } else {
-                    m_sellOrder = order;
+                    m_sellOrder = newOrder;
                 }
             } else {
                 System.out.println("error re-opening order at MKT: " + order);

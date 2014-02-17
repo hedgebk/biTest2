@@ -10,6 +10,7 @@ import java.net.URL;
  *  - move mkt open/close order with mkt data
  *  - make delay between runs mkt data related - distance to nearest order driven
  *  - support partial fills - do forks
+ *  - support DROP
  */
 public class Fetcher {
     static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;

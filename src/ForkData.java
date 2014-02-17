@@ -16,6 +16,14 @@ public class ForkData {
     private boolean hasBothBracketMarketExecuted() { return (m_exch1data.hasOpenCloseBracketExecuted() && m_exch2data.hasOpenCloseMktExecuted())
                                                    || (m_exch2data.hasOpenCloseBracketExecuted() && m_exch1data.hasOpenCloseMktExecuted()); }
 
+    @Override public String toString() {
+        return "ForkData{" +
+                "pairExData=" + m_pairExData.exchNames() +
+                ", state=" + m_state +
+                ", earnThisRun=" + m_earnThisRun +
+                '}';
+    }
+
     public ForkData(PairExchangeData pExData) {
         m_pairExData = pExData;
         m_exch1data = new ExchangeData(pExData.m_sharedExch1);
@@ -33,7 +41,11 @@ public class ForkData {
         System.out.println("****************************************************");
         System.out.println(" execution log:");
         System.out.println(m_executionTrace.toString());
-        System.out.println(" earnThisRun=" + m_earnThisRun);
+        double commissionAmount = getCommissionAmount();
+        double income = m_earnThisRun - commissionAmount;
+        System.out.println(" earnThisRun=" + m_earnThisRun + ", commissionAmount="+commissionAmount+", income=" + income);
+        m_pairExData.addIncome(income);
+
         setState(ForkState.END);
     }
 
@@ -94,8 +106,9 @@ public class ForkData {
                 TopData top1 = m_exch1data.m_shExchData.m_lastTop;
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
                 double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
-                double commissionAmount = m_exch1data.commissionAmount();
+                double commissionAmount = getCommissionAmount();
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
+                System.out.println("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
                 boolean success = m_exch1data.moveBrackets(top1, top2, midDiffAverage, halfTargetDelta);
                 if (success) {
                     success = m_exch2data.moveBrackets(top2, top1, -midDiffAverage, halfTargetDelta);
@@ -111,6 +124,10 @@ public class ForkData {
         });
     }
 
+    private double getCommissionAmount() {
+        return m_exch1data.commissionAmount() + m_exch2data.commissionAmount();
+    }
+
     public void placeCloseBrackets(IterationContext iContext) throws Exception {
         System.out.println(" try place CloseBrackets");
         doWithFreshTopData(iContext, new Runnable() {
@@ -119,8 +136,9 @@ public class ForkData {
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
                 double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
 
-                double commissionAmount = m_exch1data.commissionAmount();
+                double commissionAmount = m_exch1data.commissionAmount() + m_exch2data.commissionAmount();
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
+                System.out.println("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
 
                 boolean exch1openSell = (m_openSellExchange == m_exch1data);
                 boolean success = m_exch1data.placeCloseBracket(top1, top2, midDiffAverage,
@@ -152,6 +170,7 @@ public class ForkData {
                 }
                 if(!success) {
                     System.out.println("ERROR: in moveMarketsIfNeeded");
+                    logState();
                     setState(ForkState.ERROR);
                 }
             }
