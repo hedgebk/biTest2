@@ -1,8 +1,7 @@
-import java.util.List;
-
 public class ExchangeData {
     private static final double MKT_ORDER_THRESHOLD = 1.3; // market order price allowance +-30%
-    public static final double MOVE_BRACKET_ORDER_MIN_AMOUNT = 0.2;
+    public static final double MOVE_BRACKET_ORDER_MIN_AMOUNT = 0.5;
+    private static final double MIN_MKT_ORDER_PRICE_CHANGE = 0.0001;
 
     public final Exchange m_exch;
     public ExchangeState m_state = ExchangeState.NONE;
@@ -16,8 +15,8 @@ public class ExchangeData {
     //bitstamp avgBidAskDiff1=1.9107, btc-e avgBidAskDiff2=1.3497
 
     // moving bracket orders
-    public OrderData m_buyOpenBracketOrder;
-    public OrderData m_sellOpenBracketOrder;
+    public OrderData m_buyOrder;
+    public OrderData m_sellOrder;
     public Long m_lastProcessedTradesTime = 0l;
     TopData m_lastTop;
     public final Utils.AverageCounter m_averageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
@@ -39,85 +38,21 @@ public class ExchangeData {
     public boolean waitingForOpenBrackets() { return m_state == ExchangeState.OPEN_BRACKETS_WAITING; }
     public boolean hasOpenCloseBracketExecuted() { return (m_state == ExchangeState.ONE_OPEN_BRACKET_EXECUTED) || (m_state == ExchangeState.CLOSE_BRACKET_EXECUTED); }
     public boolean hasOpenCloseMktExecuted() { return (m_state == ExchangeState.OPEN_AT_MKT_EXECUTED) || (m_state == ExchangeState.CLOSE_AT_MKT_EXECUTED); }
+    public double commissionAmount() { return m_lastTop.getMid() * m_exch.m_fee; }
 
-    public OrderData oldCheckExecutedBrackets() throws Exception {
-        OrderData ret = null;
-        if ((m_buyOpenBracketOrder != null) || (m_sellOpenBracketOrder != null)) {
-            long millis0 = System.currentTimeMillis();
-            TradesData trades1 = Fetcher.fetchTrades(m_exch);
-            long millis1 = System.currentTimeMillis();
-            TradesData newTrades = trades1.newTrades(m_lastProcessedTradesTime);
-            System.out.println(" loaded " + trades1.size() + " trades for '" + exchName() + "' in "+(millis1 - millis0)+" ms; new " + newTrades.size() + " trades: " + newTrades);
-
-            List<TradesData.TradeData> newTradesList = newTrades.m_trades;
-            if (m_buyOpenBracketOrder != null) {
-                ret = oldCheckExecutedBracket(m_buyOpenBracketOrder, newTradesList);
-            }
-            if (m_sellOpenBracketOrder != null) {
-                ret = oldCheckExecutedBracket(m_sellOpenBracketOrder, newTradesList);
-            }
-            // todo: if one of brackets is executed - the another one should be adjusted (cancelled?).
-
-            for (TradesData.TradeData trade : newTradesList) {
-                long timestamp = trade.m_timestamp;
-                if (timestamp > m_lastProcessedTradesTime) {
-                    m_lastProcessedTradesTime = timestamp;
-                }
-            }
-        }
-        return ret;
-    }
-
-    // return opposite order to execute
-    private OrderData oldCheckExecutedBracket(OrderData bracketOrder, List<TradesData.TradeData> tradesList) {
-        OrderData ret = null;
-        OrderSide orderSide = bracketOrder.m_side;
-        double orderAmount = bracketOrder.m_amount;
-        for (TradesData.TradeData trade : tradesList) {
-            double mktPrice = trade.m_price; // ASK > BID
-            if (bracketOrder.acceptPrice(mktPrice)) {
-                double tradeAmount = trade.m_amount;
-                String orderPriceStr = bracketOrder.priceStr();
-                System.out.println("@@@@@@@@@@@@@@ we have LMT order " + orderSide + " " + orderAmount + " @ " + orderPriceStr +
-                                  " on '" + exchName() + "' got matched trade=" + trade);
-                if (orderAmount > tradeAmount) { // for now partial order execution it is complex to handle - we will execute the rest by MKT price
-                    System.out.println("@@@@@@@@@@@@@@  for now partial order execution it is complex to handle: orderAmount=" + orderAmount + ", tradeAmount=" + tradeAmount);
-                }
-                // here we pretend that the whole order was executed for now
-                bracketOrder.addExecution(bracketOrder.m_price, bracketOrder.m_amount); // todo: add partial order execution support later.
-                ret = new OrderData(orderSide.opposite(), Double.MAX_VALUE /*MKT*/, orderAmount);
-                break; // exit for now. continue here with partial orders support.
-            }
-        }
-        return ret;
-    }
-
-    public void oldPlaceBrackets(TopData otherTop, double midDiffAverage) {
-        double buy = otherTop.m_bid - Fetcher.HALF_TARGET_DELTA + midDiffAverage; // ASK > BID
-        double sell = otherTop.m_ask + Fetcher.HALF_TARGET_DELTA + midDiffAverage;
-
-        System.out.println("'" + exchName() + "' buy: " + ((m_buyOpenBracketOrder != null) ? m_buyOpenBracketOrder.priceStr() + "->" : "") + Fetcher.format(buy) + ";  " +
-                "sell: " + ((m_sellOpenBracketOrder != null) ? m_sellOpenBracketOrder.priceStr() + "->" : "") + Fetcher.format(sell));
-
-        double amount = Fetcher.calcAmountToOpen(); // todo: get this based on both exch account info
-
-        m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
-        m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
-    }
-
-    public boolean placeBrackets(TopData top, TopData otherTop, double midDiffAverage) { // ASK > BID
-        double buy = otherTop.m_bid - Fetcher.HALF_TARGET_DELTA + midDiffAverage;
-        double sell = otherTop.m_ask + Fetcher.HALF_TARGET_DELTA + midDiffAverage;
+    public boolean placeBrackets(TopData top, TopData otherTop, double midDiffAverage, double halfTargetDelta) { // ASK > BID
+        double buy = otherTop.m_bid - halfTargetDelta + midDiffAverage;
+        double sell = otherTop.m_ask + halfTargetDelta + midDiffAverage;
 
         logOrdersAndPrices(top, buy, sell);
 
         double amount = calcAmountToOpen();
 
-        m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
-        boolean success = placeOrderBracket(m_buyOpenBracketOrder);
+        m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
+        boolean success = placeOrderBracket(m_buyOrder);
         if (success) {
-            m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
-            success = placeOrderBracket(m_sellOpenBracketOrder);
+            m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+            success = placeOrderBracket(m_sellOrder);
             if (success) {
                 setState(ExchangeState.OPEN_BRACKETS_PLACED);
             }
@@ -130,21 +65,21 @@ public class ExchangeData {
         return success;
     }
 
-    public boolean placeCloseBracket(TopData top, TopData otherTop, double midDiffAverage, OrderSide orderSide) { // ASK > BID
+    public boolean placeCloseBracket(TopData top, TopData otherTop, double midDiffAverage, OrderSide orderSide, double halfTargetDelta) { // ASK > BID
         boolean isBuy = (orderSide == OrderSide.BUY);
-        Double buy = isBuy ? otherTop.m_bid - Fetcher.HALF_TARGET_DELTA + midDiffAverage : null;
-        Double sell = !isBuy ? otherTop.m_ask + Fetcher.HALF_TARGET_DELTA + midDiffAverage : null;
+        Double buy = isBuy ? otherTop.m_bid - halfTargetDelta + midDiffAverage : null;
+        Double sell = !isBuy ? otherTop.m_ask + halfTargetDelta + midDiffAverage : null;
 
         logOrdersAndPrices(top, buy, sell);
 
         boolean success;
         double amount = calcAmountToOpen();
         if(isBuy) {
-            m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
-            success = placeOrderBracket(m_buyOpenBracketOrder);
+            m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
+            success = placeOrderBracket(m_buyOrder);
         } else {
-            m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
-            success = placeOrderBracket(m_sellOpenBracketOrder);
+            m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+            success = placeOrderBracket(m_sellOrder);
         }
         if (success) {
             setState(ExchangeState.CLOSE_BRACKET_PLACED);
@@ -161,9 +96,9 @@ public class ExchangeData {
         m_state = state;
     }
 
-    public boolean moveBrackets(TopData top, TopData otherTop, double midDiffAverage) {
-        double buy = otherTop.m_bid - Fetcher.HALF_TARGET_DELTA + midDiffAverage; // ASK > BID
-        double sell = otherTop.m_ask + Fetcher.HALF_TARGET_DELTA + midDiffAverage;
+    public boolean moveBrackets(TopData top, TopData otherTop, double midDiffAverage, double halfTargetDelta) {
+        double buy = otherTop.m_bid - halfTargetDelta + midDiffAverage; // ASK > BID
+        double sell = otherTop.m_ask + halfTargetDelta + midDiffAverage;
 
         logOrdersAndPrices(top, buy, sell);
 
@@ -172,30 +107,37 @@ public class ExchangeData {
         // todo: do not move order if changed just a little - define accepted order change delta
 
         boolean success = true;
-        if (m_buyOpenBracketOrder != null) {
-            double buyDelta = m_buyOpenBracketOrder.m_price - buy;
-            if (Math.abs(buyDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little
-                System.out.println("  do not move BUY bracket, [" + m_buyOpenBracketOrder.priceStr() + "->" + Fetcher.format(buy) + "] delta=" + buyDelta);
+        if (m_buyOrder != null) {
+            double buyDelta = m_buyOrder.m_price - buy;
+            if (Math.abs(buyDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little (<0.05)
+                System.out.println("  do not move BUY bracket, [" + m_buyOrder.priceStr() + "->" + Fetcher.format(buy) + "] delta=" + buyDelta);
             } else {
-                cancelOrder(m_buyOpenBracketOrder);
-                m_buyOpenBracketOrder = new OrderData(OrderSide.BUY, buy, amount);
-                success = placeOrderBracket(m_buyOpenBracketOrder);
-            }
-        }
-
-        if (success) {
-            if (m_sellOpenBracketOrder != null) {
-                double sellDelta = sell - m_sellOpenBracketOrder.m_price;
-                if (Math.abs(sellDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little
-                    System.out.println("  do not move SELL bracket, [" + m_sellOpenBracketOrder.priceStr() + "->" + Fetcher.format(sell) + "] delta=" + sellDelta);
+                success = cancelOrder(m_buyOrder); // todo: order can be executed at this point, so cancel will fail
+                if (success) {
+                    m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
+                    success = placeOrderBracket(m_buyOrder);
                 } else {
-                    cancelOrder(m_sellOpenBracketOrder);
-                    m_sellOpenBracketOrder = new OrderData(OrderSide.SELL, sell, amount);
-                    success = placeOrderBracket(m_sellOpenBracketOrder);
+                    System.out.println(" cancel order failed: " + m_buyOrder);
                 }
             }
         }
 
+        if (success) {
+            if (m_sellOrder != null) {
+                double sellDelta = sell - m_sellOrder.m_price;
+                if (Math.abs(sellDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little
+                    System.out.println("  do not move SELL bracket, [" + m_sellOrder.priceStr() + "->" + Fetcher.format(sell) + "] delta=" + sellDelta);
+                } else {
+                    success = cancelOrder(m_sellOrder);  // todo: order can be executed at this point, so cancel will fail
+                    if (success) {
+                        m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+                        success = placeOrderBracket(m_sellOrder);
+                    } else {
+                        System.out.println(" cancel order failed: " + m_sellOrder);
+                    }
+                }
+            }
+        }
         if (!success) {
             System.out.println("ERROR: " + exchName() + " moveBrackets failed");
             setState(ExchangeState.ERROR);
@@ -204,11 +146,11 @@ public class ExchangeData {
     }
 
     void logOrdersAndPrices(TopData top, Double newBuyPrice, Double newSellPrice) {
-        System.out.println("'" + exchName() + "' buy: " + logPriceAndChange(m_buyOpenBracketOrder, newBuyPrice) + "  " +
-                                                logPriceDelta(top.m_bid, priceNewOrOld(m_buyOpenBracketOrder, newBuyPrice)) + "  " +
+        System.out.println("'" + exchName() + "' buy: " + logPriceAndChange(m_buyOrder, newBuyPrice) + "  " +
+                                                logPriceDelta(top.m_bid, priceNewOrOld(m_buyOrder, newBuyPrice)) + "  " +
                                                 "[bid=" + top.bidStr() + ", ask=" + top.askStr() + "]  " + // ASK > BID
-                                                logPriceDelta(priceNewOrOld(m_sellOpenBracketOrder, newSellPrice), top.m_ask) + "  " +
-                                                "sell: " + logPriceAndChange(m_sellOpenBracketOrder, newSellPrice));
+                                                logPriceDelta(priceNewOrOld(m_sellOrder, newSellPrice), top.m_ask) + "  " +
+                                                "sell: " + logPriceAndChange(m_sellOrder, newSellPrice));
     }
 
     private Double priceNewOrOld(OrderData order, Double price) {
@@ -283,9 +225,9 @@ public class ExchangeData {
             // todo: in real life we have to send order, wait execution, only then to process further
             mktOrder.addExecution(mktPrice, mktOrder.m_amount);
             if(side == OrderSide.BUY) {
-                m_buyOpenBracketOrder = mktOrder;
+                m_buyOrder = mktOrder;
             } else {
-                m_sellOpenBracketOrder = mktOrder;
+                m_sellOrder = mktOrder;
             }
             // todo: if one of brackets is executed - another one should be adjusted (cancelled?).
             return true;
@@ -297,10 +239,12 @@ public class ExchangeData {
 
     private boolean cancelOrder(OrderData orderData) {
         // todo: implement
-        System.out.println("cancelOrder() not implemented yet: " + orderData);
-        orderData.m_status = OrderStatus.CANCELLED;
-        orderData.m_state = OrderState.NONE;
-        return true;
+        if( orderData != null ) {
+            System.out.println("cancelOrder() not implemented yet: " + orderData);
+            orderData.m_status = OrderStatus.CANCELLED;
+            orderData.m_state = OrderState.NONE;
+        }
+        return true; // order can be executed at this point, so cancel will fail
     }
 
     private boolean placeOrderBracket(OrderData orderData) {
@@ -344,16 +288,16 @@ public class ExchangeData {
     }
 
     public void checkExchState(IterationContext iContext) throws Exception {
-        checkOrderState(m_buyOpenBracketOrder, iContext); // trace order executions separately
-        checkOrderState(m_sellOpenBracketOrder, iContext);
+        checkOrderState(m_buyOrder, iContext); // trace order executions separately
+        checkOrderState(m_sellOrder, iContext);
         m_state.checkState(iContext, this);
     }
 
     public OrderData getFilledBracketOrder() {
-        return ((m_buyOpenBracketOrder != null) && (m_buyOpenBracketOrder.m_status == OrderStatus.FILLED))
-                ? m_buyOpenBracketOrder
-                : ((m_sellOpenBracketOrder != null) && (m_sellOpenBracketOrder.m_status == OrderStatus.FILLED))
-                    ? m_sellOpenBracketOrder
+        return ((m_buyOrder != null) && (m_buyOrder.m_status == OrderStatus.FILLED))
+                ? m_buyOrder
+                : ((m_sellOrder != null) && (m_sellOrder.m_status == OrderStatus.FILLED))
+                    ? m_sellOrder
                     : null;
     }
 
@@ -370,15 +314,15 @@ public class ExchangeData {
 //        }
 
     public void closeOrders() {
-        closeBuyOrder();
-        closeSellOrder();
+        cancelBuyOrder(); // todo: order can be executed at this point, so cancel will fail
+        cancelSellOrder(); // todo: order can be executed at this point, so cancel will fail
         setState(ExchangeState.NONE); // nothing to wait
     }
 
     void checkMktBracketExecuted(IterationContext iContext) {
         System.out.println("check if MKT bracket executed");
-        boolean buyExecuted = (m_buyOpenBracketOrder != null) && (m_buyOpenBracketOrder.m_status == OrderStatus.FILLED);
-        boolean sellExecuted = (m_sellOpenBracketOrder != null) && (m_sellOpenBracketOrder.m_status == OrderStatus.FILLED);
+        boolean buyExecuted = (m_buyOrder != null) && (m_buyOrder.m_status == OrderStatus.FILLED);
+        boolean sellExecuted = (m_sellOrder != null) && (m_sellOrder.m_status == OrderStatus.FILLED);
         OrderData openOrder = null;
         if (buyExecuted) {
             if (sellExecuted) {
@@ -386,11 +330,11 @@ public class ExchangeData {
                 setState(ExchangeState.ERROR);
             } else {
                 System.out.println("BUY OpenMktBracketOrder FILLED");
-                openOrder = m_buyOpenBracketOrder;
+                openOrder = m_buyOrder;
             }
         } else if (sellExecuted) {
             System.out.println("SELL OpenMktBracketOrder FILLED");
-            openOrder = m_sellOpenBracketOrder;
+            openOrder = m_sellOrder;
         } else {
             System.out.println(" no FILLED open MKT bracket order. waiting more");
         }
@@ -408,8 +352,8 @@ public class ExchangeData {
     void checkSomeBracketExecuted(IterationContext iContext) {
         System.out.println("check if some bracket executed"); // todo: note: both can be executed (for OPEN case) in rare cases !!
         // todo: also some bracket can be partially executed - complex scenario
-        boolean buyExecuted = (m_buyOpenBracketOrder != null) && (m_buyOpenBracketOrder.m_status == OrderStatus.FILLED);
-        boolean sellExecuted = (m_sellOpenBracketOrder != null) && (m_sellOpenBracketOrder.m_status == OrderStatus.FILLED);
+        boolean buyExecuted = (m_buyOrder != null) && (m_buyOrder.m_status == OrderStatus.FILLED);
+        boolean sellExecuted = (m_sellOrder != null) && (m_sellOrder.m_status == OrderStatus.FILLED);
         OrderData openOrder = null;
         if (buyExecuted) {
             if (sellExecuted) {
@@ -418,19 +362,29 @@ public class ExchangeData {
                 setState(ExchangeState.ERROR);
             } else {
                 // todo: if one of brackets is executed - the another one should be adjusted (for now cancel).
-                System.out.println("BUY OpenBracketOrder FILLED, closing opposite bracket: " + m_sellOpenBracketOrder);
+                System.out.println("BUY OpenBracketOrder FILLED, closing opposite bracket: " + m_sellOrder);
                 // close opposite
-                closeSellOrder();
-                openOrder = m_buyOpenBracketOrder;
+                boolean closed = cancelSellOrder(); // todo: order actually can be already executed and close will failed
+                if(!closed) {
+                    System.out.println(" error for cancelSellOrder on " + m_sellOrder);
+                    setState(ExchangeState.ERROR);
+                    return;
+                }
+                openOrder = m_buyOrder;
             }
         } else if (sellExecuted) {
             // todo: if one of brackets is executed - the another one should be adjusted (for now cancel).
-            System.out.println("SELL OpenBracketOrder FILLED, closing opposite bracket: " + m_buyOpenBracketOrder);
+            System.out.println("SELL OpenBracketOrder FILLED, closing opposite bracket: " + m_buyOrder);
             // close opposite
-            closeBuyOrder();
-            openOrder = m_sellOpenBracketOrder;
+            boolean closed = cancelBuyOrder(); // todo: order can be executed at this point, so cancel will fail
+            if(!closed) {
+                System.out.println(" error for cancelBuyOrder on " + m_buyOrder);
+                setState(ExchangeState.ERROR);
+                return;
+            }
+            openOrder = m_sellOrder;
         } else {
-            System.out.println(" no FILLED bracket orders: m_buyOpenBracketOrder=" + m_buyOpenBracketOrder + ", m_sellOpenBracketOrder=" + m_sellOpenBracketOrder);
+            System.out.println(" no FILLED bracket orders: m_buyOrder=" + m_buyOrder + ", m_sellOrder=" + m_sellOrder);
         }
         if (openOrder != null) {
             System.out.println("we have open bracket order executed on '" + exchName() + "': " + openOrder);
@@ -446,19 +400,21 @@ public class ExchangeData {
         }
     }
 
-    private void closeBuyOrder() {
-        closeOrder(m_buyOpenBracketOrder);
-        m_buyOpenBracketOrder = null;
+    private boolean cancelBuyOrder() {
+        boolean ret = cancelOrder(m_buyOrder);// todo: order can be executed at this point, so cancel will fail
+        m_buyOrder = null;
+        return ret;
     }
 
-    private void closeSellOrder() {
-        closeOrder(m_sellOpenBracketOrder);
-        m_sellOpenBracketOrder = null;
+    private boolean cancelSellOrder() {
+        boolean ret = cancelOrder(m_sellOrder);// todo: order can be executed at this point, so cancel will fail
+        m_sellOrder = null;
+        return ret;
     }
 
     void xAllBracketsPlaced(IterationContext iContext) {
-        xBracketPlaced(m_buyOpenBracketOrder);
-        xBracketPlaced(m_sellOpenBracketOrder);
+        xBracketPlaced(m_buyOrder);
+        xBracketPlaced(m_sellOrder);
         setState(ExchangeState.OPEN_BRACKETS_PLACED);
         iContext.delay(0);
     }
@@ -468,29 +424,9 @@ public class ExchangeData {
         orderData.m_state = OrderState.BRACKET_PLACED;
     }
 
-//        private void xCheckExecutedBrackets(TradesData newTrades) {
-//            List<TradesData.TradeData> newTradesList = newTrades.m_trades;
-//            if (m_buyOpenBracketOrder != null) {
-//                ret = checkExecutedBracket(m_buyOpenBracketOrder, newTradesList);
-//            }
-//            if (m_sellOpenBracketOrder != null) {
-//                ret = checkExecutedBracket(m_sellOpenBracketOrder, newTradesList);
-//            }
-//            // todo: if one of brackets is executed - the another one should be adjusted (cancelled?).
-//        }
-
-    private boolean closeOrder(OrderData orderData) {
-        System.out.println("closeOrder() not implemented: " + orderData);
-        if (orderData != null) {
-            orderData.m_status = OrderStatus.CANCELLED;
-            orderData.m_state = OrderState.NONE;
-        }
-        return true; // todo: but actually can be already executed
-    }
-
     public boolean postOrderAtMarket(OrderSide side, TopData top, ExchangeState state) {
         boolean placed = false;
-        System.out.println("postOrderAtMarket() openedExch='"+exchName()+"', side=" + side);
+        System.out.println("postOrderAtMarket() exch='"+exchName()+"', side=" + side);
         if (TopData.isLive(top)) {
             double price = side.mktPrice(top);
 
@@ -502,9 +438,9 @@ public class ExchangeData {
             if (success) {
                 placed = true;
                 if (side == OrderSide.BUY) {
-                    m_buyOpenBracketOrder = order;
+                    m_buyOrder = order;
                 } else {
-                    m_sellOpenBracketOrder = order;
+                    m_sellOrder = order;
                 }
                 setState(state);
             } else {
@@ -517,9 +453,70 @@ public class ExchangeData {
         return placed;
     }
 
+    public boolean moveMarketOrderIfNeeded() {
+        if ((m_state == ExchangeState.OPEN_AT_MKT_PLACED) || (m_state == ExchangeState.CLOSE_AT_MKT_PLACED)) {
+            OrderData order;
+            if ((m_buyOrder != null) && (m_buyOrder.m_state == OrderState.MARKET_PLACED)) {
+                order = m_buyOrder;
+            } else if ((m_sellOrder != null) && (m_sellOrder.m_state == OrderState.MARKET_PLACED)) {
+                order = m_sellOrder;
+            } else {
+                System.out.println("ERROR no mkt order found on " + exchName());
+                setState(ExchangeState.ERROR);
+                return false;
+            }
+            if (TopData.isLive(m_lastTop)) {
+                double orderPrice = order.m_price;
+                OrderSide side = order.m_side;
+                double mktPrice = side.mktPrice(m_lastTop);
+                double priceDif = Math.abs(orderPrice - mktPrice);
+                if (priceDif > MIN_MKT_ORDER_PRICE_CHANGE) {
+                    return moveMarketOrder(order);
+                } else {
+                    System.out.println(" NOT moving MKT order - priceDif=" + Fetcher.format(priceDif) + " : " + order);
+                }
+            } else {
+                System.out.println(" NOT moving MKT order - no fresh top data: " + order);
+            }
+        }
+        return true; // no error
+    }
+
+    private boolean moveMarketOrder(OrderData order) {
+        if( cancelOrder(order) ) { // todo: order can be executed at this point, so cancel will fail
+            if(order.m_status == OrderStatus.PARTIALLY_FILLED) {
+                System.out.println("not supported moveMarketOrderIfNeeded for PARTIALLY_FILLED: "+order);
+                setState(ExchangeState.ERROR);
+                return false;
+            }
+            double amount = calcAmountToOpen(); // todo: we may have partially executed order here - handle
+            OrderSide side = order.m_side;
+            double mktPrice = side.mktPrice(m_lastTop);
+            OrderData newOrder = new OrderData(side, mktPrice, amount);
+            System.out.println(" moving MKT order price: "+order.priceStr() + " -> " + Fetcher.format(mktPrice));
+            boolean success = placeOrder(newOrder, OrderState.MARKET_PLACED);
+            if (success) {
+                if (side == OrderSide.BUY) {
+                    m_buyOrder = order;
+                } else {
+                    m_sellOrder = order;
+                }
+            } else {
+                System.out.println("error re-opening order at MKT: " + order);
+                setState(ExchangeState.ERROR);
+                return false;
+            }
+        } else {
+            System.out.println(" unable cancel order: " + order);
+            setState(ExchangeState.ERROR);
+            return false;
+        }
+        return true; // no error
+    }
+
     public void cleanOrders() {
-        m_buyOpenBracketOrder = null;
-        m_sellOpenBracketOrder = null;
+        m_buyOrder = null;
+        m_sellOrder = null;
     }
 
     public void setAllAsError() {

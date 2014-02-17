@@ -51,6 +51,8 @@ public enum ExchangesState {
                 System.out.println("  placing CloseBrackets");
                 exchangesData.setState(BOTH_SIDES_OPENED);
                 exchangesData.placeCloseBrackets(iContext);
+            } else {
+                exchangesData.moveMarketsIfNeeded(iContext);
             }
         }
     },
@@ -100,7 +102,7 @@ public enum ExchangesState {
         }
 
         @Override public void checkState(IterationContext iContext, ExchangesData exchangesData) throws Exception {
-            System.out.println("ExchangesState.ERROR checkState() all should be closed at thois point");
+            System.out.println("ExchangesState.ERROR checkState() all should be closed at this point");
             // todo: make 1-1 balances
         }
     },
