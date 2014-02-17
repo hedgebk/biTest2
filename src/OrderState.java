@@ -22,7 +22,7 @@ public enum OrderState {
         // actually order execution should be checked via getLiveOrdersState()
         LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
         // but for simulation we are checking via trades
-        TradesData newTrades = iContext.getNewTradesData(exchData);
+        TradesData newTrades = iContext.getNewTradesData(exchData.m_shExchData);
         orderData.xCheckExecutedLimit(iContext, exchData, orderData, newTrades);
         if (orderData.m_filled > 0) {
             if (orderData.m_status == OrderStatus.FILLED) {

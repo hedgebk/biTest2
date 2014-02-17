@@ -9,6 +9,7 @@ import java.net.URL;
  * todo:
  *  - move mkt open/close order with mkt data
  *  - make delay between runs mkt data related - distance to nearest order driven
+ *  - support partial fills - do forks
  */
 public class Fetcher {
     static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
@@ -59,9 +60,7 @@ public class Fetcher {
     }
 
     private static void pool(Exchange exch1, Exchange exch2, PrintStream os) throws Exception {
-        ExchangeData exch1data = new ExchangeData(exch1);
-        ExchangeData exch2data = new ExchangeData(exch2);
-        ExchangesData data = new ExchangesData(exch1data, exch2data);
+        PairExchangeData data = new PairExchangeData(exch1, exch2);
         long startMillis = System.currentTimeMillis();
         int iterationCounter = 0;
         while (true) {
@@ -76,7 +75,7 @@ public class Fetcher {
                 }
             } catch (Exception e) {
                 System.out.println("GOT exception during processing. setting ERROR, closing everything...");
-                data.setState(ExchangesState.ERROR);
+                data.setState(ForkState.ERROR); // error - stop ALL
                 iContext.delay(0);
             }
 
@@ -90,11 +89,6 @@ public class Fetcher {
             }
         }
         System.out.println("FINISHED.");
-    }
-
-    // todo: get this based on both exch account info
-    static double calcAmountToOpen() {
-        return 1.0; // 1.0 BTC
     }
 
     private static void printDeeps(DeepData deep1, DeepData deep2) {

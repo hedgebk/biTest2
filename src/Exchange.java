@@ -29,6 +29,9 @@ public enum Exchange {
     //    https://www.itbit.com/api/feeds/ticker/XBTUSD
     // ? bitcoin-central.net
     // crypto-trade.com ?
+    // huobi ? https://github.com/xiaojay/huobi/blob/master/huobi.py
+    //  http://www.huobi.com/help/index.php?a=api_help
+    // btcchina ? https://vip.btcchina.com/?lang=en
 
     public final int m_databaseId;
     public final String m_name;
@@ -70,5 +73,4 @@ public enum Exchange {
     public TradesData parseTrades(Object jObj) { return null; }
 
     private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
-
 }

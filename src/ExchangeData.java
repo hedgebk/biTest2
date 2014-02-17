@@ -4,6 +4,7 @@ public class ExchangeData {
     private static final double MIN_MKT_ORDER_PRICE_CHANGE = 0.0001;
 
     public final Exchange m_exch;
+    final SharedExchangeData m_shExchData;
     public ExchangeState m_state = ExchangeState.NONE;
 
     // to calc average diff between bid and ask on exchange
@@ -14,15 +15,12 @@ public class ExchangeData {
     //bitstamp avgBidAskDiff1=2.1741, btc-e avgBidAskDiff2=1.2498
     //bitstamp avgBidAskDiff1=1.9107, btc-e avgBidAskDiff2=1.3497
 
-    // moving bracket orders
     public OrderData m_buyOrder;
     public OrderData m_sellOrder;
-    public Long m_lastProcessedTradesTime = 0l;
-    TopData m_lastTop;
-    public final Utils.AverageCounter m_averageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
 
-    public ExchangeData(Exchange exch) {
-        m_exch = exch;
+    public ExchangeData(SharedExchangeData shExchData) {
+        m_shExchData = shExchData;
+        m_exch = shExchData.m_exchange;
     }
 
     @Override public String toString() {
@@ -32,13 +30,11 @@ public class ExchangeData {
                 '}';
     }
 
-    public int exchId() { return m_exch.m_databaseId; }
-    public String avgBidAskDiffStr() { return Fetcher.format(m_bidAskDiffCalculator.getAverage()); }
     String exchName() { return m_exch.m_name; }
     public boolean waitingForOpenBrackets() { return m_state == ExchangeState.OPEN_BRACKETS_WAITING; }
     public boolean hasOpenCloseBracketExecuted() { return (m_state == ExchangeState.ONE_OPEN_BRACKET_EXECUTED) || (m_state == ExchangeState.CLOSE_BRACKET_EXECUTED); }
     public boolean hasOpenCloseMktExecuted() { return (m_state == ExchangeState.OPEN_AT_MKT_EXECUTED) || (m_state == ExchangeState.CLOSE_AT_MKT_EXECUTED); }
-    public double commissionAmount() { return m_lastTop.getMid() * m_exch.m_fee; }
+    public double commissionAmount() { return m_shExchData.m_lastTop.getMid() * m_exch.m_fee; }
 
     public boolean placeBrackets(TopData top, TopData otherTop, double midDiffAverage, double halfTargetDelta) { // ASK > BID
         double buy = otherTop.m_bid - halfTargetDelta + midDiffAverage;
@@ -195,48 +191,6 @@ public class ExchangeData {
         return 1.0 /*BTC*/ ;  // todo: get this based on both exch account info
     }
 
-    public TopData fetchTop() throws Exception {
-        m_lastTop = Fetcher.fetchTop(m_exch);
-        m_averageCounter.add(System.currentTimeMillis(), m_lastTop.getMid());
-        return m_lastTop;
-    }
-
-    public TopData fetchTopOnce() throws Exception {
-        TopData top = Fetcher.fetchTopOnce(m_exch);
-        if( top != null ) { // we got fresh top data
-            m_lastTop = top; // update top
-            m_averageCounter.add(System.currentTimeMillis(), m_lastTop.getMid());
-        } else {
-            if(m_lastTop != null) {
-                m_lastTop.setObsolete();
-            }
-        }
-        return m_lastTop;
-    }
-
-    public boolean oldExecuteOpenMktOrder(OrderData mktOrder) {
-        OrderSide side = mktOrder.m_side;
-        double mktPrice = side.mktPrice(m_lastTop);
-        double avgPrice = m_averageCounter.get();
-        // do not execute MKT order at price too different from average
-        if( Math.max(mktPrice, avgPrice) / Math.min(mktPrice, avgPrice) < MKT_ORDER_THRESHOLD ) {
-            System.out.println("@@@@@@@@@@@@@@ we will open "+side+" MKT on " + exchName() + " @ " + mktPrice);
-            mktOrder.m_price = mktPrice; // here we pretend that the whole order can be executed quickly
-            // todo: in real life we have to send order, wait execution, only then to process further
-            mktOrder.addExecution(mktPrice, mktOrder.m_amount);
-            if(side == OrderSide.BUY) {
-                m_buyOrder = mktOrder;
-            } else {
-                m_sellOrder = mktOrder;
-            }
-            // todo: if one of brackets is executed - another one should be adjusted (cancelled?).
-            return true;
-        } else {
-            System.out.println("@@@@@@@@@@@@@@ WARNING can not "+side+" MKT on " + exchName() + " @ " + mktPrice + ", MKT_ORDER_THRESHOLD exceed");
-            return false;
-        }
-    }
-
     private boolean cancelOrder(OrderData orderData) {
         // todo: implement
         if( orderData != null ) {
@@ -271,22 +225,6 @@ public class ExchangeData {
         return new LiveOrdersData();
     }
 
-    public TradesData fetchTrades() throws Exception {
-        // todo: make fetch tradesOnce()
-        return Fetcher.fetchTradesOnce(m_exch);
-    }
-
-    public TradesData filterOnlyNewTrades(TradesData trades) {
-        TradesData newTrades = trades.newTrades(m_lastProcessedTradesTime);
-        for (TradesData.TradeData trade : newTrades.m_trades) {
-            long timestamp = trade.m_timestamp;
-            if (timestamp > m_lastProcessedTradesTime) {
-                m_lastProcessedTradesTime = timestamp;
-            }
-        }
-        return newTrades;
-    }
-
     public void checkExchState(IterationContext iContext) throws Exception {
         checkOrderState(m_buyOrder, iContext); // trace order executions separately
         checkOrderState(m_sellOrder, iContext);
@@ -306,12 +244,6 @@ public class ExchangeData {
             orderData.m_state.checkState(iContext, this, orderData);
         }
     }
-
-//        public void onBracketExecuted(OrderData orderData) {
-//            // set flag that at least one bracket is executed, actually can be both executed
-//            // will be analyzed later
-//            m_bracketExecuted = true;
-//        }
 
     public void closeOrders() {
         cancelBuyOrder(); // todo: order can be executed at this point, so cancel will fail
@@ -424,28 +356,36 @@ public class ExchangeData {
         orderData.m_state = OrderState.BRACKET_PLACED;
     }
 
-    public boolean postOrderAtMarket(OrderSide side, TopData top, ExchangeState state) {
+    public boolean postOrderAtMarket(OrderSide side, TopData top, ExchangeState newState) {
         boolean placed = false;
         System.out.println("postOrderAtMarket() exch='"+exchName()+"', side=" + side);
         if (TopData.isLive(top)) {
             double price = side.mktPrice(top);
-
             logOrdersAndPrices(top, (side == OrderSide.BUY) ? price : null, (side == OrderSide.SELL) ? price : null);
 
-            double amount = calcAmountToOpen();
-            OrderData order = new OrderData(side, price, amount);
-            boolean success = placeOrder(order, OrderState.MARKET_PLACED);
-            if (success) {
-                placed = true;
-                if (side == OrderSide.BUY) {
-                    m_buyOrder = order;
+            double mktPrice = side.mktPrice(m_shExchData.m_lastTop);
+            double avgPrice = m_shExchData.m_averageCounter.get();
+            // do not execute MKT order at price too different from average
+            if (Math.max(mktPrice, avgPrice) / Math.min(mktPrice, avgPrice) < MKT_ORDER_THRESHOLD) {
+                double amount = calcAmountToOpen();
+                OrderData order = new OrderData(side, price, amount);
+                boolean success = placeOrder(order, OrderState.MARKET_PLACED);
+                if (success) {
+                    placed = true;
+                    if (side == OrderSide.BUY) {
+                        m_buyOrder = order;
+                    } else {
+                        m_sellOrder = order;
+                    }
+                    setState(newState);
                 } else {
-                    m_sellOrder = order;
+                    System.out.println("error opening order at MKT: " + order);
+                    setState(ExchangeState.ERROR);
                 }
-                setState(state);
             } else {
-                System.out.println("error opening order at MKT: " + order);
+                System.out.println("@@@@@@@@@@@@@@ WARNING can not " + side + " MKT on " + exchName() + " @ " + mktPrice + ", MKT_ORDER_THRESHOLD exceed");
                 setState(ExchangeState.ERROR);
+                return false;
             }
         } else {
             System.out.println("will not open OrderAtMarket price - waiting - no live topData now : " + top);
@@ -465,10 +405,10 @@ public class ExchangeData {
                 setState(ExchangeState.ERROR);
                 return false;
             }
-            if (TopData.isLive(m_lastTop)) {
+            if (TopData.isLive(m_shExchData.m_lastTop)) {
                 double orderPrice = order.m_price;
                 OrderSide side = order.m_side;
-                double mktPrice = side.mktPrice(m_lastTop);
+                double mktPrice = side.mktPrice(m_shExchData.m_lastTop);
                 double priceDif = Math.abs(orderPrice - mktPrice);
                 if (priceDif > MIN_MKT_ORDER_PRICE_CHANGE) {
                     return moveMarketOrder(order);
@@ -491,7 +431,7 @@ public class ExchangeData {
             }
             double amount = calcAmountToOpen(); // todo: we may have partially executed order here - handle
             OrderSide side = order.m_side;
-            double mktPrice = side.mktPrice(m_lastTop);
+            double mktPrice = side.mktPrice(m_shExchData.m_lastTop);
             OrderData newOrder = new OrderData(side, mktPrice, amount);
             System.out.println(" moving MKT order price: "+order.priceStr() + " -> " + Fetcher.format(mktPrice));
             boolean success = placeOrder(newOrder, OrderState.MARKET_PLACED);
