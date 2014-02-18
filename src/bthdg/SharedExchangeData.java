@@ -1,3 +1,5 @@
+package bthdg;
+
 public class SharedExchangeData {
     final Exchange m_exchange;
     private long m_lastProcessedTradesTime;

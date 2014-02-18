@@ -1,4 +1,4 @@
-// https://btc-e.com/api/documentation
+package bthdg;// https://btc-e.com/api/documentation
 //
 //
 // https://btc-e.com/api/2/btc_usd/depth
@@ -9,6 +9,10 @@
 //    {"asks":[[712.348,0.63],[713.5,0.011],[713.712,0.01],[713.99,2],[714,0.93506666],[714.104,0.0998],[714.111,0.01],[714.15,0.01],[714.314,0.14083594],[714.474,0.011],[714.665,2.465],[714.666,3.75571029],[714.68,0.073],[714.692,0.13972],[7
 //
 
+import bthdg.DeepData;
+import bthdg.TopData;
+import bthdg.TradesData;
+import bthdg.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 

@@ -1,3 +1,5 @@
+package bthdg;
+
 import org.json.simple.JSONObject;
 
 import java.math.BigInteger;
@@ -86,7 +88,7 @@ public class Utils {
         return System.currentTimeMillis() + delta;
     }
 
-    static void setToDayStart(Calendar cal) {
+    public static void setToDayStart(Calendar cal) {
         cal.set(Calendar.MILLISECOND, 0);
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MINUTE, 0);
@@ -126,7 +128,7 @@ public class Utils {
         public abstract double getDoubleValue(O obj);
         protected double getWeight(O obj) { return 1; }
 
-        DoubleAverageCalculator() { }
+        public DoubleAverageCalculator() { }
 
         public void addValue(O obj) {
             double value = getDoubleValue(obj);
@@ -158,7 +160,7 @@ public class Utils {
 
         public abstract Double getValue(O obj);
 
-        DoubleMinMaxCalculator(Iterable<O> data) {
+        public DoubleMinMaxCalculator(Iterable<O> data) {
             for (O obj : data) {
                 Double value = getValue(obj);
                 if ((m_maxValue == null) || (value > m_maxValue)) {
@@ -177,7 +179,7 @@ public class Utils {
 
         public abstract Long getValue(O obj);
 
-        LongMinMaxCalculator(Iterable<O> data) {
+        public LongMinMaxCalculator(Iterable<O> data) {
             for (O obj : data) {
                 Long value = getValue(obj);
                 if ((m_maxValue == null) || (value > m_maxValue)) {

@@ -1,3 +1,5 @@
+package bthdg;
+
 public class TopData {
     public final double m_bid; // ASK > BID
     public final double m_ask;

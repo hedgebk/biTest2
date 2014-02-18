@@ -1,3 +1,7 @@
+package bthdg;
+
+import bthdg.*;
+
 public class ForkData {
     private final PairExchangeData m_pairExData;
     private final ExchangeData m_exch1data;
@@ -10,6 +14,7 @@ public class ForkData {
     private OrderData m_openSellOrder;
     private StringBuilder m_executionTrace = new StringBuilder();
     private double m_earnThisRun;
+    private long m_id;
 
     boolean hasAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
     boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
@@ -18,13 +23,15 @@ public class ForkData {
 
     @Override public String toString() {
         return "ForkData{" +
-                "pairExData=" + m_pairExData.exchNames() +
+                "id=" + m_id +
+                ", pairExData=" + m_pairExData.exchNames() +
                 ", state=" + m_state +
                 ", earnThisRun=" + m_earnThisRun +
                 '}';
     }
 
     public ForkData(PairExchangeData pExData) {
+        m_id = System.currentTimeMillis();
         m_pairExData = pExData;
         m_exch1data = new ExchangeData(pExData.m_sharedExch1);
         m_exch2data = new ExchangeData(pExData.m_sharedExch2);
@@ -346,5 +353,10 @@ public class ForkData {
     public void setAllAsError() {
         m_exch1data.setAllAsError();
         m_exch1data.setAllAsError();
+    }
+
+    public void stop() {
+        m_exch1data.stop();
+        m_exch1data.stop();
     }
 } // ForkData

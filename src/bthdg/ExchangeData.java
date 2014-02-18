@@ -1,3 +1,7 @@
+package bthdg;
+
+import bthdg.*;
+
 public class ExchangeData {
     private static final double MKT_ORDER_THRESHOLD = 1.3; // market order price allowance +-30%
     public static final double MOVE_BRACKET_ORDER_MIN_AMOUNT = 0.5;
@@ -470,5 +474,11 @@ public class ExchangeData {
         System.out.println("setAllAsError() on " + exchName());
         closeOrders();
         setState(ExchangeState.ERROR);
+    }
+
+    public void stop() {
+        System.out.println("stop() on " + exchName());
+        closeOrders();
+        setState(ExchangeState.NONE);
     }
 } // ExchangeData

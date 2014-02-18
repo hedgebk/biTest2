@@ -1,3 +1,5 @@
+package bthdg;
+
 public enum ForkState {
     NONE {
         @Override public boolean needQueryTrades() { return false; }
@@ -106,7 +108,12 @@ public enum ForkState {
             // todo: make 50-50 balances
         }
     },
-    ;
+    STOP {
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            System.out.println("ForkState.STOP checkState()");
+            forkData.stop();
+        }
+    };
 
     // todo: we need preCheck to properly handle ERROR state
     public boolean preCheckState(IterationContext iContext, ForkData forkData) { return false; }

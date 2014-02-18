@@ -1,3 +1,7 @@
+package bthdg;
+
+import bthdg.TopData;
+
 class TopDatas {
     public final TopData m_top1;
     public final TopData m_top2;

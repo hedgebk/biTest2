@@ -1,3 +1,6 @@
+import bthdg.Exchange;
+import bthdg.Utils;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;

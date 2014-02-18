@@ -1,3 +1,5 @@
+package bthdg;
+
 public enum OrderSide {
     BUY {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice >= mktPrice; }

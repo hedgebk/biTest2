@@ -1,36 +1,68 @@
+var periodicalUpdater = null;
+
+function theStatus(text) {
+  var ctrl = $('theStatus');
+  alert("theStatus('"+text+"') ctrl="+ctrl);
+  ctrl.innerHTML = text;
+}
+
+function ajaxCommand(command) {
+  new Ajax.Request('/tst', {
+    method:'get',
+    parameters:{'command':command},
+    onSuccess:function () { theStatus("'" + command + "' OK"); },
+    onFailure:function () { theStatus("'" + command + "' failed."); }
+  });
+}
+
 function onLoad() {
   draw();
 
-  new Ajax.Request('/progress.jsp', {
-    method:'get',
-    parameters:{company:'example', limit:12},
-    onSuccess:function (transport) {
-      var json = transport.responseText.evalJSON();
-      var counter = json.counter;
-      alert('OK. json: ' + json + "\n name=" + json.name + "\n occupation=" + json.occupation + "\n counter=" + counter);
-      pool();
-    },
-    onFailure:function () {
-      alert('Something went wrong...');
+  $('start').observe('click', function() { ajaxCommand('start'); });
+  $('stop').observe('click', function() { ajaxCommand('stop'); });
+  $('periodic').observe('click', function() { pool(); });
+  $('periodicX').observe('click', function() { stopPool(); });
+
+  function pool() {
+    theStatus('pool');
+    if (periodicalUpdater == null) {
+      periodicalUpdater = new Ajax.PeriodicalUpdater('products', '/progress.jsp', {
+        method:'get',
+        parameters:{company:'example', limit:12},
+        onSuccess:function (transport) {
+          var json = transport.responseText.evalJSON();
+          var counter = json.counter;
+          drawCounter(counter);
+        },
+        onFailure:function () { alert('Something went wrong...'); },
+        frequency:2
+      });
     }
-  });
+  }
+
+  function stopPool() {
+    theStatus('stopPool');
+    if (periodicalUpdater != null) {
+      periodicalUpdater.stop()
+      periodicalUpdater = null;
+    }
+  }
+
+//  new Ajax.Request('/progress.jsp', {
+//    method:'get',
+//    parameters:{company:'example', limit:12},
+//    onSuccess:function (transport) {
+//      var json = transport.responseText.evalJSON();
+//      var counter = json.counter;
+//      alert('OK. json: ' + json + "\n name=" + json.name + "\n occupation=" + json.occupation + "\n counter=" + counter);
+//      pool();
+//    },
+//    onFailure:function () {
+//      alert('Something went wrong...');
+//    }
+//  });
 }
 
-function pool() {
-  new Ajax.PeriodicalUpdater('products', '/progress.jsp', {
-    method:'get',
-    parameters:{company:'example', limit:12},
-    onSuccess:function (transport) {
-      var json = transport.responseText.evalJSON();
-      var counter = json.counter;
-      drawCounter(counter);
-    },
-    onFailure:function () {
-      alert('Something went wrong...');
-    },
-    frequency:2
-  });
-}
 
 function draw() {
   var c = document.getElementById("123");

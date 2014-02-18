@@ -1,3 +1,6 @@
+package bthdg;
+
+import bthdg.*;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
@@ -52,15 +55,6 @@ public class Fetcher {
     }
 
     private static void pool(Exchange exch1, Exchange exch2) throws Exception {
-        PrintStream os = new PrintStream(new FileOutputStream("fetch.leg.txt"));
-        try {
-            pool(exch1, exch2, os);
-        } finally {
-            os.close();
-        }
-    }
-
-    private static void pool(Exchange exch1, Exchange exch2, PrintStream os) throws Exception {
         PairExchangeData data = new PairExchangeData(exch1, exch2);
         long startMillis = System.currentTimeMillis();
         int iterationCounter = 0;

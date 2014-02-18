@@ -1,3 +1,9 @@
+package bthdg;
+
+import bthdg.ExchangeData;
+import bthdg.IterationContext;
+import bthdg.LiveOrdersData;
+
 public enum ExchangeState {
     NONE {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {

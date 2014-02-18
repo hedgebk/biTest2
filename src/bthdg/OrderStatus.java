@@ -1,3 +1,5 @@
+package bthdg;
+
 public enum OrderStatus {
     NEW,
     SUBMITTED,
