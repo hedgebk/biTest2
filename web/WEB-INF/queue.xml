@@ -1,0 +1,8 @@
+<queue-entries>
+  <!--An app can have up to 10 named queues,-->
+  <queue>
+    <name>oneInSec</name>
+    <rate>1/s</rate>
+    <bucket-size>10</bucket-size>
+  </queue>
+</queue-entries>

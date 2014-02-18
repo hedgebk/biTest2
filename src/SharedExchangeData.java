@@ -4,7 +4,7 @@ public class SharedExchangeData {
     TopData m_lastTop;
     public final Utils.AverageCounter m_averageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
     // to calc average diff between bid and ask on exchange
-    public final Utils.DoubleAverageCalculator m_bidAskDiffCalculator = new Utils.DoubleAverageCalculator<Double>() {
+    public final Utils.DoubleAverageCalculator<Double> m_bidAskDiffCalculator = new Utils.DoubleAverageCalculator<Double>() {
         @Override public double getDoubleValue(Double tick) { return tick; } // ASK > BID
     };
     //bitstamp avgBidAskDiff1=2.6743, btc-e avgBidAskDiff2=1.3724
