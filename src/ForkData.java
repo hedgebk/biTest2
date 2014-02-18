@@ -320,6 +320,8 @@ public class ForkData {
             }
             m_earnThisRun += openEarn;
             System.out.println("%   >>>  priceDiff=" + Fetcher.format(priceDiff) + ",  openEarn=" + Fetcher.format(openEarn) + ", earnThisRun=" + m_earnThisRun);
+            System.out.println(m_exch1data.exchName()+" " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
+                               m_exch2data.exchName()+" " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
         } else {
             setState(ForkState.ERROR);
         }

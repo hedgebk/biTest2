@@ -2,6 +2,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PairExchangeData {
+    private static final double MIN_AVAILABLE_AMOUNT = 0.02; // min amount to stat
+
     final SharedExchangeData m_sharedExch1;
     final SharedExchangeData m_sharedExch2;
     public final List<ForkData> m_forks = new ArrayList<ForkData>();
@@ -36,8 +38,19 @@ public class PairExchangeData {
             for (ForkData fork : finishForks) {
                 m_forks.remove(fork);
                 if (fork.m_state == ForkState.END) {
-                    System.out.println("finish fork was in state END - adding brand new Fork");
-                    m_forks.add(new ForkData(this));
+                    System.out.println("finish fork was in state END");
+
+                    double amount1 = m_sharedExch1.calcAmountToOpen();
+                    double amount2 = m_sharedExch2.calcAmountToOpen();
+                    double amount = Math.min(amount1, amount2);
+                    System.out.println("available amount: "+amount);
+
+                    if(amount > MIN_AVAILABLE_AMOUNT) {
+                        System.out.println(" we have MIN_AVAILABLE_AMOUNT - adding brand new Fork");
+                        m_forks.add(new ForkData(this));
+                    } else {
+                        System.out.println(" not reached MIN_AVAILABLE_AMOUNT - NO new Fork");
+                    }
                 }
             }
         }

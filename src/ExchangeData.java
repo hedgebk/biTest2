@@ -7,14 +7,6 @@ public class ExchangeData {
     final SharedExchangeData m_shExchData;
     public ExchangeState m_state = ExchangeState.NONE;
 
-    // to calc average diff between bid and ask on exchange
-    public final Utils.DoubleAverageCalculator m_bidAskDiffCalculator = new Utils.DoubleAverageCalculator<Double>() {
-        @Override public double getDoubleValue(Double tick) { return tick; }
-    };
-    //bitstamp avgBidAskDiff1=2.6743, btc-e avgBidAskDiff2=1.3724
-    //bitstamp avgBidAskDiff1=2.1741, btc-e avgBidAskDiff2=1.2498
-    //bitstamp avgBidAskDiff1=1.9107, btc-e avgBidAskDiff2=1.3497
-
     public OrderData m_buyOrder;
     public OrderData m_sellOrder;
 
@@ -98,12 +90,13 @@ public class ExchangeData {
 
         logOrdersAndPrices(top, buy, sell);
 
-        double amount = calcAmountToOpen(); // todo: this can be changed over the time - take special care rater
+        double amount = calcAmountToOpen(); // todo: this can be changed over the time - take special care later
 
         // todo: do not move order if changed just a little - define accepted order change delta
 
         boolean success = true;
         if (m_buyOrder != null) {
+            double distancePrice = m_buyOrder.m_price;
             double buyDelta = m_buyOrder.m_price - buy;
             if (Math.abs(buyDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little (<0.05)
                 System.out.println("  do not move BUY bracket, [" + m_buyOrder.priceStr() + "->" + Fetcher.format(buy) + "] delta=" + buyDelta);
@@ -112,14 +105,22 @@ public class ExchangeData {
                 if (success) {
                     m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
                     success = placeOrderBracket(m_buyOrder);
+                    if (success) {
+                        distancePrice = buy;
+                    } else {
+                        System.out.println(" moveBrackets - place buy order failed: " + m_buyOrder);
+                    }
                 } else {
-                    System.out.println(" cancel order failed: " + m_buyOrder);
+                    System.out.println(" moveBrackets - cancel buy order failed: " + m_buyOrder);
                 }
             }
+            double distance = top.m_bid - distancePrice;
+            System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   distance="+distance);
         }
 
         if (success) {
             if (m_sellOrder != null) {
+                double distancePrice = m_sellOrder.m_price;
                 double sellDelta = sell - m_sellOrder.m_price;
                 if (Math.abs(sellDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little
                     System.out.println("  do not move SELL bracket, [" + m_sellOrder.priceStr() + "->" + Fetcher.format(sell) + "] delta=" + sellDelta);
@@ -128,10 +129,17 @@ public class ExchangeData {
                     if (success) {
                         m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
                         success = placeOrderBracket(m_sellOrder);
+                        if (success) {
+                            distancePrice = sell;
+                        } else {
+                            System.out.println(" moveBrackets - place sell order failed: " + m_buyOrder);
+                        }
                     } else {
-                        System.out.println(" cancel order failed: " + m_sellOrder);
+                        System.out.println(" moveBrackets - cancel sell order failed: " + m_sellOrder);
                     }
                 }
+                double distance = distancePrice - top.m_ask;
+                System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   distance="+distance);
             }
         }
         if (!success) {
@@ -187,8 +195,7 @@ public class ExchangeData {
     }
 
     private double calcAmountToOpen() {
-        // could be different depending on exchange since the price is different
-        return 1.0 /*BTC*/ ;  // todo: get this based on both exch account info
+        return m_shExchData.calcAmountToOpen();
     }
 
     private boolean cancelOrder(OrderData orderData) {

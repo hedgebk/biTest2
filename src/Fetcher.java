@@ -13,7 +13,7 @@ import java.net.URL;
  *  - support DROP
  */
 public class Fetcher {
-    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
+    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
