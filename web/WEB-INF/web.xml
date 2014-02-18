@@ -13,12 +13,4 @@
     <url-pattern>/tst</url-pattern>
   </servlet-mapping>
 
-  <servlet>
-    <servlet-name>img</servlet-name>
-    <servlet-class>bthdg.ImgServlet</servlet-class>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>img</servlet-name>
-    <url-pattern>/img</url-pattern>
-  </servlet-mapping>
 </web-app>
