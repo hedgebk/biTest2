@@ -13,6 +13,31 @@ public class OrderData {
     public double m_filled;
     public List<Execution> m_executions;
 
+    public void serialize(StringBuilder sb) {
+        sb.append("Order[status=");
+        sb.append(m_status.toString());
+        sb.append("; state=");
+        sb.append(m_state.toString());
+        sb.append("; side=");
+        sb.append(m_side.toString());
+        sb.append("; price=");
+        sb.append(m_price);
+        sb.append("; amount=");
+        sb.append(m_amount);
+        sb.append("; filled=");
+        sb.append(m_filled);
+        sb.append("; executions=");
+        if(m_executions != null) {
+            sb.append("[");
+            for(Execution execution: m_executions) {
+                execution.serialize(sb);
+                sb.append("; ");
+            }
+            sb.append("]");
+        }
+        sb.append("]");
+    }
+
     @Override public String toString() {
         return "OrderData{" +
                 "side=" + m_side +

@@ -12,7 +12,24 @@ public class ExchangeData {
     public OrderData m_buyOrder;
     public OrderData m_sellOrder;
 
+    public void serialize(StringBuilder sb) {
+        sb.append("Exch[exch=");
+        sb.append(m_exch.toString());
+        sb.append("; state=");
+        sb.append(m_state.toString());
+        sb.append("; buy=");
+        if (m_buyOrder != null) {
+            m_buyOrder.serialize(sb);
+        }
+        sb.append("; sell=");
+        if (m_sellOrder != null) {
+            m_sellOrder.serialize(sb);
+        }
+        sb.append("]");
+    }
+
     public ExchangeData(SharedExchangeData shExchData) {
+
         m_shExchData = shExchData;
         m_exch = shExchData.m_exchange;
     }

@@ -1,6 +1,7 @@
 package bthdg;
 
 public class ForkData {
+    private long m_id;
     private final PairExchangeData m_pairExData;
     private final ExchangeData m_exch1data;
     private final ExchangeData m_exch2data;
@@ -8,16 +9,34 @@ public class ForkData {
     // OPEN sides
     private ExchangeData m_openBuyExchange;
     private ExchangeData m_openSellExchange;
-    private OrderData m_openBuyOrder;
-    private OrderData m_openSellOrder;
-    private StringBuilder m_executionTrace = new StringBuilder();
+//    private StringBuilder m_executionTrace = new StringBuilder();
     private double m_earnThisRun;
-    private long m_id;
 
     boolean hasAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
     boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
     private boolean hasBothBracketMarketExecuted() { return (m_exch1data.hasOpenCloseBracketExecuted() && m_exch2data.hasOpenCloseMktExecuted())
                                                    || (m_exch2data.hasOpenCloseBracketExecuted() && m_exch1data.hasOpenCloseMktExecuted()); }
+    public void serialize(StringBuilder sb) {
+        sb.append("Fork[id=");
+        sb.append(m_id);
+        sb.append("; e1=");
+        m_exch1data.serialize(sb);
+        sb.append("; e2=");
+        m_exch2data.serialize(sb);
+        sb.append("; state=");
+        sb.append(m_state.toString());
+        sb.append("; openBuyExch=");
+        if(m_openBuyExchange != null) {
+            sb.append(m_openBuyExchange.m_exch);
+        }
+        sb.append("; openSellExch=");
+        if(m_openSellExchange != null) {
+            sb.append(m_openSellExchange.m_exch);
+        }
+        sb.append("; earn=");
+        sb.append(m_earnThisRun);
+        sb.append("]");
+    }
 
     @Override public String toString() {
         return "ForkData{" +
@@ -45,7 +64,7 @@ public class ForkData {
         System.out.println("@@@@@@@@@@@@@@@@@@@ END");
         System.out.println("****************************************************");
         System.out.println(" execution log:");
-        System.out.println(m_executionTrace.toString());
+//        System.out.println(m_executionTrace.toString());
         double commissionAmount = getCommissionAmount();
         double income = m_earnThisRun - commissionAmount;
         System.out.println(" earnThisRun=" + m_earnThisRun + ", commissionAmount="+commissionAmount+", income=" + income);
@@ -297,22 +316,22 @@ public class ForkData {
             // save OPEN sides
             m_openBuyExchange = buyExch;
             m_openSellExchange = sellExch;
-            m_openBuyOrder = buyExch.m_buyOrder;
-            m_openSellOrder = sellExch.m_sellOrder;
+            OrderData openBuyOrder = buyExch.m_buyOrder;
+            OrderData openSellOrder = sellExch.m_sellOrder;
 
-            String str1 = "% BUY  on '" + buyExch.exchName() + "' @ " + m_openBuyOrder.priceStr();
+            String str1 = "% BUY  on '" + buyExch.exchName() + "' @ " + openBuyOrder.priceStr();
             System.out.println(str1);
-            m_executionTrace.append(str1).append("\n");
+//            m_executionTrace.append(str1).append("\n");
             m_openBuyExchange.logOrdersAndPrices(m_openBuyExchange.m_shExchData.m_lastTop, null, null);
 
-            String str2 = "% SELL on '" + sellExch.exchName() + "' @ " + m_openSellOrder.priceStr();
+            String str2 = "% SELL on '" + sellExch.exchName() + "' @ " + openSellOrder.priceStr();
             System.out.println(str2);
-            m_executionTrace.append(str2).append("\n");
+//            m_executionTrace.append(str2).append("\n");
             m_openSellExchange.logOrdersAndPrices(m_openSellExchange.m_shExchData.m_lastTop, null, null);
 
             double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
-            double sellPrice = m_openSellOrder.m_price;
-            double buyPrice = m_openBuyOrder.m_price;
+            double sellPrice = openSellOrder.m_price;
+            double buyPrice = openBuyOrder.m_price;
             double priceDiff = sellPrice - buyPrice;
 
             logDiffAverageDelta();

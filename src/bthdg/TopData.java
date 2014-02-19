@@ -15,6 +15,18 @@ public class TopData {
 
     public static boolean isLive(TopData top) { return (top != null) && top.m_live; }
 
+    public void serialize(StringBuilder sb) {
+        sb.append("Top[bid=");
+        sb.append(m_bid);
+        sb.append("; ask=");
+        sb.append(m_ask);
+        sb.append("; last=");
+        sb.append(m_last);
+        sb.append("; live=");
+        sb.append(m_live);
+        sb.append("]");
+    }
+
     public TopData(String bid, String ask, String last) {
         this(Double.parseDouble(bid), Double.parseDouble(ask), Double.parseDouble(last));
     }
@@ -63,6 +75,10 @@ public class TopData {
                     toStringX() +
                     ", mid=" + midStr() +
                     '}';
+        }
+
+        public void serialize(StringBuilder sb) {
+            //To change body of created methods use File | Settings | File Templates.
         }
     }
 }

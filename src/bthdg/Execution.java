@@ -8,4 +8,12 @@ public class Execution {
         m_price = price;
         m_amount = amount;
     }
+
+    public void serialize(StringBuilder sb) {
+        sb.append("Exec[price=");
+        sb.append(m_price);
+        sb.append("; amount=");
+        sb.append(m_amount);
+        sb.append("]");
+    }
 } // Execution

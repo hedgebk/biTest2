@@ -1,6 +1,5 @@
 package bthdg;
 
-import bthdg.*;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
@@ -10,7 +9,6 @@ import java.net.URL;
 
 /**
  * todo:
- *  - move mkt open/close order with mkt data
  *  - make delay between runs mkt data related - distance to nearest order driven
  *  - support partial fills - do forks
  *  - support DROP
@@ -66,7 +64,7 @@ public class Fetcher {
 
             IterationContext iContext = new IterationContext();
             try {
-                if( data.checkState(iContext)){
+                if(checkState(data, iContext)){
                     System.out.println("GOT finish request");
                     break;
                 }
@@ -86,6 +84,13 @@ public class Fetcher {
             }
         }
         System.out.println("FINISHED.");
+    }
+
+    private static boolean checkState(PairExchangeData data, IterationContext iContext) throws Exception {
+        boolean ret = data.checkState(iContext);
+        String serialized = data.serialize();
+        System.out.println("serialized="+serialized);
+        return ret;
     }
 
     private static void printDeeps(DeepData deep1, DeepData deep2) {

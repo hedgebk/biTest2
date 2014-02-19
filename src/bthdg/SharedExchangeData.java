@@ -13,6 +13,22 @@ public class SharedExchangeData {
     //bitstamp avgBidAskDiff1=2.1741, btc-e avgBidAskDiff2=1.2498
     //bitstamp avgBidAskDiff1=1.9107, btc-e avgBidAskDiff2=1.3497
 
+    public void serialize(StringBuilder sb) {
+        sb.append("ShExh[exch=");
+        sb.append(m_exchange.toString());
+        sb.append("; lastTrdTm=");
+        sb.append(m_lastProcessedTradesTime);
+        sb.append("; lastTop=");
+        if (m_lastTop != null) {
+            m_lastTop.serialize(sb);
+        }
+        sb.append("; avgCntr=");
+        m_averageCounter.serialize(sb);
+        sb.append("; bidAskDiffClcltr=");
+        m_bidAskDiffCalculator.serialize(sb);
+        sb.append("]");
+    }
+
     public SharedExchangeData(Exchange exchange) {
         m_exchange = exchange;
     }

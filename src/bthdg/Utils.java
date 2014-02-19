@@ -4,10 +4,7 @@ import org.json.simple.JSONObject;
 
 import java.math.BigInteger;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -152,6 +149,14 @@ public class Utils {
             }
             return sum/weightSum;
         }
+
+        public void serialize(StringBuilder sb) {
+            sb.append("DblAvgClcltr[sum=");
+            sb.append(m_sum);
+            sb.append("; weightSum=");
+            sb.append(m_weightSum);
+            sb.append("]");
+        }
     }
 
     public static abstract class DoubleMinMaxCalculator<O> {
@@ -196,6 +201,19 @@ public class Utils {
         // probably better to have average counter which counts older ticks with lower ratio/weight
         public final TreeMap<Long,Double> m_map = new TreeMap<Long, Double>(); // sorted by time
         private final long m_limit;
+
+        public void serialize(StringBuilder sb) {
+            sb.append("AvgCntr[limit=");
+            sb.append(m_limit);
+            sb.append("; map=[");
+            for(Map.Entry<Long, Double> e: m_map.entrySet()) {
+                sb.append(e.getKey());
+                sb.append("=");
+                sb.append(e.getValue());
+                sb.append("; ");
+            }
+            sb.append("]]");
+        }
 
         public AverageCounter(long limit) {
             m_limit = limit;

@@ -187,7 +187,7 @@ public class TestServlet extends HttpServlet {
     private void nextIteration(PairExchangeData data) {
         IterationContext iContext = new IterationContext();
         try {
-            if( data.checkState(iContext)){
+            if(checkState(data, iContext)){
                 System.out.println("GOT finish request - no more tasks to run");
             } else {
                 repost(iContext);
@@ -198,6 +198,13 @@ public class TestServlet extends HttpServlet {
             iContext.delay(0);
             repost(iContext); // need to finish
         }
+    }
+
+    private boolean checkState(PairExchangeData data, IterationContext iContext) throws Exception {
+        boolean ret = data.checkState(iContext);
+        String serialized = data.serialize();
+        log.warning("serialized="+serialized);
+        return ret;
     }
 
     private void repost(IterationContext iContext) {
