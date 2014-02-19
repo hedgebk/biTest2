@@ -14,10 +14,8 @@ public class SharedExchangeData {
     //bitstamp avgBidAskDiff1=1.9107, btc-e avgBidAskDiff2=1.3497
 
     public void serialize(StringBuilder sb) {
-        sb.append("ShExh[exch=");
-        sb.append(m_exchange.toString());
-        sb.append("; lastTrdTm=");
-        sb.append(m_lastProcessedTradesTime);
+        sb.append("ShExh[exch=").append(m_exchange.toString());
+        sb.append("; lastTrdTm=").append(m_lastProcessedTradesTime);
         sb.append("; lastTop=");
         if (m_lastTop != null) {
             m_lastTop.serialize(sb);

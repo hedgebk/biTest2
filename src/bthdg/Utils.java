@@ -151,10 +151,8 @@ public class Utils {
         }
 
         public void serialize(StringBuilder sb) {
-            sb.append("DblAvgClcltr[sum=");
-            sb.append(m_sum);
-            sb.append("; weightSum=");
-            sb.append(m_weightSum);
+            sb.append("DblAvgClcltr[sum=").append(m_sum);
+            sb.append("; weightSum=").append(m_weightSum);
             sb.append("]");
         }
     }
@@ -203,14 +201,10 @@ public class Utils {
         private final long m_limit;
 
         public void serialize(StringBuilder sb) {
-            sb.append("AvgCntr[limit=");
-            sb.append(m_limit);
+            sb.append("AvgCntr[limit=").append(m_limit);
             sb.append("; map=[");
             for(Map.Entry<Long, Double> e: m_map.entrySet()) {
-                sb.append(e.getKey());
-                sb.append("=");
-                sb.append(e.getValue());
-                sb.append("; ");
+                sb.append(e.getKey()).append("=").append(e.getValue()).append("; ");
             }
             sb.append("]]");
         }

@@ -17,14 +17,12 @@ public class ForkData {
     private boolean hasBothBracketMarketExecuted() { return (m_exch1data.hasOpenCloseBracketExecuted() && m_exch2data.hasOpenCloseMktExecuted())
                                                    || (m_exch2data.hasOpenCloseBracketExecuted() && m_exch1data.hasOpenCloseMktExecuted()); }
     public void serialize(StringBuilder sb) {
-        sb.append("Fork[id=");
-        sb.append(m_id);
+        sb.append("Fork[id=").append(m_id);
         sb.append("; e1=");
         m_exch1data.serialize(sb);
         sb.append("; e2=");
         m_exch2data.serialize(sb);
-        sb.append("; state=");
-        sb.append(m_state.toString());
+        sb.append("; state=").append(m_state.toString());
         sb.append("; openBuyExch=");
         if(m_openBuyExchange != null) {
             sb.append(m_openBuyExchange.m_exch);
@@ -33,8 +31,7 @@ public class ForkData {
         if(m_openSellExchange != null) {
             sb.append(m_openSellExchange.m_exch);
         }
-        sb.append("; earn=");
-        sb.append(m_earnThisRun);
+        sb.append("; earn=").append(m_earnThisRun);
         sb.append("]");
     }
 
@@ -63,7 +60,7 @@ public class ForkData {
     public void endThisRun() {
         System.out.println("@@@@@@@@@@@@@@@@@@@ END");
         System.out.println("****************************************************");
-        System.out.println(" execution log:");
+//        System.out.println(" execution log:");
 //        System.out.println(m_executionTrace.toString());
         double commissionAmount = getCommissionAmount();
         double income = m_earnThisRun - commissionAmount;

@@ -10,10 +10,8 @@ public class Execution {
     }
 
     public void serialize(StringBuilder sb) {
-        sb.append("Exec[price=");
-        sb.append(m_price);
-        sb.append("; amount=");
-        sb.append(m_amount);
+        sb.append("Exec[price=").append(m_price);
+        sb.append("; amount=").append(m_amount);
         sb.append("]");
     }
 } // Execution

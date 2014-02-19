@@ -16,14 +16,10 @@ public class TopData {
     public static boolean isLive(TopData top) { return (top != null) && top.m_live; }
 
     public void serialize(StringBuilder sb) {
-        sb.append("Top[bid=");
-        sb.append(m_bid);
-        sb.append("; ask=");
-        sb.append(m_ask);
-        sb.append("; last=");
-        sb.append(m_last);
-        sb.append("; live=");
-        sb.append(m_live);
+        sb.append("Top[bid=").append(m_bid);
+        sb.append("; ask=").append(m_ask);
+        sb.append("; last=").append(m_last);
+        sb.append("; live=").append(m_live);
         sb.append("]");
     }
 

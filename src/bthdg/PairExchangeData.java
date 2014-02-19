@@ -29,12 +29,9 @@ public class PairExchangeData {
         }
         sb.append("; diffAvgCntr=");
         m_diffAverageCounter.serialize(sb);
-        sb.append("; totalIncome=");
-        sb.append(m_totalIncome);
-        sb.append("; stopRequested=");
-        sb.append(m_stopRequested);
-        sb.append("; isFinished=");
-        sb.append(m_isFinished);
+        sb.append("; totalIncome=").append(m_totalIncome);
+        sb.append("; stopRequested=").append(m_stopRequested);
+        sb.append("; isFinished=").append(m_isFinished);
         sb.append("]");
         return sb.toString();
     }

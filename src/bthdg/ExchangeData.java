@@ -13,10 +13,8 @@ public class ExchangeData {
     public OrderData m_sellOrder;
 
     public void serialize(StringBuilder sb) {
-        sb.append("Exch[exch=");
-        sb.append(m_exch.toString());
-        sb.append("; state=");
-        sb.append(m_state.toString());
+        sb.append("Exch[exch=").append(m_exch.toString());
+        sb.append("; state=").append(m_state.toString());
         sb.append("; buy=");
         if (m_buyOrder != null) {
             m_buyOrder.serialize(sb);

@@ -14,18 +14,12 @@ public class OrderData {
     public List<Execution> m_executions;
 
     public void serialize(StringBuilder sb) {
-        sb.append("Order[status=");
-        sb.append(m_status.toString());
-        sb.append("; state=");
-        sb.append(m_state.toString());
-        sb.append("; side=");
-        sb.append(m_side.toString());
-        sb.append("; price=");
-        sb.append(m_price);
-        sb.append("; amount=");
-        sb.append(m_amount);
-        sb.append("; filled=");
-        sb.append(m_filled);
+        sb.append("Order[status=").append(m_status.toString());
+        sb.append("; state=").append(m_state.toString());
+        sb.append("; side=").append(m_side.toString());
+        sb.append("; price=").append(m_price);
+        sb.append("; amount=").append(m_amount);
+        sb.append("; filled=").append(m_filled);
         sb.append("; executions=");
         if(m_executions != null) {
             sb.append("[");
