@@ -2,6 +2,7 @@ package bthdg;
 
 import org.json.simple.JSONObject;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -155,6 +156,16 @@ public class Utils {
             sb.append("; weightSum=").append(m_weightSum);
             sb.append("]");
         }
+
+        public void deserialize(Deserializer deserializer) throws IOException {
+            deserializer.readObjectStart("DblAvgClcltr");
+            deserializer.readPropStart("sum");
+            String sum = deserializer.readTill("; ");
+            deserializer.readPropStart("weightSum");
+            String weightSum = deserializer.readTill("]");
+            m_sum = Double.valueOf(sum);
+            m_weightSum = Double.valueOf(weightSum);
+        }
     }
 
     public static abstract class DoubleMinMaxCalculator<O> {
@@ -197,20 +208,16 @@ public class Utils {
 
     public static class AverageCounter {
         // probably better to have average counter which counts older ticks with lower ratio/weight
-        public final TreeMap<Long,Double> m_map = new TreeMap<Long, Double>(); // sorted by time
+        public final TreeMap<Long,Double> m_map; // sorted by time
         private final long m_limit;
 
-        public void serialize(StringBuilder sb) {
-            sb.append("AvgCntr[limit=").append(m_limit);
-            sb.append("; map=[");
-            for(Map.Entry<Long, Double> e: m_map.entrySet()) {
-                sb.append(e.getKey()).append("=").append(e.getValue()).append("; ");
-            }
-            sb.append("]]");
+        public AverageCounter(long limit) {
+            this(limit, new TreeMap<Long, Double>());
         }
 
-        public AverageCounter(long limit) {
+        public AverageCounter(long limit, TreeMap<Long, Double> map) {
             m_limit = limit;
+            m_map = map;
         }
 
         public double add(long millis, double addValue) {
@@ -242,6 +249,39 @@ public class Utils {
                 counter++;
             }
             return summ/counter;
+        }
+
+        public void serialize(StringBuilder sb) {
+            sb.append("AvgCntr[limit=").append(m_limit);
+            sb.append("; map=[");
+            for(Map.Entry<Long, Double> e: m_map.entrySet()) {
+                sb.append(e.getKey()).append("=").append(e.getValue()).append("; ");
+            }
+            sb.append("]]");
+        }
+
+        public static AverageCounter deserialize(Deserializer deserializer) throws IOException {
+            if( deserializer.readIf("; ")) {
+                return null;
+            }
+            deserializer.readObjectStart("AvgCntr");
+            deserializer.readPropStart("limit");
+            String limitStr = deserializer.readTill("; ");
+            deserializer.readPropStart("map");
+            Map<String,String> map = deserializer.readMap();
+            deserializer.readObjectEnd();
+            deserializer.readStr("; ");
+
+            TreeMap<Long,Double> map2 = new TreeMap<Long, Double>(); // sorted by time
+            for(Map.Entry<String, String> entry: map.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                long millis = Long.parseLong(key);
+                double dbl= Double.parseDouble(value);
+                map2.put(millis, dbl);
+            }
+            long limit = Long.parseLong(limitStr);
+            return new AverageCounter(limit, map2);
         }
     } // AverageCounter
 }

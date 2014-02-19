@@ -1,10 +1,12 @@
 package bthdg;
 
+import java.io.IOException;
+
 public class ForkData {
     private long m_id;
-    private final PairExchangeData m_pairExData;
-    private final ExchangeData m_exch1data;
-    private final ExchangeData m_exch2data;
+    private PairExchangeData m_pairExData;
+    private ExchangeData m_exch1data;
+    private ExchangeData m_exch2data;
     public ForkState m_state = ForkState.NONE;
     // OPEN sides
     private ExchangeData m_openBuyExchange;
@@ -16,24 +18,6 @@ public class ForkData {
     boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
     private boolean hasBothBracketMarketExecuted() { return (m_exch1data.hasOpenCloseBracketExecuted() && m_exch2data.hasOpenCloseMktExecuted())
                                                    || (m_exch2data.hasOpenCloseBracketExecuted() && m_exch1data.hasOpenCloseMktExecuted()); }
-    public void serialize(StringBuilder sb) {
-        sb.append("Fork[id=").append(m_id);
-        sb.append("; e1=");
-        m_exch1data.serialize(sb);
-        sb.append("; e2=");
-        m_exch2data.serialize(sb);
-        sb.append("; state=").append(m_state.toString());
-        sb.append("; openBuyExch=");
-        if(m_openBuyExchange != null) {
-            sb.append(m_openBuyExchange.m_exch);
-        }
-        sb.append("; openSellExch=");
-        if(m_openSellExchange != null) {
-            sb.append(m_openSellExchange.m_exch);
-        }
-        sb.append("; earn=").append(m_earnThisRun);
-        sb.append("]");
-    }
 
     @Override public String toString() {
         return "ForkData{" +
@@ -45,10 +29,16 @@ public class ForkData {
     }
 
     public ForkData(PairExchangeData pExData) {
-        m_id = System.currentTimeMillis();
+        this(System.currentTimeMillis(),
+             new ExchangeData(pExData.m_sharedExch1),
+             new ExchangeData(pExData.m_sharedExch2));
         m_pairExData = pExData;
-        m_exch1data = new ExchangeData(pExData.m_sharedExch1);
-        m_exch2data = new ExchangeData(pExData.m_sharedExch2);
+    }
+
+    private ForkData(long id, ExchangeData e1, ExchangeData e2) {
+        m_id = id;
+        m_exch1data = e1;
+        m_exch2data = e2;
     }
 
     public void checkState(IterationContext iContext) throws Exception {
@@ -380,5 +370,70 @@ public class ForkData {
 
     public void appendState(StringBuilder sb) {
         sb.append( "{\"state\": \""+m_state+"\"}");
+    }
+
+    public void serialize(StringBuilder sb) {
+        sb.append("Fork[id=").append(m_id);
+        sb.append("; e1=");
+        m_exch1data.serialize(sb);
+        sb.append("; e2=");
+        m_exch2data.serialize(sb);
+        sb.append("; state=").append(m_state.toString());
+        sb.append("; openBuyExch=");
+        if(m_openBuyExchange != null) {
+            sb.append(m_openBuyExchange.m_exch);
+        }
+        sb.append("; openSellExch=");
+        if(m_openSellExchange != null) {
+            sb.append(m_openSellExchange.m_exch);
+        }
+        sb.append("; earn=").append(m_earnThisRun);
+        sb.append("]");
+    }
+
+    public static ForkData deserialize(Deserializer deserializer) throws IOException {
+        deserializer.readObjectStart("Fork");
+        deserializer.readPropStart("id");
+        String idStr = deserializer.readTill("; ");
+        deserializer.readPropStart("e1");
+        ExchangeData e1 = ExchangeData.deserialize(deserializer);
+        deserializer.readStr("; ");
+        deserializer.readPropStart("e2");
+        ExchangeData e2 = ExchangeData.deserialize(deserializer);
+        deserializer.readStr("; ");
+        deserializer.readPropStart("state");
+        String stateStr = deserializer.readTill("; ");
+        deserializer.readPropStart("openBuyExch");
+        String openBuyExchStr = deserializer.readTill("; ");
+        deserializer.readPropStart("openSellExch");
+        String openSellExchStr = deserializer.readTill("; ");
+        deserializer.readPropStart("earn");
+        String earn = deserializer.readTill("]");
+
+        long id = Long.parseLong(idStr);
+        ForkData res = new ForkData(id, e1, e2);
+        res.m_state = ForkState.valueOf(stateStr);
+        res.m_earnThisRun = Double.parseDouble(earn);
+
+        String e1name = e1.m_exch.name();
+        String e2name = e2.m_exch.name();
+        if (e1name.equals(openBuyExchStr)) {
+            res.m_openBuyExchange = e1;
+        } else if (e2name.equals(openBuyExchStr)) {
+            res.m_openBuyExchange = e2;
+        }
+        if (e1name.equals(openSellExchStr)) {
+            res.m_openSellExchange = e1;
+        } else if (e2name.equals(openSellExchStr)) {
+            res.m_openSellExchange = e2;
+        }
+
+        return res;
+    }
+
+    public void postDeserialize(PairExchangeData ret) {
+        m_pairExData = ret;
+        m_exch1data.postDeserialize(ret);
+        m_exch2data.postDeserialize(ret);
     }
 } // ForkData

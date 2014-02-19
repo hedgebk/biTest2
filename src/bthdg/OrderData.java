@@ -1,5 +1,6 @@
 package bthdg;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -12,25 +13,6 @@ public class OrderData {
     public final double m_amount;
     public double m_filled;
     public List<Execution> m_executions;
-
-    public void serialize(StringBuilder sb) {
-        sb.append("Order[status=").append(m_status.toString());
-        sb.append("; state=").append(m_state.toString());
-        sb.append("; side=").append(m_side.toString());
-        sb.append("; price=").append(m_price);
-        sb.append("; amount=").append(m_amount);
-        sb.append("; filled=").append(m_filled);
-        sb.append("; executions=");
-        if(m_executions != null) {
-            sb.append("[");
-            for(Execution execution: m_executions) {
-                execution.serialize(sb);
-                sb.append("; ");
-            }
-            sb.append("]");
-        }
-        sb.append("]");
-    }
 
     @Override public String toString() {
         return "OrderData{" +
@@ -117,4 +99,75 @@ public class OrderData {
         System.out.println("Error order state: status not matches filled qty: " + this);
         return false;
     }
+
+    public void serialize(StringBuilder sb) {
+        sb.append("Order[status=").append(m_status.toString());
+        sb.append("; state=").append(m_state.toString());
+        sb.append("; side=").append(m_side.toString());
+        sb.append("; price=").append(m_price);
+        sb.append("; amount=").append(m_amount);
+        sb.append("; filled=").append(m_filled);
+        sb.append("; executions=");
+        if(m_executions != null) {
+            sb.append("[");
+            for(Execution execution: m_executions) {
+                execution.serialize(sb);
+                sb.append("; ");
+            }
+            sb.append("]");
+        }
+        sb.append("]");
+    }
+
+    public static OrderData deserialize(Deserializer deserializer) throws IOException {
+        if( deserializer.readIf("; ")) {
+            return null;
+        }
+        deserializer.readObjectStart("Order");
+        deserializer.readPropStart("status");
+        String statusStr = deserializer.readTill("; ");
+        deserializer.readPropStart("state");
+        String stateStr = deserializer.readTill("; ");
+        deserializer.readPropStart("side");
+        String sideStr = deserializer.readTill("; ");
+        deserializer.readPropStart("price");
+        String priceStr = deserializer.readTill("; ");
+        deserializer.readPropStart("amount");
+        String amountStr = deserializer.readTill("; ");
+        deserializer.readPropStart("filled");
+        String filledStr = deserializer.readTill("; ");
+        deserializer.readPropStart("executions");
+        List<Execution> executions = readExecutions(deserializer);
+        deserializer.readObjectEnd();
+        deserializer.readStr("; ");
+
+        OrderSide side = OrderSide.valueOf(sideStr);
+        Double price = Double.parseDouble(priceStr);
+        Double amount = Double.parseDouble(amountStr);
+        OrderData ret = new OrderData(side, price, amount);
+
+        ret.m_status = OrderStatus.valueOf(statusStr);
+        ret.m_state = OrderState.valueOf(stateStr);
+        ret.m_filled = Double.parseDouble(filledStr);
+        ret.m_executions = executions;
+
+        return ret;
+    }
+
+    private static List<Execution> readExecutions(Deserializer deserializer) throws IOException {
+        if( deserializer.readIf("[") ) {
+            // [[Exec]; [Exec]; [Exec]; ]
+            List<Execution> ret = new ArrayList<Execution>();
+            while(true) {
+                Execution exec = Execution.deserialize(deserializer);
+                ret.add(exec);
+                deserializer.readStr("; ");
+                if(deserializer.readIf("]")) {
+                    return ret;
+                }
+            }
+        }
+        return null;
+    }
+
 } // OrderData

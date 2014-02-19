@@ -12,9 +12,10 @@ import java.net.URL;
  *  - make delay between runs mkt data related - distance to nearest order driven
  *  - support partial fills - do forks
  *  - support DROP
+ *  - count all downloaded traffic
  */
 public class Fetcher {
-    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
+    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
@@ -70,6 +71,7 @@ public class Fetcher {
                 }
             } catch (Exception e) {
                 System.out.println("GOT exception during processing. setting ERROR, closing everything...");
+                e.printStackTrace();
                 data.setState(ForkState.ERROR); // error - stop ALL
                 iContext.delay(0);
             }
@@ -90,6 +92,8 @@ public class Fetcher {
         boolean ret = data.checkState(iContext);
         String serialized = data.serialize();
         System.out.println("serialized="+serialized);
+        PairExchangeData deserialized = Deserializer.deserialize(serialized);
+        //deserialized.compare(data); // make sure all fine
         return ret;
     }
 

@@ -1,35 +1,25 @@
 package bthdg;
 
+import java.io.IOException;
+
 public class ExchangeData {
     private static final double MKT_ORDER_THRESHOLD = 1.3; // market order price allowance +-30%
     private static final double MIN_MKT_ORDER_PRICE_CHANGE = 0.0001;
     private static final double MOVE_BRACKET_ORDER_MIN_PERCENTAGE = 0.1; // move brackets of price change in 10% from mkt price
 
     public final Exchange m_exch;
-    final SharedExchangeData m_shExchData;
+    SharedExchangeData m_shExchData;
     public ExchangeState m_state = ExchangeState.NONE;
-
     public OrderData m_buyOrder;
     public OrderData m_sellOrder;
 
-    public void serialize(StringBuilder sb) {
-        sb.append("Exch[exch=").append(m_exch.toString());
-        sb.append("; state=").append(m_state.toString());
-        sb.append("; buy=");
-        if (m_buyOrder != null) {
-            m_buyOrder.serialize(sb);
-        }
-        sb.append("; sell=");
-        if (m_sellOrder != null) {
-            m_sellOrder.serialize(sb);
-        }
-        sb.append("]");
+    public ExchangeData(SharedExchangeData shExchData) {
+        this(shExchData.m_exchange);
+        m_shExchData = shExchData;
     }
 
-    public ExchangeData(SharedExchangeData shExchData) {
-
-        m_shExchData = shExchData;
-        m_exch = shExchData.m_exchange;
+    private ExchangeData(Exchange exchange) {
+        m_exch = exchange;
     }
 
     @Override public String toString() {
@@ -497,5 +487,44 @@ public class ExchangeData {
         System.out.println("stop() on " + exchName());
         closeOrders();
         setState(ExchangeState.NONE);
+    }
+
+    public void serialize(StringBuilder sb) {
+        sb.append("Exch[exch=").append(m_exch.toString());
+        sb.append("; state=").append(m_state.toString());
+        sb.append("; buy=");
+        if (m_buyOrder != null) {
+            m_buyOrder.serialize(sb);
+        }
+        sb.append("; sell=");
+        if (m_sellOrder != null) {
+            m_sellOrder.serialize(sb);
+        }
+        sb.append("; ]");
+    }
+
+    public static ExchangeData deserialize(Deserializer deserializer) throws IOException {
+        deserializer.readObjectStart("Exch");
+        deserializer.readPropStart("exch");
+        String exchStr = deserializer.readTill("; ");
+        deserializer.readPropStart("state");
+        String stateStr = deserializer.readTill("; ");
+        deserializer.readPropStart("buy");
+        OrderData buy = OrderData.deserialize(deserializer);
+        deserializer.readPropStart("sell");
+        OrderData sell = OrderData.deserialize(deserializer);
+        deserializer.readObjectEnd();
+
+        Exchange exchange = Exchange.valueOf(exchStr);
+        ExchangeData ret = new ExchangeData(exchange);
+        ret.m_state = ExchangeState.valueOf(stateStr);
+        ret.m_buyOrder = buy;
+        ret.m_sellOrder = sell;
+
+        return ret;
+    }
+
+    public void postDeserialize(PairExchangeData ret) {
+        m_shExchData = ret.getSharedExch(m_exch);
     }
 } // ExchangeData

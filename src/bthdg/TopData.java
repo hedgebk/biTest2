@@ -1,5 +1,7 @@
 package bthdg;
 
+import java.io.IOException;
+
 public class TopData {
     public final double m_bid; // ASK > BID
     public final double m_ask;
@@ -15,23 +17,19 @@ public class TopData {
 
     public static boolean isLive(TopData top) { return (top != null) && top.m_live; }
 
-    public void serialize(StringBuilder sb) {
-        sb.append("Top[bid=").append(m_bid);
-        sb.append("; ask=").append(m_ask);
-        sb.append("; last=").append(m_last);
-        sb.append("; live=").append(m_live);
-        sb.append("]");
+    public TopData(double bid, double ask, double last) {
+        this(bid, ask, last, true);
     }
 
     public TopData(String bid, String ask, String last) {
         this(Double.parseDouble(bid), Double.parseDouble(ask), Double.parseDouble(last));
     }
 
-    public TopData(double bid, double ask, double last) {
+    private TopData(double bid, double ask, double last, boolean live) {
         m_bid = bid;
         m_ask = ask;
         m_last = last;
-        m_live = true;
+        m_live = live;
     }
 
     @Override public String toString() {
@@ -56,13 +54,64 @@ public class TopData {
         }
     }
 
+    public void serialize(StringBuilder sb) {
+        sb.append("Top[bid=").append(m_bid);
+        sb.append("; ask=").append(m_ask);
+        sb.append("; last=").append(m_last);
+        sb.append("; live=").append(m_live);
+        sb.append("; ]");
+    }
+
+    public static TopData deserialize(Deserializer deserializer) throws IOException {
+        if( deserializer.readIf("; ")) {
+            return null;
+        }
+        deserializer.readObjectStart("Top");
+        double bid = readBid(deserializer);
+        double ask = readAsk(deserializer);
+        double last = readLast(deserializer);
+        boolean live = readLive(deserializer);
+        deserializer.readObjectEnd();
+        deserializer.readStr("; ");
+
+        return new TopData(bid, ask, last, live);
+    }
+
+    private static boolean readLive(Deserializer deserializer) throws IOException {
+        deserializer.readPropStart("live");
+        String liveStr = deserializer.readTill("; ");
+        return Boolean.parseBoolean(liveStr);
+    }
+
+    private static double readLast(Deserializer deserializer) throws IOException {
+        return readDouble(deserializer, "last");
+    }
+
+    private static double readAsk(Deserializer deserializer) throws IOException {
+        return readDouble(deserializer, "ask");
+    }
+
+    private static double readBid(Deserializer deserializer) throws IOException {
+        return readDouble(deserializer, "bid");
+    }
+
+    private static double readDouble(Deserializer deserializer, String key) throws IOException {
+        deserializer.readPropStart(key);
+        String value = deserializer.readTill("; ");
+        return Double.parseDouble(value);
+    }
+
     public static class TopDataEx extends TopData {
         public final double m_mid;
 
         public String midStr() { return Utils.XX_YYYY.format(m_mid); }
 
         public TopDataEx(double bid, double ask, double last, double mid) {
-            super(bid, ask, last);
+            this(bid, ask, last, true, mid);
+        }
+
+        public TopDataEx(double bid, double ask, double last, boolean live, double mid) {
+            super(bid, ask, last, live);
             m_mid = mid;
         }
 
@@ -74,7 +123,32 @@ public class TopData {
         }
 
         public void serialize(StringBuilder sb) {
-            //To change body of created methods use File | Settings | File Templates.
+            sb.append("TopEx[bid=").append(m_bid);
+            sb.append("; ask=").append(m_ask);
+            sb.append("; last=").append(m_last);
+            sb.append("; live=").append(m_live);
+            sb.append("; mid=").append(m_mid);
+            sb.append("; ]");
+        }
+
+        public static TopDataEx deserialize(Deserializer deserializer) throws IOException {
+            if( deserializer.readIf("; ")) {
+                return null;
+            }
+            deserializer.readObjectStart("TopEx");
+            double bid = readBid(deserializer);
+            double ask = readAsk(deserializer);
+            double last = readLast(deserializer);
+            boolean live = readLive(deserializer);
+            double mid = readMid(deserializer);
+            deserializer.readObjectEnd();
+            deserializer.readStr("; ");
+
+            return new TopDataEx(bid, ask, last, live, mid);
+        }
+
+        private static double readMid(Deserializer deserializer) throws IOException {
+            return readDouble(deserializer, "mid");
         }
     }
 }
