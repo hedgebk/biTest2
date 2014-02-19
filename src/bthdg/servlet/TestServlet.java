@@ -1,15 +1,20 @@
-package bthdg;
+package bthdg.servlet;
 
+import bthdg.*;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import static com.google.appengine.api.taskqueue.TaskOptions.Builder.*;
 
+import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 public class TestServlet extends HttpServlet {
@@ -31,7 +36,7 @@ public class TestServlet extends HttpServlet {
     private void doGetPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String command = request.getParameter("command");
         if( command != null ) {
-            processCommand(command);
+            processCommand(command, request, response);
         } else {
             String millisStr = request.getParameter(MILLIS);
             log.warning(" millisStr="+millisStr);
@@ -82,54 +87,108 @@ public class TestServlet extends HttpServlet {
         return (counter < 20) ? System.currentTimeMillis() + 1000 : Long.MAX_VALUE;
     }
 
-    private void processCommand(String command) {
+    private void processCommand(String command, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         log.warning("processCommand '" + command +"'");
+        String status;
         if( command.equals("start") ) {
-            startHdg();
-        } if( command.equals("stop") ) {
-            stopHdg();
-        } if( command.equals("continue") ) {
-            continueHdg();
+            status = startHdg();
+        } else if( command.equals("stop") ) {
+            status = stopHdg();
+        } else if( command.equals("continue") ) {
+            status = continueHdg();
+        } else if( command.equals("configure") ) {
+            boolean loaded = configure(request.getParameter("cfg"));
+            if(!loaded) {
+                request.setAttribute("applied", Boolean.FALSE);
+            }
+            RequestDispatcher dispatcher = request.getRequestDispatcher(loaded ? "/" : "/config.jsp");
+            dispatcher.forward(request, response);
+            return;
+        } else if( command.equals("state") ) {
+            getState(response);
+            return;
+        } else {
+            status = "unknown command '"+command+"'";
         }
+        sendStatus(response, status);
     }
 
-    private void startHdg() {
+    private void getState(HttpServletResponse response) throws IOException {
         ServletContext servletContext = getServletContext();
         PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
-        if (data == null) {
-            data = new PairExchangeData(Exchange.BITSTAMP, Exchange.BTCE);
-            servletContext.setAttribute(HDG, data);
-            nextIteration(data);
+        String st = (data == null) ? "not started" : data.getState();
+        String forks = (data == null) ? "[]" : data.getForksState();
+
+        response.setContentType("application/json");
+        PrintWriter writer = response.getWriter();
+        writer.append("{ \"status\": \"" + st + "\", \"forks\": "+forks+" }");
+    }
+
+    private boolean configure(String cfg) throws IOException {
+        StringReader reader = new StringReader(cfg);
+        Properties properties = new Properties();
+        properties.load(reader);
+        return Config.load(properties);
+    }
+
+    private String startHdg() throws IOException {
+        if(Config.s_configured) {
+            ServletContext servletContext = getServletContext();
+            PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
+            if (data == null) {
+                data = new PairExchangeData(Exchange.BITSTAMP, Exchange.BTCE);
+                servletContext.setAttribute(HDG, data);
+                nextIteration(data);
+                return "ok";
+            } else if( data.m_isFinished ) {
+                log.warning("re-running already finished");
+                data.maybeStartNewFork();
+                nextIteration(data);
+                return "ok";
+            } else {
+                log.warning("already started");
+                return "already started";
+            }
         } else {
-            log.warning("already started");
+            return "need config";
         }
     }
 
-    private void stopHdg() {
+    private String stopHdg() {
         ServletContext servletContext = getServletContext();
         PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
         if (data != null) {
             data.stop();
+            return "ok";
         } else {
             log.warning("can not stop - not started");
+            return"not started";
         }
     }
 
-    private void continueHdg() {
+    private String continueHdg()  {
         ServletContext servletContext = getServletContext();
         PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
         if (data != null) {
             nextIteration(data);
+            return "ok";
         } else {
             log.warning("can not continue - not started");
+            return "not started";
         }
+    }
+
+    private void sendStatus(HttpServletResponse response, String status) throws IOException {
+        response.setContentType("application/json");
+        PrintWriter writer = response.getWriter();
+        writer.append("{ \"status\": \"" + status + "\" }");
     }
 
     private void nextIteration(PairExchangeData data) {
         IterationContext iContext = new IterationContext();
         try {
             if( data.checkState(iContext)){
-                System.out.println("GOT finish request");
+                System.out.println("GOT finish request - no more tasks to run");
             } else {
                 repost(iContext);
             }
@@ -137,7 +196,7 @@ public class TestServlet extends HttpServlet {
             log.severe("GOT exception during processing. setting ERROR, closing everything...");
             data.setState(ForkState.ERROR); // error - stop ALL
             iContext.delay(0);
-            repost(iContext);
+            repost(iContext); // need to finish
         }
     }
 

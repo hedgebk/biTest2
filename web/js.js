@@ -2,23 +2,35 @@ var periodicalUpdater = null;
 
 function theStatus(text) {
   var ctrl = $('theStatus');
-  alert("theStatus('"+text+"') ctrl="+ctrl);
   ctrl.innerHTML = text;
 }
 
-function ajaxCommand(command) {
+function ajaxCommand(command, callback) {
   new Ajax.Request('/tst', {
     method:'get',
     parameters:{'command':command},
-    onSuccess:function () { theStatus("'" + command + "' OK"); },
-    onFailure:function () { theStatus("'" + command + "' failed."); }
+    onSuccess:function (transport) {
+      var json = transport.responseText.evalJSON();
+      var status = json.status;
+      theStatus("Command '" + command + "' status '" + status + "'");
+      if (callback != null) {
+        callback(status);
+      }
+    },
+    onFailure:function () { theStatus("Command '" + command + "' failed."); }
   });
+}
+
+function onStartStatus(status) {
+  if (status == "need config" ) {
+    window.location = "config.jsp";
+  }
 }
 
 function onLoad() {
   draw();
 
-  $('start').observe('click', function() { ajaxCommand('start'); });
+  $('start').observe('click', function() { ajaxCommand('start', onStartStatus); });
   $('stop').observe('click', function() { ajaxCommand('stop'); });
   $('periodic').observe('click', function() { pool(); });
   $('periodicX').observe('click', function() { stopPool(); });
@@ -26,13 +38,12 @@ function onLoad() {
   function pool() {
     theStatus('pool');
     if (periodicalUpdater == null) {
-      periodicalUpdater = new Ajax.PeriodicalUpdater('products', '/progress.jsp', {
+      periodicalUpdater = new Ajax.PeriodicalUpdater('products', '/tst', {
         method:'get',
-        parameters:{company:'example', limit:12},
+        parameters:{command:'state'},
         onSuccess:function (transport) {
           var json = transport.responseText.evalJSON();
-          var counter = json.counter;
-          drawCounter(counter);
+          drawStatus(json);
         },
         onFailure:function () { alert('Something went wrong...'); },
         frequency:2
@@ -43,7 +54,7 @@ function onLoad() {
   function stopPool() {
     theStatus('stopPool');
     if (periodicalUpdater != null) {
-      periodicalUpdater.stop()
+      periodicalUpdater.stop();
       periodicalUpdater = null;
     }
   }
@@ -130,19 +141,32 @@ function draw() {
 
   ctx.font = "bold 13px sans-serif";
   setInterval(function () {
-    ctx.clearRect(10, 400, 400, 18);
-    //ctx.strokeStyle = 'blue';
+    ctx.clearRect(10, 380, 400, 18);
     ctx.fillStyle = "blue";
-    ctx.fillText("?" + new Date(), 14, 414);
+    ctx.fillText("?" + new Date(), 14, 394);
   }, 1000);
 }
 
-function drawCounter(counter) {
+function drawStatus(json) {
+//  alert("json="+json);
   var c = document.getElementById("123");
   var ctx = c.getContext("2d");
 
   ctx.font = "bold 13px sans-serif";
-  ctx.clearRect(10, 430, 200, 18);
+  ctx.clearRect(10, 410, 200, 60);
   ctx.fillStyle = "red";
-  ctx.fillText("counter=" + counter, 14, 444);
+
+//  alert("json.status="+json.status);
+
+  // { 'status': 'ok', 'e1' : 'unknown', 'e2' : 'unknown' }
+  ctx.fillText("status: " + json.status, 14, 424);
+//  alert("json.forks="+json.forks);
+  var allForks = json.forks;
+  var y = 424;
+  for (var i = 0; i < allForks.length; i++) {
+    var aFork = allForks[i];
+//    alert("fork=" + aFork);
+    y += 18;
+    ctx.fillText(": " + aFork.state, 20, y);
+  }
 }

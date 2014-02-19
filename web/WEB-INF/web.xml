@@ -7,7 +7,7 @@
   <display-name>bthdg</display-name>
   <servlet>
     <servlet-name>tst</servlet-name>
-    <servlet-class>bthdg.TestServlet</servlet-class>
+    <servlet-class>bthdg.servlet.TestServlet</servlet-class>
   </servlet>
   <servlet-mapping>
     <servlet-name>tst</servlet-name>

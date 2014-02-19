@@ -14,31 +14,40 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-//
 // SEE HERE
 //  https://github.com/abwaters/bitstamp-api/blob/master/src/com/abwaters/bitstamp/Bitstamp.java
-//
-
 public class Bitstamp {
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible; +https://github.com/abwaters/bitstamp-api)";
     public static final String CRYPTO_ALGO = "HmacSHA256";
-    private static final String SECRET;
-    private static final String KEY;
-    private static final String CLIENT_ID;
+    private static String SECRET;
+    private static String KEY;
+    private static String CLIENT_ID;
 
     private static String s_bitstampDeepTestStr = null;
 
-    static {
+    public static void init() {
         try {
             Properties properties = new Properties();
             properties.load(new FileReader("keys.txt"));
-            SECRET = properties.getProperty("bitstamp_secret");
-            KEY = properties.getProperty("bitstamp_key");
-            CLIENT_ID = properties.getProperty("bitstamp_clientId");
+            init(properties);
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException("error reading properties");
         }
+    }
+
+    static boolean init(Properties properties) {
+        SECRET = properties.getProperty("bitstamp_secret");
+        if (SECRET != null) {
+            KEY = properties.getProperty("bitstamp_key");
+            if (KEY != null) {
+                CLIENT_ID = properties.getProperty("bitstamp_clientId");
+                if (CLIENT_ID != null) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static String getNextNonce() { return Long.toString(System.currentTimeMillis() / 100); }

@@ -481,4 +481,8 @@ public class ExchangeData {
         closeOrders();
         setState(ExchangeState.NONE);
     }
+
+    public boolean isStopped() {
+        return (m_state == ExchangeState.NONE);
+    }
 } // ExchangeData

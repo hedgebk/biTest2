@@ -28,21 +28,30 @@ import java.util.*;
 
 public class Btce {
     public static final String CRYPTO_ALGO = "HmacSHA512";
-    private static final String SECRET;
-    private static final String KEY;
-
+    private static String SECRET;
+    private static String KEY;
     private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
 
-    static {
+    public static void init() {
         try {
             Properties properties = new Properties();
             properties.load(new FileReader("keys.txt"));
-            SECRET = properties.getProperty("btce_secret");
-            KEY = properties.getProperty("btce_key");
+            init(properties);
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException("error reading properties");
         }
+    }
+
+    static boolean init(Properties properties) {
+        SECRET = properties.getProperty("btce_secret");
+        if(SECRET != null) {
+            KEY = properties.getProperty("btce_key");
+            if(SECRET != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String getNextNonce() { return Integer.toString(s_nonce++); }

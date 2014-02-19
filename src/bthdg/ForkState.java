@@ -109,6 +109,11 @@ public enum ForkState {
         }
     },
     STOP {
+        @Override public boolean preCheckState(IterationContext iContext, ForkData forkData) {
+            System.out.println("ForkState.STOP preCheckState()");
+            return forkData.allStopped(); // todo: maybe this not exactly correct - closing orders should be quick, but moving to 50-50 can take time
+        }
+
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             System.out.println("ForkState.STOP checkState()");
             forkData.stop();

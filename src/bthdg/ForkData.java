@@ -1,7 +1,5 @@
 package bthdg;
 
-import bthdg.*;
-
 public class ForkData {
     private final PairExchangeData m_pairExData;
     private final ExchangeData m_exch1data;
@@ -357,6 +355,14 @@ public class ForkData {
 
     public void stop() {
         m_exch1data.stop();
-        m_exch1data.stop();
+        m_exch2data.stop();
+    }
+
+    public boolean allStopped() {
+        return m_exch1data.isStopped() && m_exch2data.isStopped();
+    }
+
+    public void appendState(StringBuilder sb) {
+        sb.append( "{\"state\": \""+m_state+"\"}");
     }
 } // ForkData

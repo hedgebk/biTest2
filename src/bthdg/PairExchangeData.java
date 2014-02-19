@@ -13,14 +13,14 @@ public class PairExchangeData {
     public final Utils.AverageCounter m_diffAverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
     private double m_totalIncome;
     private boolean m_stopRequested;
+    public boolean m_isFinished;
 
     public String exchNames() { return m_sharedExch1.m_exchange.m_name + "-" + m_sharedExch2.m_exchange.m_name; }
 
     public PairExchangeData(Exchange exch1, Exchange exch2) {
         m_sharedExch1 = new SharedExchangeData(exch1);
         m_sharedExch2 = new SharedExchangeData(exch2);
-        ForkData firstForkData = new ForkData(this);
-        m_forks.add(firstForkData);
+        maybeStartNewFork();
     }
 
     public boolean checkState(IterationContext iContext) throws Exception {
@@ -67,10 +67,11 @@ public class PairExchangeData {
             fork.checkState(iContext);
         }
 
-        return m_forks.isEmpty(); // no more tasks to execute
+        m_isFinished = m_forks.isEmpty();
+        return m_isFinished; // no more tasks to execute
     }
 
-    private void maybeStartNewFork() {
+    public void maybeStartNewFork() {
         double amount1 = m_sharedExch1.calcAmountToOpen();
         double amount2 = m_sharedExch2.calcAmountToOpen();
         double amount = Math.min(amount1, amount2);
@@ -103,5 +104,22 @@ public class PairExchangeData {
 
     public void stop() {
         m_stopRequested = true;
+    }
+
+    public String getState() {
+        return m_isFinished ? "FINISHED" : "RUNNING "+m_forks.size() + " forks";
+    }
+
+    public String getForksState() {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0, m_forksSize = m_forks.size(); i < m_forksSize; i++) {
+            if(i> 0) {
+                sb.append(", ");
+            }
+            ForkData fork = m_forks.get(i);
+            fork.appendState(sb);
+        }
+        sb.append("]");
+        return sb.toString();
     }
 } // bthdg.PairExchangeData
