@@ -26,12 +26,14 @@ public class Fetcher {
     private static final int MAX_READ_ATTEMPTS = 100; // 5;
     public static final int START_REPEAT_DELAY = 200;
     public static final int REPEAT_DELAY_INCREMENT = 200;
-    public static final int CONNECT_TIMEOUT = 5000;
+    public static final int CONNECT_TIMEOUT = 6000; // todo: maybe make it different for exchanges
     public static final int READ_TIMEOUT = 7000;
 
     public static void main(String[] args) {
         System.out.println("Started.  millis=" + System.currentTimeMillis());
         try {
+            Bitstamp.init();
+            Btce.init();
 //            TradesData trades1 = fetchTrades(Exchange.BITSTAMP);
 //            TradesData trades2 = fetchTrades(Exchange.BTCE);
 

@@ -88,4 +88,14 @@ public class OrderData {
         }
         return false;
     }
+
+    public boolean isFilled() {
+        boolean statusOk = (m_status == OrderStatus.FILLED);
+        boolean filledOk = (m_filled == m_amount);
+        if (statusOk == filledOk) {
+            return statusOk;
+        }
+        System.out.println("Error order state: status not matches filled qty: " + this);
+        return false;
+    }
 } // OrderData

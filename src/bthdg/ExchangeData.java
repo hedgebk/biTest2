@@ -1,11 +1,9 @@
 package bthdg;
 
-import bthdg.*;
-
 public class ExchangeData {
     private static final double MKT_ORDER_THRESHOLD = 1.3; // market order price allowance +-30%
-    public static final double MOVE_BRACKET_ORDER_MIN_AMOUNT = 0.5;
     private static final double MIN_MKT_ORDER_PRICE_CHANGE = 0.0001;
+    private static final double MOVE_BRACKET_ORDER_MIN_PERCENTAGE = 0.1; // move brackets of price change in 10% from mkt price
 
     public final Exchange m_exch;
     final SharedExchangeData m_shExchData;
@@ -31,6 +29,8 @@ public class ExchangeData {
     public boolean hasOpenCloseBracketExecuted() { return (m_state == ExchangeState.ONE_OPEN_BRACKET_EXECUTED) || (m_state == ExchangeState.CLOSE_BRACKET_EXECUTED); }
     public boolean hasOpenCloseMktExecuted() { return (m_state == ExchangeState.OPEN_AT_MKT_EXECUTED) || (m_state == ExchangeState.CLOSE_AT_MKT_EXECUTED); }
     public double commissionAmount() { return m_shExchData.m_lastTop.getMid() * m_exch.m_fee; }
+    public boolean isStopped() { return (m_state == ExchangeState.NONE); }
+    private static String format(double buy) { return Fetcher.format(buy); }
 
     public boolean placeBrackets(TopData top, TopData otherTop, double midDiffAverage, double halfTargetDelta) { // ASK > BID
         double buy = otherTop.m_bid - halfTargetDelta + midDiffAverage;
@@ -96,21 +96,22 @@ public class ExchangeData {
 
         double amount = calcAmountToOpen(); // todo: this can be changed over the time - take special care later
 
-        // todo: do not move order if changed just a little - define accepted order change delta
-
         boolean success = true;
         if (m_buyOrder != null) {
-            double distancePrice = m_buyOrder.m_price;
-            double buyDelta = m_buyOrder.m_price - buy;
-            if (Math.abs(buyDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little (<0.05)
-                System.out.println("  do not move BUY bracket, [" + m_buyOrder.priceStr() + "->" + Fetcher.format(buy) + "] delta=" + buyDelta);
+            double orderPrice = m_buyOrder.m_price;
+            double distance = top.m_bid - orderPrice;
+            double buyDelta = buy - orderPrice;
+            double deltaPrcnt = Math.abs(buyDelta) / distance;
+            if (deltaPrcnt < MOVE_BRACKET_ORDER_MIN_PERCENTAGE) { // do not move order if changed just a little (<10%)
+                System.out.println("  do not move BUY bracket, [" + m_buyOrder.priceStr() + "->" + format(buy) + "] " +
+                        "delta=" + format(buyDelta) + ", deltaPrcnt=" + format(deltaPrcnt));
             } else {
                 success = cancelOrder(m_buyOrder); // todo: order can be executed at this point, so cancel will fail
                 if (success) {
                     m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
                     success = placeOrderBracket(m_buyOrder);
                     if (success) {
-                        distancePrice = buy;
+                        distance = top.m_bid - buy ;
                     } else {
                         System.out.println(" moveBrackets - place buy order failed: " + m_buyOrder);
                     }
@@ -118,31 +119,32 @@ public class ExchangeData {
                     System.out.println(" moveBrackets - cancel buy order failed: " + m_buyOrder);
                 }
             }
-            double distance = top.m_bid - distancePrice;
             System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   distance="+distance);
         }
 
         if (success) {
             if (m_sellOrder != null) {
-                double distancePrice = m_sellOrder.m_price;
-                double sellDelta = sell - m_sellOrder.m_price;
-                if (Math.abs(sellDelta) < MOVE_BRACKET_ORDER_MIN_AMOUNT) { // do not move order if changed just a little
-                    System.out.println("  do not move SELL bracket, [" + m_sellOrder.priceStr() + "->" + Fetcher.format(sell) + "] delta=" + sellDelta);
+                double orderPrice = m_sellOrder.m_price;
+                double distance = orderPrice - top.m_ask;
+                double sellDelta = orderPrice - sell;
+                double deltaPrcnt = Math.abs(sellDelta) / distance;
+                if (deltaPrcnt < MOVE_BRACKET_ORDER_MIN_PERCENTAGE) { // do not move order if changed just a little (<10%)
+                    System.out.println("  do not move SELL bracket, [" + m_sellOrder.priceStr() + "->" + format(sell) + "] " +
+                            "delta=" + format(sellDelta) + ", deltaPrcnt=" + format(deltaPrcnt));
                 } else {
                     success = cancelOrder(m_sellOrder);  // todo: order can be executed at this point, so cancel will fail
                     if (success) {
                         m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
                         success = placeOrderBracket(m_sellOrder);
                         if (success) {
-                            distancePrice = sell;
+                            distance = sell - top.m_ask;
                         } else {
-                            System.out.println(" moveBrackets - place sell order failed: " + m_buyOrder);
+                            System.out.println(" moveBrackets - place sell order failed: " + m_sellOrder);
                         }
                     } else {
                         System.out.println(" moveBrackets - cancel sell order failed: " + m_sellOrder);
                     }
                 }
-                double distance = distancePrice - top.m_ask;
                 System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   distance="+distance);
             }
         }
@@ -175,7 +177,7 @@ public class ExchangeData {
 
     private static String logPriceDelta(Double price1, Double price2) {
         if ((price1 != null) && (price2 != null)) {
-            return "<" + Fetcher.format(price1 - price2) + ">";
+            return "<" + format(price1 - price2) + ">";
         } else {
             return "?";
         }
@@ -186,14 +188,14 @@ public class ExchangeData {
             if (price == null) {
                 return " ";
             } else {
-                return Fetcher.format(price);
+                return format(price);
             }
         } else {
             String orderPrice = order.priceStr();
             if (price == null) {
                 return orderPrice;
             } else {
-                return orderPrice + "->" + Fetcher.format(price);
+                return orderPrice + "->" + format(price);
             }
         }
     }
@@ -295,8 +297,8 @@ public class ExchangeData {
     void checkSomeBracketExecuted(IterationContext iContext) {
         System.out.println("check if some bracket executed"); // todo: note: both can be executed (for OPEN case) in rare cases !!
         // todo: also some bracket can be partially executed - complex scenario
-        boolean buyExecuted = (m_buyOrder != null) && (m_buyOrder.m_status == OrderStatus.FILLED);
-        boolean sellExecuted = (m_sellOrder != null) && (m_sellOrder.m_status == OrderStatus.FILLED);
+        boolean buyExecuted = (m_buyOrder != null) && m_buyOrder.isFilled();
+        boolean sellExecuted = (m_sellOrder != null) && m_sellOrder.isFilled();
         OrderData openOrder = null;
         if (buyExecuted) {
             if (sellExecuted) {
@@ -424,7 +426,7 @@ public class ExchangeData {
                 if (priceDif > MIN_MKT_ORDER_PRICE_CHANGE) {
                     return moveMarketOrder(order);
                 } else {
-                    System.out.println(" NOT moving MKT order - priceDif=" + Fetcher.format(priceDif) + " : " + order);
+                    System.out.println(" NOT moving MKT order - priceDif=" + format(priceDif) + " : " + order);
                 }
             } else {
                 System.out.println(" NOT moving MKT order - no fresh top data: " + order);
@@ -444,7 +446,7 @@ public class ExchangeData {
             OrderSide side = order.m_side;
             double mktPrice = side.mktPrice(m_shExchData.m_lastTop);
             OrderData newOrder = new OrderData(side, mktPrice, amount);
-            System.out.println(" moving MKT order price: " + order.priceStr() + " -> " + Fetcher.format(mktPrice));
+            System.out.println(" moving MKT order price: " + order.priceStr() + " -> " + format(mktPrice));
             boolean success = placeOrder(newOrder, OrderState.MARKET_PLACED);
             if (success) {
                 if (side == OrderSide.BUY) {
@@ -480,9 +482,5 @@ public class ExchangeData {
         System.out.println("stop() on " + exchName());
         closeOrders();
         setState(ExchangeState.NONE);
-    }
-
-    public boolean isStopped() {
-        return (m_state == ExchangeState.NONE);
     }
 } // ExchangeData
