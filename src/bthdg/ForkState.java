@@ -109,6 +109,7 @@ public enum ForkState {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             System.out.println("ForkState.ERROR checkState() all should be closed at this point");
             // todo: make 50-50 balances
+            forkData.setState(STOP);
         }
     },
     STOP {

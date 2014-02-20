@@ -35,7 +35,7 @@ public class ExchangeData {
     public boolean hasBothBracketsExecuted() { return (m_state == ExchangeState.BOTH_OPEN_BRACKETS_EXECUTED); }
     public boolean hasOpenCloseMktExecuted() { return (m_state == ExchangeState.OPEN_AT_MKT_EXECUTED) || (m_state == ExchangeState.CLOSE_AT_MKT_EXECUTED); }
     public double commissionAmount() { return m_shExchData.m_lastTop.getMid() * m_exch.m_fee; }
-    public boolean isStopped() { return (m_state == ExchangeState.NONE); }
+    public boolean isStopped() { return (m_state == ExchangeState.NONE) || (m_state == ExchangeState.ERROR); }
     private static String format(double buy) { return Fetcher.format(buy); }
 
     public boolean placeBrackets(TopData top, TopData otherTop, double midDiffAverage, double halfTargetDelta) { // ASK > BID
@@ -162,11 +162,15 @@ public class ExchangeData {
     }
 
     void logOrdersAndPrices(TopData top, Double newBuyPrice, Double newSellPrice) {
-        System.out.println("'" + exchName() + "' buy: " + logPriceAndChange(m_buyOrder, newBuyPrice) + "  " +
-                                                logPriceDelta(top.m_bid, priceNewOrOld(m_buyOrder, newBuyPrice)) + "  " +
-                                                "[bid=" + top.bidStr() + ", ask=" + top.askStr() + "]  " + // ASK > BID
-                                                logPriceDelta(priceNewOrOld(m_sellOrder, newSellPrice), top.m_ask) + "  " +
-                                                "sell: " + logPriceAndChange(m_sellOrder, newSellPrice));
+        System.out.println("'" + exchName() + "' " + ordersAndPricesStr(top, newBuyPrice, newSellPrice));
+    }
+
+    private String ordersAndPricesStr(TopData top, Double newBuyPrice, Double newSellPrice) {
+        return "buy: " + logPriceAndChange(m_buyOrder, newBuyPrice) + "  " +
+                logPriceDelta((top==null)?null:top.m_bid, priceNewOrOld(m_buyOrder, newBuyPrice)) + "  " +
+                "[bid=" + ((top==null)?"?":top.bidStr()) + ", ask=" + ((top==null)?"?":top.askStr()) + "]  " + // ASK > BID
+                logPriceDelta(priceNewOrOld(m_sellOrder, newSellPrice), (top==null)?null:top.m_ask) + "  " +
+                "sell: " + logPriceAndChange(m_sellOrder, newSellPrice);
     }
 
     private Double priceNewOrOld(OrderData order, Double price) {
@@ -483,9 +487,11 @@ public class ExchangeData {
     }
 
     public void setAllAsError() {
-        System.out.println("setAllAsError() on " + exchName());
-        closeOrders();
-        setState(ExchangeState.ERROR);
+        if(m_state != ExchangeState.ERROR) {
+            System.out.println("setAllAsError() on " + exchName());
+            closeOrders();
+            setState(ExchangeState.ERROR);
+        }
     }
 
     public void stop() {
@@ -545,5 +551,15 @@ public class ExchangeData {
         if(Utils.compareAndNotNulls(m_sellOrder, other.m_sellOrder)) {
             m_sellOrder.compare(other.m_sellOrder);
         }
+    }
+
+    public void appendState(StringBuilder sb) {
+        sb.append("{\"name\": \"")
+          .append(exchName())
+          .append("\", \"state\": \"")
+          .append(m_state)
+          .append("\", \"ord\": \"")
+          .append(ordersAndPricesStr(m_shExchData.m_lastTop, null, null))
+          .append("\"}");
     }
 } // ExchangeData

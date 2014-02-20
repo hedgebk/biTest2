@@ -38,6 +38,7 @@ public class PairExchangeData {
         if (m_stopRequested) {
             System.out.println("stop was requested");
             setState(ForkState.STOP);
+            m_stopRequested = false;
         }
 
         List<ForkData> finishForks = null;
@@ -84,10 +85,11 @@ public class PairExchangeData {
         double amount1 = m_sharedExch1.calcAmountToOpen();
         double amount2 = m_sharedExch2.calcAmountToOpen();
         double amount = Math.min(amount1, amount2);
-        System.out.println("available amount: "+amount);
-        if(amount > MIN_AVAILABLE_AMOUNT) {
-            System.out.println(" we have MIN_AVAILABLE_AMOUNT - adding brand new Fork");
-            m_forks.add(new ForkData(this));
+        System.out.println("available amount: " + amount);
+        if (amount > MIN_AVAILABLE_AMOUNT) {
+            System.out.println(" we have MIN_AVAILABLE_AMOUNT(=" + MIN_AVAILABLE_AMOUNT + ") - adding brand new Fork");
+            ForkData newFork = new ForkData(this); // todo: pass amount to constructor
+            m_forks.add(newFork);
         } else {
             System.out.println(" not reached MIN_AVAILABLE_AMOUNT - NO new Fork");
         }
@@ -117,13 +119,13 @@ public class PairExchangeData {
     }
 
     public String getState() {
-        return m_isFinished ? "FINISHED" : "RUNNING "+m_forks.size() + " forks";
+        return (m_isFinished ? "FINISHED" : "RUNNING " + m_forks.size() + " forks") + ", runs=" + m_runs + ", total=" + Fetcher.format(m_totalIncome);
     }
 
     public String getForksState() {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0, m_forksSize = m_forks.size(); i < m_forksSize; i++) {
-            if(i> 0) {
+            if (i > 0) {
                 sb.append(", ");
             }
             ForkData fork = m_forks.get(i);
@@ -205,8 +207,8 @@ public class PairExchangeData {
         // [[Fork]; [Fork]; [Fork]; ]
         deserializer.readObjectStart();
         List<ForkData> ret = new ArrayList<ForkData>();
-        while(true) {
-            if(deserializer.readIf("]")) {
+        while (true) {
+            if (deserializer.readIf("]")) {
                 return ret;
             }
             ForkData fork = ForkData.deserialize(deserializer);
@@ -216,12 +218,13 @@ public class PairExchangeData {
     }
 
     public SharedExchangeData getSharedExch(Exchange exch) {
-        if( m_sharedExch1.m_exchange == exch ) {
+        if (m_sharedExch1.m_exchange == exch) {
             return m_sharedExch1;
-        } if( m_sharedExch2.m_exchange == exch ) {
+        }
+        if (m_sharedExch2.m_exchange == exch) {
             return m_sharedExch2;
         }
-        throw new RuntimeException("unable to get get SharedExch for exch="+exch);
+        throw new RuntimeException("unable to get get SharedExch for exch=" + exch);
     }
 
     public void compare(PairExchangeData other) {

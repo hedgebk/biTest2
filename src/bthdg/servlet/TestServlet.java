@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.util.Properties;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class TestServlet extends HttpServlet {
@@ -41,21 +42,21 @@ public class TestServlet extends HttpServlet {
 
     private void doGetPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String command = request.getParameter("command");
-        if( command != null ) {
+        if (command != null) {
             processCommand(command, request, response);
         } else {
             String millisStr = request.getParameter(MILLIS);
-            log.warning(" millisStr="+millisStr);
+            log.warning(" millisStr=" + millisStr);
             long millis; // time to execute
-            if(millisStr!=null) {
+            if (millisStr != null) {
                 millis = Long.parseLong(millisStr);
             } else {
                 millis = System.currentTimeMillis() + 1000;
             }
 
             long delay = millis - System.currentTimeMillis();
-            log.warning("  delay="+delay);
-            if(delay > 0) {
+            log.warning("  delay=" + delay);
+            if (delay > 0) {
                 try {
                     Thread.sleep(delay);
                     log.warning("   sleep OK");
@@ -65,9 +66,9 @@ public class TestServlet extends HttpServlet {
             }
 
             long wakeTime = doTask(response);
-            if( wakeTime != Long.MAX_VALUE ) {
+            if (wakeTime != Long.MAX_VALUE) {
                 Queue queue = QueueFactory.getQueue("oneInSec");
-                log.warning("queue="+queue);
+                log.warning("queue=" + queue);
                 //queue.add();
                 queue.add(withUrl("/tst").param(MILLIS, Long.toString(wakeTime)));
             } else {
@@ -94,27 +95,29 @@ public class TestServlet extends HttpServlet {
     }
 
     private void processCommand(String command, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        log.warning("processCommand '" + command +"'");
+        log.warning("processCommand '" + command + "'");
         String status;
-        if( command.equals("start") ) {
+        if (command.equals("start")) {
             status = startHdg();
-        } else if( command.equals("stop") ) {
+        } else if (command.equals("stop")) {
             status = stopHdg();
-        } else if( command.equals("continue") ) {
+        } else if (command.equals("continue")) {
             status = continueHdg();
-        } else if( command.equals("configure") ) {
+        } else if (command.equals("configure")) {
             boolean loaded = configure(request.getParameter("cfg"));
-            if(!loaded) {
+            if (!loaded) {
                 request.setAttribute("applied", Boolean.FALSE);
+                RequestDispatcher dispatcher = request.getRequestDispatcher("/config.jsp"); // forward to config page again
+                dispatcher.forward(request, response);
+            } else {
+                response.sendRedirect("/");
             }
-            RequestDispatcher dispatcher = request.getRequestDispatcher(loaded ? "/" : "/config.jsp");
-            dispatcher.forward(request, response);
             return;
-        } else if( command.equals("state") ) {
+        } else if (command.equals("state")) {
             getState(response);
             return;
         } else {
-            status = "unknown command '"+command+"'";
+            status = "unknown command '" + command + "'";
         }
         sendStatus(response, status);
     }
@@ -127,7 +130,13 @@ public class TestServlet extends HttpServlet {
 
         response.setContentType("application/json");
         PrintWriter writer = response.getWriter();
-        writer.append("{ \"status\": \"" + st + "\", \"forks\": "+forks+" }");
+        writer.append("{ \"time\": \"")
+                .append(Long.toString(System.currentTimeMillis()))
+                .append("\", \"status\": \"")
+                .append(st)
+                .append("\", \"forks\": ")
+                .append(forks)
+                .append(" }");
     }
 
     private boolean configure(String cfg) throws IOException {
@@ -176,27 +185,40 @@ public class TestServlet extends HttpServlet {
         ServletContext servletContext = getServletContext();
         PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
         Long memTimestamp = (Long) s_memCache.get(MEM_CACHE_KEY_TIME);
-        if(data == null) { // try to get from memCache
+        log.warning("memcache timestamp: " + memTimestamp);
+        if (data == null) { // try to get from memCache
             log.warning("no data in servletContext");
-            if(memTimestamp !=null) {
+            if (memTimestamp != null) {
                 String serialized = (String) s_memCache.get(MEM_CACHE_KEY);
-                if(serialized !=null) {
+                if (serialized != null) {
                     log.warning("got data in memcache");
                     PairExchangeData deserialized = Deserializer.deserialize(serialized);
                     data = deserialized;
+                } else {
+                    log.warning("no serialized data in memcache");
                 }
+            } else {
+                log.warning("no timestamp in memcache");
             }
         } else { // we have some data in servlet context - check if it outdated
             long timestamp = data.m_timestamp;
-            if(memTimestamp !=null) {
-                if(memTimestamp >timestamp) {
+            log.warning("servletContext timestamp: "+timestamp);
+            if (memTimestamp != null) {
+                if (memTimestamp > timestamp) {
+                    log.warning("memcache timestamp is bigger");
                     String serialized = (String) s_memCache.get(MEM_CACHE_KEY);
-                    if(serialized !=null) {
-                        log.warning("got newer data in memcache");
+                    if (serialized != null) {
+                        log.warning("using newer data in memcache");
                         PairExchangeData deserialized = Deserializer.deserialize(serialized);
                         data = deserialized;
+                    } else {
+                        log.warning("no serialized data in memcache");
                     }
+                } else {
+                    log.warning("memcache timestamp is less or the same");
                 }
+            } else {
+                log.warning("no timestamp in memcache");
             }
         }
 
@@ -224,7 +246,7 @@ public class TestServlet extends HttpServlet {
                 repost(iContext);
             }
         } catch (Exception e) {
-            log.severe("GOT exception during processing. setting ERROR, closing everything...");
+            log.log(Level.SEVERE, "GOT exception during processing. setting ERROR, closing everything...", e);
             data.setState(ForkState.ERROR); // error - stop ALL
             iContext.delay(0);
             repost(iContext); // need to finish
@@ -234,6 +256,7 @@ public class TestServlet extends HttpServlet {
     private boolean checkState(PairExchangeData data, IterationContext iContext) throws Exception {
         boolean ret = data.checkState(iContext);
         Long timestamp = data.updateTimestamp();
+        log.warning("updated timestamp="+timestamp);
 
         ServletContext servletContext = getServletContext();
         servletContext.setAttribute(HDG, data);
@@ -254,7 +277,10 @@ public class TestServlet extends HttpServlet {
         if( delay > 0 ) {
             log.warning("wait " + delay + " ms." /* + " total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter*/ );
             try {
-                Thread.sleep(delay);
+                synchronized (this) {
+                    this.wait(delay);
+                }
+//                Thread.sleep(delay);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

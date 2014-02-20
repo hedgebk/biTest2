@@ -74,6 +74,7 @@ public class OrderData {
                 iContext.m_acceptPriceSimulated = true; // one accept order price simulation per iteration
             }
 
+            //noinspection ConstantConditions
             if (acceptPriceSimulated || orderData.acceptPrice(mktPrice)) {
                 double tradeAmount = trade.m_amount;
                 System.out.println("@@@@@@@@@@@@@@ we have LMT order " + orderSide + " " + orderAmount + " @ " + orderData.priceStr() +

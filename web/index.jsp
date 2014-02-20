@@ -7,7 +7,7 @@
 </head>
 <body onload="onLoad();">
 <div id="theStatus">-</div><br/>
-<canvas id="123" width="500" height="500" style="border: 1px solid silver;">
+<canvas id="123" width="1000" height="500" style="border: 1px solid silver;">
     <p>This example requires a browser that supports the <a href="http://www.w3.org/html/wg/html5/">HTML5</a> &lt;canvas&gt;feature.</p>
 </canvas><br/>
 <button id="start">START</button>

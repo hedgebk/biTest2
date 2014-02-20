@@ -424,7 +424,15 @@ public class ForkData {
     }
 
     public void appendState(StringBuilder sb) {
-        sb.append( "{\"state\": \""+m_state+"\"}");
+        sb.append("{\"state\": \"")
+          .append(m_state)
+          .append("\", \"e1\": ");
+        m_exch1data.appendState(sb);
+        sb.append(", \"e2\": ");
+        m_exch2data.appendState(sb);
+        sb.append(", \"live\": \"");
+        sb.append(Utils.millisToDHMSStr(System.currentTimeMillis() - m_id));
+        sb.append("\"}");
     }
 
     public void serialize(StringBuilder sb) {
