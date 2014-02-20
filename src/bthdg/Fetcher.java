@@ -91,9 +91,9 @@ public class Fetcher {
     private static boolean checkState(PairExchangeData data, IterationContext iContext) throws Exception {
         boolean ret = data.checkState(iContext);
         String serialized = data.serialize();
-        System.out.println("serialized="+serialized);
+        System.out.println("serialized(len=" + serialized.length() + ")=" + serialized);
         PairExchangeData deserialized = Deserializer.deserialize(serialized);
-        //deserialized.compare(data); // make sure all fine
+        deserialized.compare(data); // make sure all fine
         return ret;
     }
 

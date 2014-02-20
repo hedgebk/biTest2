@@ -97,4 +97,18 @@ public class SharedExchangeData {
         ret.m_lastTop = lastTop;
         return ret;
     }
+
+    public void compare(SharedExchangeData data) {
+        if(m_exchange!=data.m_exchange) {
+            throw new RuntimeException("m_exchange");
+        }
+        m_averageCounter.compare(data.m_averageCounter);
+        m_bidAskDiffCalculator.compare(data.m_bidAskDiffCalculator);
+        if(m_lastProcessedTradesTime!=data.m_lastProcessedTradesTime) {
+            throw new RuntimeException("m_lastProcessedTradesTime");
+        }
+        if(Utils.compareAndNotNulls(m_lastTop, data.m_lastTop)) {
+            m_lastTop.compare(data.m_lastTop);
+        }
+    }
 } // SharedExchangeData

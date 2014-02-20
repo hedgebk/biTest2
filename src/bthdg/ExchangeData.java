@@ -124,7 +124,7 @@ public class ExchangeData {
                     System.out.println(" moveBrackets - cancel buy order failed: " + m_buyOrder);
                 }
             }
-            System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   distance="+distance);
+            System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   distance="+format(distance));
         }
 
         if (success) {
@@ -150,7 +150,7 @@ public class ExchangeData {
                         System.out.println(" moveBrackets - cancel sell order failed: " + m_sellOrder);
                     }
                 }
-                System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   distance="+distance);
+                System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   distance="+format(distance));
             }
         }
         if (!success) {
@@ -526,5 +526,20 @@ public class ExchangeData {
 
     public void postDeserialize(PairExchangeData ret) {
         m_shExchData = ret.getSharedExch(m_exch);
+    }
+
+    public void compare(ExchangeData other) {
+        if (m_exch != other.m_exch) {
+            throw new RuntimeException("m_exch");
+        }
+        if (m_state != other.m_state) {
+            throw new RuntimeException("m_state");
+        }
+        if(Utils.compareAndNotNulls(m_buyOrder, other.m_buyOrder)) {
+            m_buyOrder.compare(other.m_buyOrder);
+        }
+        if(Utils.compareAndNotNulls(m_sellOrder, other.m_sellOrder)) {
+            m_sellOrder.compare(other.m_sellOrder);
+        }
     }
 } // ExchangeData

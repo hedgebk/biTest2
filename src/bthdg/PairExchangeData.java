@@ -216,4 +216,39 @@ public class PairExchangeData {
         }
         throw new RuntimeException("unable to get get SharedExch for exch="+exch);
     }
+
+    public void compare(PairExchangeData other) {
+        m_sharedExch1.compare(other.m_sharedExch1);
+        m_sharedExch2.compare(other.m_sharedExch2);
+        compareForks(m_forks, other.m_forks);
+        if(Utils.compareAndNotNulls(m_lastDiff, other.m_lastDiff)) {
+            m_lastDiff.compare(other.m_lastDiff);
+        }
+        m_diffAverageCounter.compare(other.m_diffAverageCounter);
+        if(m_totalIncome != other.m_totalIncome){
+            throw new RuntimeException("m_totalIncome");
+        }
+        if(m_stopRequested != other.m_stopRequested){
+            throw new RuntimeException("m_stopRequested");
+        }
+        if(m_isFinished != other.m_isFinished){
+            throw new RuntimeException("m_isFinished");
+        }
+    }
+
+    private void compareForks(List<ForkData> forks, List<ForkData> other) {
+        if(Utils.compareAndNotNulls(forks, other)) {
+            int size = forks.size();
+            if(size != other.size()) {
+                throw new RuntimeException("forks.size");
+            }
+            for (int i = 0; i < size; i++) {
+                ForkData fork1 = forks.get(i);
+                ForkData fork2 = other.get(i);
+                if(Utils.compareAndNotNulls(forks, other)) {
+                    fork1.compare(fork2);
+                }
+            }
+        }
+    }
 } // bthdg.PairExchangeData

@@ -436,4 +436,32 @@ public class ForkData {
         m_exch1data.postDeserialize(ret);
         m_exch2data.postDeserialize(ret);
     }
+
+    public void compare(ForkData other) {
+        if (m_id != other.m_id) {
+            throw new RuntimeException("m_id");
+        }
+        if(Utils.compareAndNotNulls(m_exch1data, other.m_exch1data)) {
+            m_exch1data.compare(other.m_exch1data);
+        }
+        if(Utils.compareAndNotNulls(m_exch2data, other.m_exch2data)) {
+            m_exch2data.compare(other.m_exch2data);
+        }
+        if (m_state != other.m_state) {
+            throw new RuntimeException("m_state");
+        }
+        if(Utils.compareAndNotNulls(m_openBuyExchange, other.m_openBuyExchange)) {
+            if (m_openBuyExchange.m_exch != other.m_openBuyExchange.m_exch) {
+                throw new RuntimeException("m_openBuyExchange.m_exch");
+            }
+        }
+        if(Utils.compareAndNotNulls(m_openSellExchange, other.m_openSellExchange)) {
+            if (m_openSellExchange.m_exch != other.m_openSellExchange.m_exch) {
+                throw new RuntimeException("m_openSellExchange.m_exch");
+            }
+        }
+        if (m_earnThisRun != other.m_earnThisRun) {
+            throw new RuntimeException("m_earnThisRun");
+        }
+    }
 } // ForkData

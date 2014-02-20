@@ -170,4 +170,41 @@ public class OrderData {
         return null;
     }
 
+    public void compare(OrderData other) {
+        if (m_status != other.m_status) {
+            throw new RuntimeException("m_status");
+        }
+        if (m_state != other.m_state) {
+            throw new RuntimeException("m_state");
+        }
+        if (m_side != other.m_side) {
+            throw new RuntimeException("m_side");
+        }
+        if (m_price != other.m_price) {
+            throw new RuntimeException("m_price");
+        }
+        if (m_amount != other.m_amount) {
+            throw new RuntimeException("m_amount");
+        }
+        if (m_filled != other.m_filled) {
+            throw new RuntimeException("m_filled");
+        }
+        compareExecutions(m_executions, other.m_executions);
+    }
+
+    private void compareExecutions(List<Execution> executions, List<Execution> other) {
+        if(Utils.compareAndNotNulls(executions, other)) {
+            int size = executions.size();
+            if(size != other.size()) {
+                throw new RuntimeException("executions.size");
+            }
+            for (int i = 0; i < size; i++) {
+                Execution exec1 = executions.get(i);
+                Execution exec2 = other.get(i);
+                if(Utils.compareAndNotNulls(executions, other)) {
+                    exec1.compare(exec2);
+                }
+            }
+        }
+    }
 } // OrderData

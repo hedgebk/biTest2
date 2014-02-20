@@ -30,4 +30,13 @@ public class Execution {
 
         return new Execution(price, amount);
     }
+
+    public void compare(Execution other) {
+        if (m_price != other.m_price) {
+            throw new RuntimeException("m_price");
+        }
+        if (m_amount != other.m_amount) {
+            throw new RuntimeException("m_amount");
+        }
+    }
 } // Execution

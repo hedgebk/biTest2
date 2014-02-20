@@ -119,6 +119,22 @@ public class Utils {
         }
     }
 
+    public static boolean compareAndNotNulls(Object o1, Object o2) {
+        if (o1 == null) {
+            if (o2 == null) {
+                return false;
+            } else {
+                throw new RuntimeException("null & not_null");
+            }
+        } else {
+            if (o2 == null) {
+                throw new RuntimeException("not_null & null");
+            } else {
+                return true;
+            }
+        }
+    }
+
     public static abstract class DoubleAverageCalculator<O> {
         private double m_sum;
         private double m_weightSum;
@@ -165,6 +181,15 @@ public class Utils {
             String weightSum = deserializer.readTill("]");
             m_sum = Double.valueOf(sum);
             m_weightSum = Double.valueOf(weightSum);
+        }
+
+        public void compare(DoubleAverageCalculator<O> other) {
+            if (m_sum != other.m_sum) {
+                throw new RuntimeException("m_sum");
+            }
+            if (m_weightSum != other.m_weightSum) {
+                throw new RuntimeException("m_weightSum");
+            }
         }
     }
 
@@ -282,6 +307,34 @@ public class Utils {
             }
             long limit = Long.parseLong(limitStr);
             return new AverageCounter(limit, map2);
+        }
+
+        public void compare(AverageCounter other) {
+            if (m_limit != other.m_limit) {
+                throw new RuntimeException("m_limit");
+            }
+            compareMaps(m_map, other.m_map);
+        }
+
+        private void compareMaps(TreeMap<Long, Double> map, TreeMap<Long, Double> other) {
+            if(Utils.compareAndNotNulls(map, other)) {
+                int size = map.size();
+                if(size != other.size()) {
+                    throw new RuntimeException("map.size");
+                }
+                Set<Long> keys1 = map.keySet();
+                Set<Long> keys2 = other.keySet();
+                for (Long key : keys1) {
+                    if(!keys2.contains(key)) {
+                        throw new RuntimeException("map.key="+key);
+                    }
+                    Double value1 = map.get(key);
+                    Double value2 = other.get(key);
+                    if(!value1.equals(value2)) {
+                        throw new RuntimeException("map["+key+"].value");
+                    }
+                }
+            }
         }
     } // AverageCounter
 }

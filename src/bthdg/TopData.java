@@ -101,6 +101,21 @@ public class TopData {
         return Double.parseDouble(value);
     }
 
+    public void compare(TopData other) {
+        if (m_bid != other.m_bid) {
+            throw new RuntimeException("m_bid");
+        }
+        if (m_ask != other.m_ask) {
+            throw new RuntimeException("m_ask");
+        }
+        if (m_last != other.m_last) {
+            throw new RuntimeException("m_last");
+        }
+        if (m_live != other.m_live) {
+            throw new RuntimeException("m_live");
+        }
+    }
+
     public static class TopDataEx extends TopData {
         public final double m_mid;
 
@@ -149,6 +164,13 @@ public class TopData {
 
         private static double readMid(Deserializer deserializer) throws IOException {
             return readDouble(deserializer, "mid");
+        }
+
+        public void compare(TopDataEx other) {
+            super.compare(other);
+            if (m_mid != other.m_mid) {
+                throw new RuntimeException("m_mid");
+            }
         }
     }
 }
