@@ -1,6 +1,8 @@
 package bthdg.servlet;
 
 import bthdg.*;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import static com.google.appengine.api.taskqueue.TaskOptions.Builder.*;
@@ -22,6 +24,10 @@ public class TestServlet extends HttpServlet {
     public static final String COUNTER = "TestServlet.counter";
     public static final String MILLIS = "millis";
     public static final String HDG = "hdg";
+
+    private static MemcacheService s_memCache = MemcacheServiceFactory.getMemcacheService();
+    public static final String MEM_CACHE_KEY = "data";
+    public static final String MEM_CACHE_KEY_TIME = "time";
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         log.warning("TestServlet.doPost()");
@@ -166,9 +172,34 @@ public class TestServlet extends HttpServlet {
         }
     }
 
-    private String continueHdg()  {
+    private String continueHdg() throws IOException {
         ServletContext servletContext = getServletContext();
         PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
+        Long memTimestamp = (Long) s_memCache.get(MEM_CACHE_KEY_TIME);
+        if(data == null) { // try to get from memCache
+            log.warning("no data in servletContext");
+            if(memTimestamp !=null) {
+                String serialized = (String) s_memCache.get(MEM_CACHE_KEY);
+                if(serialized !=null) {
+                    log.warning("got data in memcache");
+                    PairExchangeData deserialized = Deserializer.deserialize(serialized);
+                    data = deserialized;
+                }
+            }
+        } else { // we have some data in servlet context - check if it outdated
+            long timestamp = data.m_timestamp;
+            if(memTimestamp !=null) {
+                if(memTimestamp >timestamp) {
+                    String serialized = (String) s_memCache.get(MEM_CACHE_KEY);
+                    if(serialized !=null) {
+                        log.warning("got newer data in memcache");
+                        PairExchangeData deserialized = Deserializer.deserialize(serialized);
+                        data = deserialized;
+                    }
+                }
+            }
+        }
+
         if (data != null) {
             nextIteration(data);
             return "ok";
@@ -202,8 +233,19 @@ public class TestServlet extends HttpServlet {
 
     private boolean checkState(PairExchangeData data, IterationContext iContext) throws Exception {
         boolean ret = data.checkState(iContext);
+        Long timestamp = data.updateTimestamp();
+
+        ServletContext servletContext = getServletContext();
+        servletContext.setAttribute(HDG, data);
+
         String serialized = data.serialize();
-        log.warning("serialized="+serialized);
+        log.warning("serialized(len=" + serialized.length() + ")=" + serialized);
+        PairExchangeData deserialized = Deserializer.deserialize(serialized);
+        deserialized.compare(data); // make sure all fine
+
+        s_memCache.put(MEM_CACHE_KEY_TIME, timestamp);
+        s_memCache.put(MEM_CACHE_KEY, serialized);
+
         return ret;
     }
 
@@ -217,6 +259,7 @@ public class TestServlet extends HttpServlet {
                 e.printStackTrace();
             }
         } else {
+            // todo: protect from called many times with delay==0 - add delay manually
             log.warning("go to next iteration without sleep. total running "/* + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter*/);
         }
 

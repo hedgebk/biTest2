@@ -13,8 +13,10 @@ public class PairExchangeData {
     public TopData.TopDataEx m_lastDiff;
     public Utils.AverageCounter m_diffAverageCounter;
     private double m_totalIncome;
+    private int m_runs;
     private boolean m_stopRequested;
     public boolean m_isFinished;
+    public long m_timestamp;
 
     public String exchNames() { return m_sharedExch1.m_exchange.m_name + "-" + m_sharedExch2.m_exchange.m_name; }
 
@@ -106,7 +108,8 @@ public class PairExchangeData {
 
     public void addIncome(double earnThisRun) {
         m_totalIncome += earnThisRun;
-        System.out.println(" earnIncome=" + Fetcher.format(m_totalIncome));
+        m_runs++;
+        System.out.println(" earnIncome=" + Fetcher.format(m_totalIncome)+", runs="+m_runs);
     }
 
     public void stop() {
@@ -132,7 +135,9 @@ public class PairExchangeData {
 
     public String serialize() {
         StringBuilder sb = new StringBuilder();
-        sb.append("PairExchange[shared1=");
+        sb.append("PairExchange[totalIncome=").append(m_totalIncome);
+        sb.append("; runs=").append(m_runs);
+        sb.append("; shared1=");
         m_sharedExch1.serialize(sb);
         sb.append("; shared2=");
         m_sharedExch2.serialize(sb);
@@ -144,7 +149,6 @@ public class PairExchangeData {
         }
         sb.append("; diffAvgCntr=");
         m_diffAverageCounter.serialize(sb);
-        sb.append("; totalIncome=").append(m_totalIncome);
         sb.append("; stopRequested=").append(m_stopRequested);
         sb.append("; isFinished=").append(m_isFinished);
         sb.append("]");
@@ -160,6 +164,10 @@ public class PairExchangeData {
 
     public static PairExchangeData deserialize(Deserializer deserializer) throws IOException {
         deserializer.readObjectStart("PairExchange");
+        deserializer.readPropStart("totalIncome");
+        String totalIncome = deserializer.readTill("; ");
+        deserializer.readPropStart("runs");
+        String runs = deserializer.readTill("; ");
         deserializer.readPropStart("shared1");
         SharedExchangeData sh1 = SharedExchangeData.deserialize(deserializer);
         deserializer.readStr("; ");
@@ -174,8 +182,6 @@ public class PairExchangeData {
         TopData.TopDataEx lastDif = TopData.TopDataEx.deserialize(deserializer);
         deserializer.readPropStart("diffAvgCntr");
         Utils.AverageCounter diffAvgCntr = Utils.AverageCounter.deserialize(deserializer);
-        deserializer.readPropStart("totalIncome");
-        String totalIncome = deserializer.readTill("; ");
         deserializer.readPropStart("stopRequested");
         String stopRequested = deserializer.readTill("; ");
         deserializer.readPropStart("isFinished");
@@ -185,6 +191,7 @@ public class PairExchangeData {
         ret.m_lastDiff = lastDif;
         ret.m_diffAverageCounter = diffAvgCntr;
         ret.m_totalIncome = Double.parseDouble(totalIncome);
+        ret.m_runs = Integer.parseInt(runs);
         ret.m_stopRequested = Boolean.parseBoolean(stopRequested);
         ret.m_isFinished = Boolean.parseBoolean(isFinished);
 
@@ -221,34 +228,42 @@ public class PairExchangeData {
         m_sharedExch1.compare(other.m_sharedExch1);
         m_sharedExch2.compare(other.m_sharedExch2);
         compareForks(m_forks, other.m_forks);
-        if(Utils.compareAndNotNulls(m_lastDiff, other.m_lastDiff)) {
+        if (Utils.compareAndNotNulls(m_lastDiff, other.m_lastDiff)) {
             m_lastDiff.compare(other.m_lastDiff);
         }
         m_diffAverageCounter.compare(other.m_diffAverageCounter);
-        if(m_totalIncome != other.m_totalIncome){
+        if (m_totalIncome != other.m_totalIncome) {
             throw new RuntimeException("m_totalIncome");
         }
-        if(m_stopRequested != other.m_stopRequested){
+        if (m_runs != other.m_runs) {
+            throw new RuntimeException("m_runs");
+        }
+        if (m_stopRequested != other.m_stopRequested) {
             throw new RuntimeException("m_stopRequested");
         }
-        if(m_isFinished != other.m_isFinished){
+        if (m_isFinished != other.m_isFinished) {
             throw new RuntimeException("m_isFinished");
         }
     }
 
     private void compareForks(List<ForkData> forks, List<ForkData> other) {
-        if(Utils.compareAndNotNulls(forks, other)) {
+        if (Utils.compareAndNotNulls(forks, other)) {
             int size = forks.size();
-            if(size != other.size()) {
+            if (size != other.size()) {
                 throw new RuntimeException("forks.size");
             }
             for (int i = 0; i < size; i++) {
                 ForkData fork1 = forks.get(i);
                 ForkData fork2 = other.get(i);
-                if(Utils.compareAndNotNulls(forks, other)) {
+                if (Utils.compareAndNotNulls(forks, other)) {
                     fork1.compare(fork2);
                 }
             }
         }
+    }
+
+    public long updateTimestamp() {
+        m_timestamp = System.currentTimeMillis();
+        return m_timestamp;
     }
 } // bthdg.PairExchangeData
