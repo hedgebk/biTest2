@@ -33,6 +33,11 @@ public enum ExchangeState {
             System.out.println("ExchangeState.ONE_OPEN_BRACKET_EXECUTED(" + exchData.exchName() + "). do nothing");
         }
     },
+    BOTH_OPEN_BRACKETS_EXECUTED {
+        @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
+            System.out.println("ExchangeState.BOTH_OPEN_BRACKETS_EXECUTED(" + exchData.exchName() + "). do nothing for now");
+        }
+    },
     OPEN_AT_MKT_PLACED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
             System.out.println("ExchangeState.OPEN_AT_MKT_PLACED(" + exchData.exchName() + "). check if MKT order executed");

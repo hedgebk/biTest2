@@ -14,7 +14,7 @@ public class ForkData {
 //    private StringBuilder m_executionTrace = new StringBuilder();
     private double m_earnThisRun;
 
-    boolean hasAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
+    boolean checkAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
     boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
     private boolean hasBothBracketMarketExecuted() { return (m_exch1data.hasOpenCloseBracketExecuted() && m_exch2data.hasOpenCloseMktExecuted())
                                                    || (m_exch2data.hasOpenCloseBracketExecuted() && m_exch1data.hasOpenCloseMktExecuted()); }
@@ -52,9 +52,9 @@ public class ForkData {
         System.out.println("****************************************************");
 //        System.out.println(" execution log:");
 //        System.out.println(m_executionTrace.toString());
-        double commissionAmount = getCommissionAmount();
+        double commissionAmount = getCommissionAmount(); // todo: calc commission based on real order size
         double income = m_earnThisRun - commissionAmount;
-        System.out.println(" earnThisRun=" + m_earnThisRun + ", commissionAmount="+commissionAmount+", income=" + income);
+        System.out.println(" earnThisRun=" + m_earnThisRun + ", commissionAmount=" + commissionAmount + ", income=" + income);
         m_pairExData.addIncome(income);
 
         setState(ForkState.END);
@@ -69,23 +69,6 @@ public class ForkData {
             }
         }
         return false;
-    }
-
-    public void closeOtherSideAtMarket(IterationContext iContext) throws Exception {
-        TopDatas tops = iContext.getTopsData(m_pairExData); // make sure top data is loaded
-        boolean hasBr1 = m_exch1data.hasOpenCloseBracketExecuted();
-        boolean hasBr2 = m_exch2data.hasOpenCloseBracketExecuted();
-        if (hasBr1 && hasBr2) { // todo: ok since at different sides - just cache out
-            System.out.println("ERROR: both exchanges have bracket executed at this point.");
-            setState(ForkState.ERROR);
-        } else if (hasBr1) {
-            closeOtherSideAtMarket(m_exch2data, m_exch1data, tops.m_top2);
-        } else if (hasBr2) {
-            closeOtherSideAtMarket(m_exch1data, m_exch2data, tops.m_top1);
-        } else {
-            System.out.println("ERROR: no open orders found at both exch.");
-            setState(ForkState.ERROR);
-        }
     }
 
     private void closeOtherSideAtMarket(ExchangeData toCoseExch, ExchangeData closedExch, TopData top) {
@@ -117,7 +100,7 @@ public class ForkData {
                 TopData top1 = m_exch1data.m_shExchData.m_lastTop;
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
                 double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
-                double commissionAmount = getCommissionAmount();
+                double commissionAmount = getCommissionAmount(); // todo: calc commission based on real order size
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
                 System.out.println("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
                 boolean success = m_exch1data.moveBrackets(top1, top2, midDiffAverage, halfTargetDelta);
@@ -192,15 +175,61 @@ public class ForkData {
         TopDatas tops = iContext.getTopsData(m_pairExData); // make sure top data is loaded
         boolean hasBr1 = m_exch1data.hasOpenCloseBracketExecuted();
         boolean hasBr2 = m_exch2data.hasOpenCloseBracketExecuted();
-        if (hasBr1 && hasBr2) { // todo: ok if at different sides, bad if at the same - complex. this need to be handled here
-            System.out.println("ERROR: both exchanges have bracket executed at this point.");
-            setState(ForkState.ERROR);
+        if (hasBr1 && hasBr2) {
+            System.out.println("Both exchanges have OPEN bracket executed at this point - need check directions");
+            OrderData openedBracketOrder1 = m_exch1data.getFilledBracketOrder();
+            System.out.println(" Exch1='" + m_exch1data.exchName() + "', openedBracketOrder=" + openedBracketOrder1);
+            OrderData openedBracketOrder2 = m_exch2data.getFilledBracketOrder();
+            System.out.println(" Exch2='" + m_exch2data.exchName() + "', openedBracketOrder=" + openedBracketOrder2);
+            // ok if at different sides, bad if at the same - complex
+            if (openedBracketOrder1.m_side != openedBracketOrder2.m_side) {
+                System.out.println(" OPEN brackets of different side was executed - fine - we are OPENED");
+                if (verifyAndLogOpen(iContext)) {
+                    cleanOrders();
+                    setState(ForkState.BOTH_SIDES_OPENED);
+                    placeCloseBrackets(iContext);
+                }
+            } else {
+                System.out.println(" OPEN brackets of the same side was executed at once - not expecting this - closing all and restarting");
+                setState(ForkState.RESTART);
+            }
         } else if (hasBr1) {
             openOtherSideAtMarket(m_exch2data, m_exch1data, tops.m_top2);
         } else if (hasBr2) {
             openOtherSideAtMarket(m_exch1data, m_exch2data, tops.m_top1);
         } else {
             System.out.println("ERROR: no open orders found at both exch.");
+            setState(ForkState.ERROR);
+        }
+    }
+
+    public void closeOtherSideAtMarket(IterationContext iContext) throws Exception {
+        TopDatas tops = iContext.getTopsData(m_pairExData); // make sure top data is loaded
+        boolean hasBr1 = m_exch1data.hasOpenCloseBracketExecuted();
+        boolean hasBr2 = m_exch2data.hasOpenCloseBracketExecuted();
+        if (hasBr1 && hasBr2) {
+            System.out.println("Both exchanges have CLOSE bracket executed at this point - need check directions");
+            OrderData closedBracketOrder1 = m_exch1data.getFilledBracketOrder();
+            System.out.println(" Exch1='" + m_exch1data.exchName() + "', closedBracketOrder=" + closedBracketOrder1);
+            OrderData closedBracketOrder2 = m_exch2data.getFilledBracketOrder();
+            System.out.println(" Exch2='" + m_exch2data.exchName() + "', closedBracketOrder=" + closedBracketOrder2);
+            // ok if at different sides, bad if at the same - complex
+            if (closedBracketOrder1.m_side != closedBracketOrder2.m_side) {
+                System.out.println(" CLOSE brackets of different side was executed - fine - we are CLOSED");
+                if (verifyAndLogOpen(iContext)) {
+                    cleanOrders();
+                    endThisRun();
+                }
+            } else {
+                System.out.println(" CLOSE brackets of the same side was executed at once - not expecting this - closing all and restarting");
+                setState(ForkState.RESTART);
+            }
+        } else if (hasBr1) {
+            closeOtherSideAtMarket(m_exch2data, m_exch1data, tops.m_top2);
+        } else if (hasBr2) {
+            closeOtherSideAtMarket(m_exch1data, m_exch2data, tops.m_top1);
+        } else {
+            System.out.println("ERROR: no close orders found at both exch.");
             setState(ForkState.ERROR);
         }
     }
@@ -271,26 +300,52 @@ public class ForkData {
         System.out.println("diff=" + lastDiff + ";  avg=" + Fetcher.format(midDiffAverage) + ";  delta=" + Fetcher.format(delta));
     }
 
+    private void verifyAndLogSameExchange(IterationContext iContext, ExchangeData exch) throws Exception {
+        iContext.getTopsData(m_pairExData); // make sure top data loaded
+        logState();
+
+        OrderData buyOrder = exch.m_buyOrder;
+        OrderData sellOrder = exch.m_sellOrder;
+        System.out.println("% BUY   on '" + exch.exchName() + "' @ " + buyOrder.priceStr());
+        System.out.println("% SELL  on '" + exch.exchName() + "' @ " + sellOrder.priceStr());
+        exch.logOrdersAndPrices(exch.m_shExchData.m_lastTop, null, null);
+
+        double sellPrice = sellOrder.m_price;
+        double buyPrice = buyOrder.m_price;
+        double priceDiff = sellPrice - buyPrice;
+
+        logDiffAverageDelta();
+
+        System.out.println("avd bidAskDiff:" + m_exch1data.exchName() + " " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
+                                               m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
+
+        double commissionAmount = getCommissionAmount(); // todo: calc commission based on real order size
+        double income = priceDiff - commissionAmount;
+        System.out.println(" sellBuyPriceDiff=" + Fetcher.format(priceDiff) + ", commissionAmount="+commissionAmount+", income=" + income);
+        m_earnThisRun += income;
+        m_pairExData.addIncome(income);
+    }
+
     private boolean verifyAndLogOpen(IterationContext iContext) throws Exception {
-        iContext.getTopsData(m_pairExData);
+        iContext.getTopsData(m_pairExData); // make sure top data loaded
         logState();
         String err = null;
         ExchangeData buyExch = null;
         ExchangeData sellExch = null;
         if ((m_exch1data.m_buyOrder != null) && (m_exch2data.m_sellOrder != null)) {
             if (m_exch1data.m_sellOrder != null) {
-                err = "unexpected sellOpenBracketOrder on " + m_exch1data.exchName();
+                err = "gotBracket[exch1buy+exch2sell], unexpected sellOpenBracketOrder on exch1 " + m_exch1data.exchName();
             } else if (m_exch2data.m_buyOrder != null) {
-                err = "unexpected buyOpenBracketOrder on " + m_exch2data.exchName();
+                err = "gotBracket[exch1buy+exch2sell], unexpected buyOpenBracketOrder on exch2 " + m_exch2data.exchName();
             } else {
                 buyExch = m_exch1data;
                 sellExch = m_exch2data;
             }
         } else if ((m_exch2data.m_buyOrder != null) && (m_exch1data.m_sellOrder != null)) {
             if (m_exch2data.m_sellOrder != null) {
-                err = "unexpected sellOpenBracketOrder on " + m_exch2data.exchName();
+                err = "gotBracket[exch2buy+exch1sell], unexpected sellOpenBracketOrder on exch2 " + m_exch2data.exchName();
             } else if (m_exch1data.m_buyOrder != null) {
-                err = "unexpected buyOpenBracketOrder on " + m_exch1data.exchName();
+                err = "gotBracket[exch2buy+exch1sell], unexpected buyOpenBracketOrder on exch2 " + m_exch1data.exchName();
             } else {
                 buyExch = m_exch2data;
                 sellExch = m_exch1data;
@@ -331,8 +386,8 @@ public class ForkData {
             }
             m_earnThisRun += openEarn;
             System.out.println("%   >>>  priceDiff=" + Fetcher.format(priceDiff) + ",  openEarn=" + Fetcher.format(openEarn) + ", earnThisRun=" + m_earnThisRun);
-            System.out.println(m_exch1data.exchName()+" " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
-                               m_exch2data.exchName()+" " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
+            System.out.println("AVG:" + m_exch1data.exchName() + " " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
+                                        m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
         } else {
             setState(ForkState.ERROR);
         }
@@ -463,5 +518,26 @@ public class ForkData {
         if (m_earnThisRun != other.m_earnThisRun) {
             throw new RuntimeException("m_earnThisRun");
         }
+    }
+
+    public boolean checkBothBracketsExecutedOnExch(IterationContext iContext) throws Exception {
+        boolean ret = false;
+        if (m_exch1data.hasBothBracketsExecuted()) {
+            verifyAndLogSameExchange(iContext, m_exch1data);
+            ret = true;
+        }
+        if (m_exch2data.hasBothBracketsExecuted()) {
+            verifyAndLogSameExchange(iContext, m_exch2data);
+            ret = true;
+        }
+        if (ret) {
+            if (m_exch1data.hasOpenCloseBracketExecuted()) {
+                m_exch1data.closeOrders();
+            }
+            if (m_exch2data.hasOpenCloseBracketExecuted()) {
+                m_exch2data.closeOrders();
+            }
+        }
+        return ret;
     }
 } // ForkData

@@ -67,7 +67,8 @@ public class OrderData {
             boolean acceptPriceSimulated = false;
             //noinspection PointlessBooleanExpression,ConstantConditions
             if (Fetcher.SIMULATE_ACCEPT_ORDER_PRICE && !iContext.m_acceptPriceSimulated
-                    && new Random().nextBoolean() && new Random().nextBoolean()) {
+//                    && new Random().nextBoolean()
+                    && new Random().nextBoolean()) {
                 System.out.println("@@@@@@@@@@@@@@  !!!!!!!! SIMULATE ACCEPT_ORDER_PRICE mktPrice=" + Fetcher.format(mktPrice) + ", order=" + this);
                 acceptPriceSimulated = true;
                 iContext.m_acceptPriceSimulated = true; // one accept order price simulation per iteration

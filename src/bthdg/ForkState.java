@@ -31,7 +31,10 @@ public enum ForkState {
     OPEN_BRACKETS_PLACED {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             System.out.println("ForkState.OPEN_BRACKETS_PLACED checkState()");
-            if( forkData.hasAnyBracketExecuted()) {
+            if( forkData.checkBothBracketsExecutedOnExch(iContext)) {
+                System.out.println(" Both Brackets on some exchange Executed !!!");
+                forkData.setState(ForkState.END);
+            } else if( forkData.checkAnyBracketExecuted()) {
                 System.out.println(" Bracket on some exchange Executed !!!");
                 forkData.setState(OPENING_OTHER_SIDE_AT_MKT);
                 forkData.openOtherSideAtMarket(iContext);
@@ -67,7 +70,7 @@ public enum ForkState {
     CLOSE_BRACKET_PLACED {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             System.out.println("ForkState.CLOSE_BRACKET_PLACED monitor order...");
-            if (forkData.hasAnyBracketExecuted()) {
+            if (forkData.checkAnyBracketExecuted()) {
                 System.out.println(" Bracket on some exchange Executed !!!");
                 forkData.setState(CLOSING_OTHER_SIDE_AT_MKT);
                 forkData.closeOtherSideAtMarket(iContext);
@@ -118,7 +121,21 @@ public enum ForkState {
             System.out.println("ForkState.STOP checkState()");
             forkData.stop();
         }
-    };
+    },
+    RESTART {
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            System.out.println("ForkState.RESTART checkState()");
+            forkData.stop();
+            System.out.println(" stopped. restarting");
+            forkData.setState(START);
+        }
+    },
+    FIX_BALANCE { // make 50-50 balance
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            System.out.println("ForkState.FIX_BALANCE checkState()");
+        }
+    },
+    ;
 
     // todo: we need preCheck to properly handle ERROR state
     public boolean preCheckState(IterationContext iContext, ForkData forkData) { return false; }

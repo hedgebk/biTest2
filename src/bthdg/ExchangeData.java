@@ -32,6 +32,7 @@ public class ExchangeData {
     String exchName() { return m_exch.m_name; }
     public boolean waitingForOpenBrackets() { return m_state == ExchangeState.OPEN_BRACKETS_WAITING; }
     public boolean hasOpenCloseBracketExecuted() { return (m_state == ExchangeState.ONE_OPEN_BRACKET_EXECUTED) || (m_state == ExchangeState.CLOSE_BRACKET_EXECUTED); }
+    public boolean hasBothBracketsExecuted() { return (m_state == ExchangeState.BOTH_OPEN_BRACKETS_EXECUTED); }
     public boolean hasOpenCloseMktExecuted() { return (m_state == ExchangeState.OPEN_AT_MKT_EXECUTED) || (m_state == ExchangeState.CLOSE_AT_MKT_EXECUTED); }
     public double commissionAmount() { return m_shExchData.m_lastTop.getMid() * m_exch.m_fee; }
     public boolean isStopped() { return (m_state == ExchangeState.NONE); }
@@ -211,12 +212,16 @@ public class ExchangeData {
 
     private boolean cancelOrder(OrderData orderData) {
         // todo: implement
-        if( orderData != null ) {
-            System.out.println("cancelOrder() not implemented yet: " + orderData);
+        if (orderData != null) {
+            if ((orderData.m_status == OrderStatus.SUBMITTED) || (orderData.m_status == OrderStatus.PARTIALLY_FILLED)) {
+                System.out.println("cancelOrder() not implemented yet: " + orderData);
+            } else {
+                System.out.println("cancelOrder() no need to cancel oder in state: " + orderData);
+            }
             orderData.m_status = OrderStatus.CANCELLED;
             orderData.m_state = OrderState.NONE;
         }
-        return true; // order can be executed at this point, so cancel will fail
+        return true; // todo: order can be executed at this point, so cancel will fail
     }
 
     private boolean placeOrderBracket(OrderData orderData) {
@@ -300,7 +305,7 @@ public class ExchangeData {
     }
 
     void checkSomeBracketExecuted(IterationContext iContext) {
-        System.out.println("check if some bracket executed"); // todo: note: both can be executed (for OPEN case) in rare cases !!
+        // todo: note: both can be executed (for OPEN case) in rare cases !!
         // todo: also some bracket can be partially executed - complex scenario
         boolean buyExecuted = (m_buyOrder != null) && m_buyOrder.isFilled();
         boolean sellExecuted = (m_sellOrder != null) && m_sellOrder.isFilled();
@@ -308,8 +313,8 @@ public class ExchangeData {
         if (buyExecuted) {
             if (sellExecuted) {
                 // todo: very rare case - both brackets are executed on the same exchange - fine - just cache-out - diff should be enough
-                System.out.println("!!! both brackets are executed - BINGO - just cache-out");
-                setState(ExchangeState.ERROR);
+                System.out.println("!!! both brackets are executed on the same exchange (" + exchName() + ")- BINGO - just cache-out");
+                setState(ExchangeState.BOTH_OPEN_BRACKETS_EXECUTED);
             } else {
                 // todo: if one of brackets is executed - the another one should be adjusted (for now cancel).
                 System.out.println("BUY OpenBracketOrder FILLED, closing opposite bracket: " + m_sellOrder);
@@ -334,7 +339,7 @@ public class ExchangeData {
             }
             openOrder = m_sellOrder;
         } else {
-            System.out.println(" no FILLED bracket orders: m_buyOrder=" + m_buyOrder + ", m_sellOrder=" + m_sellOrder);
+            System.out.println(" no FILLED bracket orders: buyOrder=" + m_buyOrder + ", sellOrder=" + m_sellOrder);
         }
         if (openOrder != null) {
             System.out.println("we have open bracket order executed on '" + exchName() + "': " + openOrder);
@@ -343,7 +348,7 @@ public class ExchangeData {
             } else if (m_state == ExchangeState.CLOSE_BRACKET_PLACED) {
                 setState(ExchangeState.CLOSE_BRACKET_EXECUTED);
             } else {
-                System.out.println(" unexpected state "+m_state+" on " + this);
+                System.out.println(" unexpected state " + m_state + " on " + this);
                 setState(ExchangeState.ERROR);
             }
             iContext.delay(0);
@@ -486,7 +491,6 @@ public class ExchangeData {
     public void stop() {
         System.out.println("stop() on " + exchName());
         closeOrders();
-        setState(ExchangeState.NONE);
     }
 
     public void serialize(StringBuilder sb) {

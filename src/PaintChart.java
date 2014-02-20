@@ -20,7 +20,7 @@ public class PaintChart extends DbReady {
     public static final int MIN_CONFIRMED_DIFFS = 5;
     // BITSTAMP, BTCE, MTGOX, CAMPBX
     private static final Exchange EXCH1 = Exchange.BITSTAMP;
-    private static final Exchange EXCH2 = Exchange.CAMPBX;
+    private static final Exchange EXCH2 = Exchange.BTCE;
     public static final boolean DO_DROP = true;
     public static final double DROP_LEVEL = 0.8;
     public static final boolean LOCK_DIRECTION_ON_DROP = true;

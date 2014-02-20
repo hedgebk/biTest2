@@ -13,6 +13,10 @@ import java.net.URL;
  *  - support partial fills - do forks
  *  - support DROP
  *  - count all downloaded traffic
+ *  - proxy sdt/out logging
+ *  - report running time in servlet
+ *  - try sleep instead of wait
+ *  - add pause for servlet to redeploy new version and continue
  */
 public class Fetcher {
     static final boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
