@@ -16,20 +16,22 @@ public class PairExchangeData {
     private int m_runs;
     private boolean m_stopRequested;
     public boolean m_isFinished;
+    public long m_startTime;
     public long m_timestamp;
 
     public String exchNames() { return m_sharedExch1.m_exchange.m_name + "-" + m_sharedExch2.m_exchange.m_name; }
 
     public PairExchangeData(Exchange exch1, Exchange exch2) {
-        this(new SharedExchangeData(exch1), new SharedExchangeData(exch2), new ArrayList<ForkData>());
+        this(new SharedExchangeData(exch1), new SharedExchangeData(exch2), new ArrayList<ForkData>(), System.currentTimeMillis());
         m_diffAverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE); // limit can be different - passed as param for start
         maybeStartNewFork();
     }
 
-    private PairExchangeData(SharedExchangeData s1, SharedExchangeData s2, List<ForkData> forks) {
+    private PairExchangeData(SharedExchangeData s1, SharedExchangeData s2, List<ForkData> forks, long startTime) {
         m_sharedExch1 = s1;
         m_sharedExch2 = s2;
         m_forks = forks;
+        m_startTime = startTime;
     }
 
     public boolean checkState(IterationContext iContext) throws Exception {
@@ -119,7 +121,12 @@ public class PairExchangeData {
     }
 
     public String getState() {
-        return (m_isFinished ? "FINISHED" : "RUNNING " + m_forks.size() + " forks") + ", runs=" + m_runs + ", total=" + Fetcher.format(m_totalIncome);
+        return (m_isFinished
+                    ? "FINISHED"
+                    : "RUNNING " + m_forks.size() + " forks") +
+                ", runs=" + m_runs +
+                ", total=" + Fetcher.format(m_totalIncome) +
+                ", live=" + Utils.millisToDHMSStr(System.currentTimeMillis() - m_startTime);
     }
 
     public String getForksState() {
@@ -153,6 +160,7 @@ public class PairExchangeData {
         m_diffAverageCounter.serialize(sb);
         sb.append("; stopRequested=").append(m_stopRequested);
         sb.append("; isFinished=").append(m_isFinished);
+        sb.append("; startTime=").append(m_startTime);
         sb.append("]");
         return sb.toString();
     }
@@ -177,7 +185,7 @@ public class PairExchangeData {
         SharedExchangeData sh2 = SharedExchangeData.deserialize(deserializer);
         deserializer.readStr("; ");
         deserializer.readPropStart("forks");
-        List<ForkData> forks = readForks(deserializer);
+        List<ForkData> forks = deserializeForks(deserializer);
         deserializer.readStr("; ");
 
         deserializer.readPropStart("lastDiff");
@@ -187,15 +195,18 @@ public class PairExchangeData {
         deserializer.readPropStart("stopRequested");
         String stopRequested = deserializer.readTill("; ");
         deserializer.readPropStart("isFinished");
-        String isFinished = deserializer.readTill("]");
+        String isFinished = deserializer.readTill("; ");
+        deserializer.readPropStart("startTime");
+        String startTime = deserializer.readTill("]");
 
-        PairExchangeData ret = new PairExchangeData(sh1, sh2, forks);
+        PairExchangeData ret = new PairExchangeData(sh1, sh2, forks, 0);
         ret.m_lastDiff = lastDif;
         ret.m_diffAverageCounter = diffAvgCntr;
         ret.m_totalIncome = Double.parseDouble(totalIncome);
         ret.m_runs = Integer.parseInt(runs);
         ret.m_stopRequested = Boolean.parseBoolean(stopRequested);
         ret.m_isFinished = Boolean.parseBoolean(isFinished);
+        ret.m_startTime = Long.parseLong(startTime);
 
         for (ForkData fork : forks) {
             fork.postDeserialize(ret);
@@ -203,7 +214,7 @@ public class PairExchangeData {
         return ret;
     }
 
-    private static List<ForkData> readForks(Deserializer deserializer) throws IOException {
+    private static List<ForkData> deserializeForks(Deserializer deserializer) throws IOException {
         // [[Fork]; [Fork]; [Fork]; ]
         deserializer.readObjectStart();
         List<ForkData> ret = new ArrayList<ForkData>();
@@ -246,6 +257,9 @@ public class PairExchangeData {
         }
         if (m_isFinished != other.m_isFinished) {
             throw new RuntimeException("m_isFinished");
+        }
+        if (m_startTime != other.m_startTime) {
+            throw new RuntimeException("m_startTime");
         }
     }
 

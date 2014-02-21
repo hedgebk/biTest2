@@ -1,11 +1,15 @@
 package bthdg;
 
+import bthdg.exch.BaseExch;
+import bthdg.exch.Bitstamp;
+import bthdg.exch.Btce;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Properties;
 
 /**
  * todo:
@@ -35,8 +39,9 @@ public class Fetcher {
     public static void main(String[] args) {
         System.out.println("Started.  millis=" + System.currentTimeMillis());
         try {
-            Bitstamp.init();
-            Btce.init();
+            Properties keys = BaseExch.loadKeys();
+            Bitstamp.init(keys);
+            Btce.init(keys);
 //            TradesData trades1 = fetchTrades(Exchange.BITSTAMP);
 //            TradesData trades2 = fetchTrades(Exchange.BTCE);
 

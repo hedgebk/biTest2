@@ -1,3 +1,5 @@
+package bthdg.exch;
+
 public class MtGox {
 }
 

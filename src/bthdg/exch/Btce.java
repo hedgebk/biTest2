@@ -1,10 +1,9 @@
-package bthdg;// https://btc-e.com/api/documentation
+package bthdg.exch;// https://btc-e.com/api/documentation
 //
 //
 // https://btc-e.com/api/2/btc_usd/depth
 //    {"asks":[[714,0.93506666],[714.104,0.0998],[714.111,0.01],[714.15,0.01],[714.314,0.14083594],[714.474,0.011],[714.665,2.465],[714.666,3.75571029],[714.68,0.073],[714.692,0.13972],[714.695,0.13972],[714.871,0.035],[715,0.52282746],[715.002,0.01],[7
 
-//
 // https://btc-e.com/api/2/btc_usd/depth
 //    {"asks":[[712.348,0.63],[713.5,0.011],[713.712,0.01],[713.99,2],[714,0.93506666],[714.104,0.0998],[714.111,0.01],[714.15,0.01],[714.314,0.14083594],[714.474,0.011],[714.665,2.465],[714.666,3.75571029],[714.68,0.073],[714.692,0.13972],[7
 //
@@ -26,46 +25,36 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
-public class Btce {
+public class Btce extends BaseExch {
     public static final String CRYPTO_ALGO = "HmacSHA512";
     private static String SECRET;
     private static String KEY;
     private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
 
-    public static void init() {
-        try {
-            Properties properties = new Properties();
-            properties.load(new FileReader("keys.txt"));
-            init(properties);
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new RuntimeException("error reading properties");
-        }
-    }
+    public String getNextNonce() { return Integer.toString(s_nonce++); }
+    protected String getCryproAlgo() { return CRYPTO_ALGO; }
+    protected String getSecret() { return SECRET; }
 
-    static boolean init(Properties properties) {
-        SECRET = properties.getProperty("btce_secret");
-        if(SECRET != null) {
-            KEY = properties.getProperty("btce_key");
-            if(SECRET != null) {
-                return true;
-            }
-        }
-        return false;
+    public Btce() {
+        init();
     }
-
-    private static String getNextNonce() { return Integer.toString(s_nonce++); }
 
     public static void main(String[] args) {
         try {
-            run("getInfo", null);
-//            run("TransHistory", null);
+            new Btce().start();
+            // json: {"success":1,"return":{"funds":{"usd":0,"btc":0.038,"ltc":0,"nmc":0,"rur":0,"eur":0,"nvc":0,"trc":0,"ppc":0,"ftc":0,"xpm":0},"rights":{"info":1,"trade":0,"withdraw":0},"transaction_count":2,"open_orders":0,"server_time":1392944085}}
         } catch (Exception e) {
+            System.out.println("ERROR: " + e);
             e.printStackTrace();
         }
     }
 
-    private static JSONObject run(String method, Map<String, String> arguments) throws Exception {
+    private void start() throws Exception {
+        run("getInfo", null);
+//      run("TransHistory", null);
+    }
+
+    private JSONObject run(String method, Map<String, String> arguments) throws Exception {
         Map<String, String> headerLines = new HashMap<String, String>();  // Create a new map for the header lines.
 
         if (arguments == null) {  // If the user provided no arguments, just create an empty argument array.
@@ -76,6 +65,9 @@ public class Btce {
 
         arguments.put("method", method);  // Add the method to the post data.
         arguments.put("nonce", nonce);
+
+        // Add the key to the header lines.
+        headerLines.put("Key", KEY);
 
         StringBuilder buffer = new StringBuilder();
         for (Map.Entry<String, String> argument : arguments.entrySet()) {
@@ -88,47 +80,11 @@ public class Btce {
         }
         String postData = buffer.toString();
 
-        // Create a new secret key
-        SecretKeySpec key;
-        try {
-            key = new SecretKeySpec(SECRET.getBytes("UTF-8"), CRYPTO_ALGO);
-        } catch (UnsupportedEncodingException uee) {
-            System.err.println("Unsupported encoding exception: " + uee.toString());
-            return null;
-        }
+        String encoded = encode(postData.getBytes("UTF-8"));
 
-        // Create a new mac
-        Mac mac;
-        try {
-            mac = Mac.getInstance(CRYPTO_ALGO);
-        } catch (NoSuchAlgorithmException nsae) {
-            System.err.println("No such algorithm exception: " + nsae.toString());
-            return null;
-        }
+        headerLines.put("Sign", encoded);
 
-        // Init mac with key.
-        try {
-            mac.init(key);
-        } catch (InvalidKeyException ike) {
-            System.err.println("Invalid key exception: " + ike.toString());
-            return null;
-        }
-
-        // Add the key to the header lines.
-        headerLines.put("Key", KEY);
-
-        // Encode the post data by the secret and encode the result as base64.
-        try {
-            byte[] bytes = mac.doFinal(postData.getBytes("UTF-8"));
-            headerLines.put("Sign", Utils.encodeHexString(bytes));
-        } catch (UnsupportedEncodingException uee) {
-            System.err.println("Unsupported encoding exception: " + uee.toString());
-            return null;
-        }
-
-        SSLContext sslctx = SSLContext.getInstance("SSL");
-        sslctx.init(null, null, null);
-        HttpsURLConnection.setDefaultSSLSocketFactory(sslctx.getSocketFactory());
+        initSsl();
 
         URL url = new URL("https://btc-e.com/tapi");
 
@@ -151,17 +107,7 @@ public class Btce {
 
                 int responseCode = con.getResponseCode();
                 if (responseCode == HttpsURLConnection.HTTP_OK) {
-                    StringBuilder json = new StringBuilder();
-                    BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
-                    try {
-                        String text;
-                        while ((text = br.readLine()) != null) {
-                            json.append(text);
-                        }
-                    } finally {
-                        br.close();
-                    }
-                    System.out.println("json: " + json);
+                    readJson(con);
                 } else {
                     System.out.println("ERROR: unexpected ResponseCode: " + responseCode);
                 }
@@ -232,6 +178,26 @@ public class Btce {
             trades.add(tdata);
         }
         return new TradesData(trades);
+    }
+
+    private void init() {
+        try {
+            init(loadKeys());
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("error reading properties");
+        }
+    }
+
+    public static boolean init(Properties properties) {
+        SECRET = properties.getProperty("btce_secret");
+        if(SECRET != null) {
+            KEY = properties.getProperty("btce_key");
+            if(KEY != null) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 

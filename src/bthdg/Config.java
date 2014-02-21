@@ -1,5 +1,8 @@
 package bthdg;
 
+import bthdg.exch.Bitstamp;
+import bthdg.exch.Btce;
+
 import java.util.Properties;
 
 public class Config {

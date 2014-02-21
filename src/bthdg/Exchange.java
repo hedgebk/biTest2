@@ -1,5 +1,8 @@
 package bthdg;
 
+import bthdg.exch.Bitstamp;
+import bthdg.exch.Btce;
+
 public enum Exchange {
     BITSTAMP("bitstamp", "bitstampUSD", 1, 0.002,
              Bitstamp.topTestStr(), "https://www.bitstamp.net/api/ticker/",
