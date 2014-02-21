@@ -37,7 +37,7 @@ public class Fetcher {
     public static final int READ_TIMEOUT = 7000;
 
     public static void main(String[] args) {
-        System.out.println("Started.  millis=" + System.currentTimeMillis());
+        log("Started.  millis=" + System.currentTimeMillis());
         try {
             Properties keys = BaseExch.loadKeys();
             Bitstamp.init(keys);
@@ -59,9 +59,13 @@ public class Fetcher {
 
             pool(Exchange.BITSTAMP, Exchange.BTCE);
         } catch (Exception e) {
-            System.out.println("error: " + e);
+            log("error: " + e);
             e.printStackTrace();
         }
+    }
+
+    private static void log(String x) {
+        System.out.println(x);
     }
 
     private static void pool(Exchange exch1, Exchange exch2) throws Exception {
@@ -70,16 +74,16 @@ public class Fetcher {
         int iterationCounter = 0;
         while (true) {
             iterationCounter++;
-            System.out.println("---------------------------------------------- iteration: "+iterationCounter);
+            log("---------------------------------------------- iteration: " + iterationCounter);
 
             IterationContext iContext = new IterationContext();
             try {
-                if(checkState(data, iContext)){
-                    System.out.println("GOT finish request");
+                if (checkState(data, iContext)) {
+                    log("GOT finish request");
                     break;
                 }
             } catch (Exception e) {
-                System.out.println("GOT exception during processing. setting ERROR, closing everything...");
+                log("GOT exception during processing. setting ERROR, closing everything...");
                 e.printStackTrace();
                 data.setState(ForkState.ERROR); // error - stop ALL
                 iContext.delay(0);
@@ -87,20 +91,20 @@ public class Fetcher {
 
             long running = System.currentTimeMillis() - startMillis;
             long delay = iContext.m_nextIterationDelay;
-            if( delay > 0 ) {
-                System.out.println("wait " + delay + " ms. total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter);
+            if (delay > 0) {
+                log("wait " + delay + " ms. total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter);
                 Thread.sleep(delay);
             } else {
-                System.out.println("go to next iteration without sleep. total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter);
+                log("go to next iteration without sleep. total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter);
             }
         }
-        System.out.println("FINISHED.");
+        log("FINISHED.");
     }
 
     private static boolean checkState(PairExchangeData data, IterationContext iContext) throws Exception {
         boolean ret = data.checkState(iContext);
         String serialized = data.serialize();
-        System.out.println("serialized(len=" + serialized.length() + ")=" + serialized);
+        log("serialized(len=" + serialized.length() + ")=" + serialized);
         PairExchangeData deserialized = Deserializer.deserialize(serialized);
         deserialized.compare(data); // make sure all fine
         return ret;
@@ -112,7 +116,7 @@ public class Fetcher {
             DeepData.Deep ask1 = deep1.m_asks.get(i);
             DeepData.Deep bid2 = deep2.m_bids.get(i);
             DeepData.Deep ask2 = deep2.m_asks.get(i);
-            System.out.println(format(bid1.m_size) +"@"+ format(bid1.m_price) +"  " +
+            log(format(bid1.m_size) +"@"+ format(bid1.m_price) +"  " +
                                format(ask1.m_size) +"@"+ format(ask1.m_price) +"      " +
                                format(bid2.m_size) +"@"+ format(bid2.m_price) +"  " +
                                format(ask2.m_size) +"@"+ format(ask2.m_price) +"  ");
@@ -135,7 +139,7 @@ public class Fetcher {
 //        System.out.println("tradesData=" + tradesData);
             return tradesData;
         } catch (Exception e) {
-            System.out.println(" loading error: " + e);
+            log(" loading error: " + e);
             e.printStackTrace();
         }
         return null;
@@ -143,9 +147,9 @@ public class Fetcher {
 
     private static DeepData fetchDeep(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.DEEP);
-        System.out.println("jObj=" + jObj);
+        log("jObj=" + jObj);
         DeepData deepData = exchange.parseDeep(jObj);
-        System.out.println("deepData=" + deepData);
+        log("deepData=" + deepData);
         return deepData;
     }
 
@@ -165,7 +169,7 @@ public class Fetcher {
             //System.out.println("topData=" + topData);
             return topData;
         } catch (Exception e) {
-            System.out.println(" loading error: " + e);
+            log(" loading error: " + e);
             e.printStackTrace();
         }
         return null;
@@ -177,7 +181,7 @@ public class Fetcher {
             try {
                 return fetchOnce(exchange, command);
             } catch (Exception e) {
-                System.out.println(" loading error (attempt " + attempt + "): " + e);
+                log(" loading error (attempt " + attempt + "): " + e);
                 e.printStackTrace();
             }
             Thread.sleep(delay);
@@ -290,5 +294,4 @@ public class Fetcher {
         public String getApiEndpoint(Exchange exchange) { return null; }
         public boolean useTestStr() { return false; }
     } // FetchCommand
-
 }

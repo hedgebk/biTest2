@@ -34,6 +34,7 @@ public class Btce extends BaseExch {
     public String getNextNonce() { return Integer.toString(s_nonce++); }
     protected String getCryproAlgo() { return CRYPTO_ALGO; }
     protected String getSecret() { return SECRET; }
+    protected String getApiEndpoint() { return "https://btc-e.com/tapi"; }
 
     public Btce() {
         init();
@@ -86,38 +87,8 @@ public class Btce extends BaseExch {
 
         initSsl();
 
-        URL url = new URL("https://btc-e.com/tapi");
-
-        HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-        try {
-            con.setRequestMethod("POST");
-            con.setUseCaches(false);
-            con.setDoOutput(true);
-
-            con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-            //con.setRequestProperty("User-Agent",USER_AGENT) ;
-            for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
-                con.setRequestProperty(headerLine.getKey(), headerLine.getValue());
-            }
-
-            OutputStream os = con.getOutputStream();
-            try {
-                os.write(postData.getBytes());
-                con.connect();
-
-                int responseCode = con.getResponseCode();
-                if (responseCode == HttpsURLConnection.HTTP_OK) {
-                    readJson(con);
-                } else {
-                    System.out.println("ERROR: unexpected ResponseCode: " + responseCode);
-                }
-                System.out.println("Code Response: " + responseCode);
-            } finally {
-                os.close();
-            }
-        } finally {
-            con.disconnect();
-        }
+        String json = loadJsonStr(headerLines, postData);
+        System.out.println("Loaded json: " + json);
 
         return null;
     }

@@ -7,16 +7,8 @@ import bthdg.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
 import java.io.*;
-import java.net.URL;
 import java.net.URLEncoder;
-import java.security.InvalidKeyException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -27,7 +19,6 @@ import java.util.Properties;
 // Do not make more than 600 request per 10 minutes or we will ban your IP address.
 //
 public class Bitstamp extends BaseExch {
-    private static final String USER_AGENT = "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible)";
     public static final String CRYPTO_ALGO = "HmacSHA256";
     private static String SECRET;
     private static String KEY;
@@ -38,6 +29,7 @@ public class Bitstamp extends BaseExch {
     public String getNextNonce() { return Long.toString(System.currentTimeMillis() / 100); }
     protected String getCryproAlgo() { return CRYPTO_ALGO; }
     protected String getSecret() { return SECRET; }
+    protected String getApiEndpoint() { return "https://www.bitstamp.net/api/balance/"; }
 
     public Bitstamp() {
         init();
@@ -61,40 +53,20 @@ public class Bitstamp extends BaseExch {
         String signature = encoded.toUpperCase();
         System.out.println("signature: " + signature);
 
-        String query = "key=" + URLEncoder.encode(KEY);
-        query += "&";
-        query += "nonce=" + URLEncoder.encode(nonce);
-        query += "&";
-        query += "signature=" + URLEncoder.encode(signature);
+        String query = new StringBuilder("key=")
+                .append(URLEncoder.encode(KEY))
+                .append("&")
+                .append("nonce=")
+                .append(URLEncoder.encode(nonce))
+                .append("&")
+                .append("signature=")
+                .append(URLEncoder.encode(signature))
+                .toString();
 
         initSsl();
 
-        URL url = new URL("https://www.bitstamp.net/api/balance/");
-
-        HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-        try {
-            con.setRequestMethod("POST");
-            con.setUseCaches(false);
-            con.setDoOutput(true);
-
-            con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-            con.setRequestProperty("User-Agent", USER_AGENT);
-
-            OutputStream os = con.getOutputStream();
-            try {
-                os.write(query.getBytes());
-                con.connect();
-                if (con.getResponseCode() == HttpsURLConnection.HTTP_OK) {
-                    readJson(con);
-                } else {
-                    System.out.println("ERROR: unexpected ResponseCode: " + con.getResponseCode());
-                }
-            } finally {
-                os.close();
-            }
-        } finally {
-            con.disconnect();
-        }
+        String json = loadJsonStr(null, query);
+        System.out.println("Loaded json: " + json);
     }
 
     public static String topTestStr() {
