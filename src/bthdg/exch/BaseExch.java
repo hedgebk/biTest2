@@ -1,5 +1,6 @@
 package bthdg.exch;
 
+import bthdg.Exchange;
 import bthdg.Utils;
 
 import javax.crypto.Mac;
@@ -12,6 +13,7 @@ import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -20,11 +22,15 @@ public abstract class BaseExch {
     public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
 
-    protected abstract String getNextNonce();
+    public abstract String getNextNonce();
     protected abstract String getCryproAlgo();
     protected abstract String getSecret();
+    protected abstract String getApiEndpoint();
 
-    protected static void initSsl() throws NoSuchAlgorithmException, KeyManagementException {
+    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint) throws Exception {return null;};
+    public Map<String, String> getHeaders(String postData) throws Exception { return null; }
+
+    public static void initSsl() throws NoSuchAlgorithmException, KeyManagementException {
         if(!s_sslInitialized) {
             SSLContext sslctx = SSLContext.getInstance("SSL");
             sslctx.init(null, null, null);
@@ -132,7 +138,7 @@ public abstract class BaseExch {
             con.setUseCaches(false);
             con.setDoOutput(true);
 
-            con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            con.setRequestProperty("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
             con.setRequestProperty("User-Agent",USER_AGENT) ;
             if( headerLines != null ) {
                 for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
@@ -160,7 +166,17 @@ public abstract class BaseExch {
         return json;
     }
 
-
-    protected abstract String getApiEndpoint();
+    public static String buildQueryString(Map<String, String> postParams) {
+        StringBuilder buffer = new StringBuilder();
+        for (Map.Entry<String, String> argument : postParams.entrySet()) {
+            if (buffer.length() > 0) {
+                buffer.append("&");
+            }
+            buffer.append(argument.getKey());
+            buffer.append("=");
+            buffer.append(argument.getValue());
+        }
+        return buffer.toString();
+    }
 
 }

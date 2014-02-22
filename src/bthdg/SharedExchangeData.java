@@ -13,6 +13,7 @@ public class SharedExchangeData {
 
     private long m_lastProcessedTradesTime;
     TopData m_lastTop;
+    public AccountData m_account;
 
     private static Utils.DoubleAverageCalculator<Double> mkBidAskDiffCalculator() {
         return new Utils.DoubleAverageCalculator<Double>() {
@@ -71,6 +72,10 @@ public class SharedExchangeData {
         }
         sb.append("; avgCntr=");
         m_averageCounter.serialize(sb);
+        sb.append("; account=");
+        if (m_account != null) {
+            m_account.serialize(sb);
+        }
         sb.append("; bidAskDiffClcltr=");
         m_bidAskDiffCalculator.serialize(sb);
         sb.append("]");
@@ -82,33 +87,50 @@ public class SharedExchangeData {
         String exchStr = deserializer.readTill("; ");
         deserializer.readPropStart("lastTrdTm");
         String lastTrdTm = deserializer.readTill("; ");
+
         deserializer.readPropStart("lastTop");
         TopData lastTop = TopData.deserialize(deserializer);
+
         deserializer.readPropStart("avgCntr");
         Utils.AverageCounter avgCntr = Utils.AverageCounter.deserialize(deserializer);
+
+        deserializer.readPropStart("account");
+        AccountData account = AccountData.deserialize(deserializer);
+
         deserializer.readPropStart("bidAskDiffClcltr");
         Utils.DoubleAverageCalculator<Double> calculator = mkBidAskDiffCalculator();
         calculator.deserialize(deserializer);
+
         deserializer.readObjectEnd();
 
         Exchange exchange = Exchange.valueOf(exchStr);
         SharedExchangeData ret = new SharedExchangeData(exchange, avgCntr, calculator);
         ret.m_lastProcessedTradesTime = Long.parseLong(lastTrdTm);
         ret.m_lastTop = lastTop;
+        ret.m_account = account;
         return ret;
     }
 
     public void compare(SharedExchangeData data) {
-        if(m_exchange!=data.m_exchange) {
+        if (m_exchange != data.m_exchange) {
             throw new RuntimeException("m_exchange");
         }
         m_averageCounter.compare(data.m_averageCounter);
         m_bidAskDiffCalculator.compare(data.m_bidAskDiffCalculator);
-        if(m_lastProcessedTradesTime!=data.m_lastProcessedTradesTime) {
+        if (m_lastProcessedTradesTime != data.m_lastProcessedTradesTime) {
             throw new RuntimeException("m_lastProcessedTradesTime");
         }
-        if(Utils.compareAndNotNulls(m_lastTop, data.m_lastTop)) {
+        if (Utils.compareAndNotNulls(m_lastTop, data.m_lastTop)) {
             m_lastTop.compare(data.m_lastTop);
         }
+        if (Utils.compareAndNotNulls(m_account, data.m_account)) {
+            m_account.compare(data.m_account);
+        }
+    }
+
+    public void queryAccountData() throws Exception {
+        AccountData account = Fetcher.fetchAccount(m_exchange);
+        System.out.println("queryAccountData() account=" + account);
+        m_account = account;
     }
 } // SharedExchangeData

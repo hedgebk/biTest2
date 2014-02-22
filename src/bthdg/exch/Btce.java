@@ -8,21 +8,11 @@ package bthdg.exch;// https://btc-e.com/api/documentation
 //    {"asks":[[712.348,0.63],[713.5,0.011],[713.712,0.01],[713.99,2],[714,0.93506666],[714.104,0.0998],[714.111,0.01],[714.15,0.01],[714.314,0.14083594],[714.474,0.011],[714.665,2.465],[714.666,3.75571029],[714.68,0.073],[714.692,0.13972],[7
 //
 
-import bthdg.DeepData;
-import bthdg.TopData;
-import bthdg.TradesData;
-import bthdg.Utils;
+import bthdg.*;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
 import java.io.*;
-import java.net.URL;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class Btce extends BaseExch {
@@ -31,14 +21,12 @@ public class Btce extends BaseExch {
     private static String KEY;
     private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
 
-    public String getNextNonce() { return Integer.toString(s_nonce++); }
-    protected String getCryproAlgo() { return CRYPTO_ALGO; }
-    protected String getSecret() { return SECRET; }
-    protected String getApiEndpoint() { return "https://btc-e.com/tapi"; }
+    @Override public String getNextNonce() { return Integer.toString(s_nonce++); }
+    @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
+    @Override protected String getSecret() { return SECRET; }
+    @Override protected String getApiEndpoint() { return "https://btc-e.com/tapi"; }
 
-    public Btce() {
-        init();
-    }
+    public Btce() {}
 
     public static void main(String[] args) {
         try {
@@ -51,46 +39,46 @@ public class Btce extends BaseExch {
     }
 
     private void start() throws Exception {
-        run("getInfo", null);
-//      run("TransHistory", null);
+        init();
+        run("getInfo");
+//      run("TransHistory");
     }
 
-    private JSONObject run(String method, Map<String, String> arguments) throws Exception {
-        Map<String, String> headerLines = new HashMap<String, String>();  // Create a new map for the header lines.
+    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint) {
+        Map<String, String> postParams = new HashMap<String, String>();
 
-        if (arguments == null) {  // If the user provided no arguments, just create an empty argument array.
-            arguments = new HashMap<String, String>();
-        }
+        postParams.put(apiEndpoint.m_paramName, //"method",
+                       apiEndpoint.m_paramValue);  // Add the method to the post data.
+        postParams.put("nonce", nonce);
+        return postParams;
+    }
 
+    private JSONObject run(String method ) throws Exception {
         String nonce = getNextNonce();
 
-        arguments.put("method", method);  // Add the method to the post data.
-        arguments.put("nonce", nonce);
+        Map<String, String> postParams = new HashMap<String, String>();
+        postParams.put("method", method);  // Add the method to the post data.
+        postParams.put("nonce", nonce);
 
-        // Add the key to the header lines.
-        headerLines.put("Key", KEY);
+        String postData = buildQueryString(postParams);
 
-        StringBuilder buffer = new StringBuilder();
-        for (Map.Entry<String, String> argument : arguments.entrySet()) {
-            if (buffer.length() > 0) {
-                buffer.append("&");
-            }
-            buffer.append(argument.getKey());
-            buffer.append("=");
-            buffer.append(argument.getValue());
-        }
-        String postData = buffer.toString();
-
-        String encoded = encode(postData.getBytes("UTF-8"));
-
-        headerLines.put("Sign", encoded);
+        Map<String, String> headerLines = getHeaders(postData);
 
         initSsl();
+
 
         String json = loadJsonStr(headerLines, postData);
         System.out.println("Loaded json: " + json);
 
         return null;
+    }
+
+    public Map<String, String> getHeaders(String postData) throws Exception {
+        String encoded = encode(postData.getBytes("UTF-8"));
+        Map<String, String> headerLines = new HashMap<String, String>();  // Create a new map for the header lines.
+        headerLines.put("Sign", encoded);
+        headerLines.put("Key", KEY); // Add the key to the header lines.
+        return headerLines;
     }
 
     public static String topTestStr() {
@@ -149,6 +137,29 @@ public class Btce extends BaseExch {
             trades.add(tdata);
         }
         return new TradesData(trades);
+    }
+
+    public static AccountData parseAccount(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
+        System.out.println("BTCE.parseAccount() " + jObj);
+//         { "return":{
+//                "open_orders":0,
+//                "funds":{"trc":0,"nmc":0,"ftc":0,"eur":0,"rur":0,"usd":0,"ltc":0,"ppc":0,"xpm":0,"nvc":0,"btc":0.038},
+//                "transaction_count":2,
+//                "rights":{"trade":0,"withdraw":0,"info":1},
+//                "server_time":1393025897},
+//           "success":1}
+
+        JSONObject ret = (JSONObject) jObj.get("return");
+        JSONObject funds = (JSONObject) ret.get("funds");
+
+        double usd = Utils.getDouble(funds.get("usd"));
+        double btc = Utils.getDouble(funds.get("btc"));
+        return new AccountData(Exchange.BTCE.m_name, usd, btc, Double.MAX_VALUE);
+    }
+
+    public static String accountTestStr() {
+        return "{\"return\":{\"open_orders\":0,\"funds\":{\"trc\":0,\"nmc\":0,\"ftc\":0,\"eur\":0,\"rur\":0,\"usd\":0,\"ltc\":0,\"ppc\":0,\"xpm\":0,\"nvc\":0,\"btc\":0.038},\"transaction_count\":2,\"rights\":{\"trade\":0,\"withdraw\":0,\"info\":1},\"server_time\":1393026300},\"success\":1}";
     }
 
     private void init() {

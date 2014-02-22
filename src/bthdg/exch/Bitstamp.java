@@ -1,17 +1,12 @@
 package bthdg.exch;
 
-import bthdg.DeepData;
-import bthdg.TopData;
-import bthdg.TradesData;
-import bthdg.Utils;
+import bthdg.*;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import java.io.*;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 // SEE HERE
 //  https://github.com/abwaters/bitstamp-api/blob/master/src/com/abwaters/bitstamp/Bitstamp.java
@@ -26,14 +21,12 @@ public class Bitstamp extends BaseExch {
 
     private static String s_bitstampDeepTestStr = null;
 
-    public String getNextNonce() { return Long.toString(System.currentTimeMillis() / 100); }
-    protected String getCryproAlgo() { return CRYPTO_ALGO; }
-    protected String getSecret() { return SECRET; }
-    protected String getApiEndpoint() { return "https://www.bitstamp.net/api/balance/"; }
+    @Override public String getNextNonce() { return Long.toString(System.currentTimeMillis() / 100); }
+    @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
+    @Override protected String getSecret() { return SECRET; }
+    @Override protected String getApiEndpoint() { return "https://www.bitstamp.net/api/balance/"; }
 
-    public Bitstamp() {
-        init();
-    }
+    public Bitstamp() {}
 
     public static void main(String[] args) {
         try {
@@ -45,11 +38,22 @@ public class Bitstamp extends BaseExch {
         }
     }
 
+    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint) throws Exception {
+        String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
+        String signature = encoded.toUpperCase();
+
+        Map<String, String> postParams = new HashMap<String, String>();
+        postParams.put("key", URLEncoder.encode(KEY));
+        postParams.put("nonce", URLEncoder.encode(nonce));
+        postParams.put("signature", URLEncoder.encode(signature));
+        return postParams;
+    }
+
     private void start() throws Exception {
+        init();
         String nonce = getNextNonce();
 
         String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
-
         String signature = encoded.toUpperCase();
         System.out.println("signature: " + signature);
 
@@ -135,6 +139,19 @@ public class Bitstamp extends BaseExch {
         return new TradesData(trades);
     }
 
+    public static AccountData parseAccount(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
+        System.out.println("BITSTAMP.parseAccount() " + jObj);
+        double usd = Utils.getDouble(jObj.get("usd_balance"));
+        double fee = Utils.getDouble(jObj.get("fee")) / 100;
+        double btc = Utils.getDouble(jObj.get("btc_balance"));
+        return new AccountData(Exchange.BITSTAMP.m_name, usd, btc, fee);
+    }
+
+    public static String accountTestStr() {
+        return "{\"usd_balance\":\"0.00\",\"fee\":\"0.5000\",\"btc_balance\":\"0.03800000\",\"btc_reserved\":\"0\",\"usd_reserved\":\"0\",\"btc_available\":\"0.03800000\",\"usd_available\":\"0.00\"}";
+    }
+
     public static String tradesTestStr() {
         return "[{\"amount\":\"0.02500000\",\"price\":\"683.00\",\"tid\":3406676,\"date\":\"1391901009\"},{\"amount\":\"3.44293760\",\"price\":\"680.10\",\"tid\":3406675,\"date\":\"1391901004\"},{\"amount\":\"0.35592240\",\"price\":\"681.95\",\"tid\":3406674,\"date\":\"1391901004\"},{\"amount\":\"0.06000000\",\"price\":\"681.95\",\"tid\":3406673,\"date\":\"1391901004\"},{\"amount\":\"3.93895847\",\"price\":\"684.90\",\"tid\":3406672,\"date\":\"1391900996\"},{\"amount\":\"1.96647298\",\"price\":\"684.90\",\"tid\":3406671,\"date\":\"1391900985\"},{\"amount\":\"2.03352702\",\"price\":\"684.90\",\"tid\":3406670,\"date\":\"1391900981\"},{\"amount\":\"2.96647298\",\"price\":\"684.89\",\"tid\":3406669,\"date\":\"1391900981\"},{\"amount\":\"0.13300000\",\"price\":\"684.89\",\"tid\":3406668,\"date\":\"1391900974\"},{\"amount\":\"0.74886633\",\"price\":\"684.89\",\"tid\":3406667,\"date\":\"1391900960\"},{\"amount\":\"0.32373920\",\"price\":\"684.00\",\"tid\":3406666,\"date\":\"1391900960\"},{\"amount\":\"1.00000000\",\"price\":\"681.02\",\"tid\":3406665,\"date\":\"1391900960\"},{\"amount\":\"5.82453974\",\"price\":\"680.02\",\"tid\":3406664,\"date\":\"1391900959\"},{\"amount\":\"4.17546026\",\"price\":\"680.04\",\"tid\":3406663,\"date\":\"1391900959\"},{\"amount\":\"0.02500000\",\"price\":\"684.00\",\"tid\":3406662,\"date\":\"1391900957\"}]";
     }
@@ -161,6 +178,7 @@ public class Bitstamp extends BaseExch {
         }
         return false;
     }
+
 }
 
 

@@ -9,6 +9,7 @@ import org.json.simple.parser.ParseException;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -27,8 +28,9 @@ public class Fetcher {
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
-    public static final long MOVING_AVERAGE = 25 * 60 * 1000;
-    public static final int EXPECTED_GAIN = 3; // 5
+    private static final boolean USE_ACCOUNT_TEST_STR = true;
+    public static final long MOVING_AVERAGE = 25 * 60 * 1000; // 25 min
+    public static final double EXPECTED_GAIN = 3.5; // 5
 
     private static final int MAX_READ_ATTEMPTS = 100; // 5;
     public static final int START_REPEAT_DELAY = 200;
@@ -36,12 +38,19 @@ public class Fetcher {
     public static final int CONNECT_TIMEOUT = 6000; // todo: maybe make it different for exchanges
     public static final int READ_TIMEOUT = 7000;
 
+    public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
+    private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
+
     public static void main(String[] args) {
         log("Started.  millis=" + System.currentTimeMillis());
         try {
             Properties keys = BaseExch.loadKeys();
             Bitstamp.init(keys);
             Btce.init(keys);
+
+//            AccountData account = fetchAccount(Exchange.BITSTAMP);
+//            AccountData account = fetchAccount(Exchange.BTCE);
+
 //            TradesData trades1 = fetchTrades(Exchange.BITSTAMP);
 //            TradesData trades2 = fetchTrades(Exchange.BTCE);
 
@@ -123,6 +132,14 @@ public class Fetcher {
         }
     }
 
+    public static AccountData fetchAccount(Exchange exchange) throws Exception {
+        Object jObj = fetch(exchange, FetchCommand.ACCOUNT);
+        System.out.println("jObj=" + jObj);
+        AccountData accountData = exchange.parseAccount(jObj);
+        System.out.println("accountData=" + accountData);
+        return accountData;
+    }
+
     static TradesData fetchTrades(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TRADES);
 //        System.out.println("jObj=" + jObj);
@@ -196,32 +213,63 @@ public class Fetcher {
             String str = command.getTestStr(exchange);
             reader = new StringReader(str);
         } else {
-            String location = command.getApiEndpoint(exchange);
+            Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange);
+            String location = apiEndpoint.m_location;
             System.out.print("loading from " + location + "...  ");
             URL url = new URL(location);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
-            //con.setRequestMethod("POST");
-            con.setUseCaches(false) ;
+            con.setDoOutput(true);
+
+            boolean doPost = command.doPost();
+            if (doPost) {
+                con.setRequestMethod("POST");
+                con.setDoOutput(true);
+                con.setRequestProperty("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
+            }
+            con.setUseCaches(false);
             con.setConnectTimeout(CONNECT_TIMEOUT);
             con.setReadTimeout(READ_TIMEOUT);
-            //con.setDoOutput(true);
-
-            //con.setRequestProperty("Content-Type","application/x-www-form-urlencoded") ;
-            con.setRequestProperty("User-Agent","Mozilla/5.0") ; //  USER_AGENT     // 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-                                // "Mozilla/5.0 (compatible; BTCE-API/1.0; MSIE 6.0 compatible; +https://github.com/abwaters/bitstamp-api)"
+            con.setRequestProperty("User-Agent", USER_AGENT);
             //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
 
-            InputStream inputStream = con.getInputStream(); //url.openStream();
-                // 502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
-                // 403 Forbidden
+            if (command.needSsl()) {
+                BaseExch.initSsl();
+            }
+
+            BaseExch baseExch = exchange.m_baseExch;
+            String postData = null;
+            if (doPost) {
+                String nonce = baseExch.getNextNonce();
+                Map<String, String> postParams = baseExch.getPostParams(nonce, apiEndpoint);
+                postData = BaseExch.buildQueryString(postParams);
+
+                Map<String, String> headerLines = baseExch.getHeaders(postData);
+                if (headerLines != null) {
+                    for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
+                        con.setRequestProperty(headerLine.getKey(), headerLine.getValue());
+                    }
+                }
+                OutputStream os = con.getOutputStream();
+                try {
+                    os.write(postData.getBytes());
+                } finally {
+                    os.close();
+                }
+            }
+
+            con.connect();
+
             int responseCode = con.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 System.out.print(" responseCode: " + responseCode);
             }
 
-            int available = inputStream.available();
-            System.out.print(" available " + available + " bytes; ");
+            InputStream inputStream = con.getInputStream(); //url.openStream();
+                // 502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
+                // 403 Forbidden
+//            int available = inputStream.available();
+//            System.out.print(" available " + available + " bytes; ");
             reader = new InputStreamReader(inputStream);
         }
         return parseJson(reader);
@@ -276,22 +324,31 @@ public class Fetcher {
     private enum FetchCommand {
         TOP {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_topTestStr; }
-            @Override public String getApiEndpoint(Exchange exchange) { return exchange.m_apiTopEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange) { return exchange.m_apiTopEndpoint; }
             @Override public boolean useTestStr() { return USE_TOP_TEST_STR; }
         },
         DEEP {
             @Override public String getTestStr(Exchange exchange) { return exchange.deepTestStr(); }
-            @Override public String getApiEndpoint(Exchange exchange) { return exchange.m_apiDeepEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange) { return exchange.m_apiDeepEndpoint; }
             @Override public boolean useTestStr() { return USE_DEEP_TEST_STR; }
         },
         TRADES {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_tradesTestStr; }
-            @Override public String getApiEndpoint(Exchange exchange) { return exchange.m_apiTradesEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange) { return exchange.m_apiTradesEndpoint; }
             @Override public boolean useTestStr() { return USE_TRADES_TEST_STR; }
-        };
-
+        },
+        ACCOUNT {
+            @Override public String getTestStr(Exchange exchange) { return exchange.m_accountTestStr; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange) { return exchange.m_accountEndpoint; }
+            @Override public boolean useTestStr() { return USE_ACCOUNT_TEST_STR; }
+            @Override public boolean doPost() { return true; }
+            @Override public boolean needSsl() { return true; }
+        },
+        ;
         public String getTestStr(Exchange exchange) { return null; }
-        public String getApiEndpoint(Exchange exchange) { return null; }
+        public Exchange.UrlDef getApiEndpoint(Exchange exchange) { return null; }
         public boolean useTestStr() { return false; }
+        public boolean doPost() { return false; }
+        public boolean needSsl() { return false; }
     } // FetchCommand
 }

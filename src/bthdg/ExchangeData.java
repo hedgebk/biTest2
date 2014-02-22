@@ -241,9 +241,8 @@ public class ExchangeData {
         return true;
     }
 
-    public void queryAccountData() {
-        // todo: implement
-        System.out.println("queryAccountData() not implemented yet");
+    public void queryAccountData() throws Exception {
+        m_shExchData.queryAccountData();
     }
 
     public LiveOrdersData fetchLiveOrders() {

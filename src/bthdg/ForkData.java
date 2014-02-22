@@ -276,7 +276,7 @@ public class ForkData {
         });
     }
 
-    void queryAccountsData() {
+    void queryAccountsData() throws Exception {
         m_exch1data.queryAccountData();
         m_exch2data.queryAccountData();
     }
