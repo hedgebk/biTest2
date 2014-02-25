@@ -16,7 +16,7 @@ public class SendSms {
 // see http://stackoverflow.com/questions/18018674/not-receiving-sms-sent-from-sms-gateway-in-java
 //            https://ideone.com/fork/SsYQwM
 //            https://github.com/iiitd-ucla-pc3/SensorActVPDS-2.0/blob/master/app/controllers/temp.java
-
+// http://blog.mashape.com/post/56272188360/list-of-50-sms-apis
 
 //        try {
 //            Properties properties = BaseExch.loadKeys();

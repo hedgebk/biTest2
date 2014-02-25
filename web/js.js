@@ -46,7 +46,7 @@ function onLoad() {
           drawStatus(json);
         },
         onFailure:function () { alert('Something went wrong...'); },
-        frequency:2
+        frequency:3
       });
     }
   }
