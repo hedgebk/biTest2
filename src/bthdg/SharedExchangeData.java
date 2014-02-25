@@ -15,6 +15,8 @@ public class SharedExchangeData {
     TopData m_lastTop;
     public AccountData m_account;
 
+    public double midCommissionAmount() { return ((m_lastTop == null) ? 0 : m_lastTop.getMid()) * getFee(); }
+
     private static Utils.DoubleAverageCalculator<Double> mkBidAskDiffCalculator() {
         return new Utils.DoubleAverageCalculator<Double>() {
             @Override public double getDoubleValue(Double tick) { return tick; } // ASK > BID
@@ -132,5 +134,15 @@ public class SharedExchangeData {
         AccountData account = Fetcher.fetchAccount(m_exchange);
         System.out.println("queryAccountData() account=" + account);
         m_account = account;
+    }
+
+    public double getFee() {
+        if (m_account != null) {
+            double fee = m_account.m_fee;
+            if (fee != Double.MAX_VALUE) {
+                return fee;
+            }
+        }
+        return m_exchange.m_baseFee;
     }
 } // SharedExchangeData

@@ -17,6 +17,7 @@ public class SendSms {
 //            https://ideone.com/fork/SsYQwM
 //            https://github.com/iiitd-ucla-pc3/SensorActVPDS-2.0/blob/master/app/controllers/temp.java
 // http://blog.mashape.com/post/56272188360/list-of-50-sms-apis
+//   http://preview.smsglobal.com/apis/http/
 
 //        try {
 //            Properties properties = BaseExch.loadKeys();

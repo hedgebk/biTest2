@@ -16,7 +16,7 @@ import bthdg.exch.Btce;
 // btcchina ? https://vip.btcchina.com/?lang=en
 
 public enum Exchange {
-    BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.0032,
+    BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.0032, true,
              Bitstamp.topTestStr(), "https://www.bitstamp.net/api/ticker/",
              null, "https://www.bitstamp.net/api/order_book/",
              Bitstamp.tradesTestStr(), "https://www.bitstamp.net/api/transactions/?time=minute",
@@ -28,7 +28,7 @@ public enum Exchange {
         @Override public AccountData parseAccount(Object jObj) { return Bitstamp.parseAccount(jObj); }
         @Override public String deepTestStr() { return Bitstamp.deepTestStr(); }
     },
-    BTCE("btce", new Btce(), "btceUSD", 2, 0.002,
+    BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true,
           Btce.topTestStr(), "https://btc-e.com/api/3/ticker/btc_usd", // "https://btc-e.com/api/2/btc_usd/ticker"
           Btce.deepTestStr(), "https://btc-e.com/api/3/depth/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.tradesTestStr(), "https://btc-e.com/api/3/trades/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
@@ -39,9 +39,9 @@ public enum Exchange {
         @Override public TradesData parseTrades(Object jObj) { return Btce.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
     },
-    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025,
+    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false,
           null, null, null, null, null, null, null, null),
-    CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055 /*Volume discounts available*/,
+    CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055 /*Volume discounts available*/, true,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
            null, null, "", "", null, null);
 
@@ -49,7 +49,7 @@ public enum Exchange {
     public BaseExch m_baseExch;
     public final String m_bitcoinchartsSymbol;
     public final int m_databaseId;
-    public final double m_fee;
+    public final double m_baseFee;
 
     public final UrlDef m_apiTopEndpoint;
     public final String m_topTestStr;
@@ -62,10 +62,11 @@ public enum Exchange {
 
     public final UrlDef m_accountEndpoint;
     public final String m_accountTestStr;
+    public final boolean m_doWebUpdate;
 
     public String deepTestStr() { return m_deepTestStr; }
 
-    Exchange(String name, BaseExch baseExch, String bitcoinchartsSymbol, int databaseId, double fee,
+    Exchange(String name, BaseExch baseExch, String bitcoinchartsSymbol, int databaseId, double baseFee, boolean doWebUpdate,
              String topTestStr, String apiTopEndpoint,
              String deepTestStr, String apiDeepEndpoint,
              String tradesTestStr, String apiTradesEndpoint,
@@ -75,7 +76,8 @@ public enum Exchange {
         m_baseExch = baseExch;
         m_bitcoinchartsSymbol = bitcoinchartsSymbol;
         m_databaseId = databaseId;
-        m_fee = fee;
+        m_baseFee = baseFee;
+        m_doWebUpdate = doWebUpdate;
 
         m_apiTopEndpoint = new UrlDef(apiTopEndpoint);
         m_topTestStr = topTestStr;

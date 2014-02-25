@@ -216,7 +216,7 @@ public class PaintChart extends DbReady {
 
     private static double calculateExchCommission(List<Tick> ticks, Exchange exch) {
         double avgPrice1 = calculateAveragePrice(ticks, exch);
-        return avgPrice1 * exch.m_fee;
+        return avgPrice1 * exch.m_baseFee;
     }
 
     private static double calculateAveragePrice(List<Tick> ticks, final Exchange exch) {

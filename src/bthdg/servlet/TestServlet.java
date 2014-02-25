@@ -1,10 +1,9 @@
 package bthdg.servlet;
 
 import bthdg.*;
-import com.google.appengine.api.memcache.MemcacheService;
-import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
+
 import static com.google.appengine.api.taskqueue.TaskOptions.Builder.*;
 
 import javax.servlet.RequestDispatcher;
@@ -25,10 +24,6 @@ public class TestServlet extends HttpServlet {
     public static final String COUNTER = "TestServlet.counter";
     public static final String MILLIS = "millis";
     public static final String HDG = "hdg";
-
-    private static MemcacheService s_memCache = MemcacheServiceFactory.getMemcacheService();
-    public static final String MEM_CACHE_KEY = "data";
-    public static final String MEM_CACHE_KEY_TIME = "time";
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         log.warning("TestServlet.doPost()");
@@ -80,7 +75,7 @@ public class TestServlet extends HttpServlet {
     private long doTask(HttpServletResponse response) throws IOException {
         ServletContext servletContext = getServletContext();
         Integer counter = (Integer) servletContext.getAttribute(COUNTER);
-        log.warning("COUNTER="+counter);
+        log.warning("COUNTER=" + counter);
         if (counter == null) {
             counter = 1;
         } else {
@@ -97,27 +92,40 @@ public class TestServlet extends HttpServlet {
     private void processCommand(String command, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         log.warning("processCommand '" + command + "'");
         String status;
-        if (command.equals("start")) {
-            status = startHdg();
-        } else if (command.equals("stop")) {
-            status = stopHdg();
-        } else if (command.equals("continue")) {
-            status = continueHdg();
-        } else if (command.equals("configure")) {
-            boolean loaded = configure(request.getParameter("cfg"));
-            if (!loaded) {
+
+        if (command.equals("configure")) {
+            String config = request.getParameter("cfg");
+            boolean loaded = configure(config);
+            if (loaded) {
+                MemcacheStorage.saveConfig(config);
+                response.sendRedirect("/");
+            } else {
                 request.setAttribute("applied", Boolean.FALSE);
                 RequestDispatcher dispatcher = request.getRequestDispatcher("/config.jsp"); // forward to config page again
                 dispatcher.forward(request, response);
-            } else {
-                response.sendRedirect("/");
             }
             return;
         } else if (command.equals("state")) {
             getState(response);
             return;
         } else {
-            status = "unknown command '" + command + "'";
+            if (command.equals("start") || command.equals("stop") || command.equals("continue")) {
+                if (Config.configured()) {
+                    if (command.equals("start")) {
+                        status = startHdg();
+                    } else if (command.equals("stop")) {
+                        status = stopHdg();
+                    } else if (command.equals("continue")) {
+                        status = continueHdg();
+                    } else {
+                        status = "unknown command '" + command + "'";
+                    }
+                } else {
+                    status = "need config";
+                }
+            } else {
+                status = "unknown command '" + command + "'";
+            }
         }
         sendStatus(response, status);
     }
@@ -140,87 +148,46 @@ public class TestServlet extends HttpServlet {
     }
 
     private boolean configure(String cfg) throws IOException {
-        StringReader reader = new StringReader(cfg);
-        Properties properties = new Properties();
-        properties.load(reader);
-        return Config.load(properties);
+        return Config.load(cfg);
     }
 
     private String startHdg() throws IOException {
-        if(Config.s_configured) {
-            ServletContext servletContext = getServletContext();
-            PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
-            if (data == null) {
-                data = new PairExchangeData(Exchange.BITSTAMP, Exchange.BTCE);
-                servletContext.setAttribute(HDG, data);
-                nextIteration(data);
-                return "ok";
-            } else if( data.m_isFinished ) {
-                log.warning("re-running already finished");
-                data.maybeStartNewFork();
-                nextIteration(data);
-                return "ok";
-            } else {
-                log.warning("already started");
-                return "already started";
-            }
+        ServletContext servletContext = getServletContext();
+        PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
+        if (data == null) {
+            data = new PairExchangeData(Exchange.BITSTAMP, Exchange.BTCE);
+            nextIteration(data);
+            return "ok";
+        } else if (data.m_isFinished) {
+            log.warning("re-running already finished");
+            data.maybeStartNewFork();
+            nextIteration(data);
+            return "ok";
         } else {
-            return "need config";
+            log.warning("already started");
+            return "already started";
         }
     }
 
-    private String stopHdg() {
+    private String stopHdg() throws IOException {
         ServletContext servletContext = getServletContext();
         PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
         if (data != null) {
             data.stop();
+            saveData(data);
             return "ok";
         } else {
             log.warning("can not stop - not started");
-            return"not started";
+            return "not started";
         }
     }
 
     private String continueHdg() throws IOException {
         ServletContext servletContext = getServletContext();
+
         PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
-        Long memTimestamp = (Long) s_memCache.get(MEM_CACHE_KEY_TIME);
-        log.warning("memcache timestamp: " + memTimestamp);
-        if (data == null) { // try to get from memCache
-            log.warning("no data in servletContext");
-            if (memTimestamp != null) {
-                String serialized = (String) s_memCache.get(MEM_CACHE_KEY);
-                if (serialized != null) {
-                    log.warning("got data in memcache");
-                    PairExchangeData deserialized = Deserializer.deserialize(serialized);
-                    data = deserialized;
-                } else {
-                    log.warning("no serialized data in memcache");
-                }
-            } else {
-                log.warning("no timestamp in memcache");
-            }
-        } else { // we have some data in servlet context - check if it outdated
-            long timestamp = data.m_timestamp;
-            log.warning("servletContext timestamp: "+timestamp);
-            if (memTimestamp != null) {
-                if (memTimestamp > timestamp) {
-                    log.warning("memcache timestamp is bigger");
-                    String serialized = (String) s_memCache.get(MEM_CACHE_KEY);
-                    if (serialized != null) {
-                        log.warning("using newer data in memcache");
-                        PairExchangeData deserialized = Deserializer.deserialize(serialized);
-                        data = deserialized;
-                    } else {
-                        log.warning("no serialized data in memcache");
-                    }
-                } else {
-                    log.warning("memcache timestamp is less or the same");
-                }
-            } else {
-                log.warning("no timestamp in memcache");
-            }
-        }
+        data = MemcacheStorage.get(data);
+        data = GaeStorage.get(data);
 
         if (data != null) {
             nextIteration(data);
@@ -234,13 +201,15 @@ public class TestServlet extends HttpServlet {
     private void sendStatus(HttpServletResponse response, String status) throws IOException {
         response.setContentType("application/json");
         PrintWriter writer = response.getWriter();
-        writer.append("{ \"status\": \"" + status + "\" }");
+        writer.append("{ \"status\": \"")
+                .append(status)
+                .append("\" }");
     }
 
     private void nextIteration(PairExchangeData data) {
         IterationContext iContext = new IterationContext();
         try {
-            if(checkState(data, iContext)){
+            if (checkState(data, iContext)) {
                 System.out.println("GOT finish request - no more tasks to run");
             } else {
                 repost(iContext);
@@ -255,8 +224,13 @@ public class TestServlet extends HttpServlet {
 
     private boolean checkState(PairExchangeData data, IterationContext iContext) throws Exception {
         boolean ret = data.checkState(iContext);
+        saveData(data);
+        return ret;
+    }
+
+    private void saveData(PairExchangeData data) throws IOException {
         Long timestamp = data.updateTimestamp();
-        log.warning("updated timestamp="+timestamp);
+        log.warning("updated timestamp=" + timestamp);
 
         ServletContext servletContext = getServletContext();
         servletContext.setAttribute(HDG, data);
@@ -266,16 +240,14 @@ public class TestServlet extends HttpServlet {
         PairExchangeData deserialized = Deserializer.deserialize(serialized);
         deserialized.compare(data); // make sure all fine
 
-        s_memCache.put(MEM_CACHE_KEY_TIME, timestamp);
-        s_memCache.put(MEM_CACHE_KEY, serialized);
-
-        return ret;
+        MemcacheStorage.save(timestamp, serialized);
+        GaeStorage.save(timestamp, serialized);
     }
 
     private void repost(IterationContext iContext) {
         long delay = iContext.m_nextIterationDelay;
-        if( delay > 0 ) {
-            log.warning("wait " + delay + " ms." /* + " total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter*/ );
+        if (delay > 0) {
+            log.warning("wait " + delay + " ms." /* + " total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter*/);
             try {
                 synchronized (this) {
                     this.wait(delay);
@@ -290,8 +262,7 @@ public class TestServlet extends HttpServlet {
         }
 
         Queue queue = QueueFactory.getQueue("oneInSec");
-        log.warning("queue="+queue);
+        log.warning("queue=" + queue);
         queue.add(withUrl("/tst").param("command", "continue"));
     }
-
 }

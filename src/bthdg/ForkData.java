@@ -52,7 +52,7 @@ public class ForkData {
         System.out.println("****************************************************");
 //        System.out.println(" execution log:");
 //        System.out.println(m_executionTrace.toString());
-        double commissionAmount = getCommissionAmount(); // todo: calc commission based on real order size
+        double commissionAmount = midCommissionAmount(); // todo: calc commission based on real order size
         double income = m_earnThisRun - commissionAmount;
         System.out.println(" earnThisRun=" + m_earnThisRun + ", commissionAmount=" + commissionAmount + ", income=" + income);
         m_pairExData.addIncome(income);
@@ -100,7 +100,7 @@ public class ForkData {
                 TopData top1 = m_exch1data.m_shExchData.m_lastTop;
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
                 double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
-                double commissionAmount = getCommissionAmount(); // todo: calc commission based on real order size
+                double commissionAmount = midCommissionAmount(); // todo: calc commission based on real order size
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
                 System.out.println("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
                 boolean success = m_exch1data.moveBrackets(top1, top2, midDiffAverage, halfTargetDelta);
@@ -118,10 +118,6 @@ public class ForkData {
         });
     }
 
-    private double getCommissionAmount() {
-        return m_exch1data.commissionAmount() + m_exch2data.commissionAmount();
-    }
-
     public void placeCloseBrackets(IterationContext iContext) throws Exception {
         System.out.println(" try place CloseBrackets");
         doWithFreshTopData(iContext, new Runnable() {
@@ -130,7 +126,7 @@ public class ForkData {
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
                 double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
 
-                double commissionAmount = m_exch1data.commissionAmount() + m_exch2data.commissionAmount();
+                double commissionAmount = midCommissionAmount();
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
                 System.out.println("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
 
@@ -257,7 +253,7 @@ public class ForkData {
                 TopData top1 = m_exch1data.m_shExchData.m_lastTop;
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
                 double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
-                double commissionAmount = m_exch1data.commissionAmount() + m_exch2data.commissionAmount();
+                double commissionAmount = midCommissionAmount();
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
                 System.out.println("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
                 boolean success = m_exch1data.placeBrackets(top1, top2, midDiffAverage, halfTargetDelta);
@@ -274,6 +270,10 @@ public class ForkData {
                 }
             }
         });
+    }
+
+    private double midCommissionAmount() {
+        return m_exch1data.midCommissionAmount() + m_exch2data.midCommissionAmount();
     }
 
     void queryAccountsData() throws Exception {
@@ -319,7 +319,7 @@ public class ForkData {
         System.out.println("avd bidAskDiff:" + m_exch1data.exchName() + " " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
                                                m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
 
-        double commissionAmount = getCommissionAmount(); // todo: calc commission based on real order size
+        double commissionAmount = midCommissionAmount(); // todo: calc commission based on real order size
         double income = priceDiff - commissionAmount;
         System.out.println(" sellBuyPriceDiff=" + Fetcher.format(priceDiff) + ", commissionAmount="+commissionAmount+", income=" + income);
         m_earnThisRun += income;

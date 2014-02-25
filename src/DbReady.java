@@ -143,32 +143,34 @@ public class DbReady {
         PreparedStatement pStatement = connection.prepareStatement(DELETE_TICKS_SQL);
         try {
             for(Exchange exchange: Exchange.values()) {
-                System.out.println("====== update for exchange " + exchange.m_name + " ======");
-                int iter = 1;
-                while(true) {
-                    System.out.println("iteration "+iter);
-                    long one = System.currentTimeMillis();
-                    long timestamp = getMaxTimestamp(connection, exchange);
-                    if(timestamp == 0) {
-                        break;
+                if (exchange.m_doWebUpdate) {
+                    System.out.println("====== update for exchange " + exchange.m_name + " ======");
+                    int iter = 1;
+                    while (true) {
+                        System.out.println("iteration " + iter);
+                        long one = System.currentTimeMillis();
+                        long timestamp = getMaxTimestamp(connection, exchange);
+                        if (timestamp == 0) {
+                            break;
+                        }
+                        long two = System.currentTimeMillis();
+                        System.out.println("MaxTimestamp found in " + Utils.millisToDHMSStr(two - one));
+
+                        System.out.println("deleting last ticks to avoid duplication");
+                        pStatement.setInt(1, exchange.m_databaseId); // src
+                        pStatement.setLong(2, timestamp); // stamp
+                        int deleted = pStatement.executeUpdate();
+                        System.out.println("deleted " + deleted);
+
+                        int ticksInserted = updateFrom(connection, exchange, timestamp);
+                        System.out.println("ticksInserted " + ticksInserted);
+
+                        connection.commit();
+                        if (ticksInserted < 1000) {
+                            break;
+                        }
+                        iter++;
                     }
-                    long two = System.currentTimeMillis();
-                    System.out.println("MaxTimestamp found in "+ Utils.millisToDHMSStr(two - one));
-
-                    System.out.println("deleting last ticks to avoid duplication");
-                    pStatement.setInt(1, exchange.m_databaseId); // src
-                    pStatement.setLong(2, timestamp); // stamp
-                    int deleted = pStatement.executeUpdate();
-                    System.out.println("deleted " + deleted);
-
-                    int ticksInserted = updateFrom(connection, exchange, timestamp);
-                    System.out.println("ticksInserted " + ticksInserted);
-
-                    connection.commit();
-                    if( ticksInserted < 2000 ) {
-                        break;
-                    }
-                    iter++;
                 }
             }
         } finally {

@@ -34,7 +34,7 @@ public class ExchangeData {
     public boolean hasOpenCloseBracketExecuted() { return (m_state == ExchangeState.ONE_OPEN_BRACKET_EXECUTED) || (m_state == ExchangeState.CLOSE_BRACKET_EXECUTED); }
     public boolean hasBothBracketsExecuted() { return (m_state == ExchangeState.BOTH_OPEN_BRACKETS_EXECUTED); }
     public boolean hasOpenCloseMktExecuted() { return (m_state == ExchangeState.OPEN_AT_MKT_EXECUTED) || (m_state == ExchangeState.CLOSE_AT_MKT_EXECUTED); }
-    public double commissionAmount() { return m_shExchData.m_lastTop.getMid() * m_exch.m_fee; }
+    public double midCommissionAmount() { return m_shExchData.midCommissionAmount(); }
     public boolean isStopped() { return (m_state == ExchangeState.NONE) || (m_state == ExchangeState.ERROR); }
     private static String format(double buy) { return Fetcher.format(buy); }
 
