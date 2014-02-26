@@ -9,9 +9,9 @@ public class PairExchangeData {
 
     final SharedExchangeData m_sharedExch1;
     final SharedExchangeData m_sharedExch2;
-    public final List<ForkData> m_forks;
+    public final List<ForkData> m_forks; // running tasks
     public TopData.TopDataEx m_lastDiff;
-    public Utils.AverageCounter m_diffAverageCounter;
+    public Utils.AverageCounter m_diffAverageCounter; // diff between exchanges - top1 - top2
     private double m_totalIncome;
     private int m_runs;
     private boolean m_stopRequested;
@@ -25,7 +25,7 @@ public class PairExchangeData {
     public PairExchangeData(Exchange exch1, Exchange exch2) {
         this(new SharedExchangeData(exch1), new SharedExchangeData(exch2), new ArrayList<ForkData>(), System.currentTimeMillis());
         m_diffAverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE); // limit can be different - passed as param for start
-        maybeStartNewFork();
+//        maybeStartNewFork();
     }
 
     private PairExchangeData(SharedExchangeData s1, SharedExchangeData s2, List<ForkData> forks, long startTime) {
@@ -42,8 +42,28 @@ public class PairExchangeData {
             log("stop was requested");
             setState(ForkState.STOP);
             m_stopRequested = false;
+        } else {
+            if (m_forks.isEmpty()) { // start first forks
+                ForkData newFork1 = new ForkData(this, true); // todo: pass amount to constructor
+                m_forks.add(newFork1);
+                ForkData newFork2 = new ForkData(this, false); // todo: pass amount to constructor
+                m_forks.add(newFork2);
+            }
         }
 
+        removeFinishedForks(iContext);
+
+        requestTradesIfNeeded(iContext); // check if forks need trades
+
+        for (ForkData fork : m_forks) {
+            fork.checkState(iContext);
+        }
+
+        m_isFinished = m_forks.isEmpty();
+        return m_isFinished; // no more tasks to execute
+    }
+
+    private void removeFinishedForks(IterationContext iContext) {
         List<ForkData> finishForks = null;
         for (ForkData fork : m_forks) {
             boolean toFinish = fork.m_state.preCheckState(iContext, fork);
@@ -64,24 +84,20 @@ public class PairExchangeData {
                 }
             }
         }
+    }
 
+    private void requestTradesIfNeeded(IterationContext iContext) {
         boolean needQueryTrades = false;
         for (ForkData fork : m_forks) {
             if (fork.m_state.needQueryTrades()) { // for now most states need trades queried
                 needQueryTrades = true;
+                break;
             }
         }
         if (needQueryTrades) {
             iContext.getNewTradesData(m_sharedExch1);
             iContext.getNewTradesData(m_sharedExch2);
         }
-
-        for (ForkData fork : m_forks) {
-            fork.checkState(iContext);
-        }
-
-        m_isFinished = m_forks.isEmpty();
-        return m_isFinished; // no more tasks to execute
     }
 
     public void maybeStartNewFork() {
@@ -91,7 +107,7 @@ public class PairExchangeData {
         log("available amount: " + amount);
         if (amount > MIN_AVAILABLE_AMOUNT) {
             log(" we have MIN_AVAILABLE_AMOUNT(=" + MIN_AVAILABLE_AMOUNT + ") - adding brand new Fork");
-            ForkData newFork = new ForkData(this); // todo: pass amount to constructor
+            ForkData newFork = new ForkData(this, null); // todo: pass amount to constructor
             m_forks.add(newFork);
         } else {
             log(" not reached MIN_AVAILABLE_AMOUNT - NO new Fork");
@@ -114,7 +130,7 @@ public class PairExchangeData {
     public void addIncome(double earnThisRun) {
         m_totalIncome += earnThisRun;
         m_runs++;
-        log(" earnIncome=" + Fetcher.format(m_totalIncome)+", runs="+m_runs);
+        log(" earnIncome=" + Fetcher.format(m_totalIncome) + ", runs=" + m_runs);
     }
 
     public void stop() {
@@ -283,5 +299,10 @@ public class PairExchangeData {
     public long updateTimestamp() {
         m_timestamp = System.currentTimeMillis();
         return m_timestamp;
+    }
+
+    public void queryAccountData() throws Exception {
+        m_sharedExch1.queryAccountData();
+        m_sharedExch2.queryAccountData();
     }
 } // bthdg.PairExchangeData

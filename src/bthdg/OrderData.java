@@ -57,7 +57,7 @@ public class OrderData {
         return m_executions;
     }
 
-    public boolean xCheckExecutedLimit(IterationContext iContext, ExchangeData exchData, OrderData orderData, TradesData newTrades) {
+    public boolean xCheckExecutedLimit(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData, TradesData newTrades) {
         OrderSide orderSide = orderData.m_side;
         double orderAmount = orderData.m_amount;
         double price = orderData.m_price;
@@ -78,7 +78,7 @@ public class OrderData {
             if (acceptPriceSimulated || orderData.acceptPrice(mktPrice)) {
                 double tradeAmount = trade.m_amount;
                 log("@@@@@@@@@@@@@@ we have LMT order " + orderSide + " " + orderAmount + " @ " + orderData.priceStr() +
-                        " on '" + exchData.exchName() + "' got matched trade=" + trade);
+                        " on '" + shExchData.m_exchange.m_name + "' got matched trade=" + trade);
 
                 if (orderAmount > tradeAmount) { // for now partial order execution it is complex to handle - todo: we may execute the rest by MKT price
                     log("@@@@@@@@@@@@@@  for now partial order execution it is complex to handle: " +

@@ -18,6 +18,12 @@ public class SharedExchangeData {
     public double midCommissionAmount() { return ((m_lastTop == null) ? 0 : m_lastTop.getMid()) * getFee(); }
     private static void log(String s) { Log.log(s); }
 
+    @Override public String toString() {
+        return "SharedExchangeData{" +
+                "exchange=" + m_exchange +
+                '}';
+    }
+
     private static Utils.DoubleAverageCalculator<Double> mkBidAskDiffCalculator() {
         return new Utils.DoubleAverageCalculator<Double>() {
             @Override public double getDoubleValue(Double tick) { return tick; } // ASK > BID
@@ -145,5 +151,25 @@ public class SharedExchangeData {
             }
         }
         return m_exchange.m_baseFee;
+    }
+
+    public boolean placeOrderBracket(OrderData orderData) {
+        return placeOrder(orderData, OrderState.BRACKET_PLACED);
+    }
+
+    public boolean placeOrder(OrderData orderData, OrderState state) {
+        // todo: implement
+        log("placeOrder("+m_exchange.m_name+") not implemented yet: " + orderData);
+        // todo: pass to exch.baseExch if needed
+        orderData.m_status = OrderStatus.SUBMITTED;
+        orderData.m_state = state;
+
+        return true;
+    }
+
+    public LiveOrdersData fetchLiveOrders() {
+        // todo: implement
+        log("fetchLiveOrders() not implemented yet");
+        return new LiveOrdersData();
     }
 } // SharedExchangeData

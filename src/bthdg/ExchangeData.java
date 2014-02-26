@@ -247,12 +247,6 @@ public class ExchangeData {
         m_shExchData.queryAccountData();
     }
 
-    public LiveOrdersData fetchLiveOrders() {
-        // todo: implement
-        log("fetchLiveOrders() not implemented yet");
-        return new LiveOrdersData();
-    }
-
     public void checkExchState(IterationContext iContext) throws Exception {
         log("Exch.checkExchState() " + this);
         checkOrderState(m_buyOrder, iContext); // trace order executions separately
@@ -270,7 +264,7 @@ public class ExchangeData {
 
     private void checkOrderState(OrderData orderData, IterationContext iContext) throws Exception {
         if (orderData != null) {
-            orderData.m_state.checkState(iContext, this, orderData);
+            orderData.m_state.checkState(iContext, m_shExchData, orderData);
         }
     }
 

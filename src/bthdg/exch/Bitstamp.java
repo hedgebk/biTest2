@@ -32,7 +32,6 @@ public class Bitstamp extends BaseExch {
     public static void main(String[] args) {
         try {
             new Bitstamp().start();
-            // json: {"btc_reserved": "0", "fee": "0.5000", "btc_available": "0.03800000", "usd_reserved": "0", "btc_balance": "0.03800000", "usd_balance": "0.00", "usd_available": "0.00"}
         } catch (Exception e) {
             log("ERROR: " + e);
             e.printStackTrace();
@@ -150,7 +149,7 @@ public class Bitstamp extends BaseExch {
     }
 
     public static String accountTestStr() {
-        return "{\"usd_balance\":\"0.00\",\"fee\":\"0.5000\",\"btc_balance\":\"0.03800000\",\"btc_reserved\":\"0\",\"usd_reserved\":\"0\",\"btc_available\":\"0.03800000\",\"usd_available\":\"0.00\"}";
+        return "{\"usd_balance\":\"10.488\",\"fee\":\"0.5000\",\"btc_balance\":\"0.01900000\",\"btc_reserved\":\"0\",\"usd_reserved\":\"0\",\"btc_available\":\"0.01900000\",\"usd_available\":\"10.488\"}";
     }
 
     public static String tradesTestStr() {

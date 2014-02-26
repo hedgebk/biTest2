@@ -1,9 +1,9 @@
-package bthdg.exch;// https://btc-e.com/api/documentation
-//
+package bthdg.exch;
+
+// https://btc-e.com/api/documentation
 //
 // https://btc-e.com/api/2/btc_usd/depth
 //    {"asks":[[714,0.93506666],[714.104,0.0998],[714.111,0.01],[714.15,0.01],[714.314,0.14083594],[714.474,0.011],[714.665,2.465],[714.666,3.75571029],[714.68,0.073],[714.692,0.13972],[714.695,0.13972],[714.871,0.035],[715,0.52282746],[715.002,0.01],[7
-
 // https://btc-e.com/api/2/btc_usd/depth
 //    {"asks":[[712.348,0.63],[713.5,0.011],[713.712,0.01],[713.99,2],[714,0.93506666],[714.104,0.0998],[714.111,0.01],[714.15,0.01],[714.314,0.14083594],[714.474,0.011],[714.665,2.465],[714.666,3.75571029],[714.68,0.073],[714.692,0.13972],[7
 //
@@ -32,7 +32,6 @@ public class Btce extends BaseExch {
     public static void main(String[] args) {
         try {
             new Btce().start();
-            // json: {"success":1,"return":{"funds":{"usd":0,"btc":0.038,"ltc":0,"nmc":0,"rur":0,"eur":0,"nvc":0,"trc":0,"ppc":0,"ftc":0,"xpm":0},"rights":{"info":1,"trade":0,"withdraw":0},"transaction_count":2,"open_orders":0,"server_time":1392944085}}
         } catch (Exception e) {
             log("ERROR: " + e);
             e.printStackTrace();
@@ -66,7 +65,6 @@ public class Btce extends BaseExch {
         Map<String, String> headerLines = getHeaders(postData);
 
         initSsl();
-
 
         String json = loadJsonStr(headerLines, postData);
         log("Loaded json: " + json);
@@ -160,7 +158,7 @@ public class Btce extends BaseExch {
     }
 
     public static String accountTestStr() {
-        return "{\"return\":{\"open_orders\":0,\"funds\":{\"trc\":0,\"nmc\":0,\"ftc\":0,\"eur\":0,\"rur\":0,\"usd\":0,\"ltc\":0,\"ppc\":0,\"xpm\":0,\"nvc\":0,\"btc\":0.038},\"transaction_count\":2,\"rights\":{\"trade\":0,\"withdraw\":0,\"info\":1},\"server_time\":1393026300},\"success\":1}";
+        return "{\"return\":{\"open_orders\":0,\"funds\":{\"trc\":0,\"nmc\":0,\"ftc\":0,\"eur\":0,\"rur\":0,\"usd\":10.488,\"ltc\":0,\"ppc\":0,\"xpm\":0,\"nvc\":0,\"btc\":0.019},\"transaction_count\":2,\"rights\":{\"trade\":0,\"withdraw\":0,\"info\":1},\"server_time\":1393026300},\"success\":1}";
     }
 
     private void init() {

@@ -11,7 +11,6 @@ public class ForkData {
     // OPEN sides
     private ExchangeData m_openBuyExchange;
     private ExchangeData m_openSellExchange;
-//    private StringBuilder m_executionTrace = new StringBuilder();
     private double m_earnThisRun;
 
     boolean checkAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
@@ -30,11 +29,14 @@ public class ForkData {
                 '}';
     }
 
-    public ForkData(PairExchangeData pExData) {
+    public ForkData(PairExchangeData pExData, Boolean startBuySide) {
         this(System.currentTimeMillis(),
              new ExchangeData(pExData.m_sharedExch1),
              new ExchangeData(pExData.m_sharedExch2));
         m_pairExData = pExData;
+        if (startBuySide != null) {
+            startCross(startBuySide);
+        }
     }
 
     private ForkData(long id, ExchangeData e1, ExchangeData e2) {
@@ -47,6 +49,12 @@ public class ForkData {
         log("Fork.checkState() " + this);
         m_exch1data.checkExchState(iContext);
         m_exch2data.checkExchState(iContext);
+        if (m_openCross!=null) {
+            m_openCross.checkState(iContext);
+        }
+        if (m_closeCross !=null) {
+            m_closeCross.checkState(iContext);
+        }
         m_state.checkState(iContext, this);
     }
 
@@ -88,7 +96,6 @@ public class ForkData {
             log("ERROR: no open orders found at " + closedExch);
             setState(ForkState.ERROR);
         }
-
     }
 
     void setState(ForkState state) {
@@ -280,8 +287,7 @@ public class ForkData {
     }
 
     void queryAccountsData() throws Exception {
-        m_exch1data.queryAccountData();
-        m_exch2data.queryAccountData();
+        m_pairExData.queryAccountData();
     }
 
     private void doWithFreshTopData(IterationContext iContext, Runnable run) throws Exception {
@@ -320,11 +326,11 @@ public class ForkData {
         logDiffAverageDelta();
 
         log("avg bidAskDiff:" + m_exch1data.exchName() + " " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
-                                               m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
+                m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
 
         double commissionAmount = midCommissionAmount(); // todo: calc commission based on real order size
         double income = priceDiff - commissionAmount;
-        log(" sellBuyPriceDiff=" + Fetcher.format(priceDiff) + ", commissionAmount="+commissionAmount+", income=" + income);
+        log(" sellBuyPriceDiff=" + Fetcher.format(priceDiff) + ", commissionAmount=" + commissionAmount + ", income=" + income);
         m_earnThisRun += income;
         m_pairExData.addIncome(income);
     }
@@ -390,7 +396,7 @@ public class ForkData {
             m_earnThisRun += openEarn;
             log("%   >>>  priceDiff=" + Fetcher.format(priceDiff) + ",  openEarn=" + Fetcher.format(openEarn) + ", earnThisRun=" + m_earnThisRun);
             log("AVG:" + m_exch1data.exchName() + " " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
-                                        m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
+                    m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
         } else {
             setState(ForkState.ERROR);
         }
@@ -550,5 +556,120 @@ public class ForkData {
             }
         }
         return ret;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    // one of these crosses is active at the time
+    private CrossData m_openCross;
+    private CrossData m_closeCross;
+    private boolean m_startBuySide;
+
+    void placeOpenCrosses(IterationContext iContext) throws Exception {
+        log(" try place OpenCrosses, startBuySide=" + m_startBuySide);
+        doWithFreshTopData(iContext, new Runnable() {
+            public void run() {
+                SharedExchangeData buyExch = m_startBuySide ? m_pairExData.m_sharedExch1 : m_pairExData.m_sharedExch2;
+                SharedExchangeData sellExch = m_startBuySide ? m_pairExData.m_sharedExch2 : m_pairExData.m_sharedExch1;
+
+                m_openCross = new CrossData(buyExch, sellExch);
+                m_openCross.init(ForkData.this);
+
+                setState(ForkState.OPEN_BRACKETS_PLACED_NEW);
+            }
+        });
+    }
+
+    private void startCross(boolean startBuySide) {
+        m_startBuySide = startBuySide;
+    }
+
+    public static class CrossData {
+        public CrossState m_state;
+        public final SharedExchangeData m_buyExch;
+        public final SharedExchangeData m_sellExch;
+        public OrderData m_buyOrder;
+        public OrderData m_sellOrder;
+
+        @Override public String toString() {
+            return "CrossData{" +
+                    "state=" + m_state +
+                    '}';
+        }
+
+        public CrossData(SharedExchangeData buyExch, SharedExchangeData sellExch) {
+            m_buyExch = buyExch;
+            m_sellExch = sellExch;
+            m_state = CrossState.NONE;
+        }
+
+        private void init(double halfTargetDelta, double midDiffAverage) {
+            double usd = m_buyExch.m_account.m_usd;
+            double buyBtc = usd / m_buyExch.m_lastTop.m_ask;
+            log("buy  exch: usd=" + Fetcher.format(usd) + ",  buyBtc=" + Fetcher.format(buyBtc));
+
+            double btc = m_sellExch.m_account.m_btc;
+            double sellUsd = btc * m_sellExch.m_lastTop.m_bid;
+            log("sell exch: btc=" + Fetcher.format(btc) + ", sellUsd=" + Fetcher.format(sellUsd));
+
+            double amount = Math.min(btc, buyBtc) * 0.95;
+
+            // ASK > BID
+            double buy = m_sellExch.m_lastTop.m_bid - halfTargetDelta + midDiffAverage;
+            double sell = m_buyExch.m_lastTop.m_ask + halfTargetDelta - midDiffAverage;
+
+            m_buyOrder  = new OrderData(OrderSide.BUY,  buy,  amount);
+            m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+
+            boolean success = m_buyExch.placeOrderBracket(m_buyOrder);
+            if (success) {
+                success = m_sellExch.placeOrderBracket(m_sellOrder);
+                if (success) {
+                    setState(CrossState.OPEN_BRACKETS_PLACED);
+                } else {
+                    log("ERROR: " + m_sellExch.m_exchange.m_name + " placeBracket failed");
+                    setState(CrossState.ERROR);
+                }
+            } else {
+                log("ERROR: " + m_buyExch.m_exchange.m_name + " placeBracket failed");
+                setState(CrossState.ERROR);
+            }
+        }
+
+        private void setState(CrossState state) {
+            log("CrossData.setState() " + m_state + " -> " + state);
+            m_state = state;
+        }
+
+        public void checkState(IterationContext iContext) throws Exception {
+            log("CrossData.checkState() on " + this);
+            m_buyOrder.m_state.checkState(iContext, m_buyExch, m_buyOrder);
+            m_sellOrder.m_state.checkState(iContext, m_sellExch, m_sellOrder);
+            m_state.checkState(iContext, this);
+        }
+
+        public void init(ForkData forkData) {
+            double midDiffAverage = forkData.m_pairExData.m_diffAverageCounter.get(); // top1 - top2
+            double commissionAmount = forkData.midCommissionAmount();
+            double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
+            log(" btc commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
+
+            double avgDiff = forkData.m_startBuySide ? midDiffAverage : -midDiffAverage;
+            init(halfTargetDelta, avgDiff);
+        }
+    }
+
+    public static enum CrossState {
+        NONE,
+        OPEN_BRACKETS_PLACED {
+            @Override public void checkState(IterationContext iContext, CrossData crossData) {
+                log("CrossState.checkState() " + this);
+                // todo: check if orders executed/or partially, move brackets if needed
+            }
+        },
+        ERROR;
+
+        public void checkState(IterationContext iContext, CrossData crossData) {
+            log("checkState not implemented for " + this);
+        }
     }
 } // ForkData

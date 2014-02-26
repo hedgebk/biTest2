@@ -14,7 +14,7 @@ public enum ExchangeState {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) {
             log("ExchangeState.OPEN_BRACKETS_WAITING(" + exchData.exchName() + "). check orders status");
             // todo: check orders status here, can be submitted/queued, placed, rejected, and even filled/partially-filled
-            LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
+            LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData.m_shExchData);
 
             // actually one can be placed and another not - should be handled separately
             { // pretend that both orders are placed fine

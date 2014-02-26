@@ -10,6 +10,7 @@ public class IterationContext {
     public long m_nextIterationDelay = 1000; // 1 sec by def
     private Map<Integer, TradesData> m_newTrades;
     public boolean m_acceptPriceSimulated;
+    public boolean m_accountRequested;
 
     private static void log(String s) { Log.log(s); }
 
@@ -20,8 +21,8 @@ public class IterationContext {
         return m_top;
     }
 
-    public LiveOrdersData getLiveOrdersState(ExchangeData exchangeData) {
-        int exchId = exchangeData.m_exch.m_databaseId;
+    public LiveOrdersData getLiveOrdersState(SharedExchangeData shExchData) {
+        int exchId = shExchData.m_exchange.m_databaseId;
         LiveOrdersData data;
         if(m_liveOrders == null) {
             m_liveOrders = new HashMap<Integer, LiveOrdersData>();
@@ -30,7 +31,7 @@ public class IterationContext {
             data = m_liveOrders.get(exchId);
         }
         if(data == null) {
-            data = exchangeData.fetchLiveOrders();
+            data = shExchData.fetchLiveOrders();
             m_liveOrders.put(exchId, data);
         }
         return data;
@@ -51,13 +52,13 @@ public class IterationContext {
             TradesData trades = Fetcher.fetchTradesOnce(exch);
             String exchName = exch.m_name;
             if(trades == null) {
-                log(" NO trades loaded for '" + exchName + "' this time" );
+                log(" NO trades loaded for '" + exchName + "' this time");
                 data = new TradesData(new ArrayList<TradesData.TradeData>()); // empty
             } else {
                 data = shExchData.filterOnlyNewTrades(trades); // this will update last processed trade time
                 long millis1 = System.currentTimeMillis();
                 log(" loaded " + trades.size() + " trades for '" + exchName + "' " +
-                                   "in " + (millis1 - millis0) + " ms; new " + data.size() + " trades: " + data);
+                        "in " + (millis1 - millis0) + " ms; new " + data.size() + " trades: " + data);
             }
             m_newTrades.put(exchId, data);
         }
@@ -85,5 +86,12 @@ public class IterationContext {
 
     public void delay(long millis) {
         m_nextIterationDelay = millis;
+    }
+
+    public void queryAccountsData(ForkData forkData) throws Exception {
+        if (!m_accountRequested) {
+            forkData.queryAccountsData();
+            m_accountRequested = true;
+        }
     }
 } // IterationContext

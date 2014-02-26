@@ -5,8 +5,8 @@ public enum ForkState {
         @Override public boolean needQueryTrades() { return false; }
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.NONE. queryAccountsData");
-            forkData.queryAccountsData();
-            forkData.setState(START);
+            iContext.queryAccountsData(forkData);
+            forkData.setState(START_NEW);
             iContext.delay(0);
         }
     },
@@ -14,6 +14,12 @@ public enum ForkState {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.START. try to place open bracket orders");
             forkData.placeOpenBrackets(iContext);
+        }
+    },
+    START_NEW {
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            log("ForkState.START_NEW. try to place open bracket orders");
+            forkData.placeOpenCrosses(iContext);
         }
     },
     WAITING_OPEN_BRACKETS {
@@ -26,6 +32,11 @@ public enum ForkState {
                 forkData.setState(ForkState.OPEN_BRACKETS_PLACED); // actually some order may have already another state
                 iContext.delay(0); // no wait
             }
+        }
+    },
+    OPEN_BRACKETS_PLACED_NEW {
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            log("ForkState.OPEN_BRACKETS_PLACED_NEW checkState()");
         }
     },
     OPEN_BRACKETS_PLACED {
