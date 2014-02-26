@@ -14,4 +14,8 @@
     <url-pattern>/tst</url-pattern>
   </servlet-mapping>
 
+  <listener>
+    <listener-class>bthdg.servlet.Listener</listener-class>
+  </listener>
+
 </web-app>

@@ -10,6 +10,7 @@ import java.util.Properties;
 
 public class Config {
     public static boolean s_configured = false;
+    public static boolean s_runOnServer = false;
 
     public static boolean load(String cfg) throws IOException {
         StringReader reader = new StringReader(cfg);

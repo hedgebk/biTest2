@@ -20,6 +20,7 @@ public class PairExchangeData {
     public long m_timestamp;
 
     public String exchNames() { return m_sharedExch1.m_exchange.m_name + "-" + m_sharedExch2.m_exchange.m_name; }
+    private static void log(String s) { Log.log(s); }
 
     public PairExchangeData(Exchange exch1, Exchange exch2) {
         this(new SharedExchangeData(exch1), new SharedExchangeData(exch2), new ArrayList<ForkData>(), System.currentTimeMillis());
@@ -35,10 +36,10 @@ public class PairExchangeData {
     }
 
     public boolean checkState(IterationContext iContext) throws Exception {
-        System.out.println("PairExchangeData.checkState() we have " + m_forks.size() + " fork(s)");
+        log("PairExchangeData.checkState() we have " + m_forks.size() + " fork(s)");
 
         if (m_stopRequested) {
-            System.out.println("stop was requested");
+            log("stop was requested");
             setState(ForkState.STOP);
             m_stopRequested = false;
         }
@@ -47,7 +48,7 @@ public class PairExchangeData {
         for (ForkData fork : m_forks) {
             boolean toFinish = fork.m_state.preCheckState(iContext, fork);
             if (toFinish) {
-                System.out.println("got fork to finish: " + fork);
+                log("got fork to finish: " + fork);
                 if (finishForks == null) {
                     finishForks = new ArrayList<ForkData>();
                 }
@@ -58,7 +59,7 @@ public class PairExchangeData {
             for (ForkData fork : finishForks) {
                 m_forks.remove(fork);
                 if (fork.m_state == ForkState.END) {
-                    System.out.println("finish fork was in state END");
+                    log("finish fork was in state END");
                     maybeStartNewFork();
                 }
             }
@@ -87,13 +88,13 @@ public class PairExchangeData {
         double amount1 = m_sharedExch1.calcAmountToOpen();
         double amount2 = m_sharedExch2.calcAmountToOpen();
         double amount = Math.min(amount1, amount2);
-        System.out.println("available amount: " + amount);
+        log("available amount: " + amount);
         if (amount > MIN_AVAILABLE_AMOUNT) {
-            System.out.println(" we have MIN_AVAILABLE_AMOUNT(=" + MIN_AVAILABLE_AMOUNT + ") - adding brand new Fork");
+            log(" we have MIN_AVAILABLE_AMOUNT(=" + MIN_AVAILABLE_AMOUNT + ") - adding brand new Fork");
             ForkData newFork = new ForkData(this); // todo: pass amount to constructor
             m_forks.add(newFork);
         } else {
-            System.out.println(" not reached MIN_AVAILABLE_AMOUNT - NO new Fork");
+            log(" not reached MIN_AVAILABLE_AMOUNT - NO new Fork");
         }
     }
 
@@ -113,7 +114,7 @@ public class PairExchangeData {
     public void addIncome(double earnThisRun) {
         m_totalIncome += earnThisRun;
         m_runs++;
-        System.out.println(" earnIncome=" + Fetcher.format(m_totalIncome)+", runs="+m_runs);
+        log(" earnIncome=" + Fetcher.format(m_totalIncome)+", runs="+m_runs);
     }
 
     public void stop() {

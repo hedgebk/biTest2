@@ -16,6 +16,7 @@ public class SharedExchangeData {
     public AccountData m_account;
 
     public double midCommissionAmount() { return ((m_lastTop == null) ? 0 : m_lastTop.getMid()) * getFee(); }
+    private static void log(String s) { Log.log(s); }
 
     private static Utils.DoubleAverageCalculator<Double> mkBidAskDiffCalculator() {
         return new Utils.DoubleAverageCalculator<Double>() {
@@ -132,7 +133,7 @@ public class SharedExchangeData {
 
     public void queryAccountData() throws Exception {
         AccountData account = Fetcher.fetchAccount(m_exchange);
-        System.out.println("queryAccountData() account=" + account);
+        log("queryAccountData() account=" + account);
         m_account = account;
     }
 

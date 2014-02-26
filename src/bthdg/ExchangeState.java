@@ -7,12 +7,12 @@ import bthdg.LiveOrdersData;
 public enum ExchangeState {
     NONE {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            System.out.println("ExchangeState.NONE(" + exchData.exchName() + ").");
+            log("ExchangeState.NONE(" + exchData.exchName() + ").");
         }
     },
     OPEN_BRACKETS_WAITING {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) {
-            System.out.println("ExchangeState.OPEN_BRACKETS_WAITING(" + exchData.exchName() + "). check orders status");
+            log("ExchangeState.OPEN_BRACKETS_WAITING(" + exchData.exchName() + "). check orders status");
             // todo: check orders status here, can be submitted/queued, placed, rejected, and even filled/partially-filled
             LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData);
 
@@ -24,23 +24,23 @@ public enum ExchangeState {
     },
     OPEN_BRACKETS_PLACED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            System.out.println("ExchangeState.OPEN_BRACKETS_PLACED(" + exchData.exchName() + "). check if some order executed");
+            log("ExchangeState.OPEN_BRACKETS_PLACED(" + exchData.exchName() + "). check if some order executed");
             exchData.checkSomeBracketExecuted(iContext);
         }
     },
     ONE_OPEN_BRACKET_EXECUTED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            System.out.println("ExchangeState.ONE_OPEN_BRACKET_EXECUTED(" + exchData.exchName() + "). do nothing");
+            log("ExchangeState.ONE_OPEN_BRACKET_EXECUTED(" + exchData.exchName() + "). do nothing");
         }
     },
     BOTH_OPEN_BRACKETS_EXECUTED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            System.out.println("ExchangeState.BOTH_OPEN_BRACKETS_EXECUTED(" + exchData.exchName() + "). do nothing for now");
+            log("ExchangeState.BOTH_OPEN_BRACKETS_EXECUTED(" + exchData.exchName() + "). do nothing for now");
         }
     },
     OPEN_AT_MKT_PLACED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            System.out.println("ExchangeState.OPEN_AT_MKT_PLACED(" + exchData.exchName() + "). check if MKT order executed");
+            log("ExchangeState.OPEN_AT_MKT_PLACED(" + exchData.exchName() + "). check if MKT order executed");
             exchData.checkMktBracketExecuted(iContext);
         }
     },
@@ -49,18 +49,18 @@ public enum ExchangeState {
     },
     CLOSE_BRACKET_PLACED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            System.out.println("ExchangeState.CLOSE_BRACKET_PLACED(" + exchData.exchName() + "). check if some order executed");
+            log("ExchangeState.CLOSE_BRACKET_PLACED(" + exchData.exchName() + "). check if some order executed");
             exchData.checkSomeBracketExecuted(iContext);
         }
     },
     CLOSE_BRACKET_EXECUTED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            System.out.println("ExchangeState.CLOSE_BRACKET_EXECUTED(" + exchData.exchName() + "). do nothing");
+            log("ExchangeState.CLOSE_BRACKET_EXECUTED(" + exchData.exchName() + "). do nothing");
         }
     },
     CLOSE_AT_MKT_PLACED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            System.out.println("ExchangeState.CLOSE_AT_MKT_PLACED(" + exchData.exchName() + "). check if MKT order executed");
+            log("ExchangeState.CLOSE_AT_MKT_PLACED(" + exchData.exchName() + "). check if MKT order executed");
             exchData.checkMktBracketExecuted(iContext);
         }
     },
@@ -70,7 +70,9 @@ public enum ExchangeState {
     ERROR,
     ;
 
+    private static void log(String s) { Log.log(s); }
+
     public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-        System.out.println("checkState not implemented for ExchangeState." + this);
+        log("checkState not implemented for ExchangeState." + this);
     }
 } // ExchangeData

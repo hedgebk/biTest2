@@ -25,6 +25,7 @@ public class Btce extends BaseExch {
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
     @Override protected String getSecret() { return SECRET; }
     @Override protected String getApiEndpoint() { return "https://btc-e.com/tapi"; }
+    private static void log(String s) { Log.log(s); }
 
     public Btce() {}
 
@@ -33,7 +34,7 @@ public class Btce extends BaseExch {
             new Btce().start();
             // json: {"success":1,"return":{"funds":{"usd":0,"btc":0.038,"ltc":0,"nmc":0,"rur":0,"eur":0,"nvc":0,"trc":0,"ppc":0,"ftc":0,"xpm":0},"rights":{"info":1,"trade":0,"withdraw":0},"transaction_count":2,"open_orders":0,"server_time":1392944085}}
         } catch (Exception e) {
-            System.out.println("ERROR: " + e);
+            log("ERROR: " + e);
             e.printStackTrace();
         }
     }
@@ -68,7 +69,7 @@ public class Btce extends BaseExch {
 
 
         String json = loadJsonStr(headerLines, postData);
-        System.out.println("Loaded json: " + json);
+        log("Loaded json: " + json);
 
         return null;
     }
@@ -95,34 +96,34 @@ public class Btce extends BaseExch {
 
     public static TopData parseTop(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-//        System.out.println("BTCE.parseTop() " + jObj);
+//        log("BTCE.parseTop() " + jObj);
         JSONObject ticker = (JSONObject) jObj.get("btc_usd"); // ticker
-//        System.out.println(" class="+ticker.getClass()+", ticker=" + ticker);
+//        log(" class="+ticker.getClass()+", ticker=" + ticker);
         double last = Utils.getDouble(ticker, "last");
         double bid = Utils.getDouble(ticker, "sell");
         double ask = Utils.getDouble(ticker, "buy");
-//        System.out.println("bid=" + bid + ", ask=" + ask + ", last=" + last);
+//        log("bid=" + bid + ", ask=" + ask + ", last=" + last);
         return new TopData(bid, ask, last);
     }
 
     public static DeepData parseDeep(Object obj) {
         JSONObject jObj  = (JSONObject) obj;
-        System.out.println("BTCE.parseDeep() " + jObj);
+        log("BTCE.parseDeep() " + jObj);
         JSONObject btc_usd = (JSONObject) jObj.get("btc_usd");
-        System.out.println(" class="+btc_usd.getClass()+", btc_usd=" + btc_usd);
+        log(" class="+btc_usd.getClass()+", btc_usd=" + btc_usd);
         JSONArray bids = (JSONArray) btc_usd.get("bids");
-        System.out.println(" class="+bids.getClass()+", bids=" + bids);
+        log(" class="+bids.getClass()+", bids=" + bids);
         JSONArray asks = (JSONArray) btc_usd.get("asks");
-        System.out.println(" class="+asks.getClass()+", asks=" + asks);
+        log(" class="+asks.getClass()+", asks=" + asks);
 
         return DeepData.create(bids, asks);
     }
 
     public static TradesData parseTrades(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-//        System.out.println("BTCE.parseTrades() " + jObj);
+//        log("BTCE.parseTrades() " + jObj);
         JSONArray array = (JSONArray) jObj.get("btc_usd");
-//        System.out.println(" class=" + array.getClass() + ", btc_usd=" + array);
+//        log(" class=" + array.getClass() + ", btc_usd=" + array);
         int len = array.size();
         List<TradesData.TradeData> trades = new ArrayList<TradesData.TradeData>(len);
         for (int i = 0; i < len; i++) { // {"amount":7.23385,"timestamp":1391896680,"price":700.7,"tid":29248920,"type":"bid"}
@@ -141,7 +142,7 @@ public class Btce extends BaseExch {
 
     public static AccountData parseAccount(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-        System.out.println("BTCE.parseAccount() " + jObj);
+        log("BTCE.parseAccount() " + jObj);
 //         { "return":{
 //                "open_orders":0,
 //                "funds":{"trc":0,"nmc":0,"ftc":0,"eur":0,"rur":0,"usd":0,"ltc":0,"ppc":0,"xpm":0,"nvc":0,"btc":0.038},

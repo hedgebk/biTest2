@@ -4,18 +4,18 @@ public enum OrderState {
     NONE,
     BRACKET_PLACED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData, OrderData orderData) throws Exception {
-            System.out.println("OrderState.BRACKET_PLACED. check if order executed");
+            log("OrderState.BRACKET_PLACED. check if order executed");
             trackLimitOrderExecution(iContext, exchData, orderData);
         }
     },
     MARKET_PLACED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData, OrderData orderData) throws Exception {
-            System.out.println("OrderState.MARKET_PLACED. check if order executed");
+            log("OrderState.MARKET_PLACED. check if order executed");
             boolean executed = trackLimitOrderExecution(iContext, exchData, orderData);
             if( executed ) {
-                System.out.println(" OPEN MKT bracket order executed. we are fully OPENED");
+                log(" OPEN MKT bracket order executed. we are fully OPENED");
             } else {
-                System.out.println(" MKT order not yet executed - move if needed");
+                log(" MKT order not yet executed - move if needed");
             }
         }
     };
@@ -31,13 +31,15 @@ public enum OrderState {
                 orderData.m_state = NONE;
                 return true;
             } else { // PARTIALLY FILLED
-                System.out.println("PARTIALLY FILLED, not supported yet - just wait more");
+                log("PARTIALLY FILLED, not supported yet - just wait more");
             }
         }
         return false;
     }
 
+    private static void log(String s) { Log.log(s); }
+
     public void checkState(IterationContext iContext, ExchangeData exchangeData, OrderData orderData) throws Exception {
-        System.out.println("checkState not implemented for OrderState." + this);
+        log("checkState not implemented for OrderState." + this);
     }
 } // OrderState

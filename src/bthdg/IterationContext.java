@@ -1,7 +1,5 @@
 package bthdg;
 
-import bthdg.*;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +10,8 @@ public class IterationContext {
     public long m_nextIterationDelay = 1000; // 1 sec by def
     private Map<Integer, TradesData> m_newTrades;
     public boolean m_acceptPriceSimulated;
+
+    private static void log(String s) { Log.log(s); }
 
     public TopDatas getTopsData(PairExchangeData pairExchangeData) throws Exception {
         if( m_top == null ){
@@ -51,12 +51,12 @@ public class IterationContext {
             TradesData trades = Fetcher.fetchTradesOnce(exch);
             String exchName = exch.m_name;
             if(trades == null) {
-                System.out.println(" NO trades loaded for '" + exchName + "' this time" );
+                log(" NO trades loaded for '" + exchName + "' this time" );
                 data = new TradesData(new ArrayList<TradesData.TradeData>()); // empty
             } else {
                 data = shExchData.filterOnlyNewTrades(trades); // this will update last processed trade time
                 long millis1 = System.currentTimeMillis();
-                System.out.println(" loaded " + trades.size() + " trades for '" + exchName + "' " +
+                log(" loaded " + trades.size() + " trades for '" + exchName + "' " +
                                    "in " + (millis1 - millis0) + " ms; new " + data.size() + " trades: " + data);
             }
             m_newTrades.put(exchId, data);
@@ -74,10 +74,9 @@ public class IterationContext {
         long top1Millis = System.currentTimeMillis();
         TopData top2 = sharedExch2data.fetchTopOnce();
         long top2Millis = System.currentTimeMillis();
-        System.out.println("  loaded in " + (top1Millis - millis0) + " and " + (top2Millis - top1Millis) + " ms");
+        log("  loaded in " + (top1Millis - millis0) + " and " + (top2Millis - top1Millis) + " ms");
         Fetcher.log(sharedExch1data.m_exchange, top1);
         Fetcher.log(sharedExch1data.m_exchange, top2);
-        System.out.println();
 
         TopDatas ret = new TopDatas(top1, top2);
         pairExchangeData.onTopsLoaded(ret);

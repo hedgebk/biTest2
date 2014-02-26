@@ -1,6 +1,7 @@
 package bthdg.servlet;
 
 import bthdg.Deserializer;
+import bthdg.Log;
 import bthdg.PairExchangeData;
 import com.google.appengine.api.datastore.*;
 
@@ -11,9 +12,10 @@ public class GaeStorage {
     public static final String GAE_DATA_KEY = "data";
     public static final String GAE_TIME_KEY = "time";
 
-    private static final Logger log = Logger.getLogger("bthdg");
     private static DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
     public static final String KIND = "Record";
+
+    private static void log(String s) { Log.log(s); }
 
     public static Entity getRecord(String name) {
         Key key = KeyFactory.createKey(KIND, name);
@@ -32,32 +34,32 @@ public class GaeStorage {
         Entity timeEntity = getRecord(GAE_TIME_KEY);
         if (timeEntity != null) {
             Long dbTimestamp = (Long) timeEntity.getProperty(GAE_TIME_KEY);
-            log.warning("gae timestamp: " + dbTimestamp);
+            log("gae timestamp: " + dbTimestamp);
             if (dbTimestamp != null) {
-                if (data.m_timestamp < dbTimestamp) {
-                    log.warning("gae timestamp bigger - try to use gae");
+                if ((data == null) || (data.m_timestamp < dbTimestamp)) {
+                    log("no data or gae timestamp bigger - try to use gae");
                     Entity dataEntity = getRecord(GAE_DATA_KEY);
                     if (dataEntity != null) {
                         Text text = (Text) dataEntity.getProperty(GAE_DATA_KEY);
-                        log.warning(" gae  data: " + text);
+                        log(" gae  data: " + text);
                         if (text != null) {
                             String serialized = text.getValue();
                             PairExchangeData deserialized = Deserializer.deserialize(serialized);
                             return deserialized;
                         } else {
-                            log.warning("no data prop in gae entity");
+                            log("no data prop in gae entity");
                         }
                     } else {
-                        log.warning("no data entity in gae");
+                        log("no data entity in gae");
                     }
                 } else {
-                    log.warning("gae timestamp is less or equals");
+                    log("gae timestamp is less or equals");
                 }
             } else {
-                log.warning("no timestamp prop in gae entity");
+                log("no timestamp prop in gae entity");
             }
         } else {
-            log.warning("no timestamp entity in gae");
+            log("no timestamp entity in gae");
         }
         return data;
     }

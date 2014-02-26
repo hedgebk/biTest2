@@ -1,6 +1,8 @@
 package bthdg.exch;
 
+import bthdg.Config;
 import bthdg.Exchange;
+import bthdg.Log;
 import bthdg.Utils;
 
 import javax.crypto.Mac;
@@ -29,9 +31,10 @@ public abstract class BaseExch {
 
     public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint) throws Exception {return null;};
     public Map<String, String> getHeaders(String postData) throws Exception { return null; }
+    private static void log(String s) { Log.log(s); }
 
     public static void initSsl() throws NoSuchAlgorithmException, KeyManagementException {
-        if(!s_sslInitialized) {
+        if(!Config.s_runOnServer && !s_sslInitialized) {
             SSLContext sslctx = SSLContext.getInstance("SSL");
             sslctx.init(null, null, null);
             HttpsURLConnection.setDefaultSSLSocketFactory(sslctx.getSocketFactory());
@@ -81,7 +84,7 @@ public abstract class BaseExch {
         } finally {
             br.close();
         }
-        System.out.println("json: " + json);
+        log("json: " + json);
         return json.toString();
     }
 
@@ -96,7 +99,7 @@ public abstract class BaseExch {
         } finally {
             br.close();
         }
-        System.out.println("json: " + json);
+        log("json: " + json);
     }
 
     protected String loadJsonStr3(String query) throws Exception {

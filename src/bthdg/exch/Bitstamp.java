@@ -25,6 +25,7 @@ public class Bitstamp extends BaseExch {
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
     @Override protected String getSecret() { return SECRET; }
     @Override protected String getApiEndpoint() { return "https://www.bitstamp.net/api/balance/"; }
+    private static void log(String s) { Log.log(s); }
 
     public Bitstamp() {}
 
@@ -33,7 +34,7 @@ public class Bitstamp extends BaseExch {
             new Bitstamp().start();
             // json: {"btc_reserved": "0", "fee": "0.5000", "btc_available": "0.03800000", "usd_reserved": "0", "btc_balance": "0.03800000", "usd_balance": "0.00", "usd_available": "0.00"}
         } catch (Exception e) {
-            System.out.println("ERROR: " + e);
+            log("ERROR: " + e);
             e.printStackTrace();
         }
     }
@@ -55,7 +56,7 @@ public class Bitstamp extends BaseExch {
 
         String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
         String signature = encoded.toUpperCase();
-        System.out.println("signature: " + signature);
+        log("signature: " + signature);
 
         String query = new StringBuilder("key=")
                 .append(URLEncoder.encode(KEY))
@@ -70,7 +71,7 @@ public class Bitstamp extends BaseExch {
         initSsl();
 
         String json = loadJsonStr(null, query);
-        System.out.println("Loaded json: " + json);
+        log("Loaded json: " + json);
     }
 
     public static String topTestStr() {
@@ -92,7 +93,7 @@ public class Bitstamp extends BaseExch {
                     reader.close();
                 }
             } catch (Exception e) {
-                System.out.println("error reading bitstampDeepTestStr: " + e);
+                log("error reading bitstampDeepTestStr: " + e);
                 e.printStackTrace();
             }
             s_bitstampDeepTestStr = sb.toString();
@@ -102,28 +103,28 @@ public class Bitstamp extends BaseExch {
 
     public static TopData parseTop(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-//        System.out.println("BITSTAMP.parseTop() " + jObj);
+//        log("BITSTAMP.parseTop() " + jObj);
         String last = (String) jObj.get("last");
         String bid = (String) jObj.get("bid");
         String ask = (String) jObj.get("ask");
-//        System.out.println("bid=" + bid + ", ask=" + ask + ", last=" + last);
+//        log("bid=" + bid + ", ask=" + ask + ", last=" + last);
         return new TopData(bid, ask, last);
     }
 
     public static DeepData parseDeep(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-//        System.out.println("BITSTAMP.parseDeep() " + jObj);
+//        log("BITSTAMP.parseDeep() " + jObj);
 
         JSONArray bids = (JSONArray) jObj.get("bids");
-//        System.out.println(" class="+bids.getClass()+", bids=" + bids);
+//        log(" class="+bids.getClass()+", bids=" + bids);
         JSONArray asks = (JSONArray) jObj.get("asks");
-//        System.out.println(" class="+asks.getClass()+", asks=" + asks);
+//        log(" class="+asks.getClass()+", asks=" + asks);
 
         return DeepData.create(bids, asks);
     }
 
     public static TradesData parseTrades(Object object) {
-//        System.out.println("BITSTAMP.parseTrades() " + object);
+//        log("BITSTAMP.parseTrades() " + object);
         JSONArray array = (JSONArray)object;
         int len = array.size();
         List<TradesData.TradeData> trades = new ArrayList<TradesData.TradeData>(len);
@@ -141,7 +142,7 @@ public class Bitstamp extends BaseExch {
 
     public static AccountData parseAccount(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-        System.out.println("BITSTAMP.parseAccount() " + jObj);
+        log("BITSTAMP.parseAccount() " + jObj);
         double usd = Utils.getDouble(jObj.get("usd_balance"));
         double fee = Utils.getDouble(jObj.get("fee")) / 100;
         double btc = Utils.getDouble(jObj.get("btc_balance"));

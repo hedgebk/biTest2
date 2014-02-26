@@ -28,7 +28,7 @@ public class Fetcher {
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
-    private static final boolean USE_ACCOUNT_TEST_STR = true;
+    private static final boolean USE_ACCOUNT_TEST_STR = false;
     public static final long MOVING_AVERAGE = 25 * 60 * 1000; // 25 min
     public static final double EXPECTED_GAIN = 3.5; // 5
 
@@ -57,7 +57,7 @@ public class Fetcher {
 //            TopData bitstamp = fetchTop(Exchange.BITSTAMP);
 //            TopData btce = fetchTop(Exchange.BTCE);
 //            TopData campbx = fetchTop(Exchange.CAMPBX);
-//            System.out.println("----------------------------------------------");
+//            log("----------------------------------------------");
 //            log(Exchange.BITSTAMP, bitstamp);
 //            log(Exchange.BTCE, btce);
 //            log(Exchange.CAMPBX, campbx);
@@ -74,7 +74,7 @@ public class Fetcher {
     }
 
     private static void log(String x) {
-        System.out.println(x);
+        Log.log(x);
     }
 
     private static void pool(Exchange exch1, Exchange exch2) throws Exception {
@@ -134,26 +134,26 @@ public class Fetcher {
 
     public static AccountData fetchAccount(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.ACCOUNT);
-        System.out.println("jObj=" + jObj);
+        log("jObj=" + jObj);
         AccountData accountData = exchange.parseAccount(jObj);
-        System.out.println("accountData=" + accountData);
+        log("accountData=" + accountData);
         return accountData;
     }
 
     static TradesData fetchTrades(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TRADES);
-//        System.out.println("jObj=" + jObj);
+//        log("jObj=" + jObj);
         TradesData tradesData = exchange.parseTrades(jObj);
-//        System.out.println("tradesData=" + tradesData);
+//        log("tradesData=" + tradesData);
         return tradesData;
     }
 
     static TradesData fetchTradesOnce(Exchange exchange) {
         try {
             Object jObj = fetchOnce(exchange, FetchCommand.TRADES);
-//        System.out.println("jObj=" + jObj);
+//        log("jObj=" + jObj);
             TradesData tradesData = exchange.parseTrades(jObj);
-//        System.out.println("tradesData=" + tradesData);
+//        log("tradesData=" + tradesData);
             return tradesData;
         } catch (Exception e) {
             log(" loading error: " + e);
@@ -172,18 +172,18 @@ public class Fetcher {
 
     static TopData fetchTop(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TOP);
-        //System.out.println("jObj=" + jObj);
+        //log("jObj=" + jObj);
         TopData topData = exchange.parseTop(jObj);
-        //System.out.println("topData=" + topData);
+        //log("topData=" + topData);
         return topData;
     }
 
     static TopData fetchTopOnce(Exchange exchange) {
         try {
             Object jObj = fetchOnce(exchange, FetchCommand.TOP);
-            //System.out.println("jObj=" + jObj);
+            //log("jObj=" + jObj);
             TopData topData = exchange.parseTop(jObj);
-            //System.out.println("topData=" + topData);
+            //log("topData=" + topData);
             return topData;
         } catch (Exception e) {
             log(" loading error: " + e);
@@ -215,7 +215,7 @@ public class Fetcher {
         } else {
             Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange);
             String location = apiEndpoint.m_location;
-            System.out.print("loading from " + location + "...  ");
+            log("loading from " + location + "...  ");
             URL url = new URL(location);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
@@ -262,7 +262,7 @@ public class Fetcher {
 
             int responseCode = con.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                System.out.print(" responseCode: " + responseCode);
+                log(" responseCode: " + responseCode);
             }
 
             InputStream inputStream = con.getInputStream(); //url.openStream();
@@ -279,7 +279,6 @@ public class Fetcher {
         try {
             JSONParser parser = new JSONParser();
             Object obj = parser.parse(reader);
-            System.out.print("parsed; ");
             return obj;
         } finally {
             reader.close();
@@ -288,9 +287,9 @@ public class Fetcher {
 
     static void log(Exchange exch, TopData top) {
         if (top == null) {
-            System.out.print("NO top data for '" + exch.m_name + "'\t\t");
+            log("NO top data for '" + exch.m_name + "'\t\t");
         } else {
-            System.out.print(exch.m_name +
+            log(exch.m_name +
                     ": bid: " + format(top.m_bid) +
                     ", ask: " + format(top.m_ask) +
                     ", last: " + format(top.m_last) +
@@ -314,7 +313,7 @@ public class Fetcher {
 //    JSONObject response = (JSONObject)parser.parse(httpResponse.parseAsString());
 //    JSONArray results = (JSONArray)response.get("result");
 //    for (Object result : results) {
-//      System.out.println(result.get("name").toString());
+//      log(result.get("name").toString());
 //    }
 
     static String format(Double mktPrice) {

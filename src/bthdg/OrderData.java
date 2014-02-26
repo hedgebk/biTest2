@@ -69,7 +69,7 @@ public class OrderData {
             if (Fetcher.SIMULATE_ACCEPT_ORDER_PRICE && !iContext.m_acceptPriceSimulated
 //                    && new Random().nextBoolean()
                     && new Random().nextBoolean()) {
-                System.out.println("@@@@@@@@@@@@@@  !!!!!!!! SIMULATE ACCEPT_ORDER_PRICE mktPrice=" + Fetcher.format(mktPrice) + ", order=" + this);
+                log("@@@@@@@@@@@@@@  !!!!!!!! SIMULATE ACCEPT_ORDER_PRICE mktPrice=" + Fetcher.format(mktPrice) + ", order=" + this);
                 acceptPriceSimulated = true;
                 iContext.m_acceptPriceSimulated = true; // one accept order price simulation per iteration
             }
@@ -77,11 +77,11 @@ public class OrderData {
             //noinspection ConstantConditions
             if (acceptPriceSimulated || orderData.acceptPrice(mktPrice)) {
                 double tradeAmount = trade.m_amount;
-                System.out.println("@@@@@@@@@@@@@@ we have LMT order " + orderSide + " " + orderAmount + " @ " + orderData.priceStr() +
-                                  " on '" + exchData.exchName() + "' got matched trade=" + trade);
+                log("@@@@@@@@@@@@@@ we have LMT order " + orderSide + " " + orderAmount + " @ " + orderData.priceStr() +
+                        " on '" + exchData.exchName() + "' got matched trade=" + trade);
 
                 if (orderAmount > tradeAmount) { // for now partial order execution it is complex to handle - todo: we may execute the rest by MKT price
-                    System.out.println("@@@@@@@@@@@@@@  for now partial order execution it is complex to handle: " +
+                    log("@@@@@@@@@@@@@@  for now partial order execution it is complex to handle: " +
                             "orderAmount=" + orderAmount + ", tradeAmount=" + tradeAmount);
                 }
                 // here we pretend that the whole order was executed for now
@@ -98,7 +98,7 @@ public class OrderData {
         if (statusOk == filledOk) {
             return statusOk;
         }
-        System.out.println("Error order state: status not matches filled qty: " + this);
+        log("Error order state: status not matches filled qty: " + this);
         return false;
     }
 
@@ -208,5 +208,9 @@ public class OrderData {
                 }
             }
         }
+    }
+
+    private void log(String s) {
+        Log.log(s);
     }
 } // OrderData

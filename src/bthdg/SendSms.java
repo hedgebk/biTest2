@@ -22,13 +22,13 @@ public class SendSms {
 //        try {
 //            Properties properties = BaseExch.loadKeys();
 //            String key = properties.getProperty("sms_key", null);
-//            System.out.println("SendSms key: " + key);
+//            log("SendSms key: " + key);
 //
 //            URL url = new URL("http://www.FreeSMSGateway.com/api_send");
 //
 //            String nos[] = {"3102168156"};
 //            String to = URLEncoder.encode(JsonUtil.json.toJson(nos));
-//            System.out.println(JsonUtil.json.toJson(nos));
+//            log(JsonUtil.json.toJson(nos));
 //
 //            String msg = URLEncoder.encode("hello", "UTF-8");
 //
@@ -60,7 +60,7 @@ public class SendSms {
 //                    if (con.getResponseCode() == HttpsURLConnection.HTTP_OK) {
 //                        readJson(con);
 //                    } else {
-//                        System.out.println("ERROR: unexpected ResponseCode: " + con.getResponseCode());
+//                        log("ERROR: unexpected ResponseCode: " + con.getResponseCode());
 //                    }
 //                } finally {
 //                    os.close();
@@ -69,7 +69,7 @@ public class SendSms {
 //                con.disconnect();
 //            }
 //        } catch (IOException e) {
-//            System.out.println("error in SendSms: " + e);
+//            log("error in SendSms: " + e);
 //            e.printStackTrace();
 //        }
     }

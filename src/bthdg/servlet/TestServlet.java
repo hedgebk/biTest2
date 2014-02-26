@@ -14,24 +14,27 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringReader;
-import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Random;
 
 public class TestServlet extends HttpServlet {
-    private static final Logger log = Logger.getLogger("bthdg");
     public static final String COUNTER = "TestServlet.counter";
     public static final String MILLIS = "millis";
     public static final String HDG = "hdg";
+    public static final boolean SIMULATE_NEW_CONTEXT = false;
+    public static final double SIMULATE_NEW_CONTEXT_RATE = 0.5;
+    public static final boolean SIMULATE_MEM_CACHE_FAIL = false;
+    public static final double SIMULATE_MEM_CACHE_RATE = 0.25;
+    
+    private static void logg(String s) { Log.log(s); }
+    private static void err(String s, Exception err) { Log.err(s, err); }
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        log.warning("TestServlet.doPost()");
+        logg("TestServlet.doPost()");
         doGetPost(request, response);
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        log.warning("TestServlet.doGet()");
+        logg("TestServlet.doGet()");
         doGetPost(request, response);
     }
 
@@ -41,7 +44,7 @@ public class TestServlet extends HttpServlet {
             processCommand(command, request, response);
         } else {
             String millisStr = request.getParameter(MILLIS);
-            log.warning(" millisStr=" + millisStr);
+            logg(" millisStr=" + millisStr);
             long millis; // time to execute
             if (millisStr != null) {
                 millis = Long.parseLong(millisStr);
@@ -50,11 +53,11 @@ public class TestServlet extends HttpServlet {
             }
 
             long delay = millis - System.currentTimeMillis();
-            log.warning("  delay=" + delay);
+            logg("  delay=" + delay);
             if (delay > 0) {
                 try {
                     Thread.sleep(delay);
-                    log.warning("   sleep OK");
+                    logg("   sleep OK");
                 } catch (InterruptedException e) {
                     throw new ServletException("err: " + e, e);
                 }
@@ -63,11 +66,11 @@ public class TestServlet extends HttpServlet {
             long wakeTime = doTask(response);
             if (wakeTime != Long.MAX_VALUE) {
                 Queue queue = QueueFactory.getQueue("oneInSec");
-                log.warning("queue=" + queue);
+                logg("queue=" + queue);
                 //queue.add();
                 queue.add(withUrl("/tst").param(MILLIS, Long.toString(wakeTime)));
             } else {
-                log.warning("COUNT finished");
+                logg("COUNT finished");
             }
         }
     }
@@ -75,7 +78,7 @@ public class TestServlet extends HttpServlet {
     private long doTask(HttpServletResponse response) throws IOException {
         ServletContext servletContext = getServletContext();
         Integer counter = (Integer) servletContext.getAttribute(COUNTER);
-        log.warning("COUNTER=" + counter);
+        logg("COUNTER=" + counter);
         if (counter == null) {
             counter = 1;
         } else {
@@ -90,7 +93,7 @@ public class TestServlet extends HttpServlet {
     }
 
     private void processCommand(String command, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        log.warning("processCommand '" + command + "'");
+        logg("processCommand '" + command + "'");
         String status;
 
         if (command.equals("configure")) {
@@ -121,6 +124,7 @@ public class TestServlet extends HttpServlet {
                         status = "unknown command '" + command + "'";
                     }
                 } else {
+                    logg("NOT CONFIGURED");
                     status = "need config";
                 }
             } else {
@@ -159,12 +163,12 @@ public class TestServlet extends HttpServlet {
             nextIteration(data);
             return "ok";
         } else if (data.m_isFinished) {
-            log.warning("re-running already finished");
+            logg("re-running already finished");
             data.maybeStartNewFork();
             nextIteration(data);
             return "ok";
         } else {
-            log.warning("already started");
+            logg("already started");
             return "already started";
         }
     }
@@ -177,7 +181,7 @@ public class TestServlet extends HttpServlet {
             saveData(data);
             return "ok";
         } else {
-            log.warning("can not stop - not started");
+            logg("can not stop - not started");
             return "not started";
         }
     }
@@ -186,14 +190,29 @@ public class TestServlet extends HttpServlet {
         ServletContext servletContext = getServletContext();
 
         PairExchangeData data = (PairExchangeData) servletContext.getAttribute(HDG);
+        if(SIMULATE_NEW_CONTEXT) {
+            if( new Random().nextDouble() < SIMULATE_NEW_CONTEXT_RATE ) {
+                logg("SIMULATING NEW_CONTEXT");
+                data = null;
+            }
+        }
+
         data = MemcacheStorage.get(data);
+
+        if(SIMULATE_MEM_CACHE_FAIL) {
+            if( new Random().nextDouble() < SIMULATE_MEM_CACHE_RATE ) {
+                logg("SIMULATING MEM_CACHE_FAIL");
+                data = null;
+            }
+        }
+
         data = GaeStorage.get(data);
 
         if (data != null) {
             nextIteration(data);
             return "ok";
         } else {
-            log.warning("can not continue - not started");
+            logg("can not continue - not started");
             return "not started";
         }
     }
@@ -210,12 +229,12 @@ public class TestServlet extends HttpServlet {
         IterationContext iContext = new IterationContext();
         try {
             if (checkState(data, iContext)) {
-                System.out.println("GOT finish request - no more tasks to run");
+                log("GOT finish request - no more tasks to run");
             } else {
                 repost(iContext);
             }
         } catch (Exception e) {
-            log.log(Level.SEVERE, "GOT exception during processing. setting ERROR, closing everything...", e);
+            err("GOT exception during processing. setting ERROR, closing everything...", e);
             data.setState(ForkState.ERROR); // error - stop ALL
             iContext.delay(0);
             repost(iContext); // need to finish
@@ -230,13 +249,13 @@ public class TestServlet extends HttpServlet {
 
     private void saveData(PairExchangeData data) throws IOException {
         Long timestamp = data.updateTimestamp();
-        log.warning("updated timestamp=" + timestamp);
+        logg("updated timestamp=" + timestamp);
 
         ServletContext servletContext = getServletContext();
         servletContext.setAttribute(HDG, data);
 
         String serialized = data.serialize();
-        log.warning("serialized(len=" + serialized.length() + ")=" + serialized);
+        logg("serialized(len=" + serialized.length() + ")=" + serialized);
         PairExchangeData deserialized = Deserializer.deserialize(serialized);
         deserialized.compare(data); // make sure all fine
 
@@ -247,7 +266,7 @@ public class TestServlet extends HttpServlet {
     private void repost(IterationContext iContext) {
         long delay = iContext.m_nextIterationDelay;
         if (delay > 0) {
-            log.warning("wait " + delay + " ms." /* + " total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter*/);
+            logg("wait " + delay + " ms." /* + " total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter*/);
             try {
                 synchronized (this) {
                     this.wait(delay);
@@ -258,11 +277,11 @@ public class TestServlet extends HttpServlet {
             }
         } else {
             // todo: protect from called many times with delay==0 - add delay manually
-            log.warning("go to next iteration without sleep. total running "/* + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter*/);
+            logg("go to next iteration without sleep. total running "/* + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter*/);
         }
 
         Queue queue = QueueFactory.getQueue("oneInSec");
-        log.warning("queue=" + queue);
+        logg("queue=" + queue);
         queue.add(withUrl("/tst").param("command", "continue"));
     }
 }
