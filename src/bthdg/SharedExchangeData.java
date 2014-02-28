@@ -168,9 +168,24 @@ public class SharedExchangeData {
         return true;
     }
 
+    public boolean cancelOrder(OrderData orderData) {
+        // todo: implement
+        if (orderData != null) {
+            if ((orderData.m_status == OrderStatus.SUBMITTED) || (orderData.m_status == OrderStatus.PARTIALLY_FILLED)) {
+                log("cancelOrder() not implemented yet: " + orderData);
+            } else {
+                log("cancelOrder() no need to cancel oder in state: " + orderData);
+            }
+            orderData.m_status = OrderStatus.CANCELLED;
+            orderData.m_state = OrderState.NONE;
+        }
+        return true; // todo: order can be executed at this point, so cancel will fail
+    }
+
     public LiveOrdersData fetchLiveOrders() {
         // todo: implement
         log("fetchLiveOrders() not implemented yet");
         return new LiveOrdersData();
     }
+
 } // SharedExchangeData

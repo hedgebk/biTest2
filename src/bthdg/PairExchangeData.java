@@ -9,7 +9,7 @@ public class PairExchangeData {
 
     final SharedExchangeData m_sharedExch1;
     final SharedExchangeData m_sharedExch2;
-    public final List<ForkData> m_forks; // running tasks
+    public List<ForkData> m_forks; // running tasks
     public TopData.TopDataEx m_lastDiff;
     public Utils.AverageCounter m_diffAverageCounter; // diff between exchanges - top1 - top2
     private double m_totalIncome;
@@ -47,25 +47,7 @@ public class PairExchangeData {
                 queryAccountData();
                 if( doWithFreshTopData(iContext, new Runnable() {
                     @Override public void run() {
-                        AccountData acct1 = m_sharedExch1.m_account;
-                        AccountData acct2 = m_sharedExch2.m_account;
-                        double usd1 = acct1.m_usd;
-                        double btc1 = acct1.m_btc;
-                        double usd2 = acct2.m_usd;
-                        double btc2 = acct2.m_btc;
-                        log("acct1: usd=" + Fetcher.format(usd1) + ",  btc=" + Fetcher.format(btc1));
-                        log("acct2: usd=" + Fetcher.format(usd2) + ",  btc=" + Fetcher.format(btc2));
-                        double usd = Math.min(usd1, usd2);
-                        double btc = Math.min(btc1, btc2);
-                        log(" min usd=" + Fetcher.format(usd) + ", min btc=" + Fetcher.format(btc));
-                        double maxPrice = Math.max(m_sharedExch1.m_lastTop.m_ask, m_sharedExch2.m_lastTop.m_ask); // ASK > BID
-                        double btcFromUsd = usd / maxPrice;
-                        log("  maxPrice=" + Fetcher.format(maxPrice) + ", btcFromUsd=" + Fetcher.format(btcFromUsd));
-                        double amount = Math.min(btc, btcFromUsd) * 0.95;
-                        amount = Utils.fourDecimalDigits(amount);
-                        log("   finally amount=" + Fetcher.format(amount));
-                        // todo: deal with precision - qty=0.017833861354239377  is not OK
-
+                        double amount = calcAmount();
                         ForkData newFork1 = new ForkData(PairExchangeData.this, true,  amount);
                         m_forks.add(newFork1);
                         ForkData newFork2 = new ForkData(PairExchangeData.this, false, amount);
@@ -81,15 +63,46 @@ public class PairExchangeData {
         }
 
         removeFinishedForks(iContext);
-
         requestTradesIfNeeded(iContext); // check if forks need trades
 
+        List<ForkData> forks = new ArrayList<ForkData>();
         for (ForkData fork : m_forks) {
             fork.checkState(iContext);
+
+            forks.add(fork);
+            double qty = fork.checkPartially();
+            if (qty != 0) {
+                ForkData fork2 = fork.fork(qty);
+                if (fork2 != null) {
+                    forks.add(fork2);
+                }
+            }
         }
+        m_forks = forks;
 
         m_isFinished = m_forks.isEmpty();
         return m_isFinished; // no more tasks to execute
+    }
+
+    private double calcAmount() {
+        AccountData acct1 = m_sharedExch1.m_account;
+        AccountData acct2 = m_sharedExch2.m_account;
+        double usd1 = acct1.m_usd;
+        double btc1 = acct1.m_btc;
+        double usd2 = acct2.m_usd;
+        double btc2 = acct2.m_btc;
+        log("acct1: usd=" + Fetcher.format(usd1) + ",  btc=" + Fetcher.format(btc1));
+        log("acct2: usd=" + Fetcher.format(usd2) + ",  btc=" + Fetcher.format(btc2));
+        double usd = Math.min(usd1, usd2);
+        double btc = Math.min(btc1, btc2);
+        log(" min usd=" + Fetcher.format(usd) + ", min btc=" + Fetcher.format(btc));
+        double maxPrice = Math.max(m_sharedExch1.m_lastTop.m_ask, m_sharedExch2.m_lastTop.m_ask); // ASK > BID
+        double btcFromUsd = usd / maxPrice;
+        log("  maxPrice=" + Fetcher.format(maxPrice) + ", btcFromUsd=" + Fetcher.format(btcFromUsd));
+        double amount = Math.min(btc, btcFromUsd) * 0.95;
+        amount = Utils.fourDecimalDigits(amount);
+        log("   finally amount=" + Fetcher.format(amount));
+        return amount;
     }
 
     private void removeFinishedForks(IterationContext iContext) {

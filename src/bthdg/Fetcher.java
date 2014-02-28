@@ -182,9 +182,9 @@ public class Fetcher {
     static TopData fetchTopOnce(Exchange exchange) {
         try {
             Object jObj = fetchOnce(exchange, FetchCommand.TOP);
-log("jObj=" + jObj);
+//            log("jObj=" + jObj);
             TopData topData = exchange.parseTop(jObj);
-            //log("topData=" + topData);
+//            log("topData=" + topData);
             return topData;
         } catch (Exception e) {
             log(" loading error: " + e);
@@ -286,7 +286,7 @@ log("jObj=" + jObj);
         }
     }
 
-    static void log(Exchange exch, TopData top) {
+    static void logTop(Exchange exch, TopData top) {
         if (top == null) {
             log("NO top data for '" + exch.m_name + "'\t\t");
         } else {

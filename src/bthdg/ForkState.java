@@ -5,7 +5,7 @@ public enum ForkState {
         @Override public boolean needQueryTrades() { return false; }
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.NONE. queryAccountsData");
-            iContext.queryAccountsData(forkData);
+            //iContext.queryAccountsData(forkData);
             forkData.setState(START_NEW);
             iContext.delay(0);
         }
@@ -37,6 +37,7 @@ public enum ForkState {
     OPEN_BRACKETS_PLACED_NEW {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.OPEN_BRACKETS_PLACED_NEW checkState()");
+            // todo: move brackets if needed
         }
     },
     OPEN_BRACKETS_PLACED {

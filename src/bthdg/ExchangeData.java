@@ -168,14 +168,18 @@ public class ExchangeData {
     }
 
     private String ordersAndPricesStr(TopData top, Double newBuyPrice, Double newSellPrice) {
-        return "buy: " + logPriceAndChange(m_buyOrder, newBuyPrice) + "  " +
-                logPriceDelta((top == null) ? null : top.m_bid, priceNewOrOld(m_buyOrder, newBuyPrice)) + "  " +
-                "[bid=" + ((top == null) ? "?" : top.bidStr()) + ", ask=" + ((top == null) ? "?" : top.askStr()) + "]  " + // ASK > BID
-                logPriceDelta(priceNewOrOld(m_sellOrder, newSellPrice), (top == null) ? null : top.m_ask) + "  " +
-                "sell: " + logPriceAndChange(m_sellOrder, newSellPrice);
+        return ordersAndPricesStr(top, m_buyOrder, newBuyPrice, m_sellOrder, newSellPrice);
     }
 
-    private Double priceNewOrOld(OrderData order, Double newPrice) {
+    public static String ordersAndPricesStr(TopData top, OrderData buyOrder, Double newBuyPrice, OrderData sellOrder, Double newSellPrice) {
+        return "buy: " + logPriceAndChange(buyOrder, newBuyPrice) + "  " +
+                logPriceDelta((top == null) ? null : top.m_bid, priceNewOrOld(buyOrder, newBuyPrice)) + "  " +
+                "[bid=" + ((top == null) ? "?" : top.bidStr()) + ", ask=" + ((top == null) ? "?" : top.askStr()) + "]  " + // ASK > BID
+                logPriceDelta(priceNewOrOld(sellOrder, newSellPrice), (top == null) ? null : top.m_ask) + "  " +
+                "sell: " + logPriceAndChange(sellOrder, newSellPrice);
+    }
+
+    private static Double priceNewOrOld(OrderData order, Double newPrice) {
         if (newPrice != null) {
             return newPrice;
         } else {
@@ -381,7 +385,7 @@ public class ExchangeData {
 
     public boolean postOrderAtMarket(OrderSide side, TopData top, ExchangeState newState) {
         boolean placed = false;
-        log("postOrderAtMarket() exch='"+exchName()+"', side=" + side);
+        log("postOrderAtMarket() exch='" + exchName() + "', side=" + side);
         if (TopData.isLive(top)) {
             double price = side.mktPrice(top);
             logOrdersAndPrices(top, (side == OrderSide.BUY) ? price : null, (side == OrderSide.SELL) ? price : null);
@@ -448,7 +452,7 @@ public class ExchangeData {
     private boolean moveMarketOrder(OrderData order) {
         if( cancelOrder(order) ) { // todo: order can be executed at this point, so cancel will fail
             if(order.m_status == OrderStatus.PARTIALLY_FILLED) {
-                log("not supported moveMarketOrderIfNeeded for PARTIALLY_FILLED: "+order);
+                log("not supported moveMarketOrderIfNeeded for PARTIALLY_FILLED: " + order);
                 setState(ExchangeState.ERROR);
                 return false;
             }

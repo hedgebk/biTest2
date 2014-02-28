@@ -4,7 +4,7 @@ import java.io.IOException;
 
 public class ForkData {
     private long m_id;
-    private PairExchangeData m_pairExData;
+    public PairExchangeData m_pairExData;
     private ExchangeData m_exch1data;
     private ExchangeData m_exch2data;
     public ForkState m_state = ForkState.NONE;
@@ -12,7 +12,7 @@ public class ForkData {
     private ExchangeData m_openBuyExchange;
     private ExchangeData m_openSellExchange;
     private double m_earnThisRun;
-    private double m_amount; // todo serialize
+    public double m_amount; // todo serialize
 
     boolean checkAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
     boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
@@ -52,11 +52,11 @@ public class ForkData {
         log("Fork.checkState() " + this);
         m_exch1data.checkExchState(iContext);
         m_exch2data.checkExchState(iContext);
-        if (m_openCross!=null) {
-            m_openCross.checkState(iContext);
+        if (m_openCross != null) {
+            m_openCross.checkState(iContext, this);
         }
-        if (m_closeCross !=null) {
-            m_closeCross.checkState(iContext);
+        if (m_closeCross != null) {
+            m_closeCross.checkState(iContext, this);
         }
         m_state.checkState(iContext, this);
     }
@@ -285,7 +285,7 @@ public class ForkData {
         });
     }
 
-    private double midCommissionAmount() {
+    public double midCommissionAmount() {
         return m_exch1data.midCommissionAmount() + m_exch2data.midCommissionAmount();
     }
 
@@ -545,7 +545,7 @@ public class ForkData {
     // one of these crosses is active at the time
     private CrossData m_openCross;
     private CrossData m_closeCross;
-    private boolean m_startBuySide;
+    public boolean m_startBuySide;
 
     void placeOpenCrosses(IterationContext iContext) throws Exception {
         log(" try place OpenCrosses, startBuySide=" + m_startBuySide);
@@ -566,83 +566,36 @@ public class ForkData {
         m_startBuySide = startBuySide;
     }
 
-    public static class CrossData {
-        public CrossState m_state;
-        public final SharedExchangeData m_buyExch;
-        public final SharedExchangeData m_sellExch;
-        public OrderData m_buyOrder;
-        public OrderData m_sellOrder;
-
-        @Override public String toString() {
-            return "CrossData{" +
-                    "state=" + m_state +
-                    '}';
-        }
-
-        public CrossData(SharedExchangeData buyExch, SharedExchangeData sellExch) {
-            m_buyExch = buyExch;
-            m_sellExch = sellExch;
-            m_state = CrossState.NONE;
-        }
-
-        private void init(double halfTargetDelta, double midDiffAverage, double amount) {
-            // ASK > BID
-            double buy = m_sellExch.m_lastTop.m_bid - halfTargetDelta + midDiffAverage;
-            double sell = m_buyExch.m_lastTop.m_ask + halfTargetDelta - midDiffAverage;
-
-            m_buyOrder  = new OrderData(OrderSide.BUY,  buy,  amount);
-            m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
-
-            boolean success = m_buyExch.placeOrderBracket(m_buyOrder);
-            if (success) {
-                success = m_sellExch.placeOrderBracket(m_sellOrder);
-                if (success) {
-                    setState(CrossState.OPEN_BRACKETS_PLACED);
-                } else {
-                    log("ERROR: " + m_sellExch.m_exchange.m_name + " placeBracket failed");
-                    setState(CrossState.ERROR);
-                }
+    public double checkPartially() {
+        double qty = 0;
+        if (m_openCross != null) {
+            if (m_openCross.isActive()) {
+                qty = m_openCross.checkOpenBracketsPartiallyExecuted();
             } else {
-                log("ERROR: " + m_buyExch.m_exchange.m_name + " placeBracket failed");
-                setState(CrossState.ERROR);
+                if (m_closeCross != null) {
+                    if (m_closeCross.isActive()) {
+                        qty = m_closeCross.checkOpenBracketsPartiallyExecuted();
+                    }
+                }
             }
         }
-
-        private void setState(CrossState state) {
-            log("CrossData.setState() " + m_state + " -> " + state);
-            m_state = state;
-        }
-
-        public void checkState(IterationContext iContext) throws Exception {
-            log("CrossData.checkState() on " + this);
-            m_buyOrder.m_state.checkState(iContext, m_buyExch, m_buyOrder);
-            m_sellOrder.m_state.checkState(iContext, m_sellExch, m_sellOrder);
-            m_state.checkState(iContext, this);
-        }
-
-        public void init(ForkData forkData) {
-            double midDiffAverage = forkData.m_pairExData.m_diffAverageCounter.get(); // top1 - top2
-            double commissionAmount = forkData.midCommissionAmount();
-            double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
-            log(" commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
-
-            double avgDiff = forkData.m_startBuySide ? midDiffAverage : -midDiffAverage;
-            init(halfTargetDelta, avgDiff, forkData.m_amount);
-        }
+        return qty;
     }
 
-    public static enum CrossState {
-        NONE,
-        OPEN_BRACKETS_PLACED {
-            @Override public void checkState(IterationContext iContext, CrossData crossData) {
-                log("CrossState.checkState() " + this);
-                // todo: check if orders executed/or partially, move brackets if needed
+    public ForkData fork(double qty) {
+        if (m_openCross != null) {
+            CrossData openCross = m_openCross.fork(qty);
+            CrossData closeCross;
+            if (m_closeCross != null) {
+                closeCross = m_closeCross.fork(qty);
+            } else {
+                closeCross = null;
             }
-        },
-        ERROR;
-
-        public void checkState(IterationContext iContext, CrossData crossData) {
-            log("checkState not implemented for " + this);
+            double amount2 = m_amount - qty;
+            ForkData ret = new ForkData(m_pairExData, null, amount2);
+            m_amount = qty;
+            return ret;
         }
+        return null;
     }
 } // ForkData

@@ -34,7 +34,7 @@ public class TradesData {
     }
 
     public static class TradeData {
-        public final double m_amount;
+        public double m_amount;
         public final double m_price;
         public final long m_timestamp;
         public final long m_tid;

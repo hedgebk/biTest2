@@ -10,22 +10,10 @@ public class OrderData {
     public OrderState m_state = OrderState.NONE;
     public final OrderSide m_side;
     public double m_price;
-    public final double m_amount;
+    public double m_amount;
     public double m_filled;
     public List<Execution> m_executions;
-
-    @Override public String toString() {
-        return "OrderData{" +
-                "side=" + m_side +
-                ", amount=" + m_amount +
-                ", price=" + Fetcher.format(m_price) +
-                ", status=" + m_status +
-                ", state=" + m_state +
-                ", filled=" + m_filled +
-                '}';
-    }
-
-    public String priceStr() { return Fetcher.format(m_price); }
+    private long m_time; // todo: add to serialize
 
     public OrderData(OrderSide side, double price, double amount) {
         m_side = side;
@@ -34,6 +22,8 @@ public class OrderData {
     }
 
     public boolean isActive() { return m_status.isActive(); }
+    public long time() { return m_time; }
+    public String priceStr() { return Fetcher.format(m_price); }
 
     public boolean acceptPrice(double mktPrice) {
         return m_side.acceptPrice(m_price, mktPrice);
@@ -47,6 +37,7 @@ public class OrderData {
             m_status = OrderStatus.FILLED;
         } else if (executions.size() == 1) { // just got the very first execution
             m_status = OrderStatus.PARTIALLY_FILLED;
+            m_time = System.currentTimeMillis();
         }
     }
 
@@ -57,11 +48,14 @@ public class OrderData {
         return m_executions;
     }
 
-    public boolean xCheckExecutedLimit(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData, TradesData newTrades) {
+    public void xCheckExecutedLimit(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData, TradesData newTrades) {
         OrderSide orderSide = orderData.m_side;
         double orderAmount = orderData.m_amount;
         double price = orderData.m_price;
         for (TradesData.TradeData trade : newTrades.m_trades) {
+            if (trade.m_amount == 0) {
+                continue; // this execution is already processed
+            }
             double mktPrice = trade.m_price; // ASK > BID
 
             boolean acceptPriceSimulated = false;
@@ -80,16 +74,23 @@ public class OrderData {
                 log("@@@@@@@@@@@@@@ we have LMT order " + orderSide + " " + orderAmount + " @ " + orderData.priceStr() +
                         " on '" + shExchData.m_exchange.m_name + "' got matched trade=" + trade);
 
-                if (orderAmount > tradeAmount) { // for now partial order execution it is complex to handle - todo: we may execute the rest by MKT price
-                    log("@@@@@@@@@@@@@@  for now partial order execution it is complex to handle: " +
-                            "orderAmount=" + orderAmount + ", tradeAmount=" + tradeAmount);
+                double remained = orderAmount - orderData.m_filled;
+                double extra = tradeAmount - remained;
+                double amount;
+                if (extra > 0) { // to much trade to fill the order - split the trade
+                    amount = remained;
+                    trade.m_amount = extra;
+                } else {
+                    amount = tradeAmount;
+                    trade.m_amount = 0;
                 }
-                // here we pretend that the whole order was executed for now
-                orderData.addExecution(price, orderAmount); // todo: add partial order execution support later.
-                return true; // simulated that the whole order executed
+
+                orderData.addExecution(price, amount);
+                if (orderData.isFilled()) {
+                    return; // the whole order executed
+                }
             }
         }
-        return false;
     }
 
     public boolean isFilled() {
@@ -98,8 +99,27 @@ public class OrderData {
         if (statusOk == filledOk) {
             return statusOk;
         }
-        log("Error order state: status not matches filled qty: " + this);
-        return false;
+        throw new RuntimeException("Error order state: status not matches filled qty: " + this);
+    }
+
+    public boolean isPartiallyFilled() {
+        boolean statusOk = (m_status == OrderStatus.PARTIALLY_FILLED);
+        boolean filledOk = (m_filled != m_amount) && (m_filled > 0);
+        if (statusOk == filledOk) {
+            return statusOk;
+        }
+        throw new RuntimeException("Error order state: status not matches partially filled qty: " + this);
+    }
+
+    @Override public String toString() {
+        return "OrderData{" +
+                "side=" + m_side +
+                ", amount=" + m_amount +
+                ", price=" + Fetcher.format(m_price) +
+                ", status=" + m_status +
+                ", state=" + m_state +
+                ", filled=" + m_filled +
+                '}';
     }
 
     public void serialize(StringBuilder sb) {
@@ -212,5 +232,53 @@ public class OrderData {
 
     private void log(String s) {
         Log.log(s);
+    }
+
+    public OrderData fork(double qty) {
+        double amount2 = m_amount - qty;
+        OrderData ret = new OrderData(m_side, m_price, amount2);
+
+        double filled2;
+        OrderStatus status2;
+        OrderState state2;
+        if(qty <= m_filled) { // need to split filled
+            filled2 = m_filled - qty;
+            status2 = m_status;
+            state2 = m_state;
+            m_filled = 0;
+            if( m_executions != null ) {
+                List<Execution> executions = m_executions;
+                m_executions = null;
+                for (Execution execution: executions) {
+                    double amount = execution.m_amount;
+                    double price = execution.m_price;
+                    double nonFilled = qty - m_filled;
+                    if( nonFilled > 0 ) {
+                        double split = amount - nonFilled;
+                        if(split > 0) {
+                            addExecution(price, nonFilled);
+                            ret.addExecution(price, split);
+                        } else {
+                            addExecution(price, amount);
+                        }
+                    } else {
+                        ret.addExecution(price, amount);
+                    }
+                }
+            }
+            m_state = OrderState.NONE;
+            m_status = OrderStatus.FILLED;
+        } else {
+            filled2 = 0;
+            status2 = m_status;
+            state2 = m_state;
+        }
+        m_amount = qty;
+
+        ret.m_status = status2;
+        ret.m_state = state2;
+        ret.m_filled = filled2;
+
+        return ret;
     }
 } // OrderData
