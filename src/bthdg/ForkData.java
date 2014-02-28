@@ -12,6 +12,7 @@ public class ForkData {
     private ExchangeData m_openBuyExchange;
     private ExchangeData m_openSellExchange;
     private double m_earnThisRun;
+    private double m_amount; // todo serialize
 
     boolean checkAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
     boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
@@ -29,20 +30,22 @@ public class ForkData {
                 '}';
     }
 
-    public ForkData(PairExchangeData pExData, Boolean startBuySide) {
+    public ForkData(PairExchangeData pExData, Boolean startBuySide, double amount) {
         this(System.currentTimeMillis(),
              new ExchangeData(pExData.m_sharedExch1),
-             new ExchangeData(pExData.m_sharedExch2));
+             new ExchangeData(pExData.m_sharedExch2),
+             amount);
         m_pairExData = pExData;
         if (startBuySide != null) {
             startCross(startBuySide);
         }
     }
 
-    private ForkData(long id, ExchangeData e1, ExchangeData e2) {
+    private ForkData(long id, ExchangeData e1, ExchangeData e2, double amount) {
         m_id = id;
         m_exch1data = e1;
         m_exch2data = e2;
+        m_amount = amount;
     }
 
     public void checkState(IterationContext iContext) throws Exception {
@@ -105,7 +108,7 @@ public class ForkData {
 
     void moveBracketsIfNeeded(IterationContext iContext) throws Exception {
         log(" move open/close bracket orders if needed");
-        doWithFreshTopData(iContext, new Runnable() {
+        m_pairExData.doWithFreshTopData(iContext, new Runnable() {
             public void run() {
                 TopData top1 = m_exch1data.m_shExchData.m_lastTop;
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
@@ -130,7 +133,7 @@ public class ForkData {
 
     public void placeCloseBrackets(IterationContext iContext) throws Exception {
         log(" try place CloseBrackets");
-        doWithFreshTopData(iContext, new Runnable() {
+        m_pairExData.doWithFreshTopData(iContext, new Runnable() {
             public void run() {
                 TopData top1 = m_exch1data.m_shExchData.m_lastTop;
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
@@ -160,7 +163,7 @@ public class ForkData {
 
     public void moveMarketsIfNeeded(IterationContext iContext) throws Exception {
         log(" move mkt orders if needed");
-        doWithFreshTopData(iContext, new Runnable() {
+        m_pairExData.doWithFreshTopData(iContext, new Runnable() {
             public void run() {
                 boolean success = false;
                 if(m_exch1data.moveMarketOrderIfNeeded()) {
@@ -258,7 +261,7 @@ public class ForkData {
 
     void placeOpenBrackets(IterationContext iContext) throws Exception {
         log(" try place OpenBrackets");
-        doWithFreshTopData(iContext, new Runnable() {
+        m_pairExData.doWithFreshTopData(iContext, new Runnable() {
             public void run() {
                 TopData top1 = m_exch1data.m_shExchData.m_lastTop;
                 TopData top2 = m_exch2data.m_shExchData.m_lastTop;
@@ -290,25 +293,6 @@ public class ForkData {
         m_pairExData.queryAccountData();
     }
 
-    private void doWithFreshTopData(IterationContext iContext, Runnable run) throws Exception {
-        TopDatas tops = iContext.getTopsData(m_pairExData);
-        if (tops.bothFresh()) {
-            logDiffAverageDelta();
-            run.run();
-            iContext.delay(5000);
-        } else {
-            log("some exchange top data is not fresh " +
-                    "(fresh1=" + tops.top1fresh() + ", fresh2=" + tops.top2fresh() + ") - do nothing");
-        }
-    }
-
-    private void logDiffAverageDelta() {
-        double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
-        TopData.TopDataEx lastDiff = m_pairExData.m_lastDiff;
-        double delta = lastDiff.m_mid - midDiffAverage;
-        log("diff=" + lastDiff + ";  avg=" + Fetcher.format(midDiffAverage) + ";  delta=" + Fetcher.format(delta));
-    }
-
     private void verifyAndLogSameExchange(IterationContext iContext, ExchangeData exch) throws Exception {
         iContext.getTopsData(m_pairExData); // make sure top data loaded
         logState();
@@ -323,7 +307,7 @@ public class ForkData {
         double buyPrice = buyOrder.m_price;
         double priceDiff = sellPrice - buyPrice;
 
-        logDiffAverageDelta();
+        m_pairExData.logDiffAverageDelta();
 
         log("avg bidAskDiff:" + m_exch1data.exchName() + " " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
                 m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
@@ -372,12 +356,10 @@ public class ForkData {
 
             String str1 = "% BUY  on '" + buyExch.exchName() + "' @ " + openBuyOrder.priceStr();
             log(str1);
-//            m_executionTrace.append(str1).append("\n");
             m_openBuyExchange.logOrdersAndPrices(m_openBuyExchange.m_shExchData.m_lastTop, null, null);
 
             String str2 = "% SELL on '" + sellExch.exchName() + "' @ " + openSellOrder.priceStr();
             log(str2);
-//            m_executionTrace.append(str2).append("\n");
             m_openSellExchange.logOrdersAndPrices(m_openSellExchange.m_shExchData.m_lastTop, null, null);
 
             double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
@@ -385,7 +367,7 @@ public class ForkData {
             double buyPrice = openBuyOrder.m_price;
             double priceDiff = sellPrice - buyPrice;
 
-            logDiffAverageDelta();
+            m_pairExData.logDiffAverageDelta();
 
             double openEarn = priceDiff;
             if(m_openSellExchange == m_exch1data) { // sell on exch 1
@@ -483,7 +465,8 @@ public class ForkData {
         String earn = deserializer.readTill("]");
 
         long id = Long.parseLong(idStr);
-        ForkData res = new ForkData(id, e1, e2);
+        ForkData res = new ForkData(id, e1, e2,
+                0); // TODO: deserialize
         res.m_state = ForkState.valueOf(stateStr);
         res.m_earnThisRun = Double.parseDouble(earn);
 
@@ -566,7 +549,7 @@ public class ForkData {
 
     void placeOpenCrosses(IterationContext iContext) throws Exception {
         log(" try place OpenCrosses, startBuySide=" + m_startBuySide);
-        doWithFreshTopData(iContext, new Runnable() {
+        m_pairExData.doWithFreshTopData(iContext, new Runnable() {
             public void run() {
                 SharedExchangeData buyExch = m_startBuySide ? m_pairExData.m_sharedExch1 : m_pairExData.m_sharedExch2;
                 SharedExchangeData sellExch = m_startBuySide ? m_pairExData.m_sharedExch2 : m_pairExData.m_sharedExch1;
@@ -602,17 +585,7 @@ public class ForkData {
             m_state = CrossState.NONE;
         }
 
-        private void init(double halfTargetDelta, double midDiffAverage) {
-            double usd = m_buyExch.m_account.m_usd;
-            double buyBtc = usd / m_buyExch.m_lastTop.m_ask;
-            log("buy  exch: usd=" + Fetcher.format(usd) + ",  buyBtc=" + Fetcher.format(buyBtc));
-
-            double btc = m_sellExch.m_account.m_btc;
-            double sellUsd = btc * m_sellExch.m_lastTop.m_bid;
-            log("sell exch: btc=" + Fetcher.format(btc) + ", sellUsd=" + Fetcher.format(sellUsd));
-
-            double amount = Math.min(btc, buyBtc) * 0.95;
-
+        private void init(double halfTargetDelta, double midDiffAverage, double amount) {
             // ASK > BID
             double buy = m_sellExch.m_lastTop.m_bid - halfTargetDelta + midDiffAverage;
             double sell = m_buyExch.m_lastTop.m_ask + halfTargetDelta - midDiffAverage;
@@ -651,10 +624,10 @@ public class ForkData {
             double midDiffAverage = forkData.m_pairExData.m_diffAverageCounter.get(); // top1 - top2
             double commissionAmount = forkData.midCommissionAmount();
             double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
-            log(" btc commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
+            log(" commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
 
             double avgDiff = forkData.m_startBuySide ? midDiffAverage : -midDiffAverage;
-            init(halfTargetDelta, avgDiff);
+            init(halfTargetDelta, avgDiff, forkData.m_amount);
         }
     }
 

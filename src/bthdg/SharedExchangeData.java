@@ -141,6 +141,7 @@ public class SharedExchangeData {
         AccountData account = Fetcher.fetchAccount(m_exchange);
         log("queryAccountData() account=" + account);
         m_account = account;
+        // todo: handle if query unsuccessfull
     }
 
     public double getFee() {

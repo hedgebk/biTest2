@@ -24,7 +24,7 @@ import java.util.Properties;
  *  - add pause for servlet to redeploy new version and continue
  */
 public class Fetcher {
-    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
+    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
@@ -134,10 +134,11 @@ public class Fetcher {
 
     public static AccountData fetchAccount(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.ACCOUNT);
-        log("jObj=" + jObj);
+//        log("jObj=" + jObj);
         AccountData accountData = exchange.parseAccount(jObj);
         log("accountData=" + accountData);
         return accountData;
+        // todo: handle if query unsuccessfull
     }
 
     static TradesData fetchTrades(Exchange exchange) throws Exception {
@@ -181,7 +182,7 @@ public class Fetcher {
     static TopData fetchTopOnce(Exchange exchange) {
         try {
             Object jObj = fetchOnce(exchange, FetchCommand.TOP);
-            //log("jObj=" + jObj);
+log("jObj=" + jObj);
             TopData topData = exchange.parseTop(jObj);
             //log("topData=" + topData);
             return topData;

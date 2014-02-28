@@ -135,6 +135,10 @@ public class Utils {
         }
     }
 
+    public static double fourDecimalDigits(double amount) { // 1.234567 -> 1.2345
+        return ((long)(amount * 1000))/1000.0;
+    }
+
     public static abstract class DoubleAverageCalculator<O> {
         private double m_sum;
         private double m_weightSum;

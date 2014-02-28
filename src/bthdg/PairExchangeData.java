@@ -44,10 +44,39 @@ public class PairExchangeData {
             m_stopRequested = false;
         } else {
             if (m_forks.isEmpty()) { // start first forks
-                ForkData newFork1 = new ForkData(this, true); // todo: pass amount to constructor
-                m_forks.add(newFork1);
-                ForkData newFork2 = new ForkData(this, false); // todo: pass amount to constructor
-                m_forks.add(newFork2);
+                queryAccountData();
+                if( doWithFreshTopData(iContext, new Runnable() {
+                    @Override public void run() {
+                        AccountData acct1 = m_sharedExch1.m_account;
+                        AccountData acct2 = m_sharedExch2.m_account;
+                        double usd1 = acct1.m_usd;
+                        double btc1 = acct1.m_btc;
+                        double usd2 = acct2.m_usd;
+                        double btc2 = acct2.m_btc;
+                        log("acct1: usd=" + Fetcher.format(usd1) + ",  btc=" + Fetcher.format(btc1));
+                        log("acct2: usd=" + Fetcher.format(usd2) + ",  btc=" + Fetcher.format(btc2));
+                        double usd = Math.min(usd1, usd2);
+                        double btc = Math.min(btc1, btc2);
+                        log(" min usd=" + Fetcher.format(usd) + ", min btc=" + Fetcher.format(btc));
+                        double maxPrice = Math.max(m_sharedExch1.m_lastTop.m_ask, m_sharedExch2.m_lastTop.m_ask); // ASK > BID
+                        double btcFromUsd = usd / maxPrice;
+                        log("  maxPrice=" + Fetcher.format(maxPrice) + ", btcFromUsd=" + Fetcher.format(btcFromUsd));
+                        double amount = Math.min(btc, btcFromUsd) * 0.95;
+                        amount = Utils.fourDecimalDigits(amount);
+                        log("   finally amount=" + Fetcher.format(amount));
+                        // todo: deal with precision - qty=0.017833861354239377  is not OK
+
+                        ForkData newFork1 = new ForkData(PairExchangeData.this, true,  amount);
+                        m_forks.add(newFork1);
+                        ForkData newFork2 = new ForkData(PairExchangeData.this, false, amount);
+                        m_forks.add(newFork2);
+                    }
+                })){ // forks placed - do without delay
+                    iContext.delay(0);
+                } else { // no fresh data to start - wait
+                    iContext.delay(5000);
+                    return false; // do not finish yet
+                }
             }
         }
 
@@ -107,7 +136,7 @@ public class PairExchangeData {
         log("available amount: " + amount);
         if (amount > MIN_AVAILABLE_AMOUNT) {
             log(" we have MIN_AVAILABLE_AMOUNT(=" + MIN_AVAILABLE_AMOUNT + ") - adding brand new Fork");
-            ForkData newFork = new ForkData(this, null); // todo: pass amount to constructor
+            ForkData newFork = new ForkData(this, null, 0); // todo: pass amount to constructor
             m_forks.add(newFork);
         } else {
             log(" not reached MIN_AVAILABLE_AMOUNT - NO new Fork");
@@ -304,5 +333,28 @@ public class PairExchangeData {
     public void queryAccountData() throws Exception {
         m_sharedExch1.queryAccountData();
         m_sharedExch2.queryAccountData();
+        // todo: handle if query unsuccessfull
     }
+
+    /** @return true if all top data loaded */
+    public boolean doWithFreshTopData(IterationContext iContext, Runnable run) throws Exception {
+        TopDatas tops = iContext.getTopsData(this);
+        if (tops.bothFresh()) {
+            logDiffAverageDelta();
+            run.run();
+            iContext.delay(5000);
+            return true;
+        } else {
+            log("some exchange top data is not fresh " +
+                    "(fresh1=" + tops.top1fresh() + ", fresh2=" + tops.top2fresh() + ") - do nothing");
+            return false;
+        }
+    }
+
+    public void logDiffAverageDelta() {
+        double midDiffAverage = m_diffAverageCounter.get();
+        double delta = m_lastDiff.m_mid - midDiffAverage;
+        log("diff=" + m_lastDiff + ";  avg=" + Fetcher.format(midDiffAverage) + ";  delta=" + Fetcher.format(delta));
+    }
+
 } // bthdg.PairExchangeData

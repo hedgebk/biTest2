@@ -75,9 +75,9 @@ public class IterationContext {
         long top1Millis = System.currentTimeMillis();
         TopData top2 = sharedExch2data.fetchTopOnce();
         long top2Millis = System.currentTimeMillis();
-        log("  loaded in " + (top1Millis - millis0) + " and " + (top2Millis - top1Millis) + " ms");
+//        log("  loaded in " + (top1Millis - millis0) + " and " + (top2Millis - top1Millis) + " ms");
         Fetcher.log(sharedExch1data.m_exchange, top1);
-        Fetcher.log(sharedExch1data.m_exchange, top2);
+        Fetcher.log(sharedExch2data.m_exchange, top2);
 
         TopDatas ret = new TopDatas(top1, top2);
         pairExchangeData.onTopsLoaded(ret);
