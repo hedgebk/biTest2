@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Random;
 
 public class OrderData {
+    public static final double MIN_ORDER_QTY = 0.01;
+
     public OrderStatus m_status = OrderStatus.NEW;
     public OrderState m_state = OrderState.NONE;
     public final OrderSide m_side;
@@ -24,6 +26,7 @@ public class OrderData {
     public boolean isActive() { return m_status.isActive(); }
     public long time() { return m_time; }
     public String priceStr() { return Fetcher.format(m_price); }
+    public double remained() { return m_amount - m_filled; }
 
     public boolean acceptPrice(double mktPrice) {
         return m_side.acceptPrice(m_price, mktPrice);

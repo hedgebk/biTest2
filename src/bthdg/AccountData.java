@@ -8,6 +8,9 @@ public class AccountData {
     public double m_btc;
     public double m_fee;
 
+    public double availableUsd() { return m_usd; }
+    public double availableBtc() { return m_btc; }
+
     public AccountData(String name, double usd, double btc, double fee) {
         m_name = name;
         m_usd = usd;

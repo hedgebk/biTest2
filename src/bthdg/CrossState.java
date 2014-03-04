@@ -2,31 +2,38 @@ package bthdg;
 
 public enum CrossState {
     NONE,
-    OPEN_BRACKETS_PLACED {
+    BRACKETS_PLACED {
         @Override public void checkState(IterationContext iContext, ForkData forkData, CrossData crossData) throws Exception {
             log("CrossState.checkState() " + this);
-            if(crossData.checkOpenBracketsExecuted(iContext, forkData) ) {
-                crossData.moveBracketsIfNeeded(iContext);
+            if(crossData.checkBracketsExecuted(iContext, forkData) ) {
+                crossData.moveBracketsIfNeeded(iContext, forkData);
             }
         }
     },
-    ONE_OPEN_BRACKETS_EXECUTED {
+    ONE_BRACKET_EXECUTED {
         @Override public void checkState(IterationContext iContext, ForkData forkData, CrossData crossData) throws Exception {
             log("CrossState.checkState() " + this);
-            crossData.checkOpenBracketsExecuted(iContext, forkData);
-        }
-    },
-    BOTH_OPEN_BRACKETS_EXECUTED {
-        @Override public void checkState(IterationContext iContext, ForkData forkData, CrossData crossData) {
-            log("CrossState.checkState() " + this);
+            crossData.checkBracketsExecuted(iContext, forkData);
         }
     },
     MKT_BRACKET_PLACED {
+        @Override public void checkState(IterationContext iContext, ForkData forkData, CrossData crossData) throws Exception {
+            log("CrossState.checkState() " + this);
+            crossData.checkMarketBracketsExecuted(iContext, forkData);
+        }
+    },
+    BOTH_BRACKETS_EXECUTED {
         @Override public void checkState(IterationContext iContext, ForkData forkData, CrossData crossData) {
             log("CrossState.checkState() " + this);
         }
     },
-    ERROR;
+    STOP { // something not OK to continue execution
+        @Override public void checkState(IterationContext iContext, ForkData forkData, CrossData crossData) {
+            log("CrossState.checkState() " + this);
+        }
+    },
+    ERROR,
+    ;
 
     public void checkState(IterationContext iContext, ForkData forkData, CrossData crossData) throws Exception {
         log("checkState not implemented for " + this);

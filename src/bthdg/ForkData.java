@@ -12,7 +12,14 @@ public class ForkData {
     private ExchangeData m_openBuyExchange;
     private ExchangeData m_openSellExchange;
     private double m_earnThisRun;
-    public double m_amount; // todo serialize
+
+    public double m_amount; // todo: serialize below
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    // one of these crosses is active at the time
+    public CrossData m_openCross;
+    public CrossData m_closeCross;
+
+    public ForkDirection m_direction;
 
     boolean checkAnyBracketExecuted() { return m_exch1data.hasOpenCloseBracketExecuted() || m_exch2data.hasOpenCloseBracketExecuted(); }
     boolean waitingForAllBracketsOpen() { return m_exch1data.waitingForOpenBrackets() && m_exch2data.waitingForOpenBrackets(); }
@@ -30,14 +37,14 @@ public class ForkData {
                 '}';
     }
 
-    public ForkData(PairExchangeData pExData, Boolean startBuySide, double amount) {
+    public ForkData(PairExchangeData pExData, ForkDirection direction, double amount) {
         this(System.currentTimeMillis(),
              new ExchangeData(pExData.m_sharedExch1),
              new ExchangeData(pExData.m_sharedExch2),
              amount);
         m_pairExData = pExData;
-        if (startBuySide != null) {
-            startCross(startBuySide);
+        if (direction != null) {
+            startCross(direction);
         }
     }
 
@@ -52,13 +59,18 @@ public class ForkData {
         log("Fork.checkState() " + this);
         m_exch1data.checkExchState(iContext);
         m_exch2data.checkExchState(iContext);
-        if (m_openCross != null) {
-            m_openCross.checkState(iContext, this);
-        }
-        if (m_closeCross != null) {
-            m_closeCross.checkState(iContext, this);
-        }
+        checkCross(iContext, m_openCross);
+        checkCross(iContext, m_closeCross);
         m_state.checkState(iContext, this);
+    }
+
+    private void checkCross(IterationContext iContext, CrossData cross) throws Exception {
+        if (cross != null) {
+            cross.checkState(iContext, this);
+            if(cross.stuckTooLong()) {
+                setState(ForkState.STOP);
+            }
+        }
     }
 
     public void endThisRun() {
@@ -408,10 +420,24 @@ public class ForkData {
     public void stop() {
         m_exch1data.stop();
         m_exch2data.stop();
+        if (m_openCross != null) {
+            m_openCross.stop();
+            if (m_closeCross != null) {
+                m_closeCross.stop();
+            }
+        }
+        setState(ForkState.STOPPING);
     }
 
     public boolean allStopped() {
-        return m_exch1data.isStopped() && m_exch2data.isStopped();
+        if( m_exch1data.isStopped() && m_exch2data.isStopped() ) {
+            if ((m_openCross != null) && m_openCross.isStopped()) {
+                if ((m_closeCross != null) && m_closeCross.isStopped()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public void appendState(StringBuilder sb) {
@@ -541,61 +567,107 @@ public class ForkData {
         return ret;
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    // one of these crosses is active at the time
-    private CrossData m_openCross;
-    private CrossData m_closeCross;
-    public boolean m_startBuySide;
-
     void placeOpenCrosses(IterationContext iContext) throws Exception {
-        log(" try place OpenCrosses, startBuySide=" + m_startBuySide);
+        log(" try place OpenCrosses, direction=" + m_direction);
         m_pairExData.doWithFreshTopData(iContext, new Runnable() {
             public void run() {
-                SharedExchangeData buyExch = m_startBuySide ? m_pairExData.m_sharedExch1 : m_pairExData.m_sharedExch2;
-                SharedExchangeData sellExch = m_startBuySide ? m_pairExData.m_sharedExch2 : m_pairExData.m_sharedExch1;
+                SharedExchangeData buyExch = m_direction.buyExch(m_pairExData);
+                SharedExchangeData sellExch = m_direction.sellExch(m_pairExData);
 
                 m_openCross = new CrossData(buyExch, sellExch);
-                m_openCross.init(ForkData.this);
+                m_openCross.init(ForkData.this, true);
 
                 setState(ForkState.OPEN_BRACKETS_PLACED_NEW);
             }
         });
     }
 
-    private void startCross(boolean startBuySide) {
-        m_startBuySide = startBuySide;
+    public void placeCloseCrosses(double amount) {
+        log(" try place CloseCrosses, direction=" + m_direction);
+
+        // note here is in reverse
+        SharedExchangeData sellExch = m_direction.buyExch(m_pairExData);
+        SharedExchangeData buyExch = m_direction.sellExch(m_pairExData);
+
+        m_amount = amount; // update amount since account data can be changed
+
+        m_closeCross = new CrossData(buyExch, sellExch);
+        m_closeCross.init(ForkData.this, false);
+
+        setState(ForkState.CLOSE_BRACKETS_PLACED_NEW);
     }
 
-    public double checkPartially() {
-        double qty = 0;
-        if (m_openCross != null) {
-            if (m_openCross.isActive()) {
-                qty = m_openCross.checkOpenBracketsPartiallyExecuted();
-            } else {
-                if (m_closeCross != null) {
-                    if (m_closeCross.isActive()) {
-                        qty = m_closeCross.checkOpenBracketsPartiallyExecuted();
-                    }
-                }
-            }
-        }
-        return qty;
+    private void startCross(ForkDirection direction) {
+        m_direction = direction;
     }
 
     public ForkData fork(double qty) {
         if (m_openCross != null) {
             CrossData openCross = m_openCross.fork(qty);
-            CrossData closeCross;
-            if (m_closeCross != null) {
-                closeCross = m_closeCross.fork(qty);
-            } else {
-                closeCross = null;
-            }
+            CrossData closeCross = (m_closeCross != null) ? m_closeCross.fork(qty) : null;
             double amount2 = m_amount - qty;
-            ForkData ret = new ForkData(m_pairExData, null, amount2);
             m_amount = qty;
+
+            ForkData ret = new ForkData(m_pairExData, null, amount2);
+            ret.m_openCross = openCross;
+            ret.m_closeCross = closeCross;
+            ret.m_direction = m_direction;
             return ret;
         }
         return null;
+    }
+
+    public ForkData forkIfNeeded() {
+        if (m_openCross != null) {
+            if (m_openCross.isActive()) {
+                double qty = m_openCross.needFork();
+                if (qty != 0.0) {
+                    return fork(qty);
+                }
+            } else {
+                if (m_closeCross != null) {
+                    if (m_closeCross.isActive()) {
+                        double qty = m_closeCross.needFork();
+                        if (qty != 0.0) {
+                            return fork(qty);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public boolean isNotStarted() {
+        return (m_openCross != null) && m_openCross.isNotStarted();
+    }
+
+    public boolean increaseOpenAmount(IterationContext iContext, final PairExchangeData pairExchangeData) {
+        boolean ret = m_openCross.increaseOpenAmount(pairExchangeData, m_direction);
+        if (ret) {
+            m_amount = m_openCross.m_buyOrder.m_amount;
+        }
+        return ret;
+    }
+
+
+    public static enum ForkDirection {
+        DOWN { // 1>2
+            @Override public SharedExchangeData buyExch(PairExchangeData pairExData) { return pairExData.m_sharedExch2; }
+            @Override public SharedExchangeData sellExch(PairExchangeData pairExData) { return pairExData.m_sharedExch1; }
+            @Override public ForkDirection opposite() { return UP; }
+            @Override public double apply(double v) { return -v; }
+        },
+        UP {   // 1<2
+            @Override public SharedExchangeData buyExch(PairExchangeData pairExData) { return pairExData.m_sharedExch1; }
+            @Override public SharedExchangeData sellExch(PairExchangeData pairExData) { return pairExData.m_sharedExch2; }
+            @Override public ForkDirection opposite() { return DOWN; }
+            @Override public double apply(double v) { return v; }
+        };
+
+        public SharedExchangeData buyExch(PairExchangeData pairExData) { return null; }
+        public SharedExchangeData sellExch(PairExchangeData pairExData) { return null; }
+        public ForkDirection opposite() { return null; }
+        public double apply(double v) { return 0; }
     }
 } // ForkData

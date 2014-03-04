@@ -6,6 +6,7 @@ import java.util.List;
 
 public class PairExchangeData {
     private static final double MIN_AVAILABLE_AMOUNT = 0.02; // min amount to start
+    private static final double MIN_FORK_INCREASE_AMOUNT = 0.002;
 
     final SharedExchangeData m_sharedExch1;
     final SharedExchangeData m_sharedExch2;
@@ -45,18 +46,7 @@ public class PairExchangeData {
         } else {
             if (m_forks.isEmpty()) { // start first forks
                 queryAccountData();
-                if( doWithFreshTopData(iContext, new Runnable() {
-                    @Override public void run() {
-                        double amount = calcAmount();
-                        ForkData newFork1 = new ForkData(PairExchangeData.this, true,  amount);
-                        m_forks.add(newFork1);
-                        ForkData newFork2 = new ForkData(PairExchangeData.this, false, amount);
-                        m_forks.add(newFork2);
-                    }
-                })){ // forks placed - do without delay
-                    iContext.delay(0);
-                } else { // no fresh data to start - wait
-                    iContext.delay(5000);
+                if (placeStartForksIfPossible(iContext)) {
                     return false; // do not finish yet
                 }
             }
@@ -65,40 +55,111 @@ public class PairExchangeData {
         removeFinishedForks(iContext);
         requestTradesIfNeeded(iContext); // check if forks need trades
 
-        List<ForkData> forks = new ArrayList<ForkData>();
         for (ForkData fork : m_forks) {
             fork.checkState(iContext);
-
-            forks.add(fork);
-            double qty = fork.checkPartially();
-            if (qty != 0) {
-                ForkData fork2 = fork.fork(qty);
-                if (fork2 != null) {
-                    forks.add(fork2);
-                }
-            }
         }
-        m_forks = forks;
+
+        forkIfNeeded();
+
+        placeStopBracketsIfNeeded(iContext);
 
         m_isFinished = m_forks.isEmpty();
         return m_isFinished; // no more tasks to execute
     }
 
-    private double calcAmount() {
-        AccountData acct1 = m_sharedExch1.m_account;
-        AccountData acct2 = m_sharedExch2.m_account;
-        double usd1 = acct1.m_usd;
-        double btc1 = acct1.m_btc;
-        double usd2 = acct2.m_usd;
-        double btc2 = acct2.m_btc;
-        log("acct1: usd=" + Fetcher.format(usd1) + ",  btc=" + Fetcher.format(btc1));
-        log("acct2: usd=" + Fetcher.format(usd2) + ",  btc=" + Fetcher.format(btc2));
-        double usd = Math.min(usd1, usd2);
-        double btc = Math.min(btc1, btc2);
-        log(" min usd=" + Fetcher.format(usd) + ", min btc=" + Fetcher.format(btc));
+    private boolean placeStartForksIfPossible(IterationContext iContext) throws Exception {
+        if( doWithFreshTopData(iContext, new Runnable() {
+            @Override public void run() {
+                placeStartFork(ForkData.ForkDirection.DOWN);
+                placeStartFork(ForkData.ForkDirection.UP);
+            }
+        })){ // forks placed - do without delay
+            iContext.delay(0);
+        } else { // no fresh data to start - wait
+            iContext.delay(5000);
+            return true;
+        }
+        return false;
+    }
+
+    private void placeStartFork(ForkData.ForkDirection direction) {
+        double amount = calcAmount(direction);
+        if (amount >= OrderData.MIN_ORDER_QTY) {
+            ForkData newFork = new ForkData(this, direction, amount);
+            m_forks.add(newFork);
+        }
+    }
+
+    private void placeStopBracketsIfNeeded(final IterationContext iContext) throws Exception {
+        for (final ForkData fork : m_forks) {
+            if (fork.m_state == ForkState.OPEN_CROSS_EXECUTED) {
+                doWithFreshTopData(iContext, new Runnable() {
+                    @Override public void run() {
+                        placeStopBracketsIfNeeded(iContext, fork);
+                    }
+                });
+            }
+        }
+    }
+
+    private void placeStopBracketsIfNeeded(IterationContext iContext, ForkData fork) {
+        ForkData.ForkDirection direction = fork.m_direction;
+        ForkData.ForkDirection opposite = direction.opposite();
+        double amount = calcAmount(opposite);
+        if (amount > MIN_FORK_INCREASE_AMOUNT) {
+            // search other fork to increase
+            for (final ForkData otherFork : m_forks) {
+                ForkData.ForkDirection otherDirection = otherFork.m_direction;
+                if (direction != otherDirection) {
+                    if (otherFork.isNotStarted()) {
+                        if (otherFork.increaseOpenAmount(iContext, this)) {
+                            fork.stop();
+                            amount = 0;
+                            break;
+                        }
+                    } // todo: check if other fork has open cross executed - then just cache out - no need to wait. but qty can be different !
+                }
+            }
+        }
+        if (amount > OrderData.MIN_ORDER_QTY) {
+            fork.placeCloseCrosses(amount);
+        }
+    }
+
+    private void forkIfNeeded() {
+        List<ForkData> forked = null;
+        for (ForkData fork : m_forks) {
+            ForkData fork3 = fork.forkIfNeeded();
+            if (fork3 != null) {
+                if (forked == null) {
+                    forked = new ArrayList<ForkData>();
+                    forked.add(fork3);
+                }
+            }
+        }
+        if (forked != null) {
+            m_forks.addAll(forked);
+        }
+    }
+
+    double calcAmount(ForkData.ForkDirection direction) {
+        SharedExchangeData buyExch  = direction.buyExch(this);
+        SharedExchangeData sellExch = direction.sellExch(this);
+
+        AccountData buyAcct  = buyExch.m_account;
+        AccountData sellAcct = sellExch.m_account;
+
+        double usd = buyAcct.availableUsd();
+        double btc = sellAcct.availableBtc();
+
+
+        log("buy exch "+buyExch.m_exchange+": availableUsd=" + Fetcher.format(usd));
+        log("sell exch "+sellExch.m_exchange+": availableBtc=" + Fetcher.format(btc));
+
         double maxPrice = Math.max(m_sharedExch1.m_lastTop.m_ask, m_sharedExch2.m_lastTop.m_ask); // ASK > BID
         double btcFromUsd = usd / maxPrice;
         log("  maxPrice=" + Fetcher.format(maxPrice) + ", btcFromUsd=" + Fetcher.format(btcFromUsd));
+
         double amount = Math.min(btc, btcFromUsd) * 0.95;
         amount = Utils.fourDecimalDigits(amount);
         log("   finally amount=" + Fetcher.format(amount));
@@ -355,7 +416,7 @@ public class PairExchangeData {
         if (tops.bothFresh()) {
             logDiffAverageDelta();
             run.run();
-            iContext.delay(5000);
+//            iContext.delay(5000);
             return true;
         } else {
             log("some exchange top data is not fresh " +

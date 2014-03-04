@@ -35,7 +35,7 @@ public enum ExchangeState {
     },
     BOTH_OPEN_BRACKETS_EXECUTED {
         @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
-            log("ExchangeState.BOTH_OPEN_BRACKETS_EXECUTED(" + exchData.exchName() + "). do nothing for now");
+            log("ExchangeState.BOTH_BRACKETS_EXECUTED(" + exchData.exchName() + "). do nothing for now");
         }
     },
     OPEN_AT_MKT_PLACED {

@@ -6,20 +6,52 @@ public enum ForkState {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.NONE. queryAccountsData");
             //iContext.queryAccountsData(forkData);
-            forkData.setState(START_NEW);
+            forkData.setState(OPENING_CROSS);
             iContext.delay(0);
         }
     },
+    OPENING_CROSS {
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            log("ForkState.OPENING_CROSS. try to place open crosses orders");
+            forkData.placeOpenCrosses(iContext);
+        }
+    },
+    OPEN_BRACKETS_PLACED_NEW {
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            log("ForkState.OPEN_BRACKETS_PLACED_NEW checkState()");
+            if (forkData.m_openCross.m_state == CrossState.BOTH_BRACKETS_EXECUTED) { // open cross executed ?
+                log(" open cross state is BOTH_BRACKETS_EXECUTED. try to place close crosses orders");
+                forkData.setState(ForkState.OPEN_CROSS_EXECUTED);
+                //forkData.placeCloseCrosses(iContext);
+            }
+        }
+    },
+    OPEN_CROSS_EXECUTED {
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            log("ForkState.OPEN_CROSS_EXECUTED checkState() do nothing");
+            // pairExchange will check do we need to start close cross
+        }
+    },
+//    CLOSING_CROSS {
+//        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+//            log("ForkState.CLOSING_CROSS. try to place close crosses orders");
+//            forkData.placeCloseCrosses(iContext);
+//        }
+//    },
+    CLOSE_BRACKETS_PLACED_NEW {
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            log("ForkState.CLOSE_BRACKETS_PLACED_NEW checkState()");
+            if (forkData.m_closeCross.m_state == CrossState.BOTH_BRACKETS_EXECUTED) {
+                log(" close cross state is BOTH_BRACKETS_EXECUTED. all done");
+            }
+        }
+    },
+
+
     START {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.START. try to place open bracket orders");
             forkData.placeOpenBrackets(iContext);
-        }
-    },
-    START_NEW {
-        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
-            log("ForkState.START_NEW. try to place open bracket orders");
-            forkData.placeOpenCrosses(iContext);
         }
     },
     WAITING_OPEN_BRACKETS {
@@ -32,12 +64,6 @@ public enum ForkState {
                 forkData.setState(ForkState.OPEN_BRACKETS_PLACED); // actually some order may have already another state
                 iContext.delay(0); // no wait
             }
-        }
-    },
-    OPEN_BRACKETS_PLACED_NEW {
-        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
-            log("ForkState.OPEN_BRACKETS_PLACED_NEW checkState()");
-            // todo: move brackets if needed
         }
     },
     OPEN_BRACKETS_PLACED {
@@ -127,12 +153,17 @@ public enum ForkState {
     STOP {
         @Override public boolean preCheckState(IterationContext iContext, ForkData forkData) {
             log("ForkState.STOP preCheckState()");
-            return forkData.allStopped(); // todo: maybe this not exactly correct - closing orders should be quick, but moving to 50-50 can take time
+            return forkData.allStopped();
         }
 
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.STOP checkState()");
             forkData.stop();
+        }
+    },
+    STOPPING {  // internal forkStop requested
+        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
+            log("ForkState.STOPPING checkState()");
         }
     },
     RESTART {
@@ -147,8 +178,7 @@ public enum ForkState {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.FIX_BALANCE checkState()");
         }
-    },
-    ;
+    };
 
     private static void log(String s) { Log.log(s); }
 

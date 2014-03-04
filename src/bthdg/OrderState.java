@@ -31,7 +31,7 @@ public enum OrderState {
                 orderData.m_state = NONE;
                 return true;
             } else { // PARTIALLY FILLED
-                log("PARTIALLY FILLED, not supported yet - just wait more");
+                log("PARTIALLY FILLED, just wait more");
             }
         }
         return false;

@@ -14,14 +14,13 @@ import java.util.Properties;
 
 /**
  * todo:
+ *  - simulate available funds change on account as orders placed/executed
  *  - make delay between runs mkt data related - distance to nearest order driven
  *  - support partial fills - do forks
- *  - support DROP
+ *  - support DROP ?
  *  - count all downloaded traffic
- *  - proxy sdt/out logging
  *  - report running time in servlet
- *  - try sleep instead of wait
- *  - add pause for servlet to redeploy new version and continue
+ *  - add pause for servlet to redeploy new version and continue as is
  */
 public class Fetcher {
     static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
