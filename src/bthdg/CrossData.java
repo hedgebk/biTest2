@@ -35,7 +35,7 @@ public class CrossData {
         double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
         log(" commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
 
-        ForkData.ForkDirection direction = forkData.m_direction;
+        ForkDirection direction = forkData.m_direction;
         if(!isOpenCross) {
             direction = direction.opposite();
         }
@@ -306,9 +306,10 @@ public class CrossData {
         } else {
             return false;
         }
-        boolean tooLong = System.currentTimeMillis() - time > TOO_LONG_TO_WAIT_PARTIAL;
+        long stuchTime = System.currentTimeMillis() - time;
+        boolean tooLong = stuchTime > TOO_LONG_TO_WAIT_PARTIAL;
         if (tooLong) {
-            log("Cross stuck for too long to wait for partial fill on " + this);
+            log("Cross stuck for too long (" + stuchTime + "ms) to wait for partial fill on " + this);
             log(" buyOrder: " + m_buyOrder);
             log(" sellOrder: " + m_sellOrder);
         }
@@ -402,7 +403,7 @@ public class CrossData {
         return null;
     }
 
-    public boolean increaseOpenAmount(PairExchangeData pairExchangeData, ForkData.ForkDirection direction) {
+    public boolean increaseOpenAmount(PairExchangeData pairExchangeData, ForkDirection direction) {
         boolean success = m_buyExch.cancelOrder(m_buyOrder);
         if (success) {
             success = m_sellExch.cancelOrder(m_sellOrder);

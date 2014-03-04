@@ -106,7 +106,7 @@ public class OrderData {
     }
 
     public boolean isPartiallyFilled() {
-        boolean statusOk = (m_status == OrderStatus.PARTIALLY_FILLED);
+        boolean statusOk = (m_status == OrderStatus.PARTIALLY_FILLED) || (m_status == OrderStatus.CANCELLED);
         boolean filledOk = (m_filled != m_amount) && (m_filled > 0);
         if (statusOk == filledOk) {
             return statusOk;

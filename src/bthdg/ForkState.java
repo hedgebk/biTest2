@@ -43,6 +43,7 @@ public enum ForkState {
             log("ForkState.CLOSE_BRACKETS_PLACED_NEW checkState()");
             if (forkData.m_closeCross.m_state == CrossState.BOTH_BRACKETS_EXECUTED) {
                 log(" close cross state is BOTH_BRACKETS_EXECUTED. all done");
+                forkData.evaluateGain();
             }
         }
     },

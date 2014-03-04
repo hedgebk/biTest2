@@ -3,7 +3,7 @@ package bthdg;
 import java.io.IOException;
 
 public class ForkData {
-    private long m_id;
+    long m_id;
     public PairExchangeData m_pairExData;
     private ExchangeData m_exch1data;
     private ExchangeData m_exch2data;
@@ -32,7 +32,9 @@ public class ForkData {
         return "ForkData{" +
                 "id=" + m_id +
                 ", pairExData=" + m_pairExData.exchNames() +
+                ", direction=" + m_direction +
                 ", state=" + m_state +
+                ", amount=" + m_amount +
                 ", earnThisRun=" + m_earnThisRun +
                 '}';
     }
@@ -426,13 +428,13 @@ public class ForkData {
                 m_closeCross.stop();
             }
         }
-        setState(ForkState.STOPPING);
+        setState(ForkState.STOP);
     }
 
     public boolean allStopped() {
         if( m_exch1data.isStopped() && m_exch2data.isStopped() ) {
-            if ((m_openCross != null) && m_openCross.isStopped()) {
-                if ((m_closeCross != null) && m_closeCross.isStopped()) {
+            if ((m_openCross == null) || m_openCross.isStopped()) {
+                if ((m_closeCross == null) || m_closeCross.isStopped()) {
                     return true;
                 }
             }
@@ -650,24 +652,67 @@ public class ForkData {
         return ret;
     }
 
+    public void evaluateGain() {
+        SharedExchangeData shExch1 = m_closeCross.m_buyExch;
+        double exch1Fee = shExch1.getFee();
+        Exchange exch1 = shExch1.m_exchange;
 
-    public static enum ForkDirection {
-        DOWN { // 1>2
-            @Override public SharedExchangeData buyExch(PairExchangeData pairExData) { return pairExData.m_sharedExch2; }
-            @Override public SharedExchangeData sellExch(PairExchangeData pairExData) { return pairExData.m_sharedExch1; }
-            @Override public ForkDirection opposite() { return UP; }
-            @Override public double apply(double v) { return -v; }
-        },
-        UP {   // 1<2
-            @Override public SharedExchangeData buyExch(PairExchangeData pairExData) { return pairExData.m_sharedExch1; }
-            @Override public SharedExchangeData sellExch(PairExchangeData pairExData) { return pairExData.m_sharedExch2; }
-            @Override public ForkDirection opposite() { return DOWN; }
-            @Override public double apply(double v) { return v; }
-        };
+        OrderData closeBuyOrder = m_closeCross.m_buyOrder;
+        double closeBuyPrice = closeBuyOrder.m_price;
+        double closeBuyQty = closeBuyOrder.m_amount;
+        double closeBuyValue = closeBuyPrice*closeBuyQty;
+        double closeBuyCommission = closeBuyValue* exch1Fee;
 
-        public SharedExchangeData buyExch(PairExchangeData pairExData) { return null; }
-        public SharedExchangeData sellExch(PairExchangeData pairExData) { return null; }
-        public ForkDirection opposite() { return null; }
-        public double apply(double v) { return 0; }
+        OrderData openSellOrder = m_openCross.m_sellOrder;
+        double openSellPrice = openSellOrder.m_price;
+        double openSellQty = openSellOrder.m_amount;
+        double openSellValue = openSellPrice * openSellQty;
+        double openSellCommission = openSellValue * exch1Fee;
+
+        double gain1 = openSellValue - closeBuyValue - closeBuyCommission - openSellCommission;
+
+        log("exch1: " + exch1 +
+                "; fee " + Fetcher.format(exch1Fee) +
+                "; buy " + closeBuyQty + " @ " + closeBuyPrice +
+                "; sell " + openSellQty + " @ " + openSellPrice );
+        log(" buy value " + closeBuyValue +
+                "; commission " + Fetcher.format(closeBuyCommission) );
+        log(" sell value " + openSellValue +
+                "; commission " + Fetcher.format(openSellCommission) );
+        log(" gain1 " + gain1 );
+
+        SharedExchangeData shExch2 = m_openCross.m_buyExch;
+        double exch2Fee = shExch2.getFee();
+        Exchange exch2 = shExch2.m_exchange;
+
+        OrderData openBuyOrder = m_openCross.m_buyOrder;
+        double openBuyPrice = openBuyOrder.m_price;
+        double openBuyQty = openBuyOrder.m_amount;
+        double openBuyValue = openBuyPrice * openBuyQty;
+        double openBuyCommission = openBuyValue * exch2Fee;
+
+        OrderData closeSellOrder = m_closeCross.m_sellOrder;
+        double closeSellPrice = closeSellOrder.m_price;
+        double closeSellQty = closeSellOrder.m_amount;
+        double closeSellValue = closeSellPrice * closeSellQty;
+        double closeSellCommission = closeSellValue * exch2Fee;
+
+        double gain2 = closeSellValue - openBuyValue - openBuyCommission - closeSellCommission;
+
+        log("exch2: " + exch2 +
+                "; fee " + Fetcher.format(exch2Fee) +
+                "; buy " + openBuyQty + " @ " + openBuyPrice +
+                "; sell " + closeSellQty + " @ " + closeSellPrice );
+        log(" buy value " + openBuyValue +
+                "; commission " + Fetcher.format(openBuyCommission) );
+        log(" sell value " + closeSellValue +
+                "; commission " + Fetcher.format(closeSellCommission) );
+        log(" gain2 " + gain2 );
+
+        double gain = gain1 + gain2;
+        m_pairExData.addGain( gain );
+        log("gain=" + gain + "; totalRuns=" + m_pairExData.m_runs + "; totalEarn=" + m_pairExData.m_earn);
+
+        setState(ForkState.END);
     }
 } // ForkData

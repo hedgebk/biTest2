@@ -14,11 +14,12 @@ public class PairExchangeData {
     public TopData.TopDataEx m_lastDiff;
     public Utils.AverageCounter m_diffAverageCounter; // diff between exchanges - top1 - top2
     private double m_totalIncome;
-    private int m_runs;
+    int m_runs;
     private boolean m_stopRequested;
     public boolean m_isFinished;
     public long m_startTime;
     public long m_timestamp;
+    public double m_earn; // todo: add to serialize
 
     public String exchNames() { return m_sharedExch1.m_exchange.m_name + "-" + m_sharedExch2.m_exchange.m_name; }
     private static void log(String s) { Log.log(s); }
@@ -26,7 +27,6 @@ public class PairExchangeData {
     public PairExchangeData(Exchange exch1, Exchange exch2) {
         this(new SharedExchangeData(exch1), new SharedExchangeData(exch2), new ArrayList<ForkData>(), System.currentTimeMillis());
         m_diffAverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE); // limit can be different - passed as param for start
-//        maybeStartNewFork();
     }
 
     private PairExchangeData(SharedExchangeData s1, SharedExchangeData s2, List<ForkData> forks, long startTime) {
@@ -40,9 +40,8 @@ public class PairExchangeData {
         log("PairExchangeData.checkState() we have " + m_forks.size() + " fork(s)");
 
         if (m_stopRequested) {
-            log("stop was requested");
+            log("stop was requested - stopping all forks...");
             setState(ForkState.STOP);
-            m_stopRequested = false;
         } else {
             if (m_forks.isEmpty()) { // start first forks
                 queryAccountData();
@@ -61,17 +60,74 @@ public class PairExchangeData {
 
         forkIfNeeded();
 
-        placeStopBracketsIfNeeded(iContext);
+        placeStopBracketsIfNeeded(iContext); // or this may increase opposite fork
 
         m_isFinished = m_forks.isEmpty();
-        return m_isFinished; // no more tasks to execute
+        boolean ret = m_stopRequested && m_isFinished;
+
+        if (m_stopRequested) {
+            m_stopRequested = false; // stop request was processed - clear flag
+        }
+
+        logState();
+
+        return ret; // no more tasks to execute ?
+    }
+
+    private void logState() {
+        log("#############################");
+        log("m_isFinished=" + m_isFinished + ", forksNum=" + m_forks.size() + ", runs=" + m_runs + ", total=" + m_totalIncome);
+
+        for (ForkData fork : m_forks) {
+            log("FORK id=" + fork.m_id +
+                    ", pairExData=" + fork.m_pairExData.exchNames() +
+                    ", direction=" + fork.m_direction +
+                    ", amount=" + Fetcher.format(fork.m_amount) +
+                    ", state=" + fork.m_state);
+            logCross(fork.m_openCross, "Open");
+            logCross(fork.m_closeCross, "Close");
+        }
+    }
+
+    private void logCross(CrossData cross, String crossSide) {
+        if (cross != null) {
+            log(" " + crossSide + " Cross: buy " + cross.m_buyExch.m_exchange +
+                    " -> sell " + cross.m_sellExch.m_exchange +
+                    ", state=" + cross.m_state);
+            log("  Buy order: " + cross.m_buyOrder);
+            log("  Sell order: " + cross.m_sellOrder);
+        }
+    }
+
+    private void removeFinishedForks(IterationContext iContext) throws Exception {
+        List<ForkData> finishForks = null;
+        for (ForkData fork : m_forks) {
+            boolean toFinish = fork.m_state.preCheckState(iContext, fork);
+            if (toFinish) {
+                log("got fork to finish: " + fork);
+                if (finishForks == null) {
+                    finishForks = new ArrayList<ForkData>();
+                }
+                finishForks.add(fork);
+            }
+        }
+        if (finishForks != null) {
+            log("collected "+finishForks.size()+" forks to finish");
+            for (ForkData fork : finishForks) {
+                m_forks.remove(fork);
+            }
+            if (!m_stopRequested) {
+                placeStartForksIfPossible(iContext);
+            }
+        }
     }
 
     private boolean placeStartForksIfPossible(IterationContext iContext) throws Exception {
+        log("placeStartForksIfPossible()");
         if( doWithFreshTopData(iContext, new Runnable() {
             @Override public void run() {
-                placeStartFork(ForkData.ForkDirection.DOWN);
-                placeStartFork(ForkData.ForkDirection.UP);
+                placeStartFork(ForkDirection.DOWN);
+                placeStartFork(ForkDirection.UP);
             }
         })){ // forks placed - do without delay
             iContext.delay(0);
@@ -82,11 +138,15 @@ public class PairExchangeData {
         return false;
     }
 
-    private void placeStartFork(ForkData.ForkDirection direction) {
+    private void placeStartFork(ForkDirection direction) {
         double amount = calcAmount(direction);
+        log(" placeStartFork(direction=" + direction + ") amount=" + amount);
         if (amount >= OrderData.MIN_ORDER_QTY) {
             ForkData newFork = new ForkData(this, direction, amount);
+            log("  added new Fork: " + newFork);
             m_forks.add(newFork);
+        } else {
+            log("  not enough amount=" + amount + " to start new fork");
         }
     }
 
@@ -103,13 +163,13 @@ public class PairExchangeData {
     }
 
     private void placeStopBracketsIfNeeded(IterationContext iContext, ForkData fork) {
-        ForkData.ForkDirection direction = fork.m_direction;
-        ForkData.ForkDirection opposite = direction.opposite();
+        ForkDirection direction = fork.m_direction;
+        ForkDirection opposite = direction.opposite();
         double amount = calcAmount(opposite);
         if (amount > MIN_FORK_INCREASE_AMOUNT) {
             // search other fork to increase
             for (final ForkData otherFork : m_forks) {
-                ForkData.ForkDirection otherDirection = otherFork.m_direction;
+                ForkDirection otherDirection = otherFork.m_direction;
                 if (direction != otherDirection) {
                     if (otherFork.isNotStarted()) {
                         if (otherFork.increaseOpenAmount(iContext, this)) {
@@ -142,19 +202,18 @@ public class PairExchangeData {
         }
     }
 
-    double calcAmount(ForkData.ForkDirection direction) {
-        SharedExchangeData buyExch  = direction.buyExch(this);
+    double calcAmount(ForkDirection direction) {
+        SharedExchangeData buyExch = direction.buyExch(this);
         SharedExchangeData sellExch = direction.sellExch(this);
 
-        AccountData buyAcct  = buyExch.m_account;
+        AccountData buyAcct = buyExch.m_account;
         AccountData sellAcct = sellExch.m_account;
 
         double usd = buyAcct.availableUsd();
         double btc = sellAcct.availableBtc();
 
-
-        log("buy exch "+buyExch.m_exchange+": availableUsd=" + Fetcher.format(usd));
-        log("sell exch "+sellExch.m_exchange+": availableBtc=" + Fetcher.format(btc));
+        log("buy exch " + buyExch.m_exchange + ": availableUsd=" + Fetcher.format(usd));
+        log("sell exch " + sellExch.m_exchange + ": availableBtc=" + Fetcher.format(btc));
 
         double maxPrice = Math.max(m_sharedExch1.m_lastTop.m_ask, m_sharedExch2.m_lastTop.m_ask); // ASK > BID
         double btcFromUsd = usd / maxPrice;
@@ -164,29 +223,6 @@ public class PairExchangeData {
         amount = Utils.fourDecimalDigits(amount);
         log("   finally amount=" + Fetcher.format(amount));
         return amount;
-    }
-
-    private void removeFinishedForks(IterationContext iContext) {
-        List<ForkData> finishForks = null;
-        for (ForkData fork : m_forks) {
-            boolean toFinish = fork.m_state.preCheckState(iContext, fork);
-            if (toFinish) {
-                log("got fork to finish: " + fork);
-                if (finishForks == null) {
-                    finishForks = new ArrayList<ForkData>();
-                }
-                finishForks.add(fork);
-            }
-        }
-        if (finishForks != null) {
-            for (ForkData fork : finishForks) {
-                m_forks.remove(fork);
-                if (fork.m_state == ForkState.END) {
-                    log("finish fork was in state END");
-                    maybeStartNewFork();
-                }
-            }
-        }
     }
 
     private void requestTradesIfNeeded(IterationContext iContext) {
@@ -431,4 +467,8 @@ public class PairExchangeData {
         log("diff=" + m_lastDiff + ";  avg=" + Fetcher.format(midDiffAverage) + ";  delta=" + Fetcher.format(delta));
     }
 
+    public void addGain(double gain) {
+        m_earn += gain;
+        m_runs ++;
+    }
 } // bthdg.PairExchangeData
