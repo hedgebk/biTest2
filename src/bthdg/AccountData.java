@@ -7,6 +7,11 @@ public class AccountData {
     public double m_usd;
     public double m_btc;
     public double m_fee;
+                             // todo: serialize
+    public double m_allocatedUsd;
+    public double m_allocatedBtc;
+
+    private static void log(String s) { Log.log(s); }
 
     public double availableUsd() { return m_usd; }
     public double availableBtc() { return m_btc; }
@@ -69,5 +74,75 @@ public class AccountData {
         double fee = (feeStr.length() == 0) ? Double.MAX_VALUE: Double.parseDouble(feeStr);
         AccountData ret = new AccountData(name, usd, btc, fee);
         return ret;
+    }
+
+    public boolean allocateOrder(OrderData orderData) {
+        return orderData.m_side.allocate(this, orderData);
+    }
+
+    public boolean allocateBtc(OrderData sellBtc) {
+        double amountBtc = sellBtc.m_amount;
+        if (amountBtc > m_btc) {
+            log("Unable to allocate " + amountBtc + " btc. available=" + m_btc);
+            return false;
+        } else {
+            m_btc -= amountBtc;
+            m_allocatedBtc += amountBtc;
+            return true;
+        }
+    }
+
+    public boolean allocateUsd(OrderData buyBtc) {
+        double amountBtc = buyBtc.m_amount;
+        double price = buyBtc.m_price;
+        double amountUsd = amountBtc * price;
+        if (amountUsd > m_usd) {
+            log("Unable to allocate " + amountUsd + " usd. available=" + m_usd);
+            return false;
+        } else {
+            m_usd -= amountUsd;
+            m_allocatedUsd += amountUsd;
+            return true;
+        }
+    }
+
+    public void releaseOrder(OrderData orderData) {
+        orderData.m_side.release(this, orderData);
+    }
+
+    public void releaseUsd(OrderData orderData) {
+        if(orderData.m_filled > 0) { // special case - some portion is already executed. releasing only remained part
+            log("special case - some portion is already executed. releasing only remained part="+orderData.remained());
+        }
+        double amountBtc = orderData.remained();
+        double price = orderData.m_price;
+        double amountUsd = amountBtc * price;
+        m_usd += amountUsd;
+        m_allocatedUsd -= amountUsd;
+    }
+
+    public void releaseBtc(OrderData orderData) {
+        if(orderData.m_filled > 0) { // special case - some portion is already executed. releasing only remained part
+            log("special case - some portion is already executed. releasing only remained part="+orderData.remained());
+        }
+        double amountBtc = orderData.remained();
+        m_btc += amountBtc;
+        m_allocatedBtc -= amountBtc;
+    }
+
+    public void releaseTrade(OrderSide orderSide, double price, double amount) {
+        orderSide.releaseTrade(this, price, amount);
+    }
+
+    public void releaseUsd(double price, double amount) {
+        double amountUsd = amount * price;
+        m_allocatedUsd -= amountUsd;
+        m_btc += amount * (1 - m_fee);
+    }
+
+    public void releaseBtc(double price, double amount) {
+        m_allocatedBtc -= amount;
+        double amountUsd = amount * price;
+        m_usd += amountUsd * (1 - m_fee);
     }
 }

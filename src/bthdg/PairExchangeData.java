@@ -13,13 +13,12 @@ public class PairExchangeData {
     public List<ForkData> m_forks; // running tasks
     public TopData.TopDataEx m_lastDiff;
     public Utils.AverageCounter m_diffAverageCounter; // diff between exchanges - top1 - top2
-    private double m_totalIncome;
+    double m_totalIncome;
     int m_runs;
     private boolean m_stopRequested;
     public boolean m_isFinished;
     public long m_startTime;
     public long m_timestamp;
-    public double m_earn; // todo: add to serialize
 
     public String exchNames() { return m_sharedExch1.m_exchange.m_name + "-" + m_sharedExch2.m_exchange.m_name; }
     private static void log(String s) { Log.log(s); }
@@ -76,24 +75,38 @@ public class PairExchangeData {
 
     private void logState() {
         log("#############################");
-        log("m_isFinished=" + m_isFinished + ", forksNum=" + m_forks.size() + ", runs=" + m_runs + ", total=" + m_totalIncome);
+        log(getState());
+//        log("isFinished=" + m_isFinished + ", forksNum=" + m_forks.size() + ", runs=" + m_runs + ", total=" + m_totalIncome);
+        logExch(m_sharedExch1);
+        logExch(m_sharedExch2);
 
         for (ForkData fork : m_forks) {
             log("FORK id=" + fork.m_id +
                     ", pairExData=" + fork.m_pairExData.exchNames() +
                     ", direction=" + fork.m_direction +
                     ", amount=" + Fetcher.format(fork.m_amount) +
-                    ", state=" + fork.m_state);
+                    ", state=" + fork.m_state +
+                    ", live=" + fork.getLiveTime());
             logCross(fork.m_openCross, "Open");
             logCross(fork.m_closeCross, "Close");
         }
+    }
+
+    private void logExch(SharedExchangeData exch) {
+        AccountData account = m_sharedExch1.m_account;
+        TopData top = exch.m_lastTop;
+        String topStr = (top != null) ? "bid=" + top.m_bid + "; ask=" + top.m_ask : "<no top data>";
+        log("exch " + m_sharedExch1.m_exchange + ": " + topStr +
+                "; available: btc=" + account.m_btc + ", usd=" + account.m_usd +
+                "; allocated: btc=" + account.m_allocatedBtc + ", usd=" + account.m_allocatedUsd);
     }
 
     private void logCross(CrossData cross, String crossSide) {
         if (cross != null) {
             log(" " + crossSide + " Cross: buy " + cross.m_buyExch.m_exchange +
                     " -> sell " + cross.m_sellExch.m_exchange +
-                    ", state=" + cross.m_state);
+                    ", state=" + cross.m_state +
+                    ", live=" + cross.getLiveTime());
             log("  Buy order: " + cross.m_buyOrder);
             log("  Sell order: " + cross.m_sellOrder);
         }
@@ -112,7 +125,7 @@ public class PairExchangeData {
             }
         }
         if (finishForks != null) {
-            log("collected "+finishForks.size()+" forks to finish");
+            log("collected " + finishForks.size() + " forks to finish");
             for (ForkData fork : finishForks) {
                 m_forks.remove(fork);
             }
@@ -174,7 +187,7 @@ public class PairExchangeData {
                     if (otherFork.isNotStarted()) {
                         if (otherFork.increaseOpenAmount(iContext, this)) {
                             fork.stop();
-                            amount = 0;
+                            amount = 0; // flag that no need to place separate close crosses
                             break;
                         }
                     } // todo: check if other fork has open cross executed - then just cache out - no need to wait. but qty can be different !
@@ -193,8 +206,8 @@ public class PairExchangeData {
             if (fork3 != null) {
                 if (forked == null) {
                     forked = new ArrayList<ForkData>();
-                    forked.add(fork3);
                 }
+                forked.add(fork3);
             }
         }
         if (forked != null) {
@@ -452,7 +465,6 @@ public class PairExchangeData {
         if (tops.bothFresh()) {
             logDiffAverageDelta();
             run.run();
-//            iContext.delay(5000);
             return true;
         } else {
             log("some exchange top data is not fresh " +
@@ -468,7 +480,7 @@ public class PairExchangeData {
     }
 
     public void addGain(double gain) {
-        m_earn += gain;
+        m_totalIncome += gain;
         m_runs ++;
     }
 } // bthdg.PairExchangeData

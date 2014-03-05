@@ -11,6 +11,7 @@ public class CrossData {
     public final SharedExchangeData m_sellExch;
     public OrderData m_buyOrder;
     public OrderData m_sellOrder;
+    public long m_start;
 
     private static void log(String s) { Log.log(s); }
     public boolean isActive() { return (m_state == CrossState.BRACKETS_PLACED); }
@@ -27,6 +28,7 @@ public class CrossData {
         m_buyExch = buyExch;
         m_sellExch = sellExch;
         m_state = CrossState.NONE;
+        m_start = System.currentTimeMillis();
     }
 
     public void init(ForkData forkData, boolean isOpenCross) {
@@ -81,7 +83,7 @@ public class CrossData {
                 double midDiffAverage = forkData.m_pairExData.m_diffAverageCounter.get(); // top1 - top2
                 double commissionAmount = forkData.midCommissionAmount();
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
-                log(" commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
+                log("moveBracketsIfNeeded... commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
 
                 double avgDiff = forkData.m_direction.apply(midDiffAverage);
                 double amount = forkData.m_amount;
@@ -109,7 +111,7 @@ public class CrossData {
                 } else {
                     log("  move BUY bracket, [" + m_buyOrder.priceStr() + "->" + format(buy) + "] " +
                             "delta=" + format(buyDelta) + ", deltaPrcnt=" + format(deltaPrcnt));
-                    success = cancelOrder(m_buyOrder); // todo: order can be executed at this point, so cancel will fail
+                    success = m_sellExch.cancelOrder(m_buyOrder); // todo: order can be executed at this point, so cancel will fail
                     if (success) {
                         m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
                         success = m_buyExch.placeOrderBracket(m_buyOrder);
@@ -132,7 +134,7 @@ public class CrossData {
                 } else {
                     log("  move SELL bracket, [" + m_buyOrder.priceStr() + "->" + format(buy) + "] " +
                             "delta=" + format(buyDelta) + ", deltaPrcnt=" + format(deltaPrcnt));
-                    success = cancelOrder(m_sellOrder);  // todo: order can be executed at this point, so cancel will fail
+                    success = m_sellExch.cancelOrder(m_sellOrder);  // todo: order can be executed at this point, so cancel will fail
                     if (success) {
                         m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
                         success = m_sellExch.placeOrderBracket(m_sellOrder);
@@ -212,9 +214,12 @@ public class CrossData {
 
     private OrderData replaceWithMktOrder(OrderData ord, SharedExchangeData exch) {
         OrderSide side = ord.m_side;
+        double price = side.mktPrice(exch.m_lastTop);
+
+
+
         boolean cancelled = exch.cancelOrder(ord);
         if (cancelled) {
-            double price = side.mktPrice(exch.m_lastTop);
 
             OrderData mktOrder = new OrderData(side, price, ord.m_amount);
             boolean success = exch.placeOrder(mktOrder, OrderState.MARKET_PLACED);
@@ -229,20 +234,6 @@ public class CrossData {
         }
         setState(CrossState.ERROR);
         return null;
-    }
-
-    private boolean cancelOrder(OrderData orderData) {
-        // todo: implement
-        if (orderData != null) {
-            if ((orderData.m_status == OrderStatus.SUBMITTED) || (orderData.m_status == OrderStatus.PARTIALLY_FILLED)) {
-                log("cancelOrder() not implemented yet: " + orderData);
-            } else {
-                log("cancelOrder() no need to cancel oder in state: " + orderData);
-            }
-            orderData.m_status = OrderStatus.CANCELLED;
-            orderData.m_state = OrderState.NONE;
-        }
-        return true; // todo: order can be executed at this point, so cancel will fail
     }
 
     public double needFork() {
@@ -306,10 +297,10 @@ public class CrossData {
         } else {
             return false;
         }
-        long stuchTime = System.currentTimeMillis() - time;
-        boolean tooLong = stuchTime > TOO_LONG_TO_WAIT_PARTIAL;
+        long stuckTime = System.currentTimeMillis() - time;
+        boolean tooLong = stuckTime > TOO_LONG_TO_WAIT_PARTIAL;
         if (tooLong) {
-            log("Cross stuck for too long (" + stuchTime + "ms) to wait for partial fill on " + this);
+            log("Cross stuck for too long (" + stuckTime + "ms) to wait for partial fill on " + this);
             log(" buyOrder: " + m_buyOrder);
             log(" sellOrder: " + m_sellOrder);
         }
@@ -416,9 +407,9 @@ public class CrossData {
                     m_buyOrder = new OrderData(OrderSide.BUY, buyPrice, amount);
                     m_sellOrder = new OrderData(OrderSide.SELL, sellPrice, amount);
 
-                    log("buy exch " + m_buyExch.m_exchange + ": " +
+                    log("buy " + amount + " @ " + m_buyExch.m_exchange + ": " +
                             ExchangeData.ordersAndPricesStr(m_buyExch.m_lastTop, m_buyOrder, null, null, null));
-                    log("sell exch " + m_sellExch.m_exchange + ": " +
+                    log("sell " + amount + " @ " + m_sellExch.m_exchange + ": " +
                             ExchangeData.ordersAndPricesStr(m_sellExch.m_lastTop, null, null, m_sellOrder, null));
 
                     success = m_buyExch.placeOrderBracket(m_buyOrder);
@@ -448,5 +439,9 @@ public class CrossData {
         }
 
         return success;
+    }
+
+    String getLiveTime() {
+        return Utils.millisToDHMSStr(System.currentTimeMillis() - m_start);
     }
 }

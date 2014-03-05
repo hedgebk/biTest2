@@ -141,6 +141,9 @@ public class SharedExchangeData {
         AccountData account = Fetcher.fetchAccount(m_exchange);
         log("queryAccountData() account=" + account);
         m_account = account;
+        if (account.m_fee == Double.MAX_VALUE) {
+            m_account.m_fee = m_exchange.m_baseFee;
+        }
         // todo: handle if query unsuccessfull
     }
 
@@ -160,12 +163,17 @@ public class SharedExchangeData {
 
     public boolean placeOrder(OrderData orderData, OrderState state) {
         // todo: implement
-        log("placeOrder("+m_exchange.m_name+") not implemented yet: " + orderData);
-        // todo: pass to exch.baseExch if needed
-        orderData.m_status = OrderStatus.SUBMITTED;
-        orderData.m_state = state;
+        log("placeOrder(" + m_exchange.m_name + ") not implemented yet: " + orderData);
 
-        return true;
+        boolean success = m_account.allocateOrder(orderData);
+        if(success) {
+            // todo: pass to exch.baseExch if needed
+            orderData.m_status = OrderStatus.SUBMITTED;
+            orderData.m_state = state;
+        } else {
+            log("account allocateOrder unsuccessful: " + orderData + ", account: " + m_account);
+        }
+        return success;
     }
 
     public boolean cancelOrder(OrderData orderData) {
@@ -176,6 +184,7 @@ public class SharedExchangeData {
             } else {
                 log("cancelOrder() no need to cancel oder in state: " + orderData);
             }
+            m_account.releaseOrder(orderData);
             orderData.m_status = OrderStatus.CANCELLED;
             orderData.m_state = OrderState.NONE;
         }

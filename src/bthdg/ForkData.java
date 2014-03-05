@@ -450,8 +450,12 @@ public class ForkData {
         sb.append(", \"e2\": ");
         m_exch2data.appendState(sb);
         sb.append(", \"live\": \"");
-        sb.append(Utils.millisToDHMSStr(System.currentTimeMillis() - m_id));
+        sb.append(getLiveTime());
         sb.append("\"}");
+    }
+
+    String getLiveTime() {
+        return Utils.millisToDHMSStr(System.currentTimeMillis() - m_id);
     }
 
     public void serialize(StringBuilder sb) {
@@ -711,7 +715,7 @@ public class ForkData {
 
         double gain = gain1 + gain2;
         m_pairExData.addGain( gain );
-        log("gain=" + gain + "; totalRuns=" + m_pairExData.m_runs + "; totalEarn=" + m_pairExData.m_earn);
+        log("gain=" + gain + "; totalRuns=" + m_pairExData.m_runs + "; totalEarn=" + m_pairExData.m_totalIncome);
 
         setState(ForkState.END);
     }

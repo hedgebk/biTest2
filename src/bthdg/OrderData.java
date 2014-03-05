@@ -89,6 +89,7 @@ public class OrderData {
                 }
 
                 orderData.addExecution(price, amount);
+                shExchData.m_account.releaseTrade(orderSide, price, amount);
                 if (orderData.isFilled()) {
                     return; // the whole order executed
                 }
