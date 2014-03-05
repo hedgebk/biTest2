@@ -129,7 +129,7 @@ public class ForkData {
                 double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
                 double commissionAmount = midCommissionAmount(); // todo: calc commission based on real order size
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
-                log("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
+                log("  commissionAmount=" + format(commissionAmount) + ", halfTargetDelta=" + format(halfTargetDelta));
                 boolean success = m_exch1data.moveBrackets(top1, top2, midDiffAverage, halfTargetDelta);
                 if (success) {
                     success = m_exch2data.moveBrackets(top2, top1, -midDiffAverage, halfTargetDelta);
@@ -155,7 +155,7 @@ public class ForkData {
 
                 double commissionAmount = midCommissionAmount();
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
-                log("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
+                log("  commissionAmount=" + format(commissionAmount) + ", halfTargetDelta=" + format(halfTargetDelta));
 
                 boolean exch1openSell = (m_openSellExchange == m_exch1data);
                 boolean success = m_exch1data.placeCloseBracket(top1, top2, midDiffAverage,
@@ -282,7 +282,7 @@ public class ForkData {
                 double midDiffAverage = m_pairExData.m_diffAverageCounter.get();
                 double commissionAmount = midCommissionAmount();
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
-                log("  commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
+                log("  commissionAmount=" + format(commissionAmount) + ", halfTargetDelta=" + format(halfTargetDelta));
                 boolean success = m_exch1data.placeBrackets(top1, top2, midDiffAverage, halfTargetDelta);
                 if (success) {
                     success = m_exch2data.placeBrackets(top2, top1, -midDiffAverage, halfTargetDelta);
@@ -323,12 +323,12 @@ public class ForkData {
 
         m_pairExData.logDiffAverageDelta();
 
-        log("avg bidAskDiff:" + m_exch1data.exchName() + " " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
-                m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
+        log("avg bidAskDiff:" + m_exch1data.exchName() + " " + format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
+                m_exch2data.exchName() + " " + format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
 
         double commissionAmount = midCommissionAmount(); // todo: calc commission based on real order size
         double income = priceDiff - commissionAmount;
-        log(" sellBuyPriceDiff=" + Fetcher.format(priceDiff) + ", commissionAmount=" + commissionAmount + ", income=" + income);
+        log(" sellBuyPriceDiff=" + format(priceDiff) + ", commissionAmount=" + commissionAmount + ", income=" + income);
         m_earnThisRun += income;
         m_pairExData.addIncome(income);
     }
@@ -390,9 +390,9 @@ public class ForkData {
                 openEarn += midDiffAverage;
             }
             m_earnThisRun += openEarn;
-            log("%   >>>  priceDiff=" + Fetcher.format(priceDiff) + ",  openEarn=" + Fetcher.format(openEarn) + ", earnThisRun=" + m_earnThisRun);
-            log("AVG:" + m_exch1data.exchName() + " " + Fetcher.format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
-                    m_exch2data.exchName() + " " + Fetcher.format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
+            log("%   >>>  priceDiff=" + format(priceDiff) + ",  openEarn=" + format(openEarn) + ", earnThisRun=" + m_earnThisRun);
+            log("AVG:" + m_exch1data.exchName() + " " + format(m_exch1data.m_shExchData.m_bidAskDiffCalculator.getAverage()) + ",  " +
+                    m_exch2data.exchName() + " " + format(m_exch2data.m_shExchData.m_bidAskDiffCalculator.getAverage()));
         } else {
             setState(ForkState.ERROR);
         }
@@ -595,7 +595,8 @@ public class ForkData {
         SharedExchangeData sellExch = m_direction.buyExch(m_pairExData);
         SharedExchangeData buyExch = m_direction.sellExch(m_pairExData);
 
-        m_amount = amount; // update amount since account data can be changed
+        // update amount since account data can be changed
+        m_amount = Math.min(amount, m_amount); // do not place close cross bigger than open - if possible, should be matched.
 
         m_closeCross = new CrossData(buyExch, sellExch);
         m_closeCross.init(ForkData.this, false);
@@ -673,16 +674,18 @@ public class ForkData {
         double openSellValue = openSellPrice * openSellQty;
         double openSellCommission = openSellValue * exch1Fee;
 
+        double priceDiff1 = openSellPrice - closeBuyPrice;
         double gain1 = openSellValue - closeBuyValue - closeBuyCommission - openSellCommission;
 
         log("exch1: " + exch1 +
-                "; fee " + Fetcher.format(exch1Fee) +
+                "; fee " + format(exch1Fee) +
                 "; buy " + closeBuyQty + " @ " + closeBuyPrice +
-                "; sell " + openSellQty + " @ " + openSellPrice );
-        log(" buy value " + closeBuyValue +
-                "; commission " + Fetcher.format(closeBuyCommission) );
-        log(" sell value " + openSellValue +
-                "; commission " + Fetcher.format(openSellCommission) );
+                "; sell " + openSellQty + " @ " + openSellPrice +
+                "; priceDiff " + priceDiff1 );
+        log(" buy value " + format(closeBuyValue) +
+                "; commission " + format(closeBuyCommission));
+        log(" sell value " + format(openSellValue) +
+                "; commission " + format(openSellCommission));
         log(" gain1 " + gain1 );
 
         SharedExchangeData shExch2 = m_openCross.m_buyExch;
@@ -701,22 +704,32 @@ public class ForkData {
         double closeSellValue = closeSellPrice * closeSellQty;
         double closeSellCommission = closeSellValue * exch2Fee;
 
+        double priceDiff2 = closeSellPrice - openBuyPrice;
         double gain2 = closeSellValue - openBuyValue - openBuyCommission - closeSellCommission;
 
         log("exch2: " + exch2 +
-                "; fee " + Fetcher.format(exch2Fee) +
+                "; fee " + format(exch2Fee) +
                 "; buy " + openBuyQty + " @ " + openBuyPrice +
-                "; sell " + closeSellQty + " @ " + closeSellPrice );
-        log(" buy value " + openBuyValue +
-                "; commission " + Fetcher.format(openBuyCommission) );
-        log(" sell value " + closeSellValue +
-                "; commission " + Fetcher.format(closeSellCommission) );
+                "; sell " + closeSellQty + " @ " + closeSellPrice +
+                "; priceDiff " + priceDiff2 );
+        log(" buy value " + format(openBuyValue) +
+                "; commission " + format(openBuyCommission));
+        log(" sell value " + format(closeSellValue) +
+                "; commission " + format(closeSellCommission));
         log(" gain2 " + gain2 );
 
         double gain = gain1 + gain2;
+        double priceDiff = priceDiff1 + priceDiff2;
         m_pairExData.addGain( gain );
-        log("gain=" + gain + "; totalRuns=" + m_pairExData.m_runs + "; totalEarn=" + m_pairExData.m_totalIncome);
+        log("priceDiff=" + priceDiff +
+            "; gain=" + gain +
+            "; totalRuns=" + m_pairExData.m_runs +
+            "; totalEarn=" + m_pairExData.m_totalIncome);
 
         setState(ForkState.END);
+    }
+
+    private String format(double openBuyCommission) {
+        return Fetcher.format(openBuyCommission);
     }
 } // ForkData

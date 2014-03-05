@@ -180,32 +180,16 @@ public class ExchangeData {
     }
 
     private static Double priceNewOrOld(OrderData order, Double newPrice) {
-        if (newPrice != null) {
-            return newPrice;
-        } else {
-            if (order == null) {
-                return null;
-            } else {
-                return order.m_price;
-            }
-        }
+        return (newPrice != null) ? newPrice : ((order == null) ? null : order.m_price);
     }
 
     private static String logPriceDelta(Double price1, Double price2) {
-        if ((price1 != null) && (price2 != null)) {
-            return "<" + format(price1 - price2) + ">";
-        } else {
-            return "?";
-        }
+        return ((price1 != null) && (price2 != null)) ? "<" + format(price1 - price2) + ">" : "?";
     }
 
     private static String logPriceAndChange(OrderData order, Double price) {
         if (order == null) {
-            if (price == null) {
-                return " ";
-            } else {
-                return format(price);
-            }
+            return (price == null) ? " " : format(price);
         } else {
             String orderPrice = order.priceStr();
             if (price == null) {

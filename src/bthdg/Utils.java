@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 public class Utils {
     public static final DecimalFormat XX_YYYY = new DecimalFormat("#,##0.0000");
     public static final long ONE_DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
+    public static final String PADS = "          ";
 
     public static String encodeHexString(byte[] hash) {
         return String.format("%064x", new BigInteger(1, hash));
@@ -137,6 +138,14 @@ public class Utils {
 
     public static double fourDecimalDigits(double amount) { // 1.234567 -> 1.2345
         return ((long)(amount * 1000))/1000.0;
+    }
+
+    public static String pad(String str, int destLen) {
+        int currLen = str.length();
+        if (currLen < destLen) {
+            return pad(str + PADS.substring(0, Math.min(destLen - currLen, PADS.length())), destLen);
+        }
+        return str;
     }
 
     public static abstract class DoubleAverageCalculator<O> {

@@ -24,7 +24,7 @@ public enum CrossState {
     },
     BOTH_BRACKETS_EXECUTED {
         @Override public void checkState(IterationContext iContext, ForkData forkData, CrossData crossData) {
-            log("CrossState.checkState() " + this);
+//            log("CrossState.checkState() " + this);
         }
     },
     STOP { // something not OK to continue execution

@@ -9,6 +9,11 @@ import org.json.simple.parser.ParseException;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Types;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -65,7 +70,20 @@ public class Fetcher {
 //            DeepData deep2 = fetchDeep(Exchange.BITSTAMP);
 //            printDeeps(deep1, deep2);
 
-            pool(Exchange.BITSTAMP, Exchange.BTCE);
+//            pool(Exchange.BITSTAMP, Exchange.BTCE, null);
+
+            DbReady.goWithDb(new DbReady.IDbRunnable() {
+                public void run(Connection connection) throws SQLException {
+                    try {
+                        drop(connection);
+                        pool(Exchange.BITSTAMP, Exchange.BTCE, connection);
+                    } catch (Exception e) {
+                        log("error: " + e);
+                        e.printStackTrace();
+                    }
+                }
+            });
+
         } catch (Exception e) {
             log("error: " + e);
             e.printStackTrace();
@@ -76,7 +94,7 @@ public class Fetcher {
         Log.log(x);
     }
 
-    private static void pool(Exchange exch1, Exchange exch2) throws Exception {
+    private static void pool(Exchange exch1, Exchange exch2, Connection connection) throws Exception {
         PairExchangeData data = new PairExchangeData(exch1, exch2);
         long startMillis = System.currentTimeMillis();
         int iterationCounter = 0;
@@ -105,6 +123,7 @@ public class Fetcher {
             } else {
                 log("go to next iteration without sleep. total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter);
             }
+            logIntoDb(connection, data);
         }
         log("FINISHED.");
     }
@@ -289,12 +308,12 @@ public class Fetcher {
         if (top == null) {
             log("NO top data for '" + exch.m_name + "'\t\t");
         } else {
-            log(exch.m_name +
-                    ": bid: " + format(top.m_bid) +
-                    ", ask: " + format(top.m_ask) +
-                    ", last: " + format(top.m_last) +
-                    ", bid_ask_dif: " + format(top.m_ask - top.m_bid) +
-                    "\t\t");
+//            log(exch.m_name +
+//                    ": bid: " + format(top.m_bid) +
+//                    ", ask: " + format(top.m_ask) +
+//                    ", last: " + format(top.m_last) +
+//                    ", bid_ask_dif: " + format(top.m_ask - top.m_bid) +
+//                    "\t\t");
         }
     }
 
@@ -319,6 +338,93 @@ public class Fetcher {
     static String format(Double mktPrice) {
         return (mktPrice == null) ? "-" : Utils.XX_YYYY.format(mktPrice);
     }
+
+    private static final String INSERT_TRACE_SQL =
+            "INSERT INTO Trace ( stamp, bid1, ask1, bid2, ask2, fork, buy1, sell1, buy2, sell2 ) VALUES (?,?,?,?,?,?,?,?,?,?)";
+
+    private static void logIntoDb(Connection connection, PairExchangeData data) {
+        if (connection != null) {
+            try {
+                SharedExchangeData sharedExch1 = data.m_sharedExch1;
+                TopData top1 = sharedExch1.m_lastTop;
+                double bid1 = top1.m_bid;
+                double ask1 = top1.m_ask;
+                SharedExchangeData sharedExch2 = data.m_sharedExch1;
+                TopData top2 = sharedExch2.m_lastTop;
+                double bid2 = top2.m_bid;
+                double ask2 = top2.m_ask;
+
+                PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_SQL);
+                try {
+                    List<ForkData> forks = data.m_forks;
+                    for (int i = 0, forksSize = forks.size(); i < forksSize; i++) {
+                        Thread.sleep(1);
+                        long millis = System.currentTimeMillis();
+
+                        ForkData fork = forks.get(i);
+                        long id = fork.m_id;
+                        CrossData openCross = fork.m_openCross;
+                        CrossData closeCross = fork.m_closeCross;
+
+                        // "INSERT INTO Trace ( stamp, bid1, ask1, bid2, ask2, fork, buy1, sell1, buy2, sell2 ) VALUES (?,?,?,?,?,?,?,?,?,?)";
+                        statement.setLong(1, millis);
+                        if (i == 0) {
+                            statement.setDouble(2, bid1);
+                            statement.setDouble(3, ask1);
+                            statement.setDouble(4, bid2);
+                            statement.setDouble(5, ask2);
+                        } else {
+                            statement.setNull(2, Types.DOUBLE);
+                            statement.setNull(3, Types.DOUBLE);
+                            statement.setNull(4, Types.DOUBLE);
+                            statement.setNull(5, Types.DOUBLE);
+                        }
+                        statement.setLong(6, id);
+                        setCross(openCross, statement, 7);
+                        setCross(closeCross, statement, 9);
+
+                        statement.executeUpdate(); // execute insert SQL statement
+//                        connection.commit();
+                    }
+                } finally {
+                    statement.close();
+                }
+            } catch (Exception e) {
+                System.out.println("Error: " + e);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void setCross(CrossData cross, PreparedStatement statement, int index) throws SQLException {
+        if((cross != null) && cross.isActive()) {
+            OrderData buyOrder = cross.m_buyOrder;
+            statement.setDouble(index, buyOrder.m_price);
+            OrderData sellOrder = cross.m_sellOrder;
+            statement.setDouble(index+1, sellOrder.m_price);
+        } else {
+            statement.setNull(index, Types.DOUBLE);
+            statement.setNull(index + 1, Types.DOUBLE);
+        }
+    }
+
+    private static final String DELETE_TICKS_SQL = "DELETE FROM Trace";
+
+    private static void drop(Connection connection) {
+        try {
+            PreparedStatement pStatement = connection.prepareStatement(DELETE_TICKS_SQL);
+            try {
+                int deleted = pStatement.executeUpdate();
+                System.out.println("deleted: " + deleted);
+            } finally {
+                pStatement.close();
+            }
+        } catch (SQLException e) {
+            System.out.println("Error: " + e);
+            e.printStackTrace();
+        }
+    }
+
 
     private enum FetchCommand {
         TOP {

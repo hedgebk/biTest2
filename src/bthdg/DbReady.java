@@ -1,3 +1,5 @@
+package bthdg;
+
 import bthdg.Exchange;
 import bthdg.Utils;
 
@@ -27,8 +29,8 @@ public class DbReady {
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:"+(maxMemory/=1024) + ": m:" + (maxMemory/=1024) );
 
-//        startAndInitDb();
-        updateFromWeb();
+        startAndInitDb();
+//        updateFromWeb();
 //        dropTicks(Exchange.BITSTAMP, "0", "-3d");
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -40,18 +42,27 @@ public class DbReady {
                 System.out.println("-- Creating Tables (if needed) --");
                 Statement statement = connection.createStatement();
                 try {
-                    // Create a Person table,
                     statement.executeUpdate(
-//                            "CREATE TABLE IF NOT EXISTS Ticks ( " +
-//                            " src       INTEGER NOT NULL, " +
-//                            " stamp     BIGINT NOT NULL INDEX_BLIST, " +
-//                            " price     DOUBLE," +
-//                            " volume    DOUBLE )");
                             "CREATE TABLE IF NOT EXISTS Ticks ( " +
                             " src       INTEGER NOT NULL, " +
                             " stamp     BIGINT NOT NULL, " +
                             " price     DOUBLE," +
                             " volume    DOUBLE )");
+
+                    statement.executeUpdate(
+                            "CREATE TABLE IF NOT EXISTS Trace ( " +
+                            " stamp BIGINT NOT NULL, " +
+                            " bid1  DOUBLE, " +
+                            " ask1  DOUBLE, " +
+                            " bid2  DOUBLE, " +
+                            " ask2  DOUBLE, " +
+                            " fork  BIGINT NOT NULL, " +
+                            " buy1  DOUBLE, " +
+                            " sell1 DOUBLE, " +
+                            " buy2  DOUBLE, " +
+                            " sell2 DOUBLE" +
+                            ")");
+
                     // CREATE INDEX srst on sakila.Ticks (src, stamp);
                     // DROP INDEX srst ON sakila.Ticks;
 
@@ -68,7 +79,7 @@ public class DbReady {
                 } finally {
                     statement.close();
                 }
-                importFromFiles(connection);
+//                importFromFiles(connection);
                 System.out.println("--- Complete ---");
             }
         };
@@ -78,7 +89,22 @@ public class DbReady {
         System.out.println("Finished");
     }
 
-    protected static boolean goWithDb(IDbRunnable runnable) {
+    private static Connection createConnection() {
+        Connection connection;
+        try {
+            // move params to config file
+            String username = "root";
+            String password = "bitcoin";
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/sakila", username, password); // profileSQL=true
+        } catch (SQLException e) {
+            System.out.println("error: " + e);
+            e.printStackTrace();
+            connection = null;
+        }
+        return connection;
+    }
+
+    public static boolean goWithDb(IDbRunnable runnable) {
         if (init()) {
             return true;
         }
@@ -93,34 +119,15 @@ public class DbReady {
                 connection.close();
             }
         } catch (SQLException e) {
-            System.out.println("create error: " + e);
+            System.out.println("goWithDb error: " + e);
             e.printStackTrace();
             return true;
         }
         return false;
     }
 
-    private static Connection createConnection() {
-        Connection connection;
-        try {
-//            String username = "biTest";
-//            String password = "biTest";
-//            //connection = DriverManager.getConnection("jdbc:mckoi://localhost/", username, password);
-//            connection = DriverManager.getConnection(":jdbc:mckoi:local://./database/db.conf?create_or_boot=true", username, password);
-            String username = "root";
-            String password = "bitcoin";
-            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/sakila", username, password); // profileSQL=true
-        } catch (SQLException e) {
-            System.out.println("error: " + e);
-            e.printStackTrace();
-            connection = null;
-        }
-        return connection;
-    }
-
     private static boolean init() {
         try {
-//            Class.forName("com.mckoi.JDBCDriver").newInstance();
             Class.forName("com.mysql.jdbc.Driver").newInstance();
         } catch (Exception e) {
             System.out.println("error: " + e);
@@ -423,7 +430,7 @@ public class DbReady {
         }
     }
 
-    interface IDbRunnable {
+    public interface IDbRunnable {
         void run(Connection connection) throws SQLException;
     }
 

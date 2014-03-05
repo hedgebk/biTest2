@@ -84,21 +84,23 @@ public class PairExchangeData {
             log("FORK id=" + fork.m_id +
                     ", pairExData=" + fork.m_pairExData.exchNames() +
                     ", direction=" + fork.m_direction +
-                    ", amount=" + Fetcher.format(fork.m_amount) +
+                    ", amount=" + format(fork.m_amount) +
                     ", state=" + fork.m_state +
                     ", live=" + fork.getLiveTime());
-            logCross(fork.m_openCross, "Open");
+            logCross(fork.m_openCross,  "Open ");
             logCross(fork.m_closeCross, "Close");
         }
     }
 
-    private void logExch(SharedExchangeData exch) {
-        AccountData account = m_sharedExch1.m_account;
+    private static void logExch(SharedExchangeData exch) {
+        AccountData account = exch.m_account;
         TopData top = exch.m_lastTop;
-        String topStr = (top != null) ? "bid=" + top.m_bid + "; ask=" + top.m_ask : "<no top data>";
-        log("exch " + m_sharedExch1.m_exchange + ": " + topStr +
-                "; available: btc=" + account.m_btc + ", usd=" + account.m_usd +
-                "; allocated: btc=" + account.m_allocatedBtc + ", usd=" + account.m_allocatedUsd);
+        String topStr = (top != null)
+                ? "bid=" + format(top.m_bid) + "; ask=" + format(top.m_ask) + "; bidAskDiff=" + format(top.m_ask-top.m_bid)
+                : "<no top data>";
+        log("exch " + Utils.pad(exch.m_exchange.toString(), 8) + ": " + topStr +
+                "; available: btc=" + format(account.m_btc) + ", usd=" + format(account.m_usd) +
+                "; allocated: btc=" + format(account.m_allocatedBtc) + ", usd=" + format(account.m_allocatedUsd));
     }
 
     private void logCross(CrossData cross, String crossSide) {
@@ -107,7 +109,7 @@ public class PairExchangeData {
                     " -> sell " + cross.m_sellExch.m_exchange +
                     ", state=" + cross.m_state +
                     ", live=" + cross.getLiveTime());
-            log("  Buy order: " + cross.m_buyOrder);
+            log("  Buy  order: " + cross.m_buyOrder);
             log("  Sell order: " + cross.m_sellOrder);
         }
     }
@@ -225,17 +227,21 @@ public class PairExchangeData {
         double usd = buyAcct.availableUsd();
         double btc = sellAcct.availableBtc();
 
-        log("buy exch " + buyExch.m_exchange + ": availableUsd=" + Fetcher.format(usd));
-        log("sell exch " + sellExch.m_exchange + ": availableBtc=" + Fetcher.format(btc));
+        log("buy exch  " + buyExch.m_exchange + ": availableUsd=" + format(usd));
+        log("sell exch " + sellExch.m_exchange + ": availableBtc=" + format(btc));
 
         double maxPrice = Math.max(m_sharedExch1.m_lastTop.m_ask, m_sharedExch2.m_lastTop.m_ask); // ASK > BID
         double btcFromUsd = usd / maxPrice;
-        log("  maxPrice=" + Fetcher.format(maxPrice) + ", btcFromUsd=" + Fetcher.format(btcFromUsd));
+        log("  maxPrice=" + format(maxPrice) + ", btcFromUsd=" + format(btcFromUsd));
 
         double amount = Math.min(btc, btcFromUsd) * 0.95;
         amount = Utils.fourDecimalDigits(amount);
-        log("   finally amount=" + Fetcher.format(amount));
+        log("   finally amount=" + format(amount));
         return amount;
+    }
+
+    private static String format(double usd) {
+        return Fetcher.format(usd);
     }
 
     private void requestTradesIfNeeded(IterationContext iContext) {
@@ -282,7 +288,7 @@ public class PairExchangeData {
     public void addIncome(double earnThisRun) {
         m_totalIncome += earnThisRun;
         m_runs++;
-        log(" earnIncome=" + Fetcher.format(m_totalIncome) + ", runs=" + m_runs);
+        log(" earnIncome=" + format(m_totalIncome) + ", runs=" + m_runs);
     }
 
     public void stop() {
@@ -294,7 +300,7 @@ public class PairExchangeData {
                     ? "FINISHED"
                     : "RUNNING " + m_forks.size() + " forks") +
                 ", runs=" + m_runs +
-                ", total=" + Fetcher.format(m_totalIncome) +
+                ", total=" + format(m_totalIncome) +
                 ", live=" + Utils.millisToDHMSStr(System.currentTimeMillis() - m_startTime);
     }
 
@@ -476,7 +482,7 @@ public class PairExchangeData {
     public void logDiffAverageDelta() {
         double midDiffAverage = m_diffAverageCounter.get();
         double delta = m_lastDiff.m_mid - midDiffAverage;
-        log("diff=" + m_lastDiff + ";  avg=" + Fetcher.format(midDiffAverage) + ";  delta=" + Fetcher.format(delta));
+        log("diff=" + m_lastDiff + ";  avg=" + format(midDiffAverage) + ";  delta=" + format(delta));
     }
 
     public void addGain(double gain) {

@@ -36,7 +36,7 @@ public class CrossData {
         m_isOpenCross = isOpenCross;
         double midDiffAverage = forkData.m_pairExData.m_diffAverageCounter.get(); // top1 - top2
         double commissionAmount = forkData.midCommissionAmount();
-        double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
+        double halfTargetDelta = commissionAmount + Fetcher.EXPECTED_GAIN / 2;
         log(" commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
 
         ForkDirection direction = forkData.m_direction;
@@ -54,9 +54,9 @@ public class CrossData {
         m_buyOrder  = new OrderData(OrderSide.BUY,  buy, amount);
         m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
 
-        log("buy exch " + m_buyExch.m_exchange + ": " +
+        log("buy exch  " + Utils.pad(m_buyExch.m_exchange.toString(), 8) + ": " +
                 ExchangeData.ordersAndPricesStr(buyExchTop, m_buyOrder, null, null, null));
-        log("sell exch " + m_sellExch.m_exchange + ": " +
+        log("sell exch " + Utils.pad(m_sellExch.m_exchange.toString(), 8) + ": " +
                 ExchangeData.ordersAndPricesStr(sellExchTop, null, null, m_sellOrder, null));
 
         boolean success = m_buyExch.placeOrderBracket(m_buyOrder);
@@ -84,7 +84,7 @@ public class CrossData {
             public void run() {
                 double midDiffAverage = forkData.m_pairExData.m_diffAverageCounter.get(); // top1 - top2
                 double commissionAmount = forkData.midCommissionAmount();
-                double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
+                double halfTargetDelta = commissionAmount + Fetcher.EXPECTED_GAIN / 2;
                 log("moveBracketsIfNeeded... commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
 
                 ForkDirection direction = forkData.m_direction;
