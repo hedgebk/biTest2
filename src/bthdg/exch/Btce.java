@@ -106,7 +106,7 @@ public class Btce extends BaseExch {
 
     public static TopData parseTop(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-        log("BTCE.parseTop() " + jObj);
+//        log("BTCE.parseTop() " + jObj);
         JSONObject ticker = (JSONObject) jObj.get("btc_usd"); // ticker
 //        log(" class="+ticker.getClass()+", ticker=" + ticker);
         double last = Utils.getDouble(ticker, "last");

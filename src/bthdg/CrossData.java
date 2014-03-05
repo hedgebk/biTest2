@@ -12,6 +12,7 @@ public class CrossData {
     public OrderData m_buyOrder;
     public OrderData m_sellOrder;
     public long m_start;
+    private boolean m_isOpenCross; // todo; add to serialize
 
     private static void log(String s) { Log.log(s); }
     public boolean isActive() { return (m_state == CrossState.BRACKETS_PLACED); }
@@ -32,6 +33,7 @@ public class CrossData {
     }
 
     public void init(ForkData forkData, boolean isOpenCross) {
+        m_isOpenCross = isOpenCross;
         double midDiffAverage = forkData.m_pairExData.m_diffAverageCounter.get(); // top1 - top2
         double commissionAmount = forkData.midCommissionAmount();
         double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
@@ -85,7 +87,11 @@ public class CrossData {
                 double halfTargetDelta = (commissionAmount + Fetcher.EXPECTED_GAIN) / 2;
                 log("moveBracketsIfNeeded... commissionAmount=" + Fetcher.format(commissionAmount) + ", halfTargetDelta=" + Fetcher.format(halfTargetDelta));
 
-                double avgDiff = forkData.m_direction.apply(midDiffAverage);
+                ForkDirection direction = forkData.m_direction;
+                if(!m_isOpenCross) {
+                    direction = direction.opposite();
+                }
+                double avgDiff = direction.apply(midDiffAverage);
                 double amount = forkData.m_amount;
                                                                                                     // ASK > BID
                 TopData buyExchTop = m_buyExch.m_lastTop;
@@ -111,7 +117,7 @@ public class CrossData {
                 } else {
                     log("  move BUY bracket, [" + m_buyOrder.priceStr() + "->" + format(buy) + "] " +
                             "delta=" + format(buyDelta) + ", deltaPrcnt=" + format(deltaPrcnt));
-                    success = m_sellExch.cancelOrder(m_buyOrder); // todo: order can be executed at this point, so cancel will fail
+                    success = m_buyExch.cancelOrder(m_buyOrder); // todo: order can be executed at this point, so cancel will fail
                     if (success) {
                         m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
                         success = m_buyExch.placeOrderBracket(m_buyOrder);

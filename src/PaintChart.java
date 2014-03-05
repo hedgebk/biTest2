@@ -14,9 +14,9 @@ import java.util.List;
 
 public class PaintChart extends DbReady {
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 3; // the period width
-    private static final int MOVING_AVERAGE_POINTS = 300; // 300
-    private static final double EXPECTED_GAIN = 5; // 5
+    public static final int PERIOD_LENGTH_DAYS = 1; // the period width
+    private static final int MOVING_AVERAGE_POINTS = 200; // 300
+    private static final double EXPECTED_GAIN = 4; // 5
     public static final int MIN_CONFIRMED_DIFFS = 5;
     // BITSTAMP, BTCE, MTGOX, CAMPBX
     private static final Exchange EXCH1 = Exchange.BITSTAMP;

@@ -193,7 +193,7 @@ public class SharedExchangeData {
 
     public LiveOrdersData fetchLiveOrders() {
         // todo: implement
-        log("fetchLiveOrders() not implemented yet");
+//        log("fetchLiveOrders() not implemented yet");
         return new LiveOrdersData();
     }
 

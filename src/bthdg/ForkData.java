@@ -59,8 +59,8 @@ public class ForkData {
 
     public void checkState(IterationContext iContext) throws Exception {
         log("Fork.checkState() " + this);
-        m_exch1data.checkExchState(iContext);
-        m_exch2data.checkExchState(iContext);
+//        m_exch1data.checkExchState(iContext);
+//        m_exch2data.checkExchState(iContext);
         checkCross(iContext, m_openCross);
         checkCross(iContext, m_closeCross);
         m_state.checkState(iContext, this);

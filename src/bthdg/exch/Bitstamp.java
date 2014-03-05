@@ -149,7 +149,8 @@ public class Bitstamp extends BaseExch {
     }
 
     public static String accountTestStr() {
-        return "{\"usd_balance\":\"10.488\",\"fee\":\"0.5000\",\"btc_balance\":\"0.01900000\",\"btc_reserved\":\"0\",\"usd_reserved\":\"0\",\"btc_available\":\"0.01900000\",\"usd_available\":\"10.488\"}";
+        return "{\"usd_balance\":\"10.488\",\"fee\":\"0.2000\",\"btc_balance\":\"0.01900000\",\"btc_reserved\":\"0\",\"usd_reserved\":\"0\",\"btc_available\":\"0.01900000\",\"usd_available\":\"10.488\"}";
+//        return "{\"usd_balance\":\"10.488\",\"fee\":\"0.5000\",\"btc_balance\":\"0.01900000\",\"btc_reserved\":\"0\",\"usd_reserved\":\"0\",\"btc_available\":\"0.01900000\",\"usd_available\":\"10.488\"}";
     }
 
     public static String tradesTestStr() {

@@ -1,19 +1,21 @@
 package bthdg;
 
 public enum OrderState {
-    NONE,
+    NONE {
+        @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData) throws Exception {}
+    },
     BRACKET_PLACED {
         @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData) throws Exception {
-            log("OrderState.BRACKET_PLACED. check if order executed");
+//            log("OrderState.BRACKET_PLACED. check if order executed: " + orderData);
             trackLimitOrderExecution(iContext, shExchData, orderData);
         }
     },
     MARKET_PLACED {
         @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData) throws Exception {
-            log("OrderState.MARKET_PLACED. check if order executed");
+            log("OrderState.MARKET_PLACED. check if order executed: " + orderData);
             boolean executed = trackLimitOrderExecution(iContext, shExchData, orderData);
             if( executed ) {
-                log(" OPEN MKT bracket order executed. we are fully OPENED");
+                log(" OPEN MKT bracket order executed. we are fully OPENED " + orderData);
             } else {
                 log(" MKT order not yet executed - move if needed");
             }
