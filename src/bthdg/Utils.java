@@ -279,8 +279,8 @@ public class Utils {
         }
 
         void justAdd(long millis, double addValue) {
-//            long limit = millis - m_limit;
-//            removeOld(limit, m_map);
+            long limit = millis - m_limit;
+            removeOld(limit, m_map);
             m_map.put(millis, addValue);
         }
 

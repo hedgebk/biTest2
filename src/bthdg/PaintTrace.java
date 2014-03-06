@@ -15,12 +15,15 @@ import java.util.List;
 public class PaintTrace extends BaseChartPaint {
 
     private static final int XFACTOR = 4;
-    private static final int WIDTH = 1620 * XFACTOR;
+    private static final int WIDTH = 1620 * XFACTOR * 2;
     public static final int HEIGHT = 900 * XFACTOR;
     public static final Color LIGHT_RED = new Color(255, 0, 0, 32);
     public static final Color LIGHT_BLUE = new Color(0, 0, 255, 32);
     public static final Color DARK_GREEN = new Color(0, 80, 0);
     public static final Color LIGHT_X = new Color(60, 60, 60, 12);
+    public static final double EXPECTED_GAIN = 3.0; // 5
+    public static final double COMMISSION_SUMM = 0.008;
+    public static final long MOVING_AVERAGE = Fetcher.MOVING_AVERAGE * 4;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -194,14 +197,15 @@ public class PaintTrace extends BaseChartPaint {
 
     private static void paintPoints(List<TraceData> traces, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
                                     PaintChart.ChartAxe priceDiffAxe, Graphics2D g) {
-        Utils.AverageCounter price1AverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
-        Utils.AverageCounter price2AverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
-        Utils.AverageCounter diffAverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
+        Utils.AverageCounter diffAverageCounter = new Utils.AverageCounter(MOVING_AVERAGE);
 
         int avg1X = -1, avg1Y = -1;
         int avg2X = -1, avg2Y = -1;
         int diffX = -1, diffY = -1;
         int diffAvg = -1;
+
+        double commissionHalf = 0;
+        double half = 0;
 
         for (TraceData trace : traces) {
             long millis = trace.m_stamp;
@@ -217,13 +221,6 @@ public class PaintTrace extends BaseChartPaint {
 
                 g.drawLine(x, y1, x, y2);
 
-                double avg1 = price1AverageCounter.add(millis, (trace.m_bid1 + trace.m_ask1) / 2);
-                int y = priceAxe.getPointReverse(avg1);
-                if ((avg1X != -1) && (avg1Y != -1)) {
-                    g.drawLine(avg1X, avg1Y, x, y);
-                }
-                avg1X = x;
-                avg1Y = y;
                 bidAsk1 = trace.m_ask1 - trace.m_bid1;
             }
             double bidAsk2 = 0;
@@ -237,13 +234,6 @@ public class PaintTrace extends BaseChartPaint {
 
                 g.drawLine(x, y1, x, y2);
 
-                double avg2 = price2AverageCounter.add(millis, (trace.m_bid2 + trace.m_ask2) / 2);
-                int y = priceAxe.getPointReverse(avg2);
-                if ((avg2X != -1) && (avg2Y != -1)) {
-                    g.drawLine(avg2X, avg2Y, x, y);
-                }
-                avg2X = x;
-                avg2Y = y;
                 bidAsk2 = trace.m_ask2 - trace.m_bid2;
             }
             if (trace.m_buy1 != 0) {
@@ -293,26 +283,44 @@ public class PaintTrace extends BaseChartPaint {
             if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0) && (trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
                 double priceDiff = (trace.m_bid1 + trace.m_ask1) / 2 - (trace.m_bid2 + trace.m_ask2) / 2;
 
+                if(commissionHalf == 0) {
+                    commissionHalf = (trace.m_bid1 + trace.m_ask1 + trace.m_bid2 + trace.m_ask2) / 4 * COMMISSION_SUMM / 2;
+                    half = commissionHalf + EXPECTED_GAIN / 2;
+                }
+
                 int y = priceDiffAxe.getPointReverse(priceDiff);
-                g.setPaint(DARK_GREEN);
+
+
+                double avg = diffAverageCounter.add(millis, priceDiff);
+                double avgUp = avg + commissionHalf;
+                double avgDown = avg - commissionHalf;
+                boolean exceed = (priceDiff > avgUp) || (priceDiff < avgDown);
+
+                int y2 = priceDiffAxe.getPointReverse(avg);
+                int y3 = priceDiffAxe.getPointReverse(avg + half);
+                int y4 = priceDiffAxe.getPointReverse(avg - half);
+                int y5 = priceDiffAxe.getPointReverse(avgUp);
+                int y6 = priceDiffAxe.getPointReverse(avgDown);
+
+                if ((diffX != -1) && (diffAvg != -1)) {
+                    g.setPaint(Color.red);
+                    g.drawLine(diffX, diffAvg, x, y2);
+                    g.drawLine(x, y3, x, y3);
+                    g.drawLine(x, y4, x, y4);
+                    g.drawLine(x, y5, x, y5);
+                    g.drawLine(x, y6, x, y6);
+                }
+
+                diffAvg = y2;
+
+                g.setPaint(exceed ? Color.MAGENTA : DARK_GREEN);
                 g.drawLine(x, y, x, y);
                 g.drawRect(x - 2, y - 2, 4, 4);
-
                 if ((diffX != -1) && (diffY != -1)) {
                     g.drawLine(diffX, diffY, x, y);
                 }
                 diffX = x;
                 diffY = y;
-
-                double avg = diffAverageCounter.add(millis, priceDiff);
-                int y2 = priceDiffAxe.getPointReverse(avg);
-
-                if ((diffX != -1) && (diffAvg != -1)) {
-                    g.setPaint(Color.red);
-                    g.drawLine(diffX, diffAvg, x, y2);
-                }
-
-                diffAvg = y2;
             }
         }
     }
