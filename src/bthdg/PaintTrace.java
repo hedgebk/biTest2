@@ -14,8 +14,11 @@ import java.util.List;
 
 public class PaintTrace extends BaseChartPaint {
 
-    private static final int WIDTH = 1600;
+    private static final int WIDTH = 1620;
     public static final int HEIGHT = 900;
+    public static final Color LIGHT_RED = new Color(255, 0, 0, 32);
+    public static final Color LIGHT_BLUE = new Color(0, 0, 255, 32);
+    public static final Color DARK_GREEN = new Color(0, 80, 0);
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -108,10 +111,10 @@ public class PaintTrace extends BaseChartPaint {
 
         Utils.DoubleMinMaxCalculator<TraceData> priceDiffCalc = new Utils.DoubleMinMaxCalculator<TraceData>() {
             Double[] m_ar1 = new Double[1];
-            public Double getValue(TraceData trace) {return null;};
+            public Double getValue(TraceData trace) { return null; }
             @Override public Double[] getValues(TraceData trace) {
                 if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0) && (trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
-                    m_ar1[0] = (trace.m_bid1+trace.m_ask1)/2 - (trace.m_bid2+trace.m_ask2)/2;
+                    m_ar1[0] = (trace.m_bid1 + trace.m_ask1) / 2 - (trace.m_bid2 + trace.m_ask2) / 2;
                 } else {
                     m_ar1[0] = null;
                 }
@@ -160,6 +163,14 @@ public class PaintTrace extends BaseChartPaint {
         // paint points
         paintPoints(traces, timeAxe, priceAxe, priceDiffAxe, g);
 
+        g.setPaint(Color.LIGHT_GRAY);
+
+        // paint left axe labels
+        paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart);
+
+        // paint right axe labels
+        paintRightAxeLabels(minPriceDiff, maxPriceDiff, priceDiffAxe, g, WIDTH, 1);
+
         g.dispose();
 
         try {
@@ -190,13 +201,11 @@ public class PaintTrace extends BaseChartPaint {
             int x = timeAxe.getPoint(millis);
             if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0)) {
                 int y1 = priceAxe.getPointReverse(trace.m_bid1);
-                g.setPaint(Color.red);
-                g.drawLine(x, y1, x, y1);
-                g.drawRect(x - 1, y1 - 1, 2, 2);
+                g.setPaint(LIGHT_RED);
+                g.drawLine(x-1, y1, x+1, y1);
 
                 int y2 = priceAxe.getPointReverse(trace.m_ask1);
-                g.drawLine(x, y2, x, y2);
-                g.drawRect(x - 1, y2 - 1, 2, 2);
+                g.drawLine(x-1, y2, x+1, y2);
 
                 g.drawLine(x, y1, x, y2);
 
@@ -210,13 +219,11 @@ public class PaintTrace extends BaseChartPaint {
             }
             if ((trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
                 int y1 = priceAxe.getPointReverse(trace.m_bid2);
-                g.setPaint(Color.blue);
-                g.drawLine(x, y1, x, y1);
-                g.drawRect(x - 1, y1 - 1, 2, 2);
+                g.setPaint(LIGHT_BLUE);
+                g.drawLine(x-1, y1, x+1, y1);
 
                 int y2 = priceAxe.getPointReverse(trace.m_ask2);
-                g.drawLine(x, y2, x, y2);
-                g.drawRect(x - 1, y2 - 1, 2, 2);
+                g.drawLine(x-1, y2, x+1, y2);
 
                 g.drawLine(x, y1, x, y2);
 
@@ -255,7 +262,7 @@ public class PaintTrace extends BaseChartPaint {
             if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0) && (trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
                 double priceDiff = (trace.m_bid1 + trace.m_ask1) / 2 - (trace.m_bid2 + trace.m_ask2) / 2;
                 int y = priceDiffAxe.getPointReverse(priceDiff);
-                g.setPaint(Color.GREEN);
+                g.setPaint(DARK_GREEN);
                 g.drawLine(x, y, x, y);
                 g.drawRect(x - 2, y - 2, 4, 4);
 

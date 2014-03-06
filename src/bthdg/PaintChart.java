@@ -178,7 +178,7 @@ public class PaintChart extends BaseChartPaint {
 
         if (PAINT_DIFF) {
             // paint right axe labels
-            paintRightAxeLabels(minDif, maxDif, difAxe, g);
+            paintRightAxeLabels(minDif, maxDif, difAxe, g, WIDTH, 5);
         }
 
         // paint time axe labels
@@ -422,34 +422,6 @@ public class PaintChart extends BaseChartPaint {
                         g.drawLine(x + 20, y - 20, x - 20, y + 20);
                     }
                 }
-            }
-        }
-    }
-
-    private static void paintLeftAxeLabels(double minPrice, double maxPrice, ChartAxe priceAxe, Graphics2D g, int priceStep, int priceStart) {
-        g.setPaint(Color.black);
-        g.setFont(g.getFont().deriveFont(20.0f));
-        for (int price = priceStart; price < maxPrice; price += priceStep) {
-            if (price > minPrice) {
-                int y = priceAxe.getPointReverse(price);
-                g.drawString(Integer.toString(price), 2, y - 1);
-            }
-        }
-    }
-
-    private static void paintRightAxeLabels(double minDif, double maxDif, ChartAxe difAxe, Graphics2D g) {
-        int priceDifStep = 5;
-        int priceDifStart = ((int) minDif) / priceDifStep * priceDifStep;
-        System.out.println("priceDifStart=" + priceDifStart);
-        g.setFont(g.getFont().deriveFont(9.0f * X_FACTOR));
-        FontMetrics fontMetrics = g.getFontMetrics();
-        for (int price = priceDifStart; price < maxDif; price += priceDifStep) {
-            if (price > minDif) {
-                int y = difAxe.getPointReverse(price);
-                g.drawLine(WIDTH - 20, y, WIDTH - 1, y);
-                String str = Integer.toString(price);
-                Rectangle2D bounds = fontMetrics.getStringBounds(str, g);
-                g.drawString(str, (float) (WIDTH - 20 - bounds.getWidth()), y - 1);
             }
         }
     }
