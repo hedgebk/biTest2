@@ -1,3 +1,7 @@
+package bthdg;
+
+import bthdg.PaintChart;
+
 import java.awt.*;
 
 public class ChartSimulator {

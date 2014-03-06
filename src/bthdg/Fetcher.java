@@ -19,12 +19,9 @@ import java.util.Properties;
 
 /**
  * todo:
- *  - simulate available funds change on account as orders placed/executed
  *  - make delay between runs mkt data related - distance to nearest order driven
- *  - support partial fills - do forks
  *  - support DROP ?
  *  - count all downloaded traffic
- *  - report running time in servlet
  *  - add pause for servlet to redeploy new version and continue as is
  */
 public class Fetcher {
@@ -345,46 +342,34 @@ public class Fetcher {
     private static void logIntoDb(Connection connection, PairExchangeData data) {
         if (connection != null) {
             try {
-                SharedExchangeData sharedExch1 = data.m_sharedExch1;
-                TopData top1 = sharedExch1.m_lastTop;
-                double bid1 = top1.m_bid;
-                double ask1 = top1.m_ask;
-                SharedExchangeData sharedExch2 = data.m_sharedExch1;
-                TopData top2 = sharedExch2.m_lastTop;
-                double bid2 = top2.m_bid;
-                double ask2 = top2.m_ask;
+                TopData top1 = data.m_sharedExch1.m_lastTop;
+                TopData top2 = data.m_sharedExch2.m_lastTop;
 
                 PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_SQL);
                 try {
                     List<ForkData> forks = data.m_forks;
                     for (int i = 0, forksSize = forks.size(); i < forksSize; i++) {
                         Thread.sleep(1);
-                        long millis = System.currentTimeMillis();
 
                         ForkData fork = forks.get(i);
-                        long id = fork.m_id;
-                        CrossData openCross = fork.m_openCross;
-                        CrossData closeCross = fork.m_closeCross;
 
-                        // "INSERT INTO Trace ( stamp, bid1, ask1, bid2, ask2, fork, buy1, sell1, buy2, sell2 ) VALUES (?,?,?,?,?,?,?,?,?,?)";
-                        statement.setLong(1, millis);
+                        statement.setLong(1, System.currentTimeMillis());
                         if (i == 0) {
-                            statement.setDouble(2, bid1);
-                            statement.setDouble(3, ask1);
-                            statement.setDouble(4, bid2);
-                            statement.setDouble(5, ask2);
+                            statement.setDouble(2, top1.m_bid);
+                            statement.setDouble(3, top1.m_ask);
+                            statement.setDouble(4, top2.m_bid);
+                            statement.setDouble(5, top2.m_ask);
                         } else {
                             statement.setNull(2, Types.DOUBLE);
                             statement.setNull(3, Types.DOUBLE);
                             statement.setNull(4, Types.DOUBLE);
                             statement.setNull(5, Types.DOUBLE);
                         }
-                        statement.setLong(6, id);
-                        setCross(openCross, statement, 7);
-                        setCross(closeCross, statement, 9);
+                        statement.setLong(6, fork.m_id);
+                        setCross(fork.m_openCross, statement, 7);
+                        setCross(fork.m_closeCross, statement, 9);
 
-                        statement.executeUpdate(); // execute insert SQL statement
-//                        connection.commit();
+                        statement.executeUpdate(); // execute insert SQL statement - will be auto committed
                     }
                 } finally {
                     statement.close();

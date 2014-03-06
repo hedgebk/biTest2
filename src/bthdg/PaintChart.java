@@ -1,6 +1,4 @@
-import bthdg.DbReady;
-import bthdg.Exchange;
-import bthdg.Utils;
+package bthdg;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -13,7 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 
-public class PaintChart extends DbReady {
+public class PaintChart extends BaseChartPaint {
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
     public static final int PERIOD_LENGTH_DAYS = 1; // the period width
     private static final int MOVING_AVERAGE_POINTS = 200; // 300
@@ -143,7 +141,7 @@ public class PaintChart extends DbReady {
 
         if (PAINT_PRICE) {
             // paint left axe
-            paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart);
+            paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, WIDTH);
 
             // paint candles
             paintCandles(ticksPerPoints, priceAxe, g);
@@ -287,21 +285,6 @@ public class PaintChart extends DbReady {
             pixelDiffs.add(pDiff);
         }
         return diffsPerPoints;
-    }
-
-    private static void paintLeftAxeAndGrid(double minPrice, double maxPrice, ChartAxe priceAxe, Graphics2D g, int priceStep, int priceStart) {
-        g.setPaint(new Color(128, 128, 128, 128)); // Color.gray
-        final float dash1[] = {10.0f};
-        BasicStroke dashedStroke = new BasicStroke(1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, dash1, 0.0f);
-        Stroke oldStroke = g.getStroke();
-        g.setStroke(dashedStroke);
-        for (int price = priceStart; price < maxPrice; price += priceStep) {
-            if (price > minPrice) {
-                int y = priceAxe.getPointReverse(price);
-                g.drawLine(0, y, WIDTH - 1, y);
-            }
-        }
-        g.setStroke(oldStroke);
     }
 
     private static void paintCandles(TickList[] ticksPerPoints, ChartAxe priceAxe, Graphics2D g) {

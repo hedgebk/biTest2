@@ -209,17 +209,32 @@ public class Utils {
     public static abstract class DoubleMinMaxCalculator<O> {
         public Double m_minValue;
         public Double m_maxValue;
+        private Double[] m_ar = new Double[1];
 
         public abstract Double getValue(O obj);
+        public Double[] getValues(O obj) {
+            m_ar[0] = getValue(obj);
+            return m_ar;
+        }
+
+        public DoubleMinMaxCalculator() {}
 
         public DoubleMinMaxCalculator(Iterable<O> data) {
+            calculate(data);
+        }
+
+        public void calculate(Iterable<O> data) {
             for (O obj : data) {
-                Double value = getValue(obj);
-                if ((m_maxValue == null) || (value > m_maxValue)) {
-                    m_maxValue = value;
-                }
-                if ((m_minValue == null) || (value < m_minValue)) {
-                    m_minValue = value;
+                Double[] values = getValues(obj);
+                for(Double value: values) {
+                    if(value != null) {
+                        if ((m_maxValue == null) || (value > m_maxValue)) {
+                            m_maxValue = value;
+                        }
+                        if ((m_minValue == null) || (value < m_minValue)) {
+                            m_minValue = value;
+                        }
+                    }
                 }
             }
         }
@@ -264,8 +279,8 @@ public class Utils {
         }
 
         void justAdd(long millis, double addValue) {
-            long limit = millis - m_limit;
-            removeOld(limit, m_map);
+//            long limit = millis - m_limit;
+//            removeOld(limit, m_map);
             m_map.put(millis, addValue);
         }
 
