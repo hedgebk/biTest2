@@ -7,7 +7,6 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.sql.*;
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 
@@ -28,9 +27,9 @@ public class PaintChart extends BaseChartPaint {
     private static final boolean PAINT_PRICE = true;
     private static final boolean PAINT_DIFF = true;
     // chart area
-    public static final int X_FACTOR = 4;
-    private static final int WIDTH = 1680 * X_FACTOR;
-    public static final int HEIGHT = 1000 * 2;
+    public static final int X_FACTOR = 2;
+    private static final int WIDTH = 1680 * X_FACTOR * 2;
+    public static final int HEIGHT = 1000 * X_FACTOR;
 
     public static final DecimalFormat XX_YYYYY = new DecimalFormat("#,##0.0####");
 
@@ -173,16 +172,16 @@ public class PaintChart extends BaseChartPaint {
 
         if (PAINT_PRICE) {
             // paint left axe labels
-            paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart);
+            paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, X_FACTOR);
         }
 
         if (PAINT_DIFF) {
             // paint right axe labels
-            paintRightAxeLabels(minDif, maxDif, difAxe, g, WIDTH, 5);
+            paintRightAxeLabels(minDif, maxDif, difAxe, g, WIDTH, 5, X_FACTOR);
         }
 
         // paint time axe labels
-        paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g);
+        paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
         if (PAINT_DIFF) {
             // paint moving average time range
@@ -420,59 +419,6 @@ public class PaintChart extends BaseChartPaint {
                     if((priceDif == minDif) || (priceDif == maxDif)) {
                         g.drawLine(x - 20, y - 20, x + 20, y + 20);
                         g.drawLine(x + 20, y - 20, x - 20, y + 20);
-                    }
-                }
-            }
-        }
-    }
-
-    private static void paintTimeAxeLabels(long minTimestamp, long maxTimestamp, ChartAxe timeAxe, Graphics2D g) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(minTimestamp);
-        Utils.setToDayStart(cal);
-
-        long timePeriod = maxTimestamp - minTimestamp;
-        int timePeriodDays = (int) (timePeriod / Utils.ONE_DAY_IN_MILLIS);
-
-        // paint DAYS
-        g.setFont(g.getFont().deriveFont(30.0f));
-        SimpleDateFormat format = new SimpleDateFormat("d MMM");
-        while (true) {
-            cal.add(Calendar.DAY_OF_YEAR, 1);
-            long millis = cal.getTimeInMillis();
-            if (millis >= minTimestamp) {
-                if (millis > maxTimestamp) {
-                    break;
-                }
-                String label = format.format(cal.getTime());
-                int x = timeAxe.getPoint(millis);
-                g.drawLine(x, HEIGHT - 10, x, HEIGHT - 1);
-                g.drawString(label, x + 2, HEIGHT - 8);
-            }
-        }
-
-        // paint HOURS
-        if (timePeriodDays <= 15) {
-            cal.setTimeInMillis(minTimestamp);
-            Utils.setToDayStart(cal);
-
-            int hourPlus = (timePeriodDays > 6) ? 6 : 2;
-
-            g.setFont(g.getFont().deriveFont(20.0f));
-            format = new SimpleDateFormat("HH:mm");
-            while (true) {
-                cal.add(Calendar.HOUR_OF_DAY, hourPlus);
-                int hour = cal.get(Calendar.HOUR_OF_DAY);
-                if (hour != 0) {
-                    long millis = cal.getTimeInMillis();
-                    if (millis >= minTimestamp) {
-                        if (millis > maxTimestamp) {
-                            break;
-                        }
-                        String label = format.format(cal.getTime());
-                        int x = timeAxe.getPoint(millis);
-                        g.drawLine(x, HEIGHT - 10, x, HEIGHT - 1);
-                        g.drawString(label, x + 2, HEIGHT - 4);
                     }
                 }
             }

@@ -2,6 +2,8 @@ package bthdg;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 public class BaseChartPaint extends DbReady{
     static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
@@ -20,8 +22,8 @@ public class BaseChartPaint extends DbReady{
         g.setStroke(oldStroke);
     }
 
-    static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, int priceStep, int priceStart) {
-        g.setFont(g.getFont().deriveFont(20.0f));
+    static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, int priceStep, int priceStart, float xFactor) {
+        g.setFont(g.getFont().deriveFont(20.0f * xFactor));
         for (int price = priceStart; price < maxPrice; price += priceStep) {
             if (price >= minPrice) {
                 int y = priceAxe.getPointReverse(price);
@@ -30,10 +32,10 @@ public class BaseChartPaint extends DbReady{
         }
     }
 
-    static void paintRightAxeLabels(double minDif, double maxDif, PaintChart.ChartAxe difAxe, Graphics2D g, int width, int priceDifStep) {
+    static void paintRightAxeLabels(double minDif, double maxDif, PaintChart.ChartAxe difAxe, Graphics2D g, int width, int priceDifStep, float xFactor) {
         int priceDifStart = ((int) minDif) / priceDifStep * priceDifStep;
         System.out.println("priceDifStart=" + priceDifStart);
-        g.setFont(g.getFont().deriveFont(20.0f));
+        g.setFont(g.getFont().deriveFont(20.0f * xFactor));
         FontMetrics fontMetrics = g.getFontMetrics();
         for (int price = priceDifStart; price < maxDif; price += priceDifStep) {
             if (price >= minDif) {
@@ -46,4 +48,56 @@ public class BaseChartPaint extends DbReady{
         }
     }
 
+    public static void paintTimeAxeLabels(long minTimestamp, long maxTimestamp, PaintChart.ChartAxe timeAxe, Graphics2D g, int height, float xFactor) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(minTimestamp);
+        Utils.setToDayStart(cal);
+
+        long timePeriod = maxTimestamp - minTimestamp;
+        int timePeriodDays = (int) (timePeriod / Utils.ONE_DAY_IN_MILLIS);
+
+        // paint DAYS
+        g.setFont(g.getFont().deriveFont(30.0f * xFactor));
+        SimpleDateFormat format = new SimpleDateFormat("d MMM");
+        while (true) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+            long millis = cal.getTimeInMillis();
+            if (millis >= minTimestamp) {
+                if (millis > maxTimestamp) {
+                    break;
+                }
+                String label = format.format(cal.getTime());
+                int x = timeAxe.getPoint(millis);
+                g.drawLine(x, height - 10, x, height - 1);
+                g.drawString(label, x + 2, height - 8);
+            }
+        }
+
+        // paint HOURS
+        if (timePeriodDays <= 15) {
+            cal.setTimeInMillis(minTimestamp);
+            Utils.setToDayStart(cal);
+
+            int hourPlus = (timePeriodDays > 6) ? 6 : ((timePeriodDays > 1) ? 2 : 1);
+
+            g.setFont(g.getFont().deriveFont(20.0f * xFactor));
+            format = new SimpleDateFormat("HH:mm");
+            while (true) {
+                cal.add(Calendar.HOUR_OF_DAY, hourPlus);
+                int hour = cal.get(Calendar.HOUR_OF_DAY);
+                if (hour != 0) {
+                    long millis = cal.getTimeInMillis();
+                    if (millis >= minTimestamp) {
+                        if (millis > maxTimestamp) {
+                            break;
+                        }
+                        String label = format.format(cal.getTime());
+                        int x = timeAxe.getPoint(millis);
+                        g.drawLine(x, height - 10, x, height - 1);
+                        g.drawString(label, x + 2, height - 4);
+                    }
+                }
+            }
+        }
+    }
 }

@@ -14,11 +14,13 @@ import java.util.List;
 
 public class PaintTrace extends BaseChartPaint {
 
-    private static final int WIDTH = 1620;
-    public static final int HEIGHT = 900;
+    private static final int XFACTOR = 4;
+    private static final int WIDTH = 1620 * XFACTOR;
+    public static final int HEIGHT = 900 * XFACTOR;
     public static final Color LIGHT_RED = new Color(255, 0, 0, 32);
     public static final Color LIGHT_BLUE = new Color(0, 0, 255, 32);
     public static final Color DARK_GREEN = new Color(0, 80, 0);
+    public static final Color LIGHT_X = new Color(60, 60, 60, 12);
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -27,37 +29,37 @@ public class PaintTrace extends BaseChartPaint {
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
 
-        paint();
+        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : 0;
+        paint(fromMillis);
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
     }
 
-    private static void paint() {
+    private static void paint(final long fromMillis) {
         IDbRunnable runnable = new IDbRunnable() {
             public void run(Connection connection) throws SQLException {
                 System.out.println("selecting ticks");
-                List<TraceData> ticks = selectTraces(connection);
+                List<TraceData> ticks = selectTraces(connection, fromMillis);
                 drawTraces(ticks);
                 System.out.println("--- Complete ---");
             }
-
         };
 
         goWithDb(runnable);
     }
 
-    private static List<TraceData> selectTraces(Connection connection) throws SQLException {
+    private static List<TraceData> selectTraces(Connection connection, long fromMillis) throws SQLException {
         long three = System.currentTimeMillis();
         List<TraceData> ticks = new ArrayList<TraceData>();
         PreparedStatement statement = connection.prepareStatement(
                         "   SELECT stamp, bid1, ask1, bid2, ask2, fork, buy1, sell1, buy2, sell2 " +
                         "    FROM Trace " +
-//                        "    WHERE stamp > ? " +
+                        "    WHERE stamp > ? " +
 //                        "     AND stamp < ? " +
 //                        "     AND (src = ? OR src = ?) " +
                         "    ORDER BY stamp ASC ");
         try {
-//            statement.setLong(1, start);
+            statement.setLong(1, fromMillis);
 
             ResultSet result = statement.executeQuery();
             long four = System.currentTimeMillis();
@@ -166,17 +168,20 @@ public class PaintTrace extends BaseChartPaint {
         g.setPaint(Color.LIGHT_GRAY);
 
         // paint left axe labels
-        paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart);
+        paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, XFACTOR);
 
         // paint right axe labels
-        paintRightAxeLabels(minPriceDiff, maxPriceDiff, priceDiffAxe, g, WIDTH, 1);
+        paintRightAxeLabels(minPriceDiff, maxPriceDiff, priceDiffAxe, g, WIDTH, 1, XFACTOR);
+
+        // paint time axe labels
+        paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, XFACTOR);
 
         g.dispose();
 
         try {
             long millis = System.currentTimeMillis();
 
-            File output = new File("imgout/"+Long.toString(millis,32)+".png");
+            File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
             ImageIO.write(image, "png", output);
 
             System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -191,14 +196,17 @@ public class PaintTrace extends BaseChartPaint {
                                     PaintChart.ChartAxe priceDiffAxe, Graphics2D g) {
         Utils.AverageCounter price1AverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
         Utils.AverageCounter price2AverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
+        Utils.AverageCounter diffAverageCounter = new Utils.AverageCounter(Fetcher.MOVING_AVERAGE);
 
         int avg1X = -1, avg1Y = -1;
         int avg2X = -1, avg2Y = -1;
         int diffX = -1, diffY = -1;
+        int diffAvg = -1;
 
         for (TraceData trace : traces) {
             long millis = trace.m_stamp;
             int x = timeAxe.getPoint(millis);
+            double bidAsk1 = 0;
             if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0)) {
                 int y1 = priceAxe.getPointReverse(trace.m_bid1);
                 g.setPaint(LIGHT_RED);
@@ -216,14 +224,16 @@ public class PaintTrace extends BaseChartPaint {
                 }
                 avg1X = x;
                 avg1Y = y;
+                bidAsk1 = trace.m_ask1 - trace.m_bid1;
             }
+            double bidAsk2 = 0;
             if ((trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
                 int y1 = priceAxe.getPointReverse(trace.m_bid2);
                 g.setPaint(LIGHT_BLUE);
-                g.drawLine(x-1, y1, x+1, y1);
+                g.drawLine(x - 1, y1, x + 1, y1);
 
                 int y2 = priceAxe.getPointReverse(trace.m_ask2);
-                g.drawLine(x-1, y2, x+1, y2);
+                g.drawLine(x - 1, y2, x + 1, y2);
 
                 g.drawLine(x, y1, x, y2);
 
@@ -234,33 +244,55 @@ public class PaintTrace extends BaseChartPaint {
                 }
                 avg2X = x;
                 avg2Y = y;
+                bidAsk2 = trace.m_ask2 - trace.m_bid2;
             }
             if (trace.m_buy1 != 0) {
                 int y = priceAxe.getPointReverse(trace.m_buy1);
+                if (bidAsk1 > 0) {
+                    g.setPaint(LIGHT_X);
+                    int y2 = priceAxe.getPointReverse(trace.m_buy1 + bidAsk1);
+                    g.drawLine(x, y, x, y2);
+                }
                 g.setPaint(Color.ORANGE);
                 g.drawLine(x, y, x, y);
                 g.drawRect(x - 1, y - 1, 2, 2);
             }
             if (trace.m_sell1 != 0) {
                 int y = priceAxe.getPointReverse(trace.m_sell1);
+                if (bidAsk2 > 0) {
+                    g.setPaint(LIGHT_X);
+                    int y2 = priceAxe.getPointReverse(trace.m_sell1 - bidAsk2);
+                    g.drawLine(x, y, x, y2);
+                }
                 g.setPaint(Color.ORANGE);
                 g.drawLine(x, y, x, y);
                 g.drawRect(x - 1, y - 1, 2, 2);
             }
             if (trace.m_buy2 != 0) {
                 int y = priceAxe.getPointReverse(trace.m_buy2);
-                g.setPaint(Color.PINK);
+                if (bidAsk2 > 0) {
+                    g.setPaint(LIGHT_X);
+                    int y2 = priceAxe.getPointReverse(trace.m_buy2 + bidAsk2);
+                    g.drawLine(x, y, x, y2);
+                }
+                g.setPaint(Color.GREEN);
                 g.drawLine(x, y, x, y);
                 g.drawRect(x - 1, y - 1, 2, 2);
             }
             if (trace.m_sell2 != 0) {
                 int y = priceAxe.getPointReverse(trace.m_sell2);
-                g.setPaint(Color.PINK);
+                if (bidAsk1 > 0) {
+                    g.setPaint(LIGHT_X);
+                    int y2 = priceAxe.getPointReverse(trace.m_sell2 - bidAsk1);
+                    g.drawLine(x, y, x, y2);
+                }
+                g.setPaint(Color.GREEN);
                 g.drawLine(x, y, x, y);
                 g.drawRect(x - 1, y - 1, 2, 2);
             }
             if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0) && (trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
                 double priceDiff = (trace.m_bid1 + trace.m_ask1) / 2 - (trace.m_bid2 + trace.m_ask2) / 2;
+
                 int y = priceDiffAxe.getPointReverse(priceDiff);
                 g.setPaint(DARK_GREEN);
                 g.drawLine(x, y, x, y);
@@ -271,6 +303,16 @@ public class PaintTrace extends BaseChartPaint {
                 }
                 diffX = x;
                 diffY = y;
+
+                double avg = diffAverageCounter.add(millis, priceDiff);
+                int y2 = priceDiffAxe.getPointReverse(avg);
+
+                if ((diffX != -1) && (diffAvg != -1)) {
+                    g.setPaint(Color.red);
+                    g.drawLine(diffX, diffAvg, x, y2);
+                }
+
+                diffAvg = y2;
             }
         }
     }
