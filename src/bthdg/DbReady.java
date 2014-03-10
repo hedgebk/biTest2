@@ -29,9 +29,9 @@ public class DbReady {
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:"+(maxMemory/=1024) + ": m:" + (maxMemory/=1024) );
 
-        startAndInitDb();
-//        updateFromWeb();
-//        dropTicks(Exchange.BITSTAMP, "0", "-3d");
+//        startAndInitDb();
+        updateFromWeb();
+//        dropTicks(Exchange.BTCE, "0", "-3d");
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
     }
@@ -329,11 +329,11 @@ public class DbReady {
 
             token = readToken(bis, sb); // "804.000000000000"
             dataRead += token.length() + 1;
-            double price = format.parse(token).doubleValue();
+            double price = parseDouble(format, token);
 
             token = readToken(bis, sb); // "1.234"
             dataRead += token.length() + 1;
-            double volume = format.parse(token).doubleValue();
+            double volume = parseDouble(format, token);
 
             if (unixtime >= importFromTick) { // save only ticks after start point
                 if (totalSaved == 0) { // the first Tick recording
@@ -373,6 +373,15 @@ public class DbReady {
             }
         }
         return totalSaved;
+    }
+
+    private static double parseDouble(DecimalFormat format, String token) throws ParseException {
+        try {
+            return format.parse(token).doubleValue();
+        } catch (ParseException e) {
+            System.out.println("Error: " + e);
+            return 0.0;
+        }
     }
 
     private static void logStat(long totalBytes, int counter, int totalCounter, int totalSaved, long dataRead,

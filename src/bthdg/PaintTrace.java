@@ -23,7 +23,9 @@ public class PaintTrace extends BaseChartPaint {
     public static final Color LIGHT_X = new Color(60, 60, 60, 12);
     public static final double EXPECTED_GAIN = 3.0; // 5
     public static final double COMMISSION_SUMM = 0.008;
-    public static final long MOVING_AVERAGE = Fetcher.MOVING_AVERAGE * 4;
+    public static final long MOVING_AVERAGE = Fetcher.MOVING_AVERAGE * 2;
+    public static final boolean PAINT_PRICE = false;
+    public static final boolean PAINT_ORDERS = false;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -212,73 +214,77 @@ public class PaintTrace extends BaseChartPaint {
             int x = timeAxe.getPoint(millis);
             double bidAsk1 = 0;
             if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0)) {
-                int y1 = priceAxe.getPointReverse(trace.m_bid1);
-                g.setPaint(LIGHT_RED);
-                g.drawLine(x-1, y1, x+1, y1);
+                if (PAINT_PRICE) {
+                    int y1 = priceAxe.getPointReverse(trace.m_bid1);
+                    g.setPaint(LIGHT_RED);
+                    g.drawLine(x - 1, y1, x + 1, y1);
 
-                int y2 = priceAxe.getPointReverse(trace.m_ask1);
-                g.drawLine(x-1, y2, x+1, y2);
+                    int y2 = priceAxe.getPointReverse(trace.m_ask1);
+                    g.drawLine(x - 1, y2, x + 1, y2);
 
-                g.drawLine(x, y1, x, y2);
-
+                    g.drawLine(x, y1, x, y2);
+                }
                 bidAsk1 = trace.m_ask1 - trace.m_bid1;
             }
             double bidAsk2 = 0;
             if ((trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
-                int y1 = priceAxe.getPointReverse(trace.m_bid2);
-                g.setPaint(LIGHT_BLUE);
-                g.drawLine(x - 1, y1, x + 1, y1);
+                if (PAINT_PRICE) {
+                    int y1 = priceAxe.getPointReverse(trace.m_bid2);
+                    g.setPaint(LIGHT_BLUE);
+                    g.drawLine(x - 1, y1, x + 1, y1);
 
-                int y2 = priceAxe.getPointReverse(trace.m_ask2);
-                g.drawLine(x - 1, y2, x + 1, y2);
+                    int y2 = priceAxe.getPointReverse(trace.m_ask2);
+                    g.drawLine(x - 1, y2, x + 1, y2);
 
-                g.drawLine(x, y1, x, y2);
-
+                    g.drawLine(x, y1, x, y2);
+                }
                 bidAsk2 = trace.m_ask2 - trace.m_bid2;
             }
-            if (trace.m_buy1 != 0) {
-                int y = priceAxe.getPointReverse(trace.m_buy1);
-                if (bidAsk1 > 0) {
-                    g.setPaint(LIGHT_X);
-                    int y2 = priceAxe.getPointReverse(trace.m_buy1 + bidAsk1);
-                    g.drawLine(x, y, x, y2);
+            if (PAINT_ORDERS) {
+                if (trace.m_buy1 != 0) {
+                    int y = priceAxe.getPointReverse(trace.m_buy1);
+                    if (bidAsk1 > 0) {
+                        g.setPaint(LIGHT_X);
+                        int y2 = priceAxe.getPointReverse(trace.m_buy1 + bidAsk1);
+                        g.drawLine(x, y, x, y2);
+                    }
+                    g.setPaint(Color.ORANGE);
+                    g.drawLine(x, y, x, y);
+                    g.drawRect(x - 1, y - 1, 2, 2);
                 }
-                g.setPaint(Color.ORANGE);
-                g.drawLine(x, y, x, y);
-                g.drawRect(x - 1, y - 1, 2, 2);
-            }
-            if (trace.m_sell1 != 0) {
-                int y = priceAxe.getPointReverse(trace.m_sell1);
-                if (bidAsk2 > 0) {
-                    g.setPaint(LIGHT_X);
-                    int y2 = priceAxe.getPointReverse(trace.m_sell1 - bidAsk2);
-                    g.drawLine(x, y, x, y2);
+                if (trace.m_sell1 != 0) {
+                    int y = priceAxe.getPointReverse(trace.m_sell1);
+                    if (bidAsk2 > 0) {
+                        g.setPaint(LIGHT_X);
+                        int y2 = priceAxe.getPointReverse(trace.m_sell1 - bidAsk2);
+                        g.drawLine(x, y, x, y2);
+                    }
+                    g.setPaint(Color.ORANGE);
+                    g.drawLine(x, y, x, y);
+                    g.drawRect(x - 1, y - 1, 2, 2);
                 }
-                g.setPaint(Color.ORANGE);
-                g.drawLine(x, y, x, y);
-                g.drawRect(x - 1, y - 1, 2, 2);
-            }
-            if (trace.m_buy2 != 0) {
-                int y = priceAxe.getPointReverse(trace.m_buy2);
-                if (bidAsk2 > 0) {
-                    g.setPaint(LIGHT_X);
-                    int y2 = priceAxe.getPointReverse(trace.m_buy2 + bidAsk2);
-                    g.drawLine(x, y, x, y2);
+                if (trace.m_buy2 != 0) {
+                    int y = priceAxe.getPointReverse(trace.m_buy2);
+                    if (bidAsk2 > 0) {
+                        g.setPaint(LIGHT_X);
+                        int y2 = priceAxe.getPointReverse(trace.m_buy2 + bidAsk2);
+                        g.drawLine(x, y, x, y2);
+                    }
+                    g.setPaint(Color.GREEN);
+                    g.drawLine(x, y, x, y);
+                    g.drawRect(x - 1, y - 1, 2, 2);
                 }
-                g.setPaint(Color.GREEN);
-                g.drawLine(x, y, x, y);
-                g.drawRect(x - 1, y - 1, 2, 2);
-            }
-            if (trace.m_sell2 != 0) {
-                int y = priceAxe.getPointReverse(trace.m_sell2);
-                if (bidAsk1 > 0) {
-                    g.setPaint(LIGHT_X);
-                    int y2 = priceAxe.getPointReverse(trace.m_sell2 - bidAsk1);
-                    g.drawLine(x, y, x, y2);
+                if (trace.m_sell2 != 0) {
+                    int y = priceAxe.getPointReverse(trace.m_sell2);
+                    if (bidAsk1 > 0) {
+                        g.setPaint(LIGHT_X);
+                        int y2 = priceAxe.getPointReverse(trace.m_sell2 - bidAsk1);
+                        g.drawLine(x, y, x, y2);
+                    }
+                    g.setPaint(Color.GREEN);
+                    g.drawLine(x, y, x, y);
+                    g.drawRect(x - 1, y - 1, 2, 2);
                 }
-                g.setPaint(Color.GREEN);
-                g.drawLine(x, y, x, y);
-                g.drawRect(x - 1, y - 1, 2, 2);
             }
             if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0) && (trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
                 double priceDiff = (trace.m_bid1 + trace.m_ask1) / 2 - (trace.m_bid2 + trace.m_ask2) / 2;
@@ -304,11 +310,12 @@ public class PaintTrace extends BaseChartPaint {
 
                 if ((diffX != -1) && (diffAvg != -1)) {
                     g.setPaint(Color.red);
+                    int dy = y2 - diffAvg;
                     g.drawLine(diffX, diffAvg, x, y2);
-                    g.drawLine(x, y3, x, y3);
-                    g.drawLine(x, y4, x, y4);
-                    g.drawLine(x, y5, x, y5);
-                    g.drawLine(x, y6, x, y6);
+                    g.drawLine(diffX, y3-dy, x, y3);
+                    g.drawLine(diffX, y4-dy, x, y4);
+                    g.drawLine(diffX, y5-dy, x, y5);
+                    g.drawLine(diffX, y6-dy, x, y6);
                 }
 
                 diffAvg = y2;

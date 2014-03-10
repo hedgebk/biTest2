@@ -34,7 +34,7 @@ public class BaseChartPaint extends DbReady{
 
     static void paintRightAxeLabels(double minDif, double maxDif, PaintChart.ChartAxe difAxe, Graphics2D g, int width, int priceDifStep, float xFactor) {
         int priceDifStart = ((int) minDif) / priceDifStep * priceDifStep;
-        System.out.println("priceDifStart=" + priceDifStart);
+//        System.out.println("priceDifStart=" + priceDifStart);
         g.setFont(g.getFont().deriveFont(20.0f * xFactor));
         FontMetrics fontMetrics = g.getFontMetrics();
         for (int price = priceDifStart; price < maxDif; price += priceDifStep) {

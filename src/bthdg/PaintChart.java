@@ -10,28 +10,41 @@ import java.text.DecimalFormat;
 import java.util.*;
 import java.util.List;
 
+// - close drop only higher than averageDiff
 public class PaintChart extends BaseChartPaint {
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 1; // the period width
-    private static final int MOVING_AVERAGE_POINTS = 200; // 300
-    private static final double EXPECTED_GAIN = 4; // 5
+    public static final int PERIOD_LENGTH_DAYS = 20; // the period width
+    private static final int MOVING_AVERAGE_MILLIS = 70/*min*/ * 60 * 1000; // ~1h 10min
+    private static final double EXPECTED_GAIN = 4.3; // 3.4
     public static final int MIN_CONFIRMED_DIFFS = 5;
-    // BITSTAMP, BTCE, MTGOX, CAMPBX
+    // BITSTAMP, BTCE, CAMPBX
     private static final Exchange EXCH1 = Exchange.BITSTAMP;
     private static final Exchange EXCH2 = Exchange.BTCE;
-    public static final boolean DO_DROP = true;
-    public static final double DROP_LEVEL = 0.8;
-    public static final boolean LOCK_DIRECTION_ON_DROP = true;
     private static final boolean VOLUME_AVERAGE = false;
     public static final int MAX_NEXT_POINTS_TO_CONFIRM = 4; // look to next points for prices to confirm
-    private static final boolean PAINT_PRICE = true;
-    private static final boolean PAINT_DIFF = true;
     // chart area
-    public static final int X_FACTOR = 2;
-    private static final int WIDTH = 1680 * X_FACTOR * 2;
-    public static final int HEIGHT = 1000 * X_FACTOR;
+    public static final int X_FACTOR = 1;
+    private static final int WIDTH = 1680 * X_FACTOR * 920;
+    public static final int HEIGHT = 1000 * X_FACTOR * 1;
+    private static final boolean PAINT_PRICE = false;
+    static final boolean PAINT_DIFF = false;
+    public static final int MAX_CHART_DELTA = 60;
+    public static final int MIN_CHART_DELTA = -45;
+    // drop
+    public static final boolean DO_DROP = true;
+    public static final double DROP_LEVEL = 0.4;
+    public static final boolean LOCK_DIRECTION_ON_DROP = true;
+    public static final boolean DROP_ONLY_IN_REVERSE_FROM_AVG = true;
 
     public static final DecimalFormat XX_YYYYY = new DecimalFormat("#,##0.0####");
+
+    private static final boolean VARY_MOVING_AVERAGE_LEN = false;
+    private static final int MOVING_AVERAGE_VARY_STEPS = 80;
+    private static final double MOVING_AVERAGE_VARY_STEPS_VALUE = 0.01;
+
+    private static final boolean VARY_EXPECTED_GAIN = false;
+    private static final int EXPECTED_GAIN_VARY_STEPS = 124;
+    private static final double EXPECTED_GAIN_VARY_STEPS_VALUE = 0.025;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -96,6 +109,14 @@ public class PaintChart extends BaseChartPaint {
         };
         double minDif = priceDifCalc.m_minValue;
         double maxDif = priceDifCalc.m_maxValue;
+        if (maxDif > MAX_CHART_DELTA) {
+            System.out.println("maxDif=" + maxDif + " -> limiting to " + MAX_CHART_DELTA);
+            maxDif = MAX_CHART_DELTA;
+        }
+        if (minDif < MIN_CHART_DELTA) {
+            System.out.println("minDif=" + minDif + " -> limiting to " + MIN_CHART_DELTA);
+            minDif = MIN_CHART_DELTA;
+        }
 
         double priceDifSum = 0;
         for(double priceDif: difMap.values()) {
@@ -117,9 +138,11 @@ public class PaintChart extends BaseChartPaint {
 
         // older first
         @SuppressWarnings("ConstantConditions")
-        PriceDiffList[] diffsPerPoints = PAINT_DIFF ? calculateDiffsPerPoints(difMap, timeAxe) : null;
+        PriceDiffList[] diffsPerPoints = calculateDiffsPerPoints(difMap, timeAxe);
 
-        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage image = (PAINT_PRICE || PAINT_DIFF)
+                ? new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_USHORT_565_RGB /*TYPE_INT_ARGB*/ )
+                : new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB );
         Graphics2D g = image.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
@@ -127,13 +150,13 @@ public class PaintChart extends BaseChartPaint {
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON );
         g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY );
 
+        g.setPaint(new Color(250, 250, 250));
+        g.fillRect(0, 0, WIDTH, HEIGHT);
+
         // paint border
         g.setPaint(Color.black);
         g.drawRect(0, 0, WIDTH - 1, HEIGHT - 1);
 
-        // older first
-        @SuppressWarnings("ConstantConditions")
-        double[] movingAverage = PAINT_DIFF ? calculateMovingAverage(diffsPerPoints) : null;
 
         int priceStep = 10;
         int priceStart = ((int)minPrice) / priceStep * priceStep;
@@ -155,19 +178,45 @@ public class PaintChart extends BaseChartPaint {
         double targetDelta = runComission + EXPECTED_GAIN;
         System.out.println("runComission=" + runComission + ", targetDelta=" + targetDelta);
         double halfTargetDelta = targetDelta/2;
+        double halfRunCommission = runComission/2;
+
+        // older first
+        int movingAveragePoints = (int)(MOVING_AVERAGE_MILLIS /timeAxe.m_scale);
+        double[] movingAverage = calculateMovingAverage(diffsPerPoints, movingAveragePoints);
 
         if (PAINT_DIFF) {
             // paint pricediffs
-            paintPriceDiffs(diffsPerPoints, difAxe, g, movingAverage, minDif, maxDif, halfTargetDelta);
-
-            new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission);
+            paintPriceDiffs(diffsPerPoints, difAxe, g, movingAverage, minDif, maxDif, halfTargetDelta, halfRunCommission);
 
             // paint price diff moving average
-            paintPriceDiffMovingAverage(difAxe, g, movingAverage, halfTargetDelta);
+            paintPriceDiffMovingAverage(difAxe, g, movingAverage, halfTargetDelta, halfRunCommission);
+        }
 
-            // paint average price diff line
-            int yy = difAxe.getPointReverse(averagePriceDif);
-            g.drawLine(0, yy, WIDTH - 1, yy);
+        if (VARY_MOVING_AVERAGE_LEN) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = -MOVING_AVERAGE_VARY_STEPS; i <= MOVING_AVERAGE_VARY_STEPS; i++) {
+                long movingAverageMillis = MOVING_AVERAGE_MILLIS + (long) (i * MOVING_AVERAGE_VARY_STEPS_VALUE * MOVING_AVERAGE_MILLIS);
+                movingAveragePoints = (int) (movingAverageMillis / timeAxe.m_scale);
+                movingAverage = calculateMovingAverage(diffsPerPoints, movingAveragePoints);
+                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission);
+                sb.append("\"" + Utils.millisToDHMSStr(movingAverageMillis) + "\"\t\"" + complex1m+"\"\n");
+            }
+            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            System.out.println(sb.toString());
+            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+        } else if (VARY_EXPECTED_GAIN) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = -EXPECTED_GAIN_VARY_STEPS; i <= EXPECTED_GAIN_VARY_STEPS; i++) {
+                double expectedGain = EXPECTED_GAIN + i * EXPECTED_GAIN_VARY_STEPS_VALUE;
+                halfTargetDelta = (runComission + expectedGain)/2;
+                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission);
+                sb.append("\"" + expectedGain + "\"\t\"" + complex1m+"\"\n");
+            }
+            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            System.out.println(sb.toString());
+            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+        } else {
+            new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission);
         }
 
         if (PAINT_PRICE) {
@@ -183,32 +232,35 @@ public class PaintChart extends BaseChartPaint {
         // paint time axe labels
         paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
+        System.out.println("movingAverage:" + Utils.millisToDHMSStr(MOVING_AVERAGE_MILLIS));
+
         if (PAINT_DIFF) {
             // paint moving average time range
-            long movingAverageMillis = (long) timeAxe.m_scale * MOVING_AVERAGE_POINTS;
-            g.drawLine(6, 6, 6 + MOVING_AVERAGE_POINTS, 6);
-            g.setFont(g.getFont().deriveFont(12.0f* X_FACTOR));
-            String str = timePpStr + "\n movingAverage:" + Utils.millisToDHMSStr(movingAverageMillis);
+            g.drawLine(6, 6, 6 + movingAveragePoints, 6);
+            g.setFont(g.getFont().deriveFont(12.0f * X_FACTOR));
+            String str = timePpStr + "\n movingAverage:" + Utils.millisToDHMSStr(MOVING_AVERAGE_MILLIS);
             FontMetrics fontMetrics = g.getFontMetrics();
             Rectangle2D bounds = fontMetrics.getStringBounds(str, g);
-            g.drawString(str, 45, (int) (bounds.getHeight()*1.1));
+            g.drawString(str, 45, (int) (bounds.getHeight() * 1.1));
         }
 
         paintLegend(exch1, exch2, g);
 
         g.dispose();
 
-        try {
-            long millis = System.currentTimeMillis();
+        if (PAINT_PRICE || PAINT_DIFF) {
+            try {
+                long millis = System.currentTimeMillis();
 
-            File output = new File("imgout/"+Long.toString(millis,32)+".png");
-            ImageIO.write(image, "png", output);
+                File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
+                ImageIO.write(image, "png", output);
 
-            System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
+                System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
 
-            Desktop.getDesktop().open(output);
-        } catch (IOException e) {
-            e.printStackTrace();
+                Desktop.getDesktop().open(output);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -319,7 +371,7 @@ public class PaintChart extends BaseChartPaint {
     }
 
     // older first
-    private static double[] calculateMovingAverage(PriceDiffList[] diffsPerPoints) {
+    private static double[] calculateMovingAverage(PriceDiffList[] diffsPerPoints, int movingAveragePoints) {
         double movingAverage[] = new double[WIDTH];
         double avgPriceDiffs[] = new double[WIDTH];
         int length = diffsPerPoints.length;
@@ -338,7 +390,7 @@ public class PaintChart extends BaseChartPaint {
 
             int count = 0;
             double sum = 0.0;
-            for (int j = 0; j < MOVING_AVERAGE_POINTS; j++) {
+            for (int j = 0; j < movingAveragePoints; j++) {
                 int indx = i - j;
                 if (indx < 0 ) {
                     break;
@@ -359,7 +411,8 @@ public class PaintChart extends BaseChartPaint {
     }
 
     // earliest first
-    private static void paintPriceDiffMovingAverage(ChartAxe difAxe, Graphics2D g, double[] movingAverage, double halfTargetDelta) {
+    private static void paintPriceDiffMovingAverage(ChartAxe difAxe, Graphics2D g, double[] movingAverage,
+                                                    double halfTargetDelta, double halfRunCommission) {
         g.setPaint(Color.orange);
         for (int x = 0; x < WIDTH; x++) {
             double avg = movingAverage[x];
@@ -368,13 +421,18 @@ public class PaintChart extends BaseChartPaint {
                 g.drawRect(x - 1, y - 1, 3, 3);
             }
         }
-        g.setPaint(Color.lightGray);
         for (int x = 0; x < WIDTH; x++) {
             double avg = movingAverage[x];
             if (avg != Double.MAX_VALUE) {
+                g.setPaint(Color.GRAY);
                 int y = difAxe.getPointReverse(avg+halfTargetDelta);
                 g.drawRect(x, y, 1, 1);
                 y = difAxe.getPointReverse(avg-halfTargetDelta);
+                g.drawRect(x, y, 1, 1);
+                g.setPaint(Color.lightGray);
+                y = difAxe.getPointReverse(avg+halfRunCommission);
+                g.drawRect(x, y, 1, 1);
+                y = difAxe.getPointReverse(avg-halfRunCommission);
                 g.drawRect(x, y, 1, 1);
             }
         }
@@ -400,17 +458,20 @@ public class PaintChart extends BaseChartPaint {
 
     // older first
     private static void paintPriceDiffs(PriceDiffList[] diffsPerPoints, ChartAxe difAxe, Graphics2D g, double[] movingAverage,
-                                        double minDif, double maxDif, double halfTargetDelta) {
+                                        double minDif, double maxDif, double halfTargetDelta, double halfComission) {
         for (int x = 0; x < WIDTH; x++) {
             PriceDiffList diffsPerPoint = diffsPerPoints[x];
             if( diffsPerPoint != null ) {
                 double movingAvg = movingAverage[x];
                 double movingAvgUp = movingAvg + halfTargetDelta;
                 double movingAvgLow = movingAvg - halfTargetDelta;
+                double movingAvgUp0 = movingAvg + halfComission;
+                double movingAvgLow0 = movingAvg - halfComission;
                 for (double priceDif : diffsPerPoint) {
                     int y = difAxe.getPointReverse(priceDif);
                     boolean highlight = (priceDif > movingAvgUp) || (priceDif < movingAvgLow);
-                    g.setPaint(highlight ? Color.red : Color.green);
+                    boolean highlight0 = (priceDif > movingAvgUp0) || (priceDif < movingAvgLow0);
+                    g.setPaint(highlight ? Color.red : highlight0 ? Color.ORANGE : Color.green);
                     if( highlight ) {
                         g.fillRect(x - 1, y - 1, 3, 3);
                     } else {

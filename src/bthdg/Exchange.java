@@ -16,7 +16,7 @@ import bthdg.exch.Btce;
 // btcchina ? https://vip.btcchina.com/?lang=en
 
 public enum Exchange {
-    BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.0032, true,
+    BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.002, true,
              Bitstamp.topTestStr(), "https://www.bitstamp.net/api/ticker/",
              null, "https://www.bitstamp.net/api/order_book/",
              Bitstamp.tradesTestStr(), "https://www.bitstamp.net/api/transactions/?time=minute",
