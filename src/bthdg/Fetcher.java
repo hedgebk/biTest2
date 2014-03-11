@@ -30,8 +30,8 @@ public class Fetcher {
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
     private static final boolean USE_ACCOUNT_TEST_STR = true;
-    public static final long MOVING_AVERAGE = 25 * 60 * 1000; // 25 min
-    public static final double EXPECTED_GAIN = 3.0; // 5
+    public static final long MOVING_AVERAGE = 70 * 60 * 1000; // better simulated = 1h 10 min
+    public static final double EXPECTED_GAIN = 4.3; // better simulated = 4.3
 
     private static final int MAX_READ_ATTEMPTS = 100; // 5;
     public static final int START_REPEAT_DELAY = 200;

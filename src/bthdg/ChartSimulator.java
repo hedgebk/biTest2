@@ -17,7 +17,7 @@ public class ChartSimulator {
 
     // earliest first
     public double simulate(PaintChart.PriceDiffList[] diffsPerPoints, PaintChart.ChartAxe difAxe, Graphics2D g,
-                           double[] movingAverage, double halfTargetDelta, double commissionAmount) {
+                           double[] movingAverage, double halfTargetDelta, double oneRunCommissions, double avgPrice, double dropLevel ) {
         double targetDelta = halfTargetDelta * 2;
         int pause = 0;
         int length = diffsPerPoints.length;
@@ -52,76 +52,78 @@ public class ChartSimulator {
                                 break;
                             }
                         }
-                    } else if (m_state == STATE.BOUGHT) {
-                        double okDif = m_lastDif + targetDelta;
-                        if (priceDif > okDif) {
-                            if(hasConfirmedUp(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
-                                double delta = priceDif - m_lastDif;
-                                closeRun(difAxe, g, i, priceDif, delta, false);
-                                if(LOG_EXECUTION) {
-                                    System.out.println("point " + i + " - SOLD at " + priceDif + ", delta=" + delta);
-                                }
-                                break;
-                            }
-                        }
-                        if (PaintChart.DO_DROP) {
-                            if (movingAvg < m_lastDif - halfTargetDelta * PaintChart.DROP_LEVEL) {
-                                if (!PaintChart.DROP_ONLY_IN_REVERSE_FROM_AVG || (priceDif > movingAvg)) {
+                    } else {
+                        if (m_state == STATE.BOUGHT) {
+                            double okDif = m_lastDif + targetDelta;
+                            if (priceDif > okDif) {
+                                if(hasConfirmedUp(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
                                     double delta = priceDif - m_lastDif;
-                                    closeRun(difAxe, g, i, priceDif, delta, true);
+                                    closeRun(difAxe, g, i, priceDif, delta, false);
                                     if(LOG_EXECUTION) {
-                                        System.out.println("point " + i + " - DROP SOLD at " + priceDif + ", delta=" + delta);
+                                        System.out.println("point " + i + " - SOLD at " + priceDif + ", delta=" + delta);
                                     }
-                                    pause = 1;
                                     break;
-                                } else {
-                                    if(LOG_EXECUTION) {
-                                        System.out.println("point " + i + " - skip DROP SOLD at " + priceDif + " - DROP_ONLY_IN_REVERSE_FROM_AVG");
-                                    }
-                                    if(PaintChart.PAINT_DIFF) {
-                                        int x1 = m_lastPoint;
-                                        int y1 = difAxe.getPointReverse(m_lastDif);
-                                        int x2 = i;
-                                        int y2 = difAxe.getPointReverse(priceDif);
-                                        g.setPaint(Color.gray);
-                                        g.drawLine(x1, y1, x2, y2);
+                                }
+                            }
+                            if (PaintChart.DO_DROP) {
+                                if (movingAvg < m_lastDif - halfTargetDelta * dropLevel) {
+                                    if (!PaintChart.DROP_ONLY_IN_REVERSE_FROM_AVG || (priceDif > movingAvg)) {
+                                        double delta = priceDif - m_lastDif;
+                                        closeRun(difAxe, g, i, priceDif, delta, true);
+                                        if(LOG_EXECUTION) {
+                                            System.out.println("point " + i + " - DROP SOLD at " + priceDif + ", delta=" + delta);
+                                        }
+                                        pause = 1;
+                                        break;
+                                    } else {
+                                        if(LOG_EXECUTION) {
+                                            System.out.println("point " + i + " - skip DROP SOLD at " + priceDif + " - DROP_ONLY_IN_REVERSE_FROM_AVG");
+                                        }
+                                        if(PaintChart.PAINT_DIFF) {
+                                            int x1 = m_lastPoint;
+                                            int y1 = difAxe.getPointReverse(m_lastDif);
+                                            int x2 = i;
+                                            int y2 = difAxe.getPointReverse(priceDif);
+                                            g.setPaint(Color.gray);
+                                            g.drawLine(x1, y1, x2, y2);
+                                        }
                                     }
                                 }
                             }
-                        }
-                    } else if (m_state == STATE.SOLD) {
-                        double okDif = m_lastDif - targetDelta;
-                        if (priceDif < okDif) {
-                            if(hasConfirmedDown(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
-                                double delta = m_lastDif - priceDif;
-                                closeRun(difAxe, g, i, priceDif, delta, false);
-                                if(LOG_EXECUTION) {
-                                    System.out.println("point " + i + " - BOUGHT at " + priceDif + ", delta=" + delta);
-                                }
-                                break;
-                            }
-                        }
-                        if (PaintChart.DO_DROP) {
-                            if (movingAvg > m_lastDif + halfTargetDelta * PaintChart.DROP_LEVEL) {
-                                if (!PaintChart.DROP_ONLY_IN_REVERSE_FROM_AVG || (priceDif < movingAvg)) {
+                        } else if (m_state == STATE.SOLD) {
+                            double okDif = m_lastDif - targetDelta;
+                            if (priceDif < okDif) {
+                                if(hasConfirmedDown(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
                                     double delta = m_lastDif - priceDif;
-                                    closeRun(difAxe, g, i, priceDif, delta, true);
+                                    closeRun(difAxe, g, i, priceDif, delta, false);
                                     if(LOG_EXECUTION) {
-                                        System.out.println("point " + i + " - DROP BOUGHT at " + priceDif + ", delta=" + delta);
+                                        System.out.println("point " + i + " - BOUGHT at " + priceDif + ", delta=" + delta);
                                     }
-                                    pause = 1;
                                     break;
-                                } else {
-                                    if(LOG_EXECUTION) {
-                                        System.out.println("point " + i + " - skip DROP BOUGHT at " + priceDif + " - DROP_ONLY_IN_REVERSE_FROM_AVG");
-                                    }
-                                    if(PaintChart.PAINT_DIFF) {
-                                        int x1 = m_lastPoint;
-                                        int y1 = difAxe.getPointReverse(m_lastDif);
-                                        int x2 = i;
-                                        int y2 = difAxe.getPointReverse(priceDif);
-                                        g.setPaint(Color.gray);
-                                        g.drawLine(x1, y1, x2, y2);
+                                }
+                            }
+                            if (PaintChart.DO_DROP) {
+                                if (movingAvg > m_lastDif + halfTargetDelta * dropLevel) {
+                                    if (!PaintChart.DROP_ONLY_IN_REVERSE_FROM_AVG || (priceDif < movingAvg)) {
+                                        double delta = m_lastDif - priceDif;
+                                        closeRun(difAxe, g, i, priceDif, delta, true);
+                                        if(LOG_EXECUTION) {
+                                            System.out.println("point " + i + " - DROP BOUGHT at " + priceDif + ", delta=" + delta);
+                                        }
+                                        pause = 1;
+                                        break;
+                                    } else {
+                                        if(LOG_EXECUTION) {
+                                            System.out.println("point " + i + " - skip DROP BOUGHT at " + priceDif + " - DROP_ONLY_IN_REVERSE_FROM_AVG");
+                                        }
+                                        if(PaintChart.PAINT_DIFF) {
+                                            int x1 = m_lastPoint;
+                                            int y1 = difAxe.getPointReverse(m_lastDif);
+                                            int x2 = i;
+                                            int y2 = difAxe.getPointReverse(priceDif);
+                                            g.setPaint(Color.gray);
+                                            g.drawLine(x1, y1, x2, y2);
+                                        }
                                     }
                                 }
                             }
@@ -130,10 +132,10 @@ public class ChartSimulator {
                 }
             }
         }
-        double commissions = commissionAmount * m_runs;
-        double gain = m_deltaSum - commissions;
+        double commissionsSumm = oneRunCommissions * m_runs;
+        double gain = m_deltaSum - commissionsSumm;
         double perDay = gain / PaintChart.PERIOD_LENGTH_DAYS;
-        double dayMult = 1 + perDay / 803 / 4;
+        double dayMult = 1 + perDay / avgPrice / 4;
 
         double complex = Math.pow(dayMult, PaintChart.PERIOD_LENGTH_DAYS);
         String complex_ = PaintChart.XX_YYYYY.format(complex);
@@ -141,7 +143,7 @@ public class ChartSimulator {
         double complex1m = Math.pow(dayMult, 30);
         String complex1m_ = PaintChart.XX_YYYYY.format(complex1m);
 
-        System.out.println("--- got " + m_runs + " runs, sum=" + m_deltaSum + ", commissions=" + commissions +
+        System.out.println("--- got " + m_runs + " runs, " + m_drops + " drops, sum=" + m_deltaSum + ", commissions=" + commissionsSumm +
                 ", hedged=" + gain + ", a day=" + perDay + ", period " + PaintChart.PERIOD_LENGTH_DAYS +
                 ", complex=" + complex_ + ", complex1m=" + complex1m_);
         if (PaintChart.PAINT_DIFF) {

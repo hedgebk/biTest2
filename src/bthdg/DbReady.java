@@ -17,7 +17,7 @@ import java.text.ParseException;
 public class DbReady {
 
     private static final String DELETE_TICKS_BETWEEN_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp > ? AND stamp < ?";
-    public static final int IMPORT_DAYS = 4 * 30;
+    public static final int IMPORT_DAYS = 3 * 30;
     private static final int LOG_IMPORT_STAT_DELAY = 15000; // log import stat each X ms
     private static final String INSERT_TICKS_SQL = "INSERT INTO Ticks ( src, stamp, price, volume ) VALUES (?,?,?,?)";
     private static final String DELETE_TICKS_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp = ?";
@@ -31,7 +31,10 @@ public class DbReady {
 
 //        startAndInitDb();
         updateFromWeb();
-//        dropTicks(Exchange.BTCE, "0", "-3d");
+//        dropTicks(Exchange.BTCE,     "0", "-8M");
+//        dropTicks(Exchange.BITSTAMP, "0", "-8M");
+//        dropTicks(Exchange.MTGOX,    "0", "-8M");
+//        importFromFiles();
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
     }
@@ -80,6 +83,20 @@ public class DbReady {
                     statement.close();
                 }
 //                importFromFiles(connection);
+                System.out.println("--- Complete ---");
+            }
+        };
+        if (goWithDb(runnable)) {
+            return;
+        }
+        System.out.println("Finished");
+    }
+
+    public static void importFromFiles() {
+        IDbRunnable runnable = new IDbRunnable() {
+            public void run(Connection connection) throws SQLException {
+                System.out.println("-- importFromFiles --");
+                importFromFiles(connection);
                 System.out.println("--- Complete ---");
             }
         };
@@ -246,9 +263,9 @@ public class DbReady {
         try {
             connection.setAutoCommit(false); // for fast inserts/updates
 //            importExchange(connection, Exchange.BITSTAMP);
-//            importExchange(connection, Exchange.BTCE);
+            importExchange(connection, Exchange.BTCE);
 //            importExchange(connection, Exchange.MTGOX);
-            importExchange(connection, Exchange.CAMPBX);
+//            importExchange(connection, Exchange.CAMPBX);
         } catch (Exception e) {
             System.out.println("error: " + e);
             e.printStackTrace();

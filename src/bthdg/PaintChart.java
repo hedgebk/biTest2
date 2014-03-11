@@ -10,12 +10,12 @@ import java.text.DecimalFormat;
 import java.util.*;
 import java.util.List;
 
-// - close drop only higher than averageDiff
+// - CALC COMMISSION BASED ON each TRADE - not by average trade price
 public class PaintChart extends BaseChartPaint {
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 20; // the period width
+    public static final int PERIOD_LENGTH_DAYS = 15; // the period width - days
     private static final int MOVING_AVERAGE_MILLIS = 70/*min*/ * 60 * 1000; // ~1h 10min
-    private static final double EXPECTED_GAIN = 4.3; // 3.4
+    private static final double EXPECTED_GAIN = 4.3; // 4.3
     public static final int MIN_CONFIRMED_DIFFS = 5;
     // BITSTAMP, BTCE, CAMPBX
     private static final Exchange EXCH1 = Exchange.BITSTAMP;
@@ -24,16 +24,17 @@ public class PaintChart extends BaseChartPaint {
     public static final int MAX_NEXT_POINTS_TO_CONFIRM = 4; // look to next points for prices to confirm
     // chart area
     public static final int X_FACTOR = 1;
-    private static final int WIDTH = 1680 * X_FACTOR * 920;
-    public static final int HEIGHT = 1000 * X_FACTOR * 1;
-    private static final boolean PAINT_PRICE = false;
+    // note: better simulation when time per pixel: 25sec
+    private static final int WIDTH = 1680 * X_FACTOR * (PERIOD_LENGTH_DAYS * 2); // PERIOD_LENGTH_DAYS: 30->60; 45->90; 60->120; 90->200
+    public static final int HEIGHT = 1000 * X_FACTOR * 2;
+    static final boolean PAINT_PRICE = false;
     static final boolean PAINT_DIFF = false;
     public static final int MAX_CHART_DELTA = 60;
     public static final int MIN_CHART_DELTA = -45;
     // drop
     public static final boolean DO_DROP = true;
-    public static final double DROP_LEVEL = 0.4;
-    public static final boolean LOCK_DIRECTION_ON_DROP = true;
+    public static final double DROP_LEVEL = -0.14; // best ~= -0.14
+    public static final boolean LOCK_DIRECTION_ON_DROP = false;
     public static final boolean DROP_ONLY_IN_REVERSE_FROM_AVG = true;
 
     public static final DecimalFormat XX_YYYYY = new DecimalFormat("#,##0.0####");
@@ -46,12 +47,16 @@ public class PaintChart extends BaseChartPaint {
     private static final int EXPECTED_GAIN_VARY_STEPS = 124;
     private static final double EXPECTED_GAIN_VARY_STEPS_VALUE = 0.025;
 
+    private static final boolean VARY_DROP = true;
+    private static final int DROP_VARY_STEPS = 100;
+    private static final double DROP_VARY_STEPS_VALUE = 0.005;
+
     public static void main(String[] args) {
         System.out.println("Started");
         long millis = System.currentTimeMillis();
         System.out.println("timeMills: " + millis);
         long maxMemory = Runtime.getRuntime().maxMemory();
-        System.out.println("maxMemory: " + maxMemory + ", k:"+(maxMemory/=1024) + ": m:" + (maxMemory/=1024) );
+        System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
 
         paint();
 
@@ -172,13 +177,16 @@ public class PaintChart extends BaseChartPaint {
             paintPoints(ticksPerPoints, priceAxe, g, exch1id);
         }
 
-        double exch1commission = calculateExchCommission(ticks, exch1);
-        double exch2commission = calculateExchCommission(ticks, exch2);
-        double runComission = 2*(exch1commission + exch2commission);
+        double avgPrice1 = calculateAveragePrice(ticks, exch1);
+        double exch1commission = avgPrice1 * exch1.m_baseFee;
+        double avgPrice2 = calculateAveragePrice(ticks, exch2);
+        double exch2commission = avgPrice2 * exch2.m_baseFee;
+        double runComission = 2 * (exch1commission + exch2commission);
         double targetDelta = runComission + EXPECTED_GAIN;
         System.out.println("runComission=" + runComission + ", targetDelta=" + targetDelta);
-        double halfTargetDelta = targetDelta/2;
-        double halfRunCommission = runComission/2;
+        double halfTargetDelta = targetDelta / 2;
+        double halfRunCommission = runComission / 2;
+        double avgPrice = (avgPrice1 + avgPrice2) / 2;
 
         // older first
         int movingAveragePoints = (int)(MOVING_AVERAGE_MILLIS /timeAxe.m_scale);
@@ -198,8 +206,8 @@ public class PaintChart extends BaseChartPaint {
                 long movingAverageMillis = MOVING_AVERAGE_MILLIS + (long) (i * MOVING_AVERAGE_VARY_STEPS_VALUE * MOVING_AVERAGE_MILLIS);
                 movingAveragePoints = (int) (movingAverageMillis / timeAxe.m_scale);
                 movingAverage = calculateMovingAverage(diffsPerPoints, movingAveragePoints);
-                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission);
-                sb.append("\"" + Utils.millisToDHMSStr(movingAverageMillis) + "\"\t\"" + complex1m+"\"\n");
+                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, DROP_LEVEL);
+                sb.append("\"" + Utils.millisToDHMSStr(movingAverageMillis) + "\"\t\"" + complex1m + "\"\n");
             }
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             System.out.println(sb.toString());
@@ -208,15 +216,30 @@ public class PaintChart extends BaseChartPaint {
             StringBuilder sb = new StringBuilder();
             for (int i = -EXPECTED_GAIN_VARY_STEPS; i <= EXPECTED_GAIN_VARY_STEPS; i++) {
                 double expectedGain = EXPECTED_GAIN + i * EXPECTED_GAIN_VARY_STEPS_VALUE;
-                halfTargetDelta = (runComission + expectedGain)/2;
-                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission);
-                sb.append("\"" + expectedGain + "\"\t\"" + complex1m+"\"\n");
+                halfTargetDelta = (runComission + expectedGain) / 2;
+                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, DROP_LEVEL);
+                sb.append("\"" + expectedGain + "\"\t\"" + complex1m + "\"\n");
             }
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             System.out.println(sb.toString());
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+        } else if (DO_DROP && VARY_DROP) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = -DROP_VARY_STEPS; i <= DROP_VARY_STEPS; i++) {
+                double dropLevel = DROP_LEVEL + i * DROP_VARY_STEPS_VALUE;
+                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, dropLevel);
+                sb.append("\"" + dropLevel + "\"\t\"" + complex1m + "\"\n");
+            }
+//            for (int i = DROP_VARY_STEPS; i >= -DROP_VARY_STEPS; i--) {
+//                double dropLevel = DROP_LEVEL + i * DROP_VARY_STEPS_VALUE;
+//                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, dropLevel);
+//                sb.append("\"" + dropLevel + "\"\t\"" + complex1m + "\"\n");
+//            }
+            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            System.out.println(sb.toString());
+            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
         } else {
-            new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission);
+            new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, DROP_LEVEL);
         }
 
         if (PAINT_PRICE) {
@@ -262,11 +285,6 @@ public class PaintChart extends BaseChartPaint {
                 e.printStackTrace();
             }
         }
-    }
-
-    private static double calculateExchCommission(List<Tick> ticks, Exchange exch) {
-        double avgPrice1 = calculateAveragePrice(ticks, exch);
-        return avgPrice1 * exch.m_baseFee;
     }
 
     private static double calculateAveragePrice(List<Tick> ticks, final Exchange exch) {
