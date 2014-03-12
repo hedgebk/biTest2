@@ -32,14 +32,14 @@ public class BaseChartPaint extends DbReady{
         }
     }
 
-    static void paintRightAxeLabels(double minDif, double maxDif, PaintChart.ChartAxe difAxe, Graphics2D g, int width, int priceDifStep, float xFactor) {
+    static void paintRightAxeLabels(double minDif, double maxDif, PaintChart.ChartAxe difAxe, Graphics2D g, int width, int priceDifStep, float xFactor, int yStart) {
         int priceDifStart = ((int) minDif) / priceDifStep * priceDifStep;
 //        System.out.println("priceDifStart=" + priceDifStart);
         g.setFont(g.getFont().deriveFont(20.0f * xFactor));
         FontMetrics fontMetrics = g.getFontMetrics();
         for (int price = priceDifStart; price < maxDif; price += priceDifStep) {
             if (price >= minDif) {
-                int y = difAxe.getPointReverse(price);
+                int y = difAxe.getPointReverse(price) + yStart;
                 g.drawLine(width - 20, y, width - 1, y);
                 String str = Integer.toString(price);
                 Rectangle2D bounds = fontMetrics.getStringBounds(str, g);

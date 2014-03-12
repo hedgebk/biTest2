@@ -249,7 +249,7 @@ public class PaintChart extends BaseChartPaint {
 
         if (PAINT_DIFF) {
             // paint right axe labels
-            paintRightAxeLabels(minDif, maxDif, difAxe, g, WIDTH, 5, X_FACTOR);
+            paintRightAxeLabels(minDif, maxDif, difAxe, g, WIDTH, 5, X_FACTOR, 0);
         }
 
         // paint time axe labels

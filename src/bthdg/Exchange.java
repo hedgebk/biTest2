@@ -39,9 +39,8 @@ public enum Exchange {
         @Override public TradesData parseTrades(Object jObj) { return Btce.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
     },
-    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false,
-          null, null, null, null, null, null, null, null),
-    CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055 /*Volume discounts available*/, true,
+    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null), // DEAD
+    CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
            null, null, "", "", null, null);
 
