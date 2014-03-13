@@ -31,6 +31,7 @@ public enum OrderState {
         if (orderData.m_filled > 0) {
             if (orderData.m_status == OrderStatus.FILLED) {
                 orderData.m_state = NONE;
+                iContext.onOrderFilled(shExchData, orderData);
                 return true;
             } else { // PARTIALLY FILLED
                 log("PARTIALLY FILLED, just wait more");

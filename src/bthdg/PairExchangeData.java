@@ -235,7 +235,7 @@ public class PairExchangeData {
         log("  maxPrice=" + format(maxPrice) + ", btcFromUsd=" + format(btcFromUsd));
 
         double amount = Math.min(btc, btcFromUsd) * 0.95;
-        amount = Utils.fourDecimalDigits(amount);
+        amount = Utils.fourDecimalDigits(amount); // round amount
         log("   finally amount=" + format(amount));
         return amount;
     }

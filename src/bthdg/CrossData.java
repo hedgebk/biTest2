@@ -1,7 +1,7 @@
 package bthdg;
 
 public class CrossData {
-    private static final long TIME_TO_WAIT_PARTIAL = 5000;
+    private static final long TIME_TO_WAIT_PARTIAL = 15000;
     private static final long TOO_LONG_TO_WAIT_PARTIAL = 50000;
     private static final double MOVE_BRACKET_ORDER_MIN_PERCENTAGE = 0.1; // move brackets of price change in 10% from mkt price
     private static final double MIN_QTY_TO_FORK = 0.01;
@@ -222,11 +222,8 @@ public class CrossData {
         OrderSide side = ord.m_side;
         double price = side.mktPrice(exch.m_lastTop);
 
-
-
         boolean cancelled = exch.cancelOrder(ord);
         if (cancelled) {
-
             OrderData mktOrder = new OrderData(side, price, ord.m_amount);
             boolean success = exch.placeOrder(mktOrder, OrderState.MARKET_PLACED);
             if (success) {
@@ -244,12 +241,12 @@ public class CrossData {
 
     public double needFork() {
         // check filled/partially filled case first
-        if(m_buyOrder.isFilled() && m_sellOrder.isPartiallyFilled()) {
+        if (m_buyOrder.isFilled() && m_sellOrder.isPartiallyFilled()) {
             if ((m_sellOrder.m_filled > MIN_QTY_TO_FORK) && (m_sellOrder.remained() > MIN_QTY_TO_FORK)) { // do not fork if orders becomes too small
                 return m_sellOrder.m_filled;
             }
         }
-        if(m_sellOrder.isFilled() && m_buyOrder.isPartiallyFilled()) {
+        if (m_sellOrder.isFilled() && m_buyOrder.isPartiallyFilled()) {
             if ((m_buyOrder.m_filled > MIN_QTY_TO_FORK) && (m_buyOrder.remained() > MIN_QTY_TO_FORK)) { // do not fork if orders becomes too small
                 return m_buyOrder.m_filled;
             }
@@ -279,10 +276,11 @@ public class CrossData {
             remained = m_sellOrder.remained();
         } else {
             return 0;
-        }                                 // todo: add loggng here that we do not fork because order becomes too small to handle
+        }
         if ((filled > MIN_QTY_TO_FORK) && (remained > MIN_QTY_TO_FORK)) { // do not fork if orders becomes too small
             return ((System.currentTimeMillis() - time > TIME_TO_WAIT_PARTIAL) ? filled : 0);
         }
+        log("we do not fork because order becomes too small to handle: filled=" + filled + ", remained=" + remained);
         return 0;
     }
 
@@ -406,7 +404,7 @@ public class CrossData {
             success = m_sellExch.cancelOrder(m_sellOrder);
             if (success) {
                 double amount = pairExchangeData.calcAmount(direction);
-                if(amount > OrderData.MIN_ORDER_QTY) {
+                if (amount > OrderData.MIN_ORDER_QTY) {
                     double buyPrice = m_buyOrder.m_price;
                     double sellPrice = m_sellOrder.m_price;
 
@@ -430,6 +428,7 @@ public class CrossData {
                         log("ERROR: " + m_buyExch.m_exchange.m_name + " placeBracket failed");
                     }
                 } else {
+                    log("not enough amount to open order. amount=" + amount);
                     stop();
                     return false;
                 }

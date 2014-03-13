@@ -316,14 +316,14 @@ public class PaintTrace extends BaseChartPaint {
 
                 int y = priceDiffAxe.getPointReverse(priceDiff) + diffYoffset;
 
-                double avg = diffAverageCounter.add(millis, priceDiff);
-                double avgUp = avg + commissionHalf;
-                double avgDown = avg - commissionHalf;
+                double avgDiff = diffAverageCounter.add(millis, priceDiff);
+                double avgUp = avgDiff + commissionHalf;
+                double avgDown = avgDiff - commissionHalf;
                 boolean exceed = (priceDiff > avgUp) || (priceDiff < avgDown);
 
-                int y2 = priceDiffAxe.getPointReverse(avg) + diffYoffset;
-                int y3 = priceDiffAxe.getPointReverse(avg + half) + diffYoffset;
-                int y4 = priceDiffAxe.getPointReverse(avg - half) + diffYoffset;
+                int y2 = priceDiffAxe.getPointReverse(avgDiff) + diffYoffset;
+                int y3 = priceDiffAxe.getPointReverse(avgDiff + half) + diffYoffset;
+                int y4 = priceDiffAxe.getPointReverse(avgDiff - half) + diffYoffset;
                 int y5 = priceDiffAxe.getPointReverse(avgUp) + diffYoffset;
                 int y6 = priceDiffAxe.getPointReverse(avgDown) + diffYoffset;
 
@@ -349,14 +349,15 @@ public class PaintTrace extends BaseChartPaint {
                 diffY = y;
             }
 
+            double avgDiff = diffAverageCounter.get()/2;
             if ((trace.m_buy1 != 0) && (trace.m_sell1 != 0)) {
-                double diff = trace.m_sell1 - trace.m_buy1;
+                double diff = trace.m_sell1 - trace.m_buy1 + avgDiff;
                 int y = priceDiffAxe.getPointReverse(diff) + diffYoffset;
                 g.setPaint(Color.blue);
                 drawSmallX(g, x, y);
             }
             if ((trace.m_buy2 != 0) && (trace.m_sell2 != 0)) {
-                double diff = trace.m_sell2 - trace.m_buy2;
+                double diff = trace.m_sell2 - trace.m_buy2 - avgDiff;
                 int y = priceDiffAxe.getPointReverse(diff) + diffYoffset;
                 g.setPaint(Color.cyan);
                 drawSmallX(g, x, y);
@@ -366,25 +367,25 @@ public class PaintTrace extends BaseChartPaint {
                 double buyPrice = 0;
                 if ((prevTrace.m_buy2 == 0) && (trace.m_buy2 != 0)) {
                     buyPrice = ghostTrace.m_buy1;
-                    Date date = new Date(millis);
+//                    Date date = new Date(millis);
 //                    System.out.println("buyPrice=" + buyPrice + "; date " + date);
                 }
                 double sellPrice = 0;
                 if ((prevTrace.m_sell2 == 0) && (trace.m_sell2 != 0)) {
                     sellPrice = ghostTrace.m_sell1;
-                    Date date = new Date(millis);
+//                    Date date = new Date(millis);
 //                    System.out.println("sellPrice=" + sellPrice + "; date " + date);
                 }
                 if ((buyPrice != 0) && (sellPrice != 0)) {
                     double diff = sellPrice - buyPrice;
 //                    System.out.println("diff=" + diff);
                     int y = priceDiffAxe.getPointReverse(diff) + diffYoffset;
-                    g.setPaint(Color.RED);
+                    g.setPaint(Color.ORANGE);
                     drawX(g, x, y);
                 }
             }
             prevTrace = trace;
-            ghostTrace.update(trace);
+            ghostTrace.update(trace, avgDiff);
 
             long fork = trace.m_fork;
             TraceData forkGhost = forksMap.get(fork);
@@ -392,7 +393,7 @@ public class PaintTrace extends BaseChartPaint {
                 forkGhost = new TraceData(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                 forksMap.put(fork, forkGhost);
             }
-            forkGhost.update(trace);
+            forkGhost.update(trace, avgDiff);
         }
 
         g.setFont(g.getFont().deriveFont(120.0f));
@@ -400,79 +401,76 @@ public class PaintTrace extends BaseChartPaint {
         //Rectangle2D bounds = fontMetrics.getStringBounds(str, g);
 
         for(TraceData fork: forksMap.values()) {
-            long millis1 = fork.m_buySellStamp1;
-            int x1 = timeAxe.getPoint(millis1);
-            long millis2 = fork.m_buySellStamp2;
-            int x2 = timeAxe.getPoint(millis2);
-
             boolean hasBuy1 = (fork.m_buy1 != 0);
             boolean hasSell1 = (fork.m_sell1 != 0);
             boolean hasBuy2 = (fork.m_buy2 != 0);
             boolean hasSell2 = (fork.m_sell2 != 0);
             if (PAINT_PRICE) {
-                int y1b = 0;
-                int y1s = 0;
-                int y2b = 0;
-                int y2s = 0;
+                int y1b = 0, x1b = 0, y1s = 0, x1s = 0, y2b = 0, x2b = 0, y2s = 0, x2s = 0;
                 if (hasBuy1) {
                     y1b = priceAxe.getPointReverse(fork.m_buy1);
+                    x1b = timeAxe.getPoint(fork.m_buy1stamp);
                     g.setPaint(Color.BLUE);
-                    drawX(g, x1, y1b);
+                    drawX(g, x1b, y1b);
                     String str = Fetcher.format(fork.m_buy1);
-                    g.drawString(str, x1+5, y1b-5);
+                    g.drawString(str, x1b + 5, y1b - 5);
                 }
                 if (hasSell1) {
                     y1s = priceAxe.getPointReverse(fork.m_sell1);
+                    x1s = timeAxe.getPoint(fork.m_sell1stamp);
                     g.setPaint(Color.RED);
-                    drawX(g, x1, y1s);
+                    drawX(g, x1s, y1s);
                     String str = Fetcher.format(fork.m_sell1);
-                    g.drawString(str, x1+5, y1s-5);
+                    g.drawString(str, x1s + 5, y1s - 5);
                 }
                 if (hasBuy2) {
                     y2b = priceAxe.getPointReverse(fork.m_buy2);
+                    x2b = timeAxe.getPoint(fork.m_buy2stamp);
                     g.setPaint(Color.BLUE);
-                    drawX(g, x2, y2b);
+                    drawX(g, x2b, y2b);
                     String str = Fetcher.format(fork.m_buy2);
-                    g.drawString(str, x2+5, y2b-5);
+                    g.drawString(str, x2b + 5, y2b - 5);
                 }
                 if (hasSell2) {
                     y2s = priceAxe.getPointReverse(fork.m_sell2);
+                    x2s = timeAxe.getPoint(fork.m_sell2stamp);
                     g.setPaint(Color.RED);
-                    drawX(g, x2, y2s);
+                    drawX(g, x2s, y2s);
                     String str = Fetcher.format(fork.m_sell2);
-                    g.drawString(str, x2+5, y2s-5);
+                    g.drawString(str, x2s + 5, y2s - 5);
                 }
-                double diff12 = 0;
-                double diff21 = 0;
+                double diff12 = 0, diff21 = 0;
                 boolean hasBuy1Sell2 = hasBuy1 && hasSell2;
                 if (hasBuy1Sell2) {
-                    g.setPaint(Color.RED);
-                    g.drawLine(x1, y1b, x2, y2s);
+                    g.setPaint(Color.ORANGE);
+                    g.drawLine(x1b, y1b, x2s, y2s);
                     diff21 = fork.m_sell2 - fork.m_buy1;
                     String str = Fetcher.format(diff21);
-                    g.drawString(str, (x1 + x2) / 2 + 5, (y1b + y2s) / 2);
+                    g.drawString(str, (x1b + x2s) / 2 + 5, (y1b + y2s) / 2);
                 }
                 boolean hasSell1Buy2 = hasSell1 && hasBuy2;
                 if (hasSell1Buy2) {
-                    g.setPaint(Color.RED);
-                    g.drawLine(x1, y1s, x2, y2b);
+                    g.setPaint(Color.ORANGE);
+                    g.drawLine(x1s, y1s, x2b, y2b);
                     diff12 = fork.m_sell1 - fork.m_buy2;
                     String str = Fetcher.format(diff12);
-                    g.drawString(str, (x1 + x2) / 2 + 5, (y1s + y2b) / 2);
+                    g.drawString(str, (x1s + x2b) / 2 + 5, (y1s + y2b) / 2);
                 }
                 if (hasBuy1Sell2 && hasSell1Buy2) {
                     String str = Fetcher.format(diff12 + diff21);
-                    g.drawString(str, (x1 + x2) / 2 + 5, HEIGHT - 70);
+                    g.drawString(str, (x1b + x2s + x1s + x2b) / 4 + 5, HEIGHT - 70);
                 }
             }
             boolean hasBuySell1 = (hasBuy1 && hasSell1);
             boolean hasBuySell2 = (hasBuy2 && hasSell2);
-            int y1 = 0;
-            int y2 = 0;
-            double diff1 = 0;
-            double diff2 = 0;
+            int y1 = 0, y2 = 0;
+            int x1 = 0, x2 = 0;
+            double diff1 = 0, diff2 = 0;
             if (hasBuySell1) {
-                diff1 = fork.m_sell1 - fork.m_buy1;
+                double avgDiff = (fork.m_sell1avgDiff + fork.m_buy1avgDiff) / 2;
+                diff1 = fork.m_sell1 - fork.m_buy1 - avgDiff;
+                long time = (fork.m_sell1stamp + fork.m_buy1stamp) / 2;
+                x1 = timeAxe.getPoint(time);
                 y1 = priceDiffAxe.getPointReverse(diff1) + diffYoffset;
                 g.setPaint(Color.RED);
                 drawX(g, x1, y1);
@@ -480,7 +478,10 @@ public class PaintTrace extends BaseChartPaint {
                 g.drawString(str, x1+5, y1-5);
             }
             if (hasBuySell2) {
-                diff2 = fork.m_sell2 - fork.m_buy2;
+                double avgDiff = (fork.m_sell2avgDiff + fork.m_buy2avgDiff) / 2;
+                diff2 = fork.m_sell2 - fork.m_buy2 + avgDiff;
+                long time = (fork.m_sell2stamp + fork.m_buy2stamp) / 2;
+                x2 = timeAxe.getPoint(time);
                 y2 = priceDiffAxe.getPointReverse(diff2) + diffYoffset;
                 g.setPaint(Color.RED);
                 drawX(g, x2, y2);
@@ -523,8 +524,14 @@ public class PaintTrace extends BaseChartPaint {
         public double m_buy2;
         public double m_sell2;
 
-        public long m_buySellStamp1;
-        public long m_buySellStamp2;
+        private long m_buy1stamp;
+        private double m_buy1avgDiff;
+        private long m_sell1stamp;
+        private double m_sell1avgDiff;
+        private long m_buy2stamp;
+        private double m_buy2avgDiff;
+        private long m_sell2stamp;
+        private double m_sell2avgDiff;
 
         public TraceData(long stamp, double bid1, double ask1, double bid2, double ask2,
                          long fork, double buy1, double sell1, double buy2, double sell2) {
@@ -540,7 +547,7 @@ public class PaintTrace extends BaseChartPaint {
             m_sell2 = sell2;
         }
 
-        public void update(TraceData trace) {
+        public void update(TraceData trace, double avgDiff) {
             if (trace.m_stamp != 0) {
                 m_stamp = trace.m_stamp;
             }
@@ -561,19 +568,23 @@ public class PaintTrace extends BaseChartPaint {
             }
             if ((trace.m_buy1 != 0) && (m_buy1 != trace.m_buy1)) {
                 m_buy1 = trace.m_buy1;
-                m_buySellStamp1 = m_stamp;
+                m_buy1stamp = m_stamp;
+                m_buy1avgDiff = avgDiff;
             }
             if ((trace.m_sell1 != 0) && (m_sell1 != trace.m_sell1)) {
                 m_sell1 = trace.m_sell1;
-                m_buySellStamp1 = m_stamp;
+                m_sell1stamp = m_stamp;
+                m_sell1avgDiff = avgDiff;
             }
             if ((trace.m_buy2 != 0) && (m_buy2 != trace.m_buy2)) {
                 m_buy2 = trace.m_buy2;
-                m_buySellStamp2 = m_stamp;
+                m_buy2stamp = m_stamp;
+                m_buy2avgDiff = avgDiff;
             }
             if ((trace.m_sell2 != 0) && (m_sell2 != trace.m_sell2)) {
                 m_sell2 = trace.m_sell2;
-                m_buySellStamp2 = m_stamp;
+                m_sell2stamp = m_stamp;
+                m_sell2avgDiff = avgDiff;
             }
         }
     }

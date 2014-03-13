@@ -134,15 +134,15 @@ public class AccountData {
         orderSide.releaseTrade(this, price, amount);
     }
 
-    public void releaseUsd(double price, double amount) {
-        double amountUsd = amount * price;
+    public void releaseUsd(double price, double btcAmount) {
+        double amountUsd = btcAmount * price;
         m_allocatedUsd -= amountUsd;
-        m_btc += amount * (1 - m_fee);
+        m_btc += btcAmount * (1 - m_fee);
     }
 
-    public void releaseBtc(double price, double amount) {
-        m_allocatedBtc -= amount;
-        double amountUsd = amount * price;
+    public void releaseBtc(double price, double btcAmount) {
+        m_allocatedBtc -= btcAmount;
+        double amountUsd = btcAmount * price;
         m_usd += amountUsd * (1 - m_fee);
     }
 }

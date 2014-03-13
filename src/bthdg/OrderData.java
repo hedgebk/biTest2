@@ -63,16 +63,16 @@ public class OrderData {
 
             boolean acceptPriceSimulated = false;
             //noinspection PointlessBooleanExpression,ConstantConditions
-            if (Fetcher.SIMULATE_ACCEPT_ORDER_PRICE && !iContext.m_acceptPriceSimulated
-//                    && new Random().nextBoolean()
-                    && new Random().nextBoolean()) {
+            if (Fetcher.SIMULATE_ACCEPT_ORDER_PRICE
+                    && !iContext.m_acceptPriceSimulated // not yet accept simulated this run
+                    && (new Random().nextDouble() < Fetcher.SIMULATE_ACCEPT_ORDER_PRICE_RATE)) {
                 log("@@@@@@@@@@@@@@  !!!!!!!! SIMULATE ACCEPT_ORDER_PRICE mktPrice=" + Fetcher.format(mktPrice) + ", order=" + this);
                 acceptPriceSimulated = true;
                 iContext.m_acceptPriceSimulated = true; // one accept order price simulation per iteration
             }
 
             //noinspection ConstantConditions
-            if (acceptPriceSimulated || orderData.acceptPrice(mktPrice)) {
+            if (orderData.acceptPrice(mktPrice) || acceptPriceSimulated) {
                 double tradeAmount = trade.m_amount;
                 log("@@@@@@@@@@@@@@ we have LMT order " + orderSide + " " + orderAmount + " @ " + orderData.priceStr() +
                         " on '" + shExchData.m_exchange.m_name + "' got matched trade=" + trade);

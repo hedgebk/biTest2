@@ -41,8 +41,8 @@ public class ForkData {
 
     public ForkData(PairExchangeData pExData, ForkDirection direction, double amount) {
         this(System.currentTimeMillis(),
-             new ExchangeData(pExData.m_sharedExch1),
-             new ExchangeData(pExData.m_sharedExch2),
+             null, // new ExchangeData(pExData.m_sharedExch1),
+             null, // new ExchangeData(pExData.m_sharedExch2),
              amount);
         m_pairExData = pExData;
         if (direction != null) {
@@ -52,8 +52,8 @@ public class ForkData {
 
     private ForkData(long id, ExchangeData e1, ExchangeData e2, double amount) {
         m_id = id;
-        m_exch1data = e1;
-        m_exch2data = e2;
+//        m_exch1data = e1;
+//        m_exch2data = e2;
         m_amount = amount;
     }
 

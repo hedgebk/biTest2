@@ -24,9 +24,11 @@ import java.util.Properties;
  *  - count all downloaded traffic
  *  - add pause for servlet to redeploy new version and continue as is
  *  - use PEG/PEG_MID as close orders
+ *  - save state to file for restarts - serialize
  */
 public class Fetcher {
-    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
+    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
+    static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.5;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
@@ -73,7 +75,7 @@ public class Fetcher {
             DbReady.goWithDb(new DbReady.IDbRunnable() {
                 public void run(Connection connection) throws SQLException {
                     try {
-                        drop(connection);
+//                        drop(m_connection);
                         pool(Exchange.BITSTAMP, Exchange.BTCE, connection);
                     } catch (Exception e) {
                         log("error: " + e);
@@ -81,7 +83,6 @@ public class Fetcher {
                     }
                 }
             });
-
         } catch (Exception e) {
             log("error: " + e);
             e.printStackTrace();
@@ -92,7 +93,7 @@ public class Fetcher {
         Log.log(x);
     }
 
-    private static void pool(Exchange exch1, Exchange exch2, Connection connection) throws Exception {
+    private static void pool(Exchange exch1, Exchange exch2, final Connection connection) throws Exception {
         PairExchangeData data = new PairExchangeData(exch1, exch2);
         long startMillis = System.currentTimeMillis();
         int iterationCounter = 0;
@@ -100,7 +101,7 @@ public class Fetcher {
             iterationCounter++;
             log("---------------------------------------------- iteration: " + iterationCounter);
 
-            IterationContext iContext = new IterationContext();
+            IterationContext iContext = new IterationContext(new DbRecorder(connection));
             try {
                 if (checkState(data, iContext)) {
                     log("GOT finish request");
@@ -315,24 +316,6 @@ public class Fetcher {
         }
     }
 
-
-//    The following snippet uses the Google HTTP client library and json-simple to issue a Freebase query and parse the result.
-//
-//    HttpTransport httpTransport = new NetHttpTransport();
-//    HttpRequestFactory requestFactory = httpTransport.createRequestFactory();
-//    JSONParser parser = new JSONParser();
-//    String query = "[{\"limit\": 5,\"name\":null,\"type\":\"/medicine/disease\"}]";
-//    GenericUrl url = new GenericUrl("https://www.googleapis.com/freebase/v1/mqlread");
-//    url.put("key", "YOUR-API-KEY-GOES-HERE");
-//    url.put("query", query);
-//    HttpRequest request = requestFactory.buildGetRequest(url);
-//    HttpResponse httpResponse = request.execute();
-//    JSONObject response = (JSONObject)parser.parse(httpResponse.parseAsString());
-//    JSONArray results = (JSONArray)response.get("result");
-//    for (Object result : results) {
-//      log(result.get("name").toString());
-//    }
-
     static String format(Double mktPrice) {
         return (mktPrice == null) ? "-" : Utils.XX_YYYY.format(mktPrice);
     }
@@ -442,4 +425,74 @@ public class Fetcher {
         public boolean doPost() { return false; }
         public boolean needSsl() { return false; }
     } // FetchCommand
+
+
+    private static class DbRecorder implements IterationContext.IRecorder {
+        private final Connection m_connection;
+
+        public DbRecorder(Connection connection) {
+            m_connection = connection;
+        }
+
+        @Override public void recordOrderFilled(SharedExchangeData shExchData, OrderData orderData) {
+            recordTrade(m_connection, shExchData, orderData);
+        }
+
+        @Override public void recordTrades(SharedExchangeData shExchData, TradesData data) {
+            recordTos(m_connection, shExchData, data);
+        }
+    }
+
+    private static final String INSERT_TRACE_TRADE_SQL =
+            "INSERT INTO TraceTrade ( stamp, exch, side, price, amount ) VALUES (?,?,?,?,?)";
+                                                             // VARCHAR(4)
+    private static void recordTrade(Connection connection, SharedExchangeData shExchData, OrderData orderData) {
+        if (connection != null) {
+            try {
+                PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_TRADE_SQL);
+                try {
+                    Thread.sleep(1);
+
+                    statement.setLong(1, System.currentTimeMillis());
+                    statement.setInt(2, shExchData.m_exchange.m_databaseId);
+                    statement.setString(3, orderData.m_side.m_char);
+                    statement.setDouble(4, orderData.m_price);
+                    statement.setDouble(5, orderData.m_amount);
+
+                    statement.executeUpdate(); // execute insert SQL statement - will be auto committed
+                } finally {
+                    statement.close();
+                }
+            } catch (Exception e) {
+                System.out.println("Error: " + e);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void recordTos(Connection connection, SharedExchangeData shExchData, TradesData data) {
+        if (connection != null) {
+            try {
+                PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_TRADE_SQL);
+                try {
+                    for (TradesData.TradeData trade : data.m_trades) {
+                        Thread.sleep(1);
+
+                        statement.setLong(1, trade.m_timestamp);
+                        statement.setInt(2, shExchData.m_exchange.m_databaseId);
+                        statement.setNull(3, Types.VARCHAR);
+                        statement.setDouble(4, trade.m_price);
+                        statement.setDouble(5, trade.m_amount);
+
+                        statement.executeUpdate(); // execute insert SQL statement - will be auto committed
+                    }
+                } finally {
+                    statement.close();
+                }
+            } catch (Exception e) {
+                System.out.println("Error: " + e);
+                e.printStackTrace();
+            }
+        }
+    }
 }

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class IterationContext {
+    private IRecorder m_recorder;
     public TopDatas m_top;
     public Map<Integer, LiveOrdersData> m_liveOrders;
     public long m_nextIterationDelay = 1000; // 1 sec by def
@@ -13,6 +14,10 @@ public class IterationContext {
     public boolean m_accountRequested;
 
     private static void log(String s) { Log.log(s); }
+
+    public IterationContext(IRecorder recorder) {
+        m_recorder = recorder;
+    }
 
     public TopDatas getTopsData(PairExchangeData pairExchangeData) throws Exception {
         if( m_top == null ){
@@ -57,8 +62,12 @@ public class IterationContext {
             } else {
                 data = shExchData.filterOnlyNewTrades(trades); // this will update last processed trade time
                 long millis1 = System.currentTimeMillis();
-                log(" loaded " + trades.size() + " trades for '" + exchName + "' " +
+                int size = trades.size();
+                log(" loaded " + size + " trades for '" + exchName + "' " +
                         "in " + (millis1 - millis0) + " ms; new " + data.size() + " trades: " + data);
+                if (size > 0) {
+                    onNewTrades(shExchData, data);
+                }
             }
             m_newTrades.put(exchId, data);
         }
@@ -93,5 +102,23 @@ public class IterationContext {
             forkData.queryAccountsData();
             m_accountRequested = true;
         }
+    }
+
+    public void onOrderFilled(SharedExchangeData shExchData, OrderData orderData) {
+        if(m_recorder != null) {
+            m_recorder.recordOrderFilled(shExchData, orderData);
+        }
+    }
+
+    private void onNewTrades(SharedExchangeData shExchData, TradesData data) {
+        if(m_recorder != null) {
+            m_recorder.recordTrades(shExchData, data);
+        }
+    }
+
+
+    public interface IRecorder {
+        void recordOrderFilled(SharedExchangeData shExchData, OrderData orderData);
+        void recordTrades(SharedExchangeData shExchData, TradesData data);
     }
 } // IterationContext
