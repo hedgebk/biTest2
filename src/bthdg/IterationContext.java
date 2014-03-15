@@ -58,7 +58,7 @@ public class IterationContext {
             String exchName = exch.m_name;
             if(trades == null) {
                 log(" NO trades loaded for '" + exchName + "' this time");
-                data = new TradesData(new ArrayList<TradesData.TradeData>()); // empty
+                data = new TradesData(new ArrayList<TradeData>()); // empty
             } else {
                 data = shExchData.filterOnlyNewTrades(trades); // this will update last processed trade time
                 long millis1 = System.currentTimeMillis();
@@ -104,21 +104,21 @@ public class IterationContext {
         }
     }
 
-    public void onOrderFilled(SharedExchangeData shExchData, OrderData orderData) {
-        if(m_recorder != null) {
-            m_recorder.recordOrderFilled(shExchData, orderData);
+    public void onOrderFilled(SharedExchangeData shExchData, OrderData orderData, CrossData crossData) {
+        if (m_recorder != null) {
+            m_recorder.recordOrderFilled(shExchData, orderData, crossData);
         }
     }
 
     private void onNewTrades(SharedExchangeData shExchData, TradesData data) {
-        if(m_recorder != null) {
+        if (m_recorder != null) {
             m_recorder.recordTrades(shExchData, data);
         }
     }
 
 
     public interface IRecorder {
-        void recordOrderFilled(SharedExchangeData shExchData, OrderData orderData);
+        void recordOrderFilled(SharedExchangeData shExchData, OrderData orderData, CrossData crossData);
         void recordTrades(SharedExchangeData shExchData, TradesData data);
     }
 } // IterationContext

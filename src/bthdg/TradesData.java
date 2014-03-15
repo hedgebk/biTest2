@@ -33,32 +33,6 @@ public class TradesData {
         return new TradesData(newTrades);
     }
 
-    public static class TradeData {
-        public double m_amount;
-        public final double m_price;
-        public final long m_timestamp;
-        public final long m_tid;
-        public final TradeType m_type;
-
-        public TradeData(double amount, double price, long timestamp, long tid, TradeType type) {
-            m_amount = amount;
-            m_price = price;
-            m_timestamp = timestamp;
-            m_tid = tid;
-            m_type= type;
-        }
-
-        @Override public String toString() {
-            return "TradeData{" +
-                    "amount=" + m_amount +
-                    ", price=" + m_price +
-                    ", timestamp=" + m_timestamp +
-                    ", tid=" + m_tid +
-                    ", type=" + m_type +
-                    '}';
-        }
-    }
-
     public enum TradeType {
         BID("bid"),
         ASK("ask");
@@ -71,11 +45,11 @@ public class TradesData {
 
         public static TradeType get(String typeStr) {
             for (TradeType tradeType : values()) {
-                if(tradeType.m_typeStr.equals(typeStr)) {
+                if (tradeType.m_typeStr.equals(typeStr)) {
                     return tradeType;
                 }
             }
-            throw new RuntimeException("non supported trade type '"+typeStr+"'");
+            throw new RuntimeException("non supported trade type '" + typeStr + "'");
         }
     }
 }

@@ -13,21 +13,21 @@ import java.util.*;
 import java.util.List;
 
 public class PaintTrace extends BaseChartPaint {
-
-    private static final int XFACTOR = 4;
+    private static final int XFACTOR = 2;
     private static final int WIDTH = 1620 * XFACTOR * 2;
     public static final int HEIGHT = 900 * XFACTOR;
     public static final Color LIGHT_RED = new Color(255, 0, 0, 32);
     public static final Color LIGHT_BLUE = new Color(0, 0, 255, 32);
     public static final Color DARK_GREEN = new Color(0, 80, 0);
     public static final Color LIGHT_X = new Color(60, 60, 60, 12);
-    public static final double EXPECTED_GAIN = 2; // Fetcher.EXPECTED_GAIN;
-    public static final double COMMISSION_SUMM = 0.008;
+    public static final double EXPECTED_GAIN = Fetcher.EXPECTED_GAIN;
+    public static final double COMMISSION = 0.002;
     public static final long MOVING_AVERAGE = Fetcher.MOVING_AVERAGE;
     public static final boolean PAINT_PRICE = true;
     public static final boolean PAINT_ORDERS = true;
-    public static final boolean PAINT_ORDERS_SHADOW = false;
+    public static final boolean PAINT_ORDERS_SHADOW = true;
     public static final boolean PAINT_PRICE_DIFF_SEPARATELY = true;
+    public static final float CHART_FONT_SIZE_RATIO = 15.0f;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -36,7 +36,7 @@ public class PaintTrace extends BaseChartPaint {
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
 
-        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : 0;
+        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-4h");
         paint(fromMillis);
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -47,7 +47,9 @@ public class PaintTrace extends BaseChartPaint {
             public void run(Connection connection) throws SQLException {
                 System.out.println("selecting ticks");
                 List<TraceData> ticks = selectTraces(connection, fromMillis);
-                drawTraces(ticks);
+                List<TradeData> trades = selectTrades(connection, fromMillis);
+
+                drawTraces(ticks, trades);
                 System.out.println("--- Complete ---");
             }
         };
@@ -70,7 +72,7 @@ public class PaintTrace extends BaseChartPaint {
 
             ResultSet result = statement.executeQuery();
             long four = System.currentTimeMillis();
-            System.out.println(ticks.size() + " traces selected in " + Utils.millisToDHMSStr(four - three));
+            System.out.println("traces selected in " + Utils.millisToDHMSStr(four - three));
             try {
                 while (result.next()) {
                     long stamp = result.getLong(1);
@@ -98,46 +100,75 @@ public class PaintTrace extends BaseChartPaint {
         return ticks;
     }
 
-    private static void drawTraces(List<TraceData> traces) {
+    private static List<TradeData> selectTrades(Connection connection, long fromMillis) throws SQLException {
+        long three = System.currentTimeMillis();
+        List<TradeData> trades = new ArrayList<TradeData>();
+        PreparedStatement statement = connection.prepareStatement(
+                        "SELECT stamp, exch, side, price, amount, crossId, forkId " +
+                        " FROM TraceTrade " +
+                        " WHERE stamp > ? " +
+                        " ORDER BY stamp ASC ");
+        try {
+            statement.setLong(1, fromMillis);
+
+            ResultSet result = statement.executeQuery();
+            long four = System.currentTimeMillis();
+            System.out.println("trades selected in " + Utils.millisToDHMSStr(four - three));
+            try {
+                while (result.next()) {
+                    long stamp = result.getLong(1);
+                    int exchId = result.getInt(2);
+                    String side = result.getString(3);
+                    double price = result.getDouble(4);
+                    double amount = result.getDouble(5);
+                    long crossId = result.getLong(6);
+                    long forkId = result.getLong(7);
+
+                    TradeData trade = new TradeData(amount, price, stamp, -1, null, OrderSide.get(side), exchId, crossId, forkId);
+                    trades.add(trade);
+                }
+                System.out.println(trades.size() + " trades read in " + Utils.millisToDHMSStr(System.currentTimeMillis() - four));
+            } finally {
+                result.close();
+            }
+        } finally {
+            statement.close();
+        }
+        return trades;
+    }
+
+    private static void drawTraces(List<TraceData> traces, List<TradeData> trades) {
+        Utils.DoubleMinMaxCalculator<TradeData> priceCalc0 = new Utils.DoubleMinMaxCalculator<TradeData>() {
+            public Double getValue(TradeData trade) {return trade.m_price;};
+        };
+        priceCalc0.calculate(trades);
+
         Utils.DoubleMinMaxCalculator<TraceData> priceCalc = new Utils.DoubleMinMaxCalculator<TraceData>() {
             Double[] m_ar = new Double[8];
             public Double getValue(TraceData trace) {return null;};
             @Override public Double[] getValues(TraceData trace) {
-                m_ar[0] = (trace.m_bid1 == 0) ? null : trace.m_bid1;
-                m_ar[1] = (trace.m_ask1 == 0) ? null : trace.m_ask1;
-                m_ar[2] = (trace.m_bid2 == 0) ? null : trace.m_bid2;
-                m_ar[3] = (trace.m_ask2 == 0) ? null : trace.m_ask2;
-                m_ar[4] = (trace.m_buy1 == 0) ? null : trace.m_buy1;
-                m_ar[5] = (trace.m_sell1 == 0) ? null : trace.m_sell1;
-                m_ar[6] = (trace.m_buy2 == 0) ? null : trace.m_buy2;
-                m_ar[7] = (trace.m_sell2 == 0) ? null : trace.m_sell2;
+                m_ar[0] = nullIfZero(trace.m_exch1.m_bid);
+                m_ar[1] = nullIfZero(trace.m_exch1.m_ask);
+                m_ar[2] = nullIfZero(trace.m_exch2.m_bid);
+                m_ar[3] = nullIfZero(trace.m_exch2.m_ask);
+                m_ar[4] = nullIfZero(trace.m_open.m_buy);
+                m_ar[5] = nullIfZero(trace.m_open.m_sell);
+                m_ar[6] = nullIfZero(trace.m_close.m_buy);
+                m_ar[7] = nullIfZero(trace.m_close.m_sell);
                 return m_ar;
             }
+
+            private Double nullIfZero(double v) { return (v == 0) ? null : v; }
         };
         priceCalc.calculate(traces);
-        double minPrice = priceCalc.m_minValue;
-        double maxPrice = priceCalc.m_maxValue;
+        double minPrice = Math.min(priceCalc0.m_minValue, priceCalc.m_minValue);
+        double maxPrice = Math.max(priceCalc0.m_maxValue, priceCalc.m_maxValue);
 
         Utils.DoubleMinMaxCalculator<TraceData> priceDiffCalc = new Utils.DoubleMinMaxCalculator<TraceData>() {
-            Double[] m_arr = new Double[3];
-            public Double getValue(TraceData trace) { return null; }
-            @Override public Double[] getValues(TraceData trace) {
-                if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0) && (trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
-                    m_arr[0] = (trace.m_bid1 + trace.m_ask1) / 2 - (trace.m_bid2 + trace.m_ask2) / 2;
-                } else {
-                    m_arr[0] = null;
-                }
-                if ((trace.m_buy1 != 0) && (trace.m_sell1 != 0)) {
-                    m_arr[1] = trace.m_sell1 - trace.m_buy1;
-                } else {
-                    m_arr[1] = null;
-                }
-                if ((trace.m_buy2 != 0) && (trace.m_sell2 != 0)) {
-                    m_arr[2] = trace.m_sell2 - trace.m_buy2;
-                } else {
-                    m_arr[2] = null;
-                }
-                return m_arr;
+            public Double getValue(TraceData trace) {
+                return (trace.m_exch1.hasMid() && trace.m_exch2.hasMid())
+                        ? trace.m_exch1.mid() - trace.m_exch2.mid()
+                        : null;
             }
         };
         priceDiffCalc.calculate(traces);
@@ -185,7 +216,7 @@ public class PaintTrace extends BaseChartPaint {
         paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, WIDTH);
 
         // paint points
-        paintPoints(traces, timeAxe, priceAxe, priceDiffAxe, g, diffY);
+        paintPoints(traces, trades, timeAxe, priceAxe, priceDiffAxe, g, diffY);
 
         g.setPaint(Color.LIGHT_GRAY);
 
@@ -214,103 +245,30 @@ public class PaintTrace extends BaseChartPaint {
         }
     }
 
-    private static void paintPoints(List<TraceData> traces, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
+    private static void paintPoints(List<TraceData> traces, List<TradeData> trades,
+                                    PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
                                     PaintChart.ChartAxe priceDiffAxe, Graphics2D g, int diffYoffset) {
         Utils.AverageCounter diffAverageCounter = new Utils.AverageCounter(MOVING_AVERAGE);
 
-        int avg1X = -1, avg1Y = -1;
-        int avg2X = -1, avg2Y = -1;
         int diffX = -1, diffY = -1;
         int diffAvg = -1;
-
         double commissionHalf = 0;
         double half = 0;
 
-        Map<Long, TraceData> forksMap = new HashMap<Long, TraceData>();
-        TraceData ghostTrace = new TraceData(0,0,0,0,0,0,0,0,0,0);
-        TraceData prevTrace = null;
         for (TraceData trace : traces) {
             long millis = trace.m_stamp;
             int x = timeAxe.getPoint(millis);
-            double bidAsk1 = 0;
-            if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0)) {
-                if (PAINT_PRICE) {
-                    int y1 = priceAxe.getPointReverse(trace.m_bid1);
-                    g.setPaint(LIGHT_RED);
-                    g.drawLine(x - 1, y1, x + 1, y1);
-
-                    int y2 = priceAxe.getPointReverse(trace.m_ask1);
-                    g.drawLine(x - 1, y2, x + 1, y2);
-
-                    g.drawLine(x, y1, x, y2);
-                }
-                bidAsk1 = trace.m_ask1 - trace.m_bid1;
-            }
-            double bidAsk2 = 0;
-            if ((trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
-                if (PAINT_PRICE) {
-                    int y1 = priceAxe.getPointReverse(trace.m_bid2);
-                    g.setPaint(LIGHT_BLUE);
-                    g.drawLine(x - 1, y1, x + 1, y1);
-
-                    int y2 = priceAxe.getPointReverse(trace.m_ask2);
-                    g.drawLine(x - 1, y2, x + 1, y2);
-
-                    g.drawLine(x, y1, x, y2);
-                }
-                bidAsk2 = trace.m_ask2 - trace.m_bid2;
-            }
+            double bidAsk1 = paintBidAsk(g, trace.m_exch1, priceAxe, x);
+            double bidAsk2 = paintBidAsk(g, trace.m_exch2, priceAxe, x);
             if (PAINT_ORDERS) {
-                if (trace.m_buy1 != 0) {
-                    int y = priceAxe.getPointReverse(trace.m_buy1);
-                    if (PAINT_ORDERS_SHADOW && (bidAsk1 > 0)) {
-                        g.setPaint(LIGHT_X);
-                        int y2 = priceAxe.getPointReverse(trace.m_buy1 + bidAsk1);
-                        g.drawLine(x, y, x, y2);
-                    }
-                    g.setPaint(Color.ORANGE);
-                    g.drawLine(x, y, x, y);
-                    g.drawRect(x - 1, y - 1, 2, 2);
-                }
-                if (trace.m_sell1 != 0) {
-                    int y = priceAxe.getPointReverse(trace.m_sell1);
-                    if (PAINT_ORDERS_SHADOW && (bidAsk2 > 0)) {
-                        g.setPaint(LIGHT_X);
-                        int y2 = priceAxe.getPointReverse(trace.m_sell1 - bidAsk2);
-                        g.drawLine(x, y, x, y2);
-                    }
-                    g.setPaint(Color.ORANGE);
-                    g.drawLine(x, y, x, y);
-                    g.drawRect(x - 1, y - 1, 2, 2);
-                }
-                if (trace.m_buy2 != 0) {
-                    int y = priceAxe.getPointReverse(trace.m_buy2);
-                    if (PAINT_ORDERS_SHADOW && (bidAsk2 > 0)) {
-                        g.setPaint(LIGHT_X);
-                        int y2 = priceAxe.getPointReverse(trace.m_buy2 + bidAsk2);
-                        g.drawLine(x, y, x, y2);
-                    }
-                    g.setPaint(Color.GREEN);
-                    g.drawLine(x, y, x, y);
-                    g.drawRect(x - 1, y - 1, 2, 2);
-                }
-                if (trace.m_sell2 != 0) {
-                    int y = priceAxe.getPointReverse(trace.m_sell2);
-                    if (PAINT_ORDERS_SHADOW && (bidAsk1 > 0)) {
-                        g.setPaint(LIGHT_X);
-                        int y2 = priceAxe.getPointReverse(trace.m_sell2 - bidAsk1);
-                        g.drawLine(x, y, x, y2);
-                    }
-                    g.setPaint(Color.GREEN);
-                    g.drawLine(x, y, x, y);
-                    g.drawRect(x - 1, y - 1, 2, 2);
-                }
+                paintOrders(g, trace.m_open, priceAxe, x, bidAsk2, bidAsk1);
+                paintOrders(g, trace.m_close, priceAxe, x, bidAsk1, bidAsk2);
             }
-            if ((trace.m_bid1 != 0) && (trace.m_ask1 != 0) && (trace.m_bid2 != 0) && (trace.m_ask2 != 0)) {
-                double priceDiff = (trace.m_bid1 + trace.m_ask1) / 2 - (trace.m_bid2 + trace.m_ask2) / 2;
+            if ( trace.m_exch1.hasMid() && trace.m_exch2.hasMid()) {
+                double priceDiff = trace.m_exch1.mid() - trace.m_exch2.mid();
 
-                if(commissionHalf == 0) {
-                    commissionHalf = (trace.m_bid1 + trace.m_ask1 + trace.m_bid2 + trace.m_ask2) / 4 * COMMISSION_SUMM / 2;
+                if (commissionHalf == 0) {
+                    commissionHalf = (trace.m_exch1.m_bid + trace.m_exch1.m_ask + trace.m_exch2.m_bid + trace.m_exch2.m_ask) * COMMISSION / 2;
                     half = commissionHalf + EXPECTED_GAIN / 2;
                 }
 
@@ -348,153 +306,180 @@ public class PaintTrace extends BaseChartPaint {
                 diffX = x;
                 diffY = y;
             }
-
-            double avgDiff = diffAverageCounter.get()/2;
-            if ((trace.m_buy1 != 0) && (trace.m_sell1 != 0)) {
-                double diff = trace.m_sell1 - trace.m_buy1 + avgDiff;
-                int y = priceDiffAxe.getPointReverse(diff) + diffYoffset;
-                g.setPaint(Color.blue);
-                drawSmallX(g, x, y);
-            }
-            if ((trace.m_buy2 != 0) && (trace.m_sell2 != 0)) {
-                double diff = trace.m_sell2 - trace.m_buy2 - avgDiff;
-                int y = priceDiffAxe.getPointReverse(diff) + diffYoffset;
-                g.setPaint(Color.cyan);
-                drawSmallX(g, x, y);
-            }
-
-            if (prevTrace != null) {
-                double buyPrice = 0;
-                if ((prevTrace.m_buy2 == 0) && (trace.m_buy2 != 0)) {
-                    buyPrice = ghostTrace.m_buy1;
-//                    Date date = new Date(millis);
-//                    System.out.println("buyPrice=" + buyPrice + "; date " + date);
-                }
-                double sellPrice = 0;
-                if ((prevTrace.m_sell2 == 0) && (trace.m_sell2 != 0)) {
-                    sellPrice = ghostTrace.m_sell1;
-//                    Date date = new Date(millis);
-//                    System.out.println("sellPrice=" + sellPrice + "; date " + date);
-                }
-                if ((buyPrice != 0) && (sellPrice != 0)) {
-                    double diff = sellPrice - buyPrice;
-//                    System.out.println("diff=" + diff);
-                    int y = priceDiffAxe.getPointReverse(diff) + diffYoffset;
-                    g.setPaint(Color.ORANGE);
-                    drawX(g, x, y);
-                }
-            }
-            prevTrace = trace;
-            ghostTrace.update(trace, avgDiff);
-
-            long fork = trace.m_fork;
-            TraceData forkGhost = forksMap.get(fork);
-            if (forkGhost == null) {
-                forkGhost = new TraceData(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                forksMap.put(fork, forkGhost);
-            }
-            forkGhost.update(trace, avgDiff);
+//            double avgDiff = diffAverageCounter.get()/2;
         }
 
-        g.setFont(g.getFont().deriveFont(120.0f));
-        //FontMetrics fontMetrics = g.getFontMetrics();
-        //Rectangle2D bounds = fontMetrics.getStringBounds(str, g);
+        g.setFont(g.getFont().deriveFont(CHART_FONT_SIZE_RATIO * XFACTOR));
 
-        for(TraceData fork: forksMap.values()) {
-            boolean hasBuy1 = (fork.m_buy1 != 0);
-            boolean hasSell1 = (fork.m_sell1 != 0);
-            boolean hasBuy2 = (fork.m_buy2 != 0);
-            boolean hasSell2 = (fork.m_sell2 != 0);
+        if (PAINT_PRICE) {
+            // paint market trades
+            for (TradeData trade : trades) {
+                if (trade.m_orderSide == null) {
+                    int x = timeAxe.getPoint(trade.m_timestamp);
+                    int y = priceAxe.getPointReverse(trade.m_price);
+                    g.setPaint(Color.BLACK);
+                    drawX(g, x, y, 1);
+                }
+            }
+        }
+
+        // collect my trades
+        Map<Long, TreeMap<Long, TradeData[]>> forksTrades = new HashMap<Long, TreeMap<Long, TradeData[]>>();
+        for (TradeData trade : trades) {
+            OrderSide orderSide = trade.m_orderSide;
+            if (orderSide != null) {
+                long forkId = trade.m_forkId;
+                TreeMap<Long, TradeData[]> forkTrades = forksTrades.get(forkId);
+                if (forkTrades == null) {
+                    forkTrades = new TreeMap<Long, TradeData[]>();
+                    forksTrades.put(forkId, forkTrades);
+                }
+                long crossId = trade.m_crossId;
+                TradeData[] crossTrades = forkTrades.get(crossId);
+                if (crossTrades == null) {
+                    crossTrades = new TradeData[2];
+                    forkTrades.put(crossId, crossTrades);
+                }
+                int indx = (orderSide.isBuy() ? 0 : 1);
+                TradeData old = crossTrades[indx];
+                if (old != null) {
+                    System.out.println("duplicate trade forkId=" + forkId + ", crossId=" + crossId + ", trade=" + trade);
+                }
+                crossTrades[indx] = trade;
+            }
+        }
+
+        // paint my trades
+        for (TreeMap<Long, TradeData[]> forkTrades : forksTrades.values()) {
+            Map.Entry<Long, TradeData[]> openEntry = forkTrades.firstEntry();
+            Map.Entry<Long, TradeData[]> closeEntry = (forkTrades.size() > 1) ? forkTrades.lastEntry() : null;
+            paintBox(g, timeAxe, priceAxe, openEntry, closeEntry);
+            paintCross(g, timeAxe, priceAxe, openEntry);
+            paintCross(g, timeAxe, priceAxe, closeEntry);
+            if ((openEntry != null) && (closeEntry != null)) {
+                TradeData[] open = openEntry.getValue();
+                TradeData[] close = closeEntry.getValue();
+                paintBuySell(g, timeAxe, priceAxe, open[0], close[1]);
+                paintBuySell(g, timeAxe, priceAxe, close[0], open[1]);
+            }
+        }
+    }
+
+    private static void paintBox(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
+                                 Map.Entry<Long, TradeData[]> openEntry, Map.Entry<Long, TradeData[]> closeEntry) {
+        Utils.DoubleMinMaxCalculator<TradeData> priceCalc = new Utils.DoubleMinMaxCalculator<TradeData>() {
+            public Double getValue(TradeData trade) {return trade.m_price;};
+        };
+
+        Utils.LongMinMaxCalculator<TradeData> timeCalc = new Utils.LongMinMaxCalculator<TradeData>() {
+            @Override public Long getValue(TradeData trade) { return trade.m_timestamp; }
+        };
+
+        processEntry(openEntry, priceCalc, timeCalc);
+        processEntry(closeEntry, priceCalc, timeCalc);
+
+        double minPrice = priceCalc.m_minValue;
+        double maxPrice = priceCalc.m_maxValue;
+        long minTimestamp = timeCalc.m_minValue;
+        long maxTimestamp = timeCalc.m_maxValue;
+
+        int x1 = timeAxe.getPoint(minTimestamp);
+        int x2 = timeAxe.getPoint(maxTimestamp);
+        int y1 = priceAxe.getPointReverse(maxPrice);
+        int y2 = priceAxe.getPointReverse(minPrice);
+        g.setPaint(Color.lightGray);
+        g.drawRect(x1, y1, x2 - x1, y2 - y1);
+    }
+
+    private static void processEntry(Map.Entry<Long, TradeData[]> entry,
+                                     Utils.DoubleMinMaxCalculator<TradeData> priceCalc,
+                                     Utils.LongMinMaxCalculator<TradeData> timeCalc) {
+        if (entry != null) {
+            TradeData[] trades = entry.getValue();
+            priceCalc.calculate(trades[0]);
+            priceCalc.calculate(trades[1]);
+            timeCalc.calculate(trades[0]);
+            timeCalc.calculate(trades[1]);
+        }
+    }
+
+    private static void paintBuySell(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
+                                     TradeData buyTrade, TradeData sellTrade) {
+        if ((buyTrade != null) && (sellTrade != null)) {
+            double buyPrice = buyTrade.m_price;
+            double sellPrice = sellTrade.m_price;
+            int xb = timeAxe.getPoint(buyTrade.m_timestamp);
+            int yb = priceAxe.getPointReverse(buyPrice);
+            int xs = timeAxe.getPoint(sellTrade.m_timestamp);
+            int ys = priceAxe.getPointReverse(sellPrice);
+            g.setPaint(Color.ORANGE);
+            g.drawLine(xb, yb, xs, ys);
+            String str = Fetcher.format(Math.abs(sellPrice - buyPrice));
+            g.drawString(str, (xb + xs) / 2 + 5, (yb + ys) / 2);
+        }
+    }
+
+    private static void paintCross(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
+                                   Map.Entry<Long, TradeData[]> entry) {
+        if(entry != null) {
+            TradeData[] crossTrades = entry.getValue();
+            paintTrade(g, timeAxe, priceAxe, crossTrades[0]);
+            paintTrade(g, timeAxe, priceAxe, crossTrades[1]);
+        }
+    }
+
+    private static void paintTrade(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, TradeData trade) {
+        if (trade != null) {
+            int x = timeAxe.getPoint(trade.m_timestamp);
+            int y = priceAxe.getPointReverse(trade.m_price);
+            g.setPaint(trade.m_orderSide.isBuy() ? Color.BLUE : Color.RED);
+            drawX(g, x, y);
+            String str = Fetcher.format(trade.m_price);
+            g.drawString(str, x + 5, y - 5);
+        }
+    }
+
+    private static void paintOrders(Graphics2D g, BuySell cross, PaintChart.ChartAxe priceAxe, int x, double buyDelta, double sellDelta) {
+        if (cross.m_buy != 0) {
+            int y = priceAxe.getPointReverse(cross.m_buy);
+            if (PAINT_ORDERS_SHADOW && (buyDelta > 0)) {
+                g.setPaint(LIGHT_X);
+                int y2 = priceAxe.getPointReverse(cross.m_buy + buyDelta);
+                g.drawLine(x, y, x, y2);
+            }
+            g.setPaint(Color.ORANGE);
+            g.drawLine(x, y, x, y);
+            g.drawRect(x - 1, y - 1, 2, 2);
+        }
+        if (cross.m_sell != 0) {
+            int y = priceAxe.getPointReverse(cross.m_sell);
+            if (PAINT_ORDERS_SHADOW && (sellDelta > 0)) {
+                g.setPaint(LIGHT_X);
+                int y2 = priceAxe.getPointReverse(cross.m_sell - sellDelta);
+                g.drawLine(x, y, x, y2);
+            }
+            g.setPaint(Color.ORANGE);
+            g.drawLine(x, y, x, y);
+            g.drawRect(x - 1, y - 1, 2, 2);
+        }
+
+    }
+
+    private static double paintBidAsk(Graphics2D g, TraceData.BidAsk bidAsk, PaintChart.ChartAxe priceAxe, int x) {
+        if ((bidAsk.m_bid != 0) && (bidAsk.m_ask != 0)) {
             if (PAINT_PRICE) {
-                int y1b = 0, x1b = 0, y1s = 0, x1s = 0, y2b = 0, x2b = 0, y2s = 0, x2s = 0;
-                if (hasBuy1) {
-                    y1b = priceAxe.getPointReverse(fork.m_buy1);
-                    x1b = timeAxe.getPoint(fork.m_buy1stamp);
-                    g.setPaint(Color.BLUE);
-                    drawX(g, x1b, y1b);
-                    String str = Fetcher.format(fork.m_buy1);
-                    g.drawString(str, x1b + 5, y1b - 5);
-                }
-                if (hasSell1) {
-                    y1s = priceAxe.getPointReverse(fork.m_sell1);
-                    x1s = timeAxe.getPoint(fork.m_sell1stamp);
-                    g.setPaint(Color.RED);
-                    drawX(g, x1s, y1s);
-                    String str = Fetcher.format(fork.m_sell1);
-                    g.drawString(str, x1s + 5, y1s - 5);
-                }
-                if (hasBuy2) {
-                    y2b = priceAxe.getPointReverse(fork.m_buy2);
-                    x2b = timeAxe.getPoint(fork.m_buy2stamp);
-                    g.setPaint(Color.BLUE);
-                    drawX(g, x2b, y2b);
-                    String str = Fetcher.format(fork.m_buy2);
-                    g.drawString(str, x2b + 5, y2b - 5);
-                }
-                if (hasSell2) {
-                    y2s = priceAxe.getPointReverse(fork.m_sell2);
-                    x2s = timeAxe.getPoint(fork.m_sell2stamp);
-                    g.setPaint(Color.RED);
-                    drawX(g, x2s, y2s);
-                    String str = Fetcher.format(fork.m_sell2);
-                    g.drawString(str, x2s + 5, y2s - 5);
-                }
-                double diff12 = 0, diff21 = 0;
-                boolean hasBuy1Sell2 = hasBuy1 && hasSell2;
-                if (hasBuy1Sell2) {
-                    g.setPaint(Color.ORANGE);
-                    g.drawLine(x1b, y1b, x2s, y2s);
-                    diff21 = fork.m_sell2 - fork.m_buy1;
-                    String str = Fetcher.format(diff21);
-                    g.drawString(str, (x1b + x2s) / 2 + 5, (y1b + y2s) / 2);
-                }
-                boolean hasSell1Buy2 = hasSell1 && hasBuy2;
-                if (hasSell1Buy2) {
-                    g.setPaint(Color.ORANGE);
-                    g.drawLine(x1s, y1s, x2b, y2b);
-                    diff12 = fork.m_sell1 - fork.m_buy2;
-                    String str = Fetcher.format(diff12);
-                    g.drawString(str, (x1s + x2b) / 2 + 5, (y1s + y2b) / 2);
-                }
-                if (hasBuy1Sell2 && hasSell1Buy2) {
-                    String str = Fetcher.format(diff12 + diff21);
-                    g.drawString(str, (x1b + x2s + x1s + x2b) / 4 + 5, HEIGHT - 70);
-                }
+                int y1 = priceAxe.getPointReverse(bidAsk.m_bid);
+                g.setPaint(LIGHT_RED);
+                g.drawLine(x - 1, y1, x + 1, y1);
+
+                int y2 = priceAxe.getPointReverse(bidAsk.m_ask);
+                g.drawLine(x - 1, y2, x + 1, y2);
+
+                g.drawLine(x, y1, x, y2);
             }
-            boolean hasBuySell1 = (hasBuy1 && hasSell1);
-            boolean hasBuySell2 = (hasBuy2 && hasSell2);
-            int y1 = 0, y2 = 0;
-            int x1 = 0, x2 = 0;
-            double diff1 = 0, diff2 = 0;
-            if (hasBuySell1) {
-                double avgDiff = (fork.m_sell1avgDiff + fork.m_buy1avgDiff) / 2;
-                diff1 = fork.m_sell1 - fork.m_buy1 - avgDiff;
-                long time = (fork.m_sell1stamp + fork.m_buy1stamp) / 2;
-                x1 = timeAxe.getPoint(time);
-                y1 = priceDiffAxe.getPointReverse(diff1) + diffYoffset;
-                g.setPaint(Color.RED);
-                drawX(g, x1, y1);
-                String str = Fetcher.format(diff1);
-                g.drawString(str, x1+5, y1-5);
-            }
-            if (hasBuySell2) {
-                double avgDiff = (fork.m_sell2avgDiff + fork.m_buy2avgDiff) / 2;
-                diff2 = fork.m_sell2 - fork.m_buy2 + avgDiff;
-                long time = (fork.m_sell2stamp + fork.m_buy2stamp) / 2;
-                x2 = timeAxe.getPoint(time);
-                y2 = priceDiffAxe.getPointReverse(diff2) + diffYoffset;
-                g.setPaint(Color.RED);
-                drawX(g, x2, y2);
-                String str = Fetcher.format(diff2);
-                g.drawString(str, x2+5, y2-5);
-            }
-            if (hasBuySell1 && hasBuySell2) {
-                g.setPaint(Color.RED);
-                g.drawLine(x1, y1, x2, y2);
-                String str = Fetcher.format(Math.abs(diff1 - diff2));
-                g.drawString(str, (x1 + x2) / 2 + 5, (y1 + y2) / 2);
-            }
+            return bidAsk.m_ask - bidAsk.m_bid;
         }
+        return 0;
     }
 
     private static final int X_DIAMETER = 25;
@@ -514,78 +499,33 @@ public class PaintTrace extends BaseChartPaint {
 
     private static class TraceData {
         public long m_stamp;
-        public double m_bid1;
-        public double m_ask1;
-        public double m_bid2;
-        public double m_ask2;
+        public BidAsk m_exch1;
+        public BidAsk m_exch2;
         public long m_fork;
-        public double m_buy1;
-        public double m_sell1;
-        public double m_buy2;
-        public double m_sell2;
-
-        private long m_buy1stamp;
-        private double m_buy1avgDiff;
-        private long m_sell1stamp;
-        private double m_sell1avgDiff;
-        private long m_buy2stamp;
-        private double m_buy2avgDiff;
-        private long m_sell2stamp;
-        private double m_sell2avgDiff;
+        public BuySell m_open;
+        public BuySell m_close;
 
         public TraceData(long stamp, double bid1, double ask1, double bid2, double ask2,
                          long fork, double buy1, double sell1, double buy2, double sell2) {
             m_stamp = stamp;
-            m_bid1 = bid1;
-            m_ask1 = ask1;
-            m_bid2 = bid2;
-            m_ask2 = ask2;
+            m_exch1 = new BidAsk(bid1, ask1);
+            m_exch2 = new BidAsk(bid2, ask2);
             m_fork = fork;
-            m_buy1 = buy1;
-            m_sell1 = sell1;
-            m_buy2 = buy2;
-            m_sell2 = sell2;
+            m_open = new BuySell(buy1, sell1);
+            m_close = new BuySell(buy2, sell2);
         }
 
-        public void update(TraceData trace, double avgDiff) {
-            if (trace.m_stamp != 0) {
-                m_stamp = trace.m_stamp;
+        private static class BidAsk {
+            public double m_bid;
+            public double m_ask;
+
+            public BidAsk(double bid, double ask) {
+                m_bid = bid;
+                m_ask = ask;
             }
-            if (trace.m_bid1 != 0) {
-                m_bid1 = trace.m_bid1;
-            }
-            if (trace.m_ask1 != 0) {
-                m_ask1 = trace.m_ask1;
-            }
-            if (trace.m_bid2 != 0) {
-                m_bid2 = trace.m_bid2;
-            }
-            if (trace.m_ask2 != 0) {
-                m_ask2 = trace.m_ask2;
-            }
-            if (trace.m_fork != 0) {
-                m_fork = trace.m_fork;
-            }
-            if ((trace.m_buy1 != 0) && (m_buy1 != trace.m_buy1)) {
-                m_buy1 = trace.m_buy1;
-                m_buy1stamp = m_stamp;
-                m_buy1avgDiff = avgDiff;
-            }
-            if ((trace.m_sell1 != 0) && (m_sell1 != trace.m_sell1)) {
-                m_sell1 = trace.m_sell1;
-                m_sell1stamp = m_stamp;
-                m_sell1avgDiff = avgDiff;
-            }
-            if ((trace.m_buy2 != 0) && (m_buy2 != trace.m_buy2)) {
-                m_buy2 = trace.m_buy2;
-                m_buy2stamp = m_stamp;
-                m_buy2avgDiff = avgDiff;
-            }
-            if ((trace.m_sell2 != 0) && (m_sell2 != trace.m_sell2)) {
-                m_sell2 = trace.m_sell2;
-                m_sell2stamp = m_stamp;
-                m_sell2avgDiff = avgDiff;
-            }
+
+            public double mid() { return ( m_bid + m_ask) / 2; }
+            public boolean hasMid() { return (m_bid != 0) && (m_ask != 0); }
         }
     }
 }

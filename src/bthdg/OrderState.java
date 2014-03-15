@@ -2,18 +2,18 @@ package bthdg;
 
 public enum OrderState {
     NONE {
-        @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData) throws Exception {}
+        @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData, CrossData crossData) throws Exception {}
     },
     BRACKET_PLACED {
-        @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData) throws Exception {
+        @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData, CrossData crossData) throws Exception {
 //            log("OrderState.BRACKET_PLACED. check if order executed: " + orderData);
-            trackLimitOrderExecution(iContext, shExchData, orderData);
+            trackLimitOrderExecution(iContext, shExchData, orderData, crossData);
         }
     },
     MARKET_PLACED {
-        @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData) throws Exception {
+        @Override public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData, CrossData crossData) throws Exception {
             log("OrderState.MARKET_PLACED. check if order executed: " + orderData);
-            boolean executed = trackLimitOrderExecution(iContext, shExchData, orderData);
+            boolean executed = trackLimitOrderExecution(iContext, shExchData, orderData, crossData);
             if( executed ) {
                 log(" OPEN MKT bracket order executed. we are fully OPENED " + orderData);
             } else {
@@ -22,7 +22,8 @@ public enum OrderState {
         }
     };
 
-    private static boolean trackLimitOrderExecution(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData) throws Exception {
+    private static boolean trackLimitOrderExecution(IterationContext iContext, SharedExchangeData shExchData,
+                                                    OrderData orderData, CrossData crossData) throws Exception {
         // actually order execution should be checked via getLiveOrdersState()
         LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(shExchData);
         // but for simulation we are checking via trades
@@ -31,7 +32,7 @@ public enum OrderState {
         if (orderData.m_filled > 0) {
             if (orderData.m_status == OrderStatus.FILLED) {
                 orderData.m_state = NONE;
-                iContext.onOrderFilled(shExchData, orderData);
+                iContext.onOrderFilled(shExchData, orderData, crossData);
                 return true;
             } else { // PARTIALLY FILLED
                 log("PARTIALLY FILLED, just wait more");
@@ -42,7 +43,7 @@ public enum OrderState {
 
     private static void log(String s) { Log.log(s); }
 
-    public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData) throws Exception {
+    public void checkState(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData, CrossData crossData) throws Exception {
         log("checkState not implemented for OrderState." + this);
     }
 } // OrderState

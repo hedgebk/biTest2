@@ -25,16 +25,17 @@ import java.util.Properties;
  *  - add pause for servlet to redeploy new version and continue as is
  *  - use PEG/PEG_MID as close orders
  *  - save state to file for restarts - serialize
+ *  - calculate requests/minute-do not cross the limit 600 request per 10 minutes
  */
 public class Fetcher {
     static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
-    static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.5;
+    static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.3;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
     private static final boolean USE_ACCOUNT_TEST_STR = true;
     public static final long MOVING_AVERAGE = 70 * 60 * 1000; // better simulated = 1h 10 min
-    public static final double EXPECTED_GAIN = 1; // better simulated = 4.3
+    public static final double EXPECTED_GAIN = 2; // better simulated = 4.3
 
     private static final int MAX_READ_ATTEMPTS = 100; // 5;
     public static final int START_REPEAT_DELAY = 200;
@@ -44,6 +45,8 @@ public class Fetcher {
 
     public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
+    public static final PriceAlgo  PRICE_ALGO = PriceAlgo.MARKET;
+    private static final boolean DO_DB_DROP = true;
 
     public static void main(String[] args) {
         log("Started.  millis=" + System.currentTimeMillis());
@@ -75,7 +78,9 @@ public class Fetcher {
             DbReady.goWithDb(new DbReady.IDbRunnable() {
                 public void run(Connection connection) throws SQLException {
                     try {
-//                        drop(m_connection);
+                        if( DO_DB_DROP ) {
+                            drop(connection);
+                        }
                         pool(Exchange.BITSTAMP, Exchange.BTCE, connection);
                     } catch (Exception e) {
                         log("error: " + e);
@@ -378,15 +383,23 @@ public class Fetcher {
     }
 
     private static final String DELETE_TICKS_SQL = "DELETE FROM Trace";
+    private static final String DELETE_TRADES_SQL = "DELETE FROM TraceTrade";
 
     private static void drop(Connection connection) {
         try {
             PreparedStatement pStatement = connection.prepareStatement(DELETE_TICKS_SQL);
             try {
                 int deleted = pStatement.executeUpdate();
-                System.out.println("deleted: " + deleted);
+                System.out.println("Traces deleted: " + deleted);
             } finally {
                 pStatement.close();
+            }
+            PreparedStatement pStatement2 = connection.prepareStatement(DELETE_TRADES_SQL);
+            try {
+                int deleted = pStatement2.executeUpdate();
+                System.out.println("TraceTrades deleted: " + deleted);
+            } finally {
+                pStatement2.close();
             }
         } catch (SQLException e) {
             System.out.println("Error: " + e);
@@ -434,8 +447,8 @@ public class Fetcher {
             m_connection = connection;
         }
 
-        @Override public void recordOrderFilled(SharedExchangeData shExchData, OrderData orderData) {
-            recordTrade(m_connection, shExchData, orderData);
+        @Override public void recordOrderFilled(SharedExchangeData shExchData, OrderData orderData, CrossData crossData) {
+            recordTrade(m_connection, shExchData, orderData, crossData);
         }
 
         @Override public void recordTrades(SharedExchangeData shExchData, TradesData data) {
@@ -444,9 +457,9 @@ public class Fetcher {
     }
 
     private static final String INSERT_TRACE_TRADE_SQL =
-            "INSERT INTO TraceTrade ( stamp, exch, side, price, amount ) VALUES (?,?,?,?,?)";
-                                                             // VARCHAR(4)
-    private static void recordTrade(Connection connection, SharedExchangeData shExchData, OrderData orderData) {
+            "INSERT INTO TraceTrade ( stamp, exch, side, price, amount, crossId, forkId ) VALUES (?,?,?,?,?,?,?)";
+
+    private static void recordTrade(Connection connection, SharedExchangeData shExchData, OrderData orderData, CrossData crossData) {
         if (connection != null) {
             try {
                 PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_TRADE_SQL);
@@ -458,6 +471,8 @@ public class Fetcher {
                     statement.setString(3, orderData.m_side.m_char);
                     statement.setDouble(4, orderData.m_price);
                     statement.setDouble(5, orderData.m_amount);
+                    statement.setLong(6, crossData.m_start);
+                    statement.setLong(7, crossData.m_forkData.m_id);
 
                     statement.executeUpdate(); // execute insert SQL statement - will be auto committed
                 } finally {
@@ -475,7 +490,7 @@ public class Fetcher {
             try {
                 PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_TRADE_SQL);
                 try {
-                    for (TradesData.TradeData trade : data.m_trades) {
+                    for (TradeData trade : data.m_trades) {
                         Thread.sleep(1);
 
                         statement.setLong(1, trade.m_timestamp);
@@ -483,6 +498,8 @@ public class Fetcher {
                         statement.setNull(3, Types.VARCHAR);
                         statement.setDouble(4, trade.m_price);
                         statement.setDouble(5, trade.m_amount);
+                        statement.setNull(6, Types.BIGINT);
+                        statement.setNull(7, Types.BIGINT);
 
                         statement.executeUpdate(); // execute insert SQL statement - will be auto committed
                     }
@@ -495,4 +512,5 @@ public class Fetcher {
             }
         }
     }
+
 }

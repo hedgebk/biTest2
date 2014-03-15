@@ -410,18 +410,18 @@ public class ForkData {
     }
 
     public void cleanOrders() {
-        m_exch1data.cleanOrders();
-        m_exch2data.cleanOrders();
+//        m_exch1data.cleanOrders();
+//        m_exch2data.cleanOrders();
     }
 
     public void setAllAsError() {
-        m_exch1data.setAllAsError();
-        m_exch1data.setAllAsError();
+//        m_exch1data.setAllAsError();
+//        m_exch1data.setAllAsError();
     }
 
     public void stop() {
-        m_exch1data.stop();
-        m_exch2data.stop();
+//        m_exch1data.stop();
+//        m_exch2data.stop();
         if (m_openCross != null) {
             m_openCross.stop();
             if (m_closeCross != null) {
@@ -432,13 +432,13 @@ public class ForkData {
     }
 
     public boolean allStopped() {
-        if( m_exch1data.isStopped() && m_exch2data.isStopped() ) {
-            if ((m_openCross == null) || m_openCross.isStopped()) {
+//        if( m_exch1data.isStopped() && m_exch2data.isStopped() ) {
+//            if ((m_openCross == null) || m_openCross.isStopped()) {
                 if ((m_closeCross == null) || m_closeCross.isStopped()) {
                     return true;
                 }
-            }
-        }
+//            }
+//        }
         return false;
     }
 
@@ -573,7 +573,7 @@ public class ForkData {
         return ret;
     }
 
-    void placeOpenCrosses(IterationContext iContext) throws Exception {
+    void placeOpenCross(IterationContext iContext) throws Exception {
         log(" try place OpenCrosses, direction=" + m_direction);
         m_pairExData.doWithFreshTopData(iContext, new Runnable() {
             public void run() {
@@ -583,25 +583,26 @@ public class ForkData {
                 m_openCross = new CrossData(buyExch, sellExch);
                 m_openCross.init(ForkData.this, true);
 
-                setState(ForkState.OPEN_BRACKETS_PLACED_NEW);
+                setState(ForkState.OPEN_CROSS_PLACED);
             }
         });
     }
 
-    public void placeCloseCrosses(double amount) {
-        log(" try place CloseCrosses, direction=" + m_direction);
+    public void placeCloseCross(double amount) {
+        log(" try place CloseCross, amount=" + amount + ", direction=" + m_direction);
 
         // note here is in reverse
-        SharedExchangeData sellExch = m_direction.buyExch(m_pairExData);
-        SharedExchangeData buyExch = m_direction.sellExch(m_pairExData);
+        ForkDirection direction = m_direction.opposite();
+        SharedExchangeData sellExch = direction.sellExch(m_pairExData);
+        SharedExchangeData buyExch = direction.buyExch(m_pairExData);
 
         // update amount since account data can be changed
-        m_amount = Math.min(amount, m_amount); // do not place close cross bigger than open - if possible, should be matched.
+        m_amount = Math.min(amount, m_amount); // do not place close cross bigger than open cross - if possible, should be matched.
 
         m_closeCross = new CrossData(buyExch, sellExch);
-        m_closeCross.init(ForkData.this, false);
+        m_closeCross.init(this, false);
 
-        setState(ForkState.CLOSE_BRACKETS_PLACED_NEW);
+        setState(ForkState.CLOSE_CROSS_PLACED);
     }
 
     private void startCross(ForkDirection direction) {

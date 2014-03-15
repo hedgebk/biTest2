@@ -225,9 +225,15 @@ public class Utils {
 
         public void calculate(Iterable<O> data) {
             for (O obj : data) {
+                calculate(obj);
+            }
+        }
+
+        public void calculate(O obj) {
+            if (obj != null) {
                 Double[] values = getValues(obj);
-                for(Double value: values) {
-                    if(value != null) {
+                for (Double value : values) {
+                    if (value != null) {
                         if ((m_maxValue == null) || (value > m_maxValue)) {
                             m_maxValue = value;
                         }
@@ -246,8 +252,20 @@ public class Utils {
 
         public abstract Long getValue(O obj);
 
+        public LongMinMaxCalculator() { }
+
         public LongMinMaxCalculator(Iterable<O> data) {
+            calculate(data);
+        }
+
+        public void calculate(Iterable<O> data) {
             for (O obj : data) {
+                calculate(obj);
+            }
+        }
+
+        public void calculate(O obj) {
+            if (obj != null) {
                 Long value = getValue(obj);
                 if ((m_maxValue == null) || (value > m_maxValue)) {
                     m_maxValue = value;

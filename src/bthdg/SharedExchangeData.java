@@ -43,7 +43,7 @@ public class SharedExchangeData {
 
     public TradesData filterOnlyNewTrades(TradesData trades) {
         TradesData newTrades = trades.newTrades(m_lastProcessedTradesTime);
-        for (TradesData.TradeData trade : newTrades.m_trades) {
+        for (TradeData trade : newTrades.m_trades) {
             long timestamp = trade.m_timestamp;
             if (timestamp > m_lastProcessedTradesTime) {
                 m_lastProcessedTradesTime = timestamp;

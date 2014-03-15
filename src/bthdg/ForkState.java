@@ -13,41 +13,40 @@ public enum ForkState {
     OPENING_CROSS {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.OPENING_CROSS. try to place open crosses orders");
-            forkData.placeOpenCrosses(iContext);
+            forkData.placeOpenCross(iContext);
         }
     },
-    OPEN_BRACKETS_PLACED_NEW {
+    OPEN_CROSS_PLACED {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
-            log("ForkState.OPEN_BRACKETS_PLACED_NEW checkState()");
+            log("ForkState.OPEN_CROSS_PLACED checkState()");
             if (forkData.m_openCross.m_state == CrossState.BOTH_BRACKETS_EXECUTED) { // open cross executed ?
                 log(" open cross state is BOTH_BRACKETS_EXECUTED. try to place close crosses orders");
                 forkData.setState(ForkState.OPEN_CROSS_EXECUTED);
-                //forkData.placeCloseCrosses(iContext);
+                // do nothing more here - pairExchange will check do we need to start close cross
             }
         }
     },
     OPEN_CROSS_EXECUTED {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
             log("ForkState.OPEN_CROSS_EXECUTED checkState() do nothing");
-            // pairExchange will check do we need to start close cross
+            // do nothing more here - pairExchange will check do we need to start close cross
         }
     },
 //    CLOSING_CROSS {
 //        @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
 //            log("ForkState.CLOSING_CROSS. try to place close crosses orders");
-//            forkData.placeCloseCrosses(iContext);
+//            forkData.placeCloseCross(iContext);
 //        }
 //    },
-    CLOSE_BRACKETS_PLACED_NEW {
+    CLOSE_CROSS_PLACED {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
-            log("ForkState.CLOSE_BRACKETS_PLACED_NEW checkState()");
+            log("ForkState.CLOSE_CROSS_PLACED checkState()");
             if (forkData.m_closeCross.m_state == CrossState.BOTH_BRACKETS_EXECUTED) {
                 log(" close cross state is BOTH_BRACKETS_EXECUTED. all done");
                 forkData.evaluateGain();
             }
         }
     },
-
 
     START {
         @Override public void checkState(IterationContext iContext, ForkData forkData) throws Exception {

@@ -235,12 +235,12 @@ public class ExchangeData {
         m_shExchData.queryAccountData();
     }
 
-    public void checkExchState(IterationContext iContext) throws Exception {
-        log("Exch.checkExchState() " + this);
-        checkOrderState(m_buyOrder, iContext); // trace order executions separately
-        checkOrderState(m_sellOrder, iContext);
-        m_state.checkState(iContext, this);
-    }
+//    public void checkExchState(IterationContext iContext) throws Exception {
+//        log("Exch.checkExchState() " + this);
+//        checkOrderState(m_buyOrder, iContext); // trace order executions separately
+//        checkOrderState(m_sellOrder, iContext);
+//        m_state.checkState(iContext, this);
+//    }
 
     public OrderData getFilledBracketOrder() {
         return ((m_buyOrder != null) && (m_buyOrder.m_status == OrderStatus.FILLED))
@@ -250,11 +250,11 @@ public class ExchangeData {
                     : null;
     }
 
-    private void checkOrderState(OrderData orderData, IterationContext iContext) throws Exception {
-        if (orderData != null) {
-            orderData.m_state.checkState(iContext, m_shExchData, orderData);
-        }
-    }
+//    private void checkOrderState(OrderData orderData, IterationContext iContext) throws Exception {
+//        if (orderData != null) {
+//            orderData.m_state.checkState(iContext, m_shExchData, orderData, null);
+//        }
+//    }
 
     public void closeOrders() {
         cancelBuyOrder(); // todo: order can be executed at this point, so cancel will fail

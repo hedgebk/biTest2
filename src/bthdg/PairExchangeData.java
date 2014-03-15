@@ -21,6 +21,7 @@ public class PairExchangeData {
     public long m_timestamp;
 
     public String exchNames() { return m_sharedExch1.m_exchange.m_name + "-" + m_sharedExch2.m_exchange.m_name; }
+    public double midCommissionAmount() { return m_sharedExch1.midCommissionAmount() + m_sharedExch2.midCommissionAmount(); }
     private static void log(String s) { Log.log(s); }
 
     public PairExchangeData(Exchange exch1, Exchange exch2) {
@@ -168,16 +169,18 @@ public class PairExchangeData {
     private void placeStopBracketsIfNeeded(final IterationContext iContext) throws Exception {
         for (final ForkData fork : m_forks) {
             if (fork.m_state == ForkState.OPEN_CROSS_EXECUTED) {
+                log("pair exchange [" + exchNames() + "]: fork is OPEN_CROSS_EXECUTED. placing stop brackets on " + fork);
                 doWithFreshTopData(iContext, new Runnable() {
                     @Override public void run() {
-                        placeStopBracketsIfNeeded(iContext, fork);
+                        placeCloseCrossIfNeeded(iContext, fork);
                     }
                 });
             }
         }
     }
 
-    private void placeStopBracketsIfNeeded(IterationContext iContext, ForkData fork) {
+    private void placeCloseCrossIfNeeded(IterationContext iContext, ForkData fork) {
+        log("pair exchange [" + exchNames() + "]: placeCloseCrossIfNeeded on " + fork);
         ForkDirection direction = fork.m_direction;
         ForkDirection opposite = direction.opposite();
         double amount = calcAmount(opposite);
@@ -185,19 +188,19 @@ public class PairExchangeData {
             // search other fork to increase
             for (final ForkData otherFork : m_forks) {
                 ForkDirection otherDirection = otherFork.m_direction;
-                if (direction != otherDirection) {
-                    if (otherFork.isNotStarted()) {
-                        if (otherFork.increaseOpenAmount(iContext, this)) {
-                            fork.stop();
-                            amount = 0; // flag that no need to place separate close crosses
-                            break;
-                        }
-                    } // todo: check if other fork has open cross executed - then just cache out - no need to wait. but qty can be different !
-                }
+                if ((direction != otherDirection) && otherFork.isNotStarted()) {
+                    log(" looks not needed to placeCloseCross. existing can be increased. " + fork);
+                    if (otherFork.increaseOpenAmount(iContext, this)) {
+                        fork.stop();
+                        amount = 0; // flag that no need to place separate close crosses
+                        break;
+                    }
+                } // todo: check if other fork has open cross executed - then just cache out - no need to wait. but qty can be different !
             }
         }
         if (amount > OrderData.MIN_ORDER_QTY) {
-            fork.placeCloseCrosses(amount);
+            log(" placeCloseCross(amount="+amount+") on " + fork);
+            fork.placeCloseCross(amount);
         }
     }
 

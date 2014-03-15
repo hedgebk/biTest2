@@ -55,7 +55,7 @@ public class OrderData {
         OrderSide orderSide = orderData.m_side;
         double orderAmount = orderData.m_amount;
         double price = orderData.m_price;
-        for (TradesData.TradeData trade : newTrades.m_trades) {
+        for (TradeData trade : newTrades.m_trades) {
             if (trade.m_amount == 0) {
                 continue; // this execution is already processed
             }
@@ -284,5 +284,9 @@ public class OrderData {
         ret.m_filled = filled2;
 
         return ret;
+    }
+
+    public void checkState(IterationContext iContext, SharedExchangeData shExchData, CrossData crossData) throws Exception {
+        m_state.checkState(iContext, shExchData, this, crossData);
     }
 } // OrderData

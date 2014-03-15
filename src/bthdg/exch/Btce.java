@@ -135,7 +135,7 @@ public class Btce extends BaseExch {
         JSONArray array = (JSONArray) jObj.get("btc_usd");
 //        log(" class=" + array.getClass() + ", btc_usd=" + array);
         int len = array.size();
-        List<TradesData.TradeData> trades = new ArrayList<TradesData.TradeData>(len);
+        List<TradeData> trades = new ArrayList<TradeData>(len);
         for (int i = 0; i < len; i++) { // {"amount":7.23385,"timestamp":1391896680,"price":700.7,"tid":29248920,"type":"bid"}
             JSONObject tObj = (JSONObject) array.get(i);
             double amount = Utils.getDouble(tObj.get("amount"));
@@ -144,7 +144,7 @@ public class Btce extends BaseExch {
             long tid = Utils.getLong(tObj.get("tid"));
             String typeStr = (String) tObj.get("type");
             TradesData.TradeType type = TradesData.TradeType.get(typeStr);
-            TradesData.TradeData tdata = new TradesData.TradeData(amount, price, timestamp, tid, type);
+            TradeData tdata = new TradeData(amount, price, timestamp, tid, type);
             trades.add(tdata);
         }
         return new TradesData(trades);

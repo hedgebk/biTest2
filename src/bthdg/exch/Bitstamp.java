@@ -126,14 +126,14 @@ public class Bitstamp extends BaseExch {
 //        log("BITSTAMP.parseTrades() " + object);
         JSONArray array = (JSONArray)object;
         int len = array.size();
-        List<TradesData.TradeData> trades = new ArrayList<TradesData.TradeData>(len);
+        List<TradeData> trades = new ArrayList<TradeData>(len);
         for (int i = 0; i < len; i++) {
             JSONObject tObj = (JSONObject) array.get(i); // {"amount":"0.02500000","price":"683.00","tid":3406676,"date":"1391901009"}
             double amount = Utils.getDouble(tObj.get("amount"));
             double price = Utils.getDouble(tObj.get("price"));
             long timestamp = Utils.getLong(tObj.get("date")) * 1000;
             long tid = (Long) tObj.get("tid");
-            TradesData.TradeData tdata = new TradesData.TradeData(amount, price, timestamp, tid, null);
+            TradeData tdata = new TradeData(amount, price, timestamp, tid, null);
             trades.add(tdata);
         }
         return new TradesData(trades);

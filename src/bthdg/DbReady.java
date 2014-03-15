@@ -27,10 +27,10 @@ public class DbReady {
         long millis = System.currentTimeMillis();
         System.out.println("timeMills: " + millis);
         long maxMemory = Runtime.getRuntime().maxMemory();
-        System.out.println("maxMemory: " + maxMemory + ", k:"+(maxMemory/=1024) + ": m:" + (maxMemory/=1024) );
+        System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
 
-//        startAndInitDb();
-        updateFromWeb();
+        startAndInitDb();
+//        updateFromWeb();
 //        dropTicks(Exchange.BTCE,     "0", "-8M");
 //        dropTicks(Exchange.BITSTAMP, "0", "-8M");
 //        dropTicks(Exchange.MTGOX,    "0", "-8M");
@@ -45,14 +45,19 @@ public class DbReady {
                 System.out.println("-- Creating Tables (if needed) --");
                 Statement statement = connection.createStatement();
                 try {
-                    statement.executeUpdate(
+                    int ret;
+                    ret = statement.executeUpdate(
                             "CREATE TABLE IF NOT EXISTS Ticks ( " +
                             " src       INTEGER NOT NULL, " +
                             " stamp     BIGINT NOT NULL, " +
                             " price     DOUBLE," +
                             " volume    DOUBLE )");
+                    System.out.println("--- CREATE TABLE Ticks  returns " + ret);
 
-                    statement.executeUpdate(
+                    ret = statement.executeUpdate("DROP TABLE Trace");
+                    System.out.println("--- DROP TABLE Trace  returns " + ret);
+
+                    ret = statement.executeUpdate(
                             "CREATE TABLE IF NOT EXISTS Trace ( " +
                             " stamp BIGINT NOT NULL, " +
                             " bid1  DOUBLE, " +
@@ -65,6 +70,23 @@ public class DbReady {
                             " buy2  DOUBLE, " +
                             " sell2 DOUBLE" +
                             ")");
+                    System.out.println("--- CREATE TABLE Trace  returns " + ret);
+
+                    ret = statement.executeUpdate("DROP TABLE TraceTrade");
+                    System.out.println("--- DROP TABLE TraceTrade  returns " + ret);
+
+                    ret = statement.executeUpdate(
+                            "CREATE TABLE IF NOT EXISTS TraceTrade ( " +
+                            " stamp   BIGINT NOT NULL, " +
+                            " exch    INTEGER NOT NULL, " +
+                            " side    VARCHAR(4), " +
+                            " price   DOUBLE, " +
+                            " amount  DOUBLE, " +
+                            " crossId BIGINT, " +
+                            " forkId  BIGINT" +
+                            ")");
+
+                    System.out.println("--- CREATE TABLE TraceTrade  returns " + ret);
 
                     // CREATE INDEX srst on sakila.Ticks (src, stamp);
                     // DROP INDEX srst ON sakila.Ticks;
