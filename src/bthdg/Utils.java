@@ -37,7 +37,7 @@ public class Utils {
                     long hoursNum = hours % 24;
                     res.insert(0, "h ");
                     res.insert(0, hoursNum);
-                    long days = hoursNum / 24;
+                    long days = hours / 24;
                     if( days > 0 ) {
                         res.insert(0, "d ");
                         res.insert(0, days);

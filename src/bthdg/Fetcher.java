@@ -28,14 +28,16 @@ import java.util.Properties;
  *  - calculate requests/minute-do not cross the limit 600 request per 10 minutes
  */
 public class Fetcher {
-    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
-    static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.3;
+    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
+    static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.6;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
     private static final boolean USE_ACCOUNT_TEST_STR = true;
     public static final long MOVING_AVERAGE = 70 * 60 * 1000; // better simulated = 1h 10 min
     public static final double EXPECTED_GAIN = 2; // better simulated = 4.3
+    public static final PriceAlgo PRICE_ALGO = PriceAlgo.PEG;
+    private static final boolean DO_DB_DROP = true;
 
     private static final int MAX_READ_ATTEMPTS = 100; // 5;
     public static final int START_REPEAT_DELAY = 200;
@@ -45,8 +47,7 @@ public class Fetcher {
 
     public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
-    public static final PriceAlgo  PRICE_ALGO = PriceAlgo.MARKET;
-    private static final boolean DO_DB_DROP = true;
+
 
     public static void main(String[] args) {
         log("Started.  millis=" + System.currentTimeMillis());

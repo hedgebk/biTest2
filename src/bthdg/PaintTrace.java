@@ -36,7 +36,7 @@ public class PaintTrace extends BaseChartPaint {
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
 
-        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-4h");
+        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-21h");
         paint(fromMillis);
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -249,6 +249,7 @@ public class PaintTrace extends BaseChartPaint {
                                     PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
                                     PaintChart.ChartAxe priceDiffAxe, Graphics2D g, int diffYoffset) {
         Utils.AverageCounter diffAverageCounter = new Utils.AverageCounter(MOVING_AVERAGE);
+        TreeMap<Long,Double> diffAverageMap = new TreeMap<Long, Double>();
 
         int diffX = -1, diffY = -1;
         int diffAvg = -1;
@@ -275,6 +276,7 @@ public class PaintTrace extends BaseChartPaint {
                 int y = priceDiffAxe.getPointReverse(priceDiff) + diffYoffset;
 
                 double avgDiff = diffAverageCounter.add(millis, priceDiff);
+                diffAverageMap.put(millis, avgDiff);
                 double avgUp = avgDiff + commissionHalf;
                 double avgDown = avgDiff - commissionHalf;
                 boolean exceed = (priceDiff > avgUp) || (priceDiff < avgDown);
@@ -354,8 +356,8 @@ public class PaintTrace extends BaseChartPaint {
             Map.Entry<Long, TradeData[]> openEntry = forkTrades.firstEntry();
             Map.Entry<Long, TradeData[]> closeEntry = (forkTrades.size() > 1) ? forkTrades.lastEntry() : null;
             paintBox(g, timeAxe, priceAxe, openEntry, closeEntry);
-            paintCross(g, timeAxe, priceAxe, openEntry);
-            paintCross(g, timeAxe, priceAxe, closeEntry);
+            paintCross(g, timeAxe, priceAxe, priceDiffAxe, openEntry, diffAverageMap, true);
+            paintCross(g, timeAxe, priceAxe, priceDiffAxe, closeEntry, diffAverageMap, false);
             if ((openEntry != null) && (closeEntry != null)) {
                 TradeData[] open = openEntry.getValue();
                 TradeData[] close = closeEntry.getValue();
@@ -389,6 +391,8 @@ public class PaintTrace extends BaseChartPaint {
         int y2 = priceAxe.getPointReverse(minPrice);
         g.setPaint(Color.lightGray);
         g.drawRect(x1, y1, x2 - x1, y2 - y1);
+        g.drawLine(x1, 0, x1, WIDTH * 2);
+        g.drawLine(x2, 0, x2, WIDTH * 2);
     }
 
     private static void processEntry(Map.Entry<Long, TradeData[]> entry,
@@ -412,19 +416,40 @@ public class PaintTrace extends BaseChartPaint {
             int yb = priceAxe.getPointReverse(buyPrice);
             int xs = timeAxe.getPoint(sellTrade.m_timestamp);
             int ys = priceAxe.getPointReverse(sellPrice);
-            g.setPaint(Color.ORANGE);
+            Stroke old = g.getStroke();
+            g.setStroke(new BasicStroke(3.0f));
+            g.setPaint(Color.green);
             g.drawLine(xb, yb, xs, ys);
+            g.setStroke(old);
             String str = Fetcher.format(Math.abs(sellPrice - buyPrice));
             g.drawString(str, (xb + xs) / 2 + 5, (yb + ys) / 2);
         }
     }
 
-    private static void paintCross(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
-                                   Map.Entry<Long, TradeData[]> entry) {
+    private static void paintCross(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, PaintChart.ChartAxe priceDiffAxe,
+                                   Map.Entry<Long, TradeData[]> entry, TreeMap<Long, Double> diffAverageMap, boolean isOpenCross) {
         if(entry != null) {
             TradeData[] crossTrades = entry.getValue();
-            paintTrade(g, timeAxe, priceAxe, crossTrades[0]);
-            paintTrade(g, timeAxe, priceAxe, crossTrades[1]);
+            TradeData buyTrade = crossTrades[0];
+            TradeData sellTrade = crossTrades[1];
+            paintTrade(g, timeAxe, priceAxe, buyTrade);
+            paintTrade(g, timeAxe, priceAxe, sellTrade);
+
+            if ((buyTrade != null) && (sellTrade != null)) {
+                double buySellPriceDiff = sellTrade.m_price - buyTrade.m_price;
+                if (!isOpenCross) {
+                    buySellPriceDiff = -buySellPriceDiff;
+                }
+                long buySellTime = (sellTrade.m_timestamp + buyTrade.m_timestamp)/2;
+                int x = timeAxe.getPoint(buySellTime);
+                String str = Fetcher.format(buySellPriceDiff);
+                g.drawString(str, x + 5, HEIGHT - 50);
+//                Map.Entry<Long, Double> avgDiffEntry = diffAverageMap.floorEntry(buySellTime);
+//                Double avgDiff = avgDiffEntry.getValue();
+                int y = priceDiffAxe.getPointReverse(buySellPriceDiff) + HEIGHT;
+                drawX(g, x, y, 20);
+                g.drawString(str, x + 5, y - 5);
+            }
         }
     }
 
