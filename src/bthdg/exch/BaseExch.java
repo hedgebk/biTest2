@@ -7,8 +7,9 @@ import bthdg.Utils;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
+import javax.net.ssl.*;
+import javax.security.cert.CertificateException;
+import javax.security.cert.X509Certificate;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -35,9 +36,21 @@ public abstract class BaseExch {
 
     public static void initSsl() throws NoSuchAlgorithmException, KeyManagementException {
         if(!Config.s_runOnServer && !s_sslInitialized) {
-            SSLContext sslctx = SSLContext.getInstance("SSL");
-            sslctx.init(null, null, null);
-            HttpsURLConnection.setDefaultSSLSocketFactory(sslctx.getSocketFactory());
+            // btce ssl certificate fix
+            X509TrustManager tm = new X509TrustManager() {
+                @Override public void checkClientTrusted(java.security.cert.X509Certificate[] x509Certificates, String s) throws java.security.cert.CertificateException {}
+                @Override public void checkServerTrusted(java.security.cert.X509Certificate[] x509Certificates, String s) throws java.security.cert.CertificateException {}
+                @Override public java.security.cert.X509Certificate[] getAcceptedIssuers() { return null; }
+            };
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, new TrustManager[] { tm }, null);
+            SSLSocketFactory socketFactory = context.getSocketFactory();
+
+//            SSLContext sslctx = SSLContext.getInstance("SSL");
+//            sslctx.init(null, null, null);
+//            SSLSocketFactory socketFactory = sslctx.getSocketFactory();
+
+            HttpsURLConnection.setDefaultSSLSocketFactory(socketFactory);
             s_sslInitialized = true;
         }
     }

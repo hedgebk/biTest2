@@ -6,9 +6,12 @@ import bthdg.exch.Btce;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -26,9 +29,10 @@ import java.util.Properties;
  *  - use PEG/PEG_MID as close orders
  *  - save state to file for restarts - serialize
  *  - calculate requests/minute-do not cross the limit 600 request per 10 minutes
+ *  - check fading moving average
  */
 public class Fetcher {
-    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
+    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
     static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.6;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
@@ -257,7 +261,7 @@ public class Fetcher {
             con.setRequestProperty("User-Agent", USER_AGENT);
             //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
 
-            if (command.needSsl()) {
+            if (command.needSsl() || (con instanceof HttpsURLConnection)) {
                 BaseExch.initSsl();
             }
 

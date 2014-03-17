@@ -1,8 +1,5 @@
 package bthdg;
 
-import bthdg.Exchange;
-import bthdg.Utils;
-
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -14,6 +11,7 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
 
+// http://api.bitcoincharts.com/v1/csv/
 public class DbReady {
 
     private static final String DELETE_TICKS_BETWEEN_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp > ? AND stamp < ?";
@@ -30,10 +28,9 @@ public class DbReady {
         System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
 
         startAndInitDb();
+//        dropTicks(Exchange.BTCE,     "0", "-13d");
+//        dropTicks(Exchange.BITSTAMP, "0", "-13d");
 //        updateFromWeb();
-//        dropTicks(Exchange.BTCE,     "0", "-8M");
-//        dropTicks(Exchange.BITSTAMP, "0", "-8M");
-//        dropTicks(Exchange.MTGOX,    "0", "-8M");
 //        importFromFiles();
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -46,6 +43,9 @@ public class DbReady {
                 Statement statement = connection.createStatement();
                 try {
                     int ret;
+//                    ret = statement.executeUpdate("DROP TABLE Ticks");
+//                    System.out.println("--- DROP TABLE Ticks  returns " + ret);
+
                     ret = statement.executeUpdate(
                             "CREATE TABLE IF NOT EXISTS Ticks ( " +
                             " src       INTEGER NOT NULL, " +
@@ -54,8 +54,13 @@ public class DbReady {
                             " volume    DOUBLE )");
                     System.out.println("--- CREATE TABLE Ticks  returns " + ret);
 
-                    ret = statement.executeUpdate("DROP TABLE Trace");
-                    System.out.println("--- DROP TABLE Trace  returns " + ret);
+                    ret = statement.executeUpdate("CREATE INDEX srst on Ticks (src, stamp)");
+                    System.out.println("--- CREATE INDEX srst on Ticks  returns " + ret);
+
+                    //------------------------------------------------------------------
+
+//                    ret = statement.executeUpdate("DROP TABLE Trace");
+//                    System.out.println("--- DROP TABLE Trace  returns " + ret);
 
                     ret = statement.executeUpdate(
                             "CREATE TABLE IF NOT EXISTS Trace ( " +
@@ -72,8 +77,10 @@ public class DbReady {
                             ")");
                     System.out.println("--- CREATE TABLE Trace  returns " + ret);
 
-                    ret = statement.executeUpdate("DROP TABLE TraceTrade");
-                    System.out.println("--- DROP TABLE TraceTrade  returns " + ret);
+                    //------------------------------------------------------------------
+
+//                    ret = statement.executeUpdate("DROP TABLE TraceTrade");
+//                    System.out.println("--- DROP TABLE TraceTrade  returns " + ret);
 
                     ret = statement.executeUpdate(
                             "CREATE TABLE IF NOT EXISTS TraceTrade ( " +
@@ -104,7 +111,6 @@ public class DbReady {
                 } finally {
                     statement.close();
                 }
-//                importFromFiles(connection);
                 System.out.println("--- Complete ---");
             }
         };
@@ -284,10 +290,11 @@ public class DbReady {
     private static void importFromFiles(Connection connection) {
         try {
             connection.setAutoCommit(false); // for fast inserts/updates
-//            importExchange(connection, Exchange.BITSTAMP);
+            importExchange(connection, Exchange.BITSTAMP);
             importExchange(connection, Exchange.BTCE);
 //            importExchange(connection, Exchange.MTGOX);
 //            importExchange(connection, Exchange.CAMPBX);
+            importExchange(connection, Exchange.BITFINEX);
         } catch (Exception e) {
             System.out.println("error: " + e);
             e.printStackTrace();

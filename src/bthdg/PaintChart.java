@@ -11,45 +11,48 @@ import java.util.*;
 import java.util.List;
 
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
+// - check fading moving average
 public class PaintChart extends BaseChartPaint {
+    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;
+
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 15; // the period width - days
-    private static final int MOVING_AVERAGE_MILLIS = 70/*min*/ * 60 * 1000; // ~1h 10min
-    private static final double EXPECTED_GAIN = 4.3; // 4.3
-    public static final int MIN_CONFIRMED_DIFFS = 5;
-    // BITSTAMP, BTCE, CAMPBX
-    private static final Exchange EXCH1 = Exchange.BITSTAMP;
-    private static final Exchange EXCH2 = Exchange.BTCE;
+    public static final int PERIOD_LENGTH_DAYS = 7; // the period width - days
+    private static final long MOVING_AVERAGE_MILLIS = PAIR.m_movingAverage;
+    private static final double EXPECTED_GAIN = PAIR.m_expectedGain;
+    private static final Exchange EXCH1 = PAIR.m_exch1;
+    private static final Exchange EXCH2 = PAIR.m_exch2;
     private static final boolean VOLUME_AVERAGE = false;
-    public static final int MAX_NEXT_POINTS_TO_CONFIRM = 4; // look to next points for prices to confirm
     // chart area
     public static final int X_FACTOR = 1;
-    // note: better simulation when time per pixel: 25sec
+                                                                                 // note: better simulation when time per pixel: 25sec
     private static final int WIDTH = 1680 * X_FACTOR * (PERIOD_LENGTH_DAYS * 2); // PERIOD_LENGTH_DAYS: 30->60; 45->90; 60->120; 90->200
     public static final int HEIGHT = 1000 * X_FACTOR * 2;
     static final boolean PAINT_PRICE = false;
-    static final boolean PAINT_DIFF = false;
+    static final boolean PAINT_DIFF = true;
     public static final int MAX_CHART_DELTA = 60;
     public static final int MIN_CHART_DELTA = -45;
     // drop
     public static final boolean DO_DROP = true;
-    public static final double DROP_LEVEL = -0.14; // best ~= -0.14
+    public static final double DROP_LEVEL = PAIR.m_dropLevel;
     public static final boolean LOCK_DIRECTION_ON_DROP = false;
     public static final boolean DROP_ONLY_IN_REVERSE_FROM_AVG = true;
 
-    public static final DecimalFormat XX_YYYYY = new DecimalFormat("#,##0.0####");
-
     private static final boolean VARY_MOVING_AVERAGE_LEN = false;
-    private static final int MOVING_AVERAGE_VARY_STEPS = 80;
+    private static final int MOVING_AVERAGE_VARY_STEPS = 100;
     private static final double MOVING_AVERAGE_VARY_STEPS_VALUE = 0.01;
 
     private static final boolean VARY_EXPECTED_GAIN = false;
     private static final int EXPECTED_GAIN_VARY_STEPS = 124;
     private static final double EXPECTED_GAIN_VARY_STEPS_VALUE = 0.025;
 
-    private static final boolean VARY_DROP = true;
+    private static final boolean VARY_DROP = false;
     private static final int DROP_VARY_STEPS = 100;
     private static final double DROP_VARY_STEPS_VALUE = 0.005;
+
+    public static final int MIN_CONFIRMED_DIFFS = 5;
+    public static final int MAX_NEXT_POINTS_TO_CONFIRM = 4; // look to next points for prices to confirm
+
+    public static final DecimalFormat XX_YYYYY = new DecimalFormat("#,##0.0####");
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -204,6 +207,9 @@ public class PaintChart extends BaseChartPaint {
             StringBuilder sb = new StringBuilder();
             for (int i = -MOVING_AVERAGE_VARY_STEPS; i <= MOVING_AVERAGE_VARY_STEPS; i++) {
                 long movingAverageMillis = MOVING_AVERAGE_MILLIS + (long) (i * MOVING_AVERAGE_VARY_STEPS_VALUE * MOVING_AVERAGE_MILLIS);
+                if (movingAverageMillis < 60000) {
+                    continue;
+                }
                 movingAveragePoints = (int) (movingAverageMillis / timeAxe.m_scale);
                 movingAverage = calculateMovingAverage(diffsPerPoints, movingAveragePoints);
                 double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, DROP_LEVEL);
@@ -653,4 +659,24 @@ public class PaintChart extends BaseChartPaint {
         }
     }
 
+    // BITSTAMP, BTCE, CAMPBX
+    private static enum ExchangePair {
+        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE, 39/*70*/, 5.275/*4.3*/, -0.24/*-0.14*/),
+        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX, 45, 5, 0.5),
+        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 27, 1.75, 0.11);
+
+        public final Exchange m_exch1;
+        public final Exchange m_exch2;
+        public final long m_movingAverage;
+        public final double m_expectedGain;
+        public final double m_dropLevel;
+
+        ExchangePair(Exchange exch1, Exchange exch2, int movingAverageMinutes, double expectedGain, double dropLevel) {
+            m_exch1 = exch1;
+            m_exch2 = exch2;
+            m_movingAverage = movingAverageMinutes * 60 * 1000;
+            m_expectedGain = expectedGain;
+            m_dropLevel = dropLevel;
+        }
+    }
 }

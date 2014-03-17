@@ -22,7 +22,7 @@ public class PaintTrace extends BaseChartPaint {
     public static final Color LIGHT_X = new Color(60, 60, 60, 12);
     public static final double EXPECTED_GAIN = Fetcher.EXPECTED_GAIN;
     public static final double COMMISSION = 0.002;
-    public static final long MOVING_AVERAGE = Fetcher.MOVING_AVERAGE;
+    public static final long MOVING_AVERAGE = Fetcher.MOVING_AVERAGE*4;
     public static final boolean PAINT_PRICE = true;
     public static final boolean PAINT_ORDERS = true;
     public static final boolean PAINT_ORDERS_SHADOW = true;
@@ -36,7 +36,7 @@ public class PaintTrace extends BaseChartPaint {
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
 
-        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-21h");
+        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-36h");
         paint(fromMillis);
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));

@@ -69,7 +69,7 @@ public class ForkData {
     private void checkCross(IterationContext iContext, CrossData cross) throws Exception {
         if (cross != null) {
             cross.checkState(iContext, this);
-            if(cross.stuckTooLong()) {
+            if (cross.stuckTooLong()) {
                 setState(ForkState.STOP);
             }
         }

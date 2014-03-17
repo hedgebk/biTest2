@@ -42,6 +42,9 @@ public enum Exchange {
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
+           null, null, "", "", null, null),
+    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.002, true,
+           null, null,
            null, null, "", "", null, null);
 
     public final String m_name;
