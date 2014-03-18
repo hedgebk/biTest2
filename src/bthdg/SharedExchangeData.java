@@ -15,7 +15,10 @@ public class SharedExchangeData {
     TopData m_lastTop;
     public AccountData m_account;
 
-    public double midCommissionAmount() { return ((m_lastTop == null) ? 0 : m_lastTop.getMid()) * getFee(); }
+    public double midPrice() { return (m_lastTop == null) ? 0 : m_lastTop.getMid(); }
+    public double midCommissionAmount() { return midPrice() * getFee(); }
+    public double roundPrice(double price) { return m_exchange.roundPrice(price); }
+
     private static void log(String s) { Log.log(s); }
 
     @Override public String toString() {
@@ -196,5 +199,4 @@ public class SharedExchangeData {
 //        log("fetchLiveOrders() not implemented yet");
         return new LiveOrdersData();
     }
-
 } // SharedExchangeData

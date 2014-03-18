@@ -22,6 +22,7 @@ public class PairExchangeData {
 
     public String exchNames() { return m_sharedExch1.m_exchange.m_name + "-" + m_sharedExch2.m_exchange.m_name; }
     public double midCommissionAmount() { return m_sharedExch1.midCommissionAmount() + m_sharedExch2.midCommissionAmount(); }
+    public double midDiff() { return m_sharedExch1.midPrice() - m_sharedExch2.midPrice(); }
     private static void log(String s) { Log.log(s); }
 
     public PairExchangeData(Exchange exch1, Exchange exch2) {
@@ -60,7 +61,7 @@ public class PairExchangeData {
 
         forkIfNeeded();
 
-        placeStopBracketsIfNeeded(iContext); // or this may increase opposite fork
+        placeCloseCrossesIfNeeded(iContext); // or this may increase opposite fork
 
         m_isFinished = m_forks.isEmpty();
         boolean ret = m_stopRequested && m_isFinished;
@@ -138,38 +139,41 @@ public class PairExchangeData {
         }
     }
 
-    private boolean placeStartForksIfPossible(IterationContext iContext) throws Exception {
+    private boolean placeStartForksIfPossible(final IterationContext iContext) throws Exception {
         log("placeStartForksIfPossible()");
-        if( doWithFreshTopData(iContext, new Runnable() {
+        if( !doWithFreshTopData(iContext, new Runnable() {
             @Override public void run() {
-                placeStartFork(ForkDirection.DOWN);
-                placeStartFork(ForkDirection.UP);
+                if (placeStartFork(ForkDirection.DOWN) && placeStartFork(ForkDirection.UP)) {
+                    iContext.delay(0); // forks placed - do without delay
+                } else {
+                    // not placed - e.g. not enough of money on account
+                    iContext.delay(10000);
+                }
             }
-        })){ // forks placed - do without delay
-            iContext.delay(0);
-        } else { // no fresh data to start - wait
+        })) { // no fresh data to start - wait
             iContext.delay(5000);
             return true;
         }
         return false;
     }
 
-    private void placeStartFork(ForkDirection direction) {
+    private boolean placeStartFork(ForkDirection direction) {
         double amount = calcAmount(direction);
         log(" placeStartFork(direction=" + direction + ") amount=" + amount);
         if (amount >= OrderData.MIN_ORDER_QTY) {
             ForkData newFork = new ForkData(this, direction, amount);
             log("  added new Fork: " + newFork);
             m_forks.add(newFork);
-        } else {
-            log("  not enough amount=" + amount + " to start new fork");
+            return true;
         }
+        log("  not enough amount=" + amount + " to start new fork");
+        return false;
     }
 
-    private void placeStopBracketsIfNeeded(final IterationContext iContext) throws Exception {
+    private void placeCloseCrossesIfNeeded(final IterationContext iContext) throws Exception {
         for (final ForkData fork : m_forks) {
             if (fork.m_state == ForkState.OPEN_CROSS_EXECUTED) {
-                log("pair exchange [" + exchNames() + "]: fork is OPEN_CROSS_EXECUTED. placing stop brackets on " + fork);
+                log("pair exchange [" + exchNames() + "]: fork is OPEN_CROSS_EXECUTED. placing close cross on " + fork);
                 doWithFreshTopData(iContext, new Runnable() {
                     @Override public void run() {
                         placeCloseCrossIfNeeded(iContext, fork);

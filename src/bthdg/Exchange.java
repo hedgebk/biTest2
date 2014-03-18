@@ -16,7 +16,7 @@ import bthdg.exch.Btce;
 // btcchina ? https://vip.btcchina.com/?lang=en
 
 public enum Exchange {
-    BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.002, true,
+    BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.002, true, 2,
              Bitstamp.topTestStr(), "https://www.bitstamp.net/api/ticker/",
              null, "https://www.bitstamp.net/api/order_book/",
              Bitstamp.tradesTestStr(), "https://www.bitstamp.net/api/transactions/?time=minute",
@@ -28,7 +28,7 @@ public enum Exchange {
         @Override public AccountData parseAccount(Object jObj) { return Bitstamp.parseAccount(jObj); }
         @Override public String deepTestStr() { return Bitstamp.deepTestStr(); }
     },
-    BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true,
+    BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true, 3,
           Btce.topTestStr(), "https://btc-e.com/api/3/ticker/btc_usd", // "https://btc-e.com/api/2/btc_usd/ticker"
           Btce.deepTestStr(), "https://btc-e.com/api/3/depth/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.tradesTestStr(), "https://btc-e.com/api/3/trades/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
@@ -39,11 +39,11 @@ public enum Exchange {
         @Override public TradesData parseTrades(Object jObj) { return Btce.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
     },
-    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null), // DEAD
-    CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true,
+    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null), // DEAD
+    CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
            null, null, "", "", null, null),
-    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.002, true,
+    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.002, true, 2,
            null, null,
            null, null, "", "", null, null);
 
@@ -65,10 +65,12 @@ public enum Exchange {
     public final UrlDef m_accountEndpoint;
     public final String m_accountTestStr;
     public final boolean m_doWebUpdate;
+    private final int m_priceDecimals;
 
     public String deepTestStr() { return m_deepTestStr; }
 
-    Exchange(String name, BaseExch baseExch, String bitcoinchartsSymbol, int databaseId, double baseFee, boolean doWebUpdate,
+    Exchange(String name, BaseExch baseExch, String bitcoinchartsSymbol, int databaseId,
+             double baseFee, boolean doWebUpdate, int priceDecimals,
              String topTestStr, String apiTopEndpoint,
              String deepTestStr, String apiDeepEndpoint,
              String tradesTestStr, String apiTradesEndpoint,
@@ -80,6 +82,7 @@ public enum Exchange {
         m_databaseId = databaseId;
         m_baseFee = baseFee;
         m_doWebUpdate = doWebUpdate;
+        m_priceDecimals = priceDecimals;
 
         m_apiTopEndpoint = new UrlDef(apiTopEndpoint);
         m_topTestStr = topTestStr;
@@ -100,6 +103,10 @@ public enum Exchange {
     public AccountData parseAccount(Object jObj) { return null; }
 
     private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
+
+    public double roundPrice(double price) {
+        return Utils.round(price, m_priceDecimals);
+    }
 
 
     public static class UrlDef {

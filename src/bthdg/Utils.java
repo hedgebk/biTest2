@@ -137,7 +137,18 @@ public class Utils {
     }
 
     public static double fourDecimalDigits(double amount) { // 1.234567 -> 1.2345
-        return ((long)(amount * 1000))/1000.0;
+        return round(amount, 4);
+    }
+
+    public static double round(double amount, int decimals) {
+        return round(amount, decimals, 1);
+    }
+
+    private static double round(double amount, int decimals, long mult) {
+        if (decimals == 0) {
+            return ((double) Math.round(amount * mult)) / mult;
+        }
+        return round(amount, decimals - 1, mult * 10);
     }
 
     public static String pad(String str, int destLen) {

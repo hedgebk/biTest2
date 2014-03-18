@@ -99,7 +99,7 @@ public class OrderData {
 
     public boolean isFilled() {
         boolean statusOk = (m_status == OrderStatus.FILLED);
-        boolean filledOk = (m_filled == m_amount);
+        boolean filledOk = (m_filled == m_amount) && (m_filled > 0);
         if (statusOk == filledOk) {
             return statusOk;
         }

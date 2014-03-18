@@ -30,17 +30,18 @@ import java.util.Properties;
  *  - save state to file for restarts - serialize
  *  - calculate requests/minute-do not cross the limit 600 request per 10 minutes
  *  - check fading moving average
+ *  - simulate trade at MKT price fast (instanteously)
  */
 public class Fetcher {
     static final boolean SIMULATE_ACCEPT_ORDER_PRICE = true;
-    static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.6;
+    static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.7;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
     private static final boolean USE_ACCOUNT_TEST_STR = true;
     public static final long MOVING_AVERAGE = 70 * 60 * 1000; // better simulated = 1h 10 min
     public static final double EXPECTED_GAIN = 2; // better simulated = 4.3
-    public static final PriceAlgo PRICE_ALGO = PriceAlgo.PEG;
+    public static final PriceAlgo PRICE_ALGO = PriceAlgo.MARKET;
     private static final boolean DO_DB_DROP = true;
 
     private static final int MAX_READ_ATTEMPTS = 100; // 5;

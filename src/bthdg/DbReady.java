@@ -4,36 +4,36 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
 import java.sql.*;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
 
-// http://api.bitcoincharts.com/v1/csv/
 public class DbReady {
 
     private static final String DELETE_TICKS_BETWEEN_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp > ? AND stamp < ?";
     public static final int IMPORT_DAYS = 3 * 30;
     private static final int LOG_IMPORT_STAT_DELAY = 15000; // log import stat each X ms
     private static final String INSERT_TICKS_SQL = "INSERT INTO Ticks ( src, stamp, price, volume ) VALUES (?,?,?,?)";
-    private static final String DELETE_TICKS_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp = ?";
 
     public static void main(String[] args) {
         System.out.println("Started");
+        long millis = logTimeMemory();
+
+//        startAndInitDb();
+//        dropTicks(Exchange.BTCE,     "0", "-13d");
+//        dropTicks(Exchange.BITSTAMP, "0", "-13d");
+//        importFromFiles();
+
+        System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
+    }
+
+    static long logTimeMemory() {
         long millis = System.currentTimeMillis();
         System.out.println("timeMills: " + millis);
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
-
-        startAndInitDb();
-//        dropTicks(Exchange.BTCE,     "0", "-13d");
-//        dropTicks(Exchange.BITSTAMP, "0", "-13d");
-//        updateFromWeb();
-//        importFromFiles();
-
-        System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
+        return millis;
     }
 
     public static void startAndInitDb() {
@@ -182,79 +182,6 @@ public class DbReady {
         return false;
     }
 
-    private static void updateFromWeb() {
-        goWithDb(new IDbRunnable() {
-            public void run(Connection connection) throws SQLException {
-                updateFromWeb(connection);
-            }
-        });
-    }
-
-    private static void updateFromWeb(Connection connection) throws SQLException {
-        connection.setAutoCommit(false); // for fast inserts/updates
-        PreparedStatement pStatement = connection.prepareStatement(DELETE_TICKS_SQL);
-        try {
-            for(Exchange exchange: Exchange.values()) {
-                if (exchange.m_doWebUpdate) {
-                    System.out.println("====== update for exchange " + exchange.m_name + " ======");
-                    int iter = 1;
-                    while (true) {
-                        System.out.println("iteration " + iter);
-                        long one = System.currentTimeMillis();
-                        long timestamp = getMaxTimestamp(connection, exchange);
-                        if (timestamp == 0) {
-                            break;
-                        }
-                        long two = System.currentTimeMillis();
-                        System.out.println("MaxTimestamp found in " + Utils.millisToDHMSStr(two - one));
-
-                        System.out.println("deleting last ticks to avoid duplication");
-                        pStatement.setInt(1, exchange.m_databaseId); // src
-                        pStatement.setLong(2, timestamp); // stamp
-                        int deleted = pStatement.executeUpdate();
-                        System.out.println("deleted " + deleted);
-
-                        int ticksInserted = updateFrom(connection, exchange, timestamp);
-                        System.out.println("ticksInserted " + ticksInserted);
-
-                        connection.commit();
-                        if (ticksInserted < 1000) {
-                            break;
-                        }
-                        iter++;
-                    }
-                }
-            }
-        } finally {
-            pStatement.close();
-        }
-    }
-
-    private static int updateFrom(Connection connection, Exchange exchange, long timestamp) {
-        int ticksInserted = 0;
-        // from http://bitcoincharts.com/about/markets-api/
-        try {
-            // http://api.bitcoincharts.com/v1/trades.csv?symbol=SYMBOL[&start=UNIXTIME]
-            long star = timestamp / 1000;
-            URL url = new URL("http://api.bitcoincharts.com/v1/trades.csv?symbol="+exchange.m_bitcoinchartsSymbol +"&start="+ star);
-            URLConnection conn = url.openConnection();
-            InputStream is = conn.getInputStream();
-            // returns CSV: unixtime,price,amount
-            BufferedInputStream bis = new BufferedInputStream(is);
-            try {
-                //int len = conn.getContentLength();
-                int len = is.available();
-                ticksInserted = readData(connection, exchange, len, bis, timestamp);
-            } finally {
-                bis.close();
-            }
-        } catch (Exception e) {
-            System.out.println("error: " + e);
-            e.printStackTrace();
-        }
-        return ticksInserted;
-    }
-
     protected static void dropTicks(final Exchange exchange, final String from, final String to) {
         final long fromMillis = Utils.toMillis(from);
         final long toMillis = Utils.toMillis(to);
@@ -317,7 +244,7 @@ public class DbReady {
         System.out.println("importExchange DONE: " + exchange.m_name);
     }
 
-    private static int readData(Connection connection, Exchange exchange, int available, BufferedInputStream bis, long oldestTickTime) throws SQLException, IOException, ParseException {
+    static int readData(Connection connection, Exchange exchange, int available, BufferedInputStream bis, long oldestTickTime) throws SQLException, IOException, ParseException {
         PreparedStatement statement = connection.prepareStatement(INSERT_TICKS_SQL);
         //Statement statement = connection.createStatement();
         try {
@@ -458,31 +385,6 @@ public class DbReady {
         String ret = sb.toString();
         sb.setLength(0); // clear buffer for further usage
         return ret;
-    }
-
-    private static long getMaxTimestamp(Connection connection, Exchange exchange) throws SQLException {
-        int exchangeId = exchange.m_databaseId;
-        PreparedStatement statement = connection.prepareStatement(
-                        "   SELECT MAX(stamp) " +
-                        "    FROM Ticks " +
-                        "    WHERE src = ?");
-        try {
-            statement.setInt(1, exchangeId);
-            ResultSet result = statement.executeQuery();
-            try {
-                if (!result.next()) {
-                    System.out.println("no ticks for '"+exchange.m_name+"'");
-                    return 0;
-                }
-                long timestamp = result.getLong(1);
-                System.out.println("MAX timestamp on '"+exchange.m_name+"' = " + timestamp + " ("+new java.util.Date(timestamp)+")");
-                return timestamp;
-            } finally {
-                result.close();
-            }
-        } finally {
-            statement.close();
-        }
     }
 
     public interface IDbRunnable {

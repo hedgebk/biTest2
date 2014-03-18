@@ -597,6 +597,7 @@ public class ForkData {
         SharedExchangeData buyExch = direction.buyExch(m_pairExData);
 
         // update amount since account data can be changed
+        // todo: round
         m_amount = Math.min(amount, m_amount); // do not place close cross bigger than open cross - if possible, should be matched.
 
         m_closeCross = new CrossData(buyExch, sellExch);

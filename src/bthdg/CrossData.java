@@ -153,30 +153,35 @@ public class CrossData {
     }
 
     private BuySell calcBuySellPrices(ForkData forkData, String prefix) {
-        TopData buyExchTop = m_buyExch.m_lastTop;
-        TopData sellExchTop = m_sellExch.m_lastTop;
         double commissionAmount = forkData.m_pairExData.midCommissionAmount();
         double halfTargetDelta = commissionAmount + Fetcher.EXPECTED_GAIN / 2;
+        log("calcBuySellPrices: " + prefix + " commissionAmount=" + format(commissionAmount) + ", halfTargetDelta=" + format(halfTargetDelta));
+        TopData buyExchTop = m_buyExch.m_lastTop;
+        TopData sellExchTop = m_sellExch.m_lastTop;
         double buy = Fetcher.PRICE_ALGO.getRefPrice(sellExchTop, OrderSide.BUY);
         double sell = Fetcher.PRICE_ALGO.getRefPrice(buyExchTop, OrderSide.SELL);
+        log(" sell exch " + m_sellExch.m_exchange + ": " + sellExchTop + " -> buy ref price = " + format(buy));
+        log(" buy exch " + m_buyExch.m_exchange + ": " + buyExchTop + " -> sell ref price = " + format(sell));
+        ForkDirection direction = forkData.m_direction;
         if (m_isOpenCross) {
             double midDiffAverage = forkData.m_pairExData.m_diffAverageCounter.get(); // top1 - top2
-            log(prefix + " commissionAmount=" + format(commissionAmount) + ", halfTargetDelta=" + format(halfTargetDelta));
-
-            ForkDirection direction = forkData.m_direction;
-            if (!m_isOpenCross) {
-                direction = direction.opposite();
-            }
             double avgDiff = direction.apply(midDiffAverage);
-                                                                        // ASK > BID
             buy = buy - halfTargetDelta + avgDiff;
-            sell = buy + halfTargetDelta - avgDiff;
+            sell = sell + halfTargetDelta - avgDiff;
         } else {
             double openPriceDiff = forkData.m_openCross.priceDiff();
-            double expectedClosePriceDiff = openPriceDiff + m_forkData.m_direction.apply(halfTargetDelta*2);
-            buy = buy - expectedClosePriceDiff;
-            sell = buy + expectedClosePriceDiff;
+            double expectedClosePriceDiff = openPriceDiff + m_forkData.m_direction.apply(halfTargetDelta * 2);
+            double currentPriceDiff = forkData.m_pairExData.midDiff();
+            log(" fork.direction=" + m_forkData.m_direction + ", openPriceDiff=" + format(openPriceDiff) +
+                "; expectedClosePriceDiff=" + format(expectedClosePriceDiff) + ", currentPriceDiff=" + format(currentPriceDiff));
+            double dif = direction.apply(expectedClosePriceDiff);
+            buy = buy - dif;
+            sell = sell + dif;
         }
+        log("  adjusted: buy=" + format(buy) + "; sell=" + format(sell));
+        buy = m_buyExch.roundPrice(buy);
+        sell = m_sellExch.roundPrice(sell);
+        log("  rounded: buy=" + format(buy) + "; sell=" + format(sell));
         return new BuySell(buy, sell);
     }
 
@@ -349,7 +354,9 @@ public class CrossData {
 
     public void checkMarketBracketsExecuted(IterationContext iContext, ForkData forkData) throws Exception {
         if (m_buyOrder.isFilled() && m_sellOrder.isFilled()) {
-            log("both BUY and SELL orders executed: " + m_buyOrder + "; " + m_sellOrder);
+            log("both BUY and SELL orders executed with priceDiff=" + priceDiff());
+            log(" BUY on: " + m_buyExch.m_exchange + " " + m_buyOrder);
+            log(" SELL on: " + m_sellExch.m_exchange + " " + m_sellOrder);
             setState(CrossState.BOTH_BRACKETS_EXECUTED);
         } else if (m_buyOrder.m_state == OrderState.MARKET_PLACED) {
             moveMktBracketIfNeeded(iContext, forkData, m_buyOrder);

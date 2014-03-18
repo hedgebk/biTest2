@@ -35,7 +35,7 @@ public class ChartSimulator {
                     double priceDif = diffsPerPoint.get(j);
                     if (m_state == STATE.NONE) {
                         if ((priceDif > movingAvgUp) && (m_lockedDirection != STATE.SOLD)) {
-                            if(hasConfirmedUp(PaintChart.MIN_CONFIRMED_DIFFS, movingAvgUp, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
+                            if(hasConfirmedUp(PaintChart.MIN_CONFIRMED_DIFFS, movingAvgUp, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CHECK)) {
                                 if(LOG_EXECUTION) {
                                     System.out.println("point " + i + " - SOLD at " + priceDif);
                                 }
@@ -44,7 +44,7 @@ public class ChartSimulator {
                             }
                         }
                         if ((priceDif < movingAvgDown) && (m_lockedDirection != STATE.BOUGHT)) {
-                            if(hasConfirmedDown(PaintChart.MIN_CONFIRMED_DIFFS, movingAvgDown, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
+                            if(hasConfirmedDown(PaintChart.MIN_CONFIRMED_DIFFS, movingAvgDown, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CHECK)) {
                                 if(LOG_EXECUTION) {
                                     System.out.println("point " + i + " - BOUGHT at " + priceDif);
                                 }
@@ -56,7 +56,7 @@ public class ChartSimulator {
                         if (m_state == STATE.BOUGHT) {
                             double okDif = m_lastDif + targetDelta;
                             if (priceDif > okDif) {
-                                if(hasConfirmedUp(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
+                                if(hasConfirmedUp(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CHECK)) {
                                     double delta = priceDif - m_lastDif;
                                     closeRun(difAxe, g, i, priceDif, delta, false);
                                     if(LOG_EXECUTION) {
@@ -93,7 +93,7 @@ public class ChartSimulator {
                         } else if (m_state == STATE.SOLD) {
                             double okDif = m_lastDif - targetDelta;
                             if (priceDif < okDif) {
-                                if(hasConfirmedDown(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CONFIRM)) {
+                                if(hasConfirmedDown(PaintChart.MIN_CONFIRMED_DIFFS, okDif, diffsPerPoints, i, j, PaintChart.MAX_NEXT_POINTS_TO_CHECK)) {
                                     double delta = m_lastDif - priceDif;
                                     closeRun(difAxe, g, i, priceDif, delta, false);
                                     if(LOG_EXECUTION) {
@@ -191,22 +191,23 @@ public class ChartSimulator {
     }
 
     private boolean hasConfirmedUp(int expectedConfirmed, double movingAvgUp,
-                                   PaintChart.PriceDiffList[] diffsPerPoints, int i, int j, int maxNextPoints) {
-        return hasConfirmed(expectedConfirmed, movingAvgUp, diffsPerPoints, i, j, maxNextPoints, true);
+                                   PaintChart.PriceDiffList[] diffsPerPoints, int i, int j, int maxNextPointsToCheck) {
+        return hasConfirmed(expectedConfirmed, movingAvgUp, diffsPerPoints, i, j, maxNextPointsToCheck, true);
     }
 
     private boolean hasConfirmedDown(int expectedConfirmed, double movingAvgUp,
-                                     PaintChart.PriceDiffList[] diffsPerPoints, int i, int j, int maxNextPoints) {
-        return hasConfirmed(expectedConfirmed, movingAvgUp, diffsPerPoints, i, j, maxNextPoints, false);
+                                     PaintChart.PriceDiffList[] diffsPerPoints, int i, int j, int maxNextPointsToCheck) {
+        return hasConfirmed(expectedConfirmed, movingAvgUp, diffsPerPoints, i, j, maxNextPointsToCheck, false);
     }
 
     // earliest first
     private boolean hasConfirmed(int expectedConfirmed, double movingAvg,
-                                 PaintChart.PriceDiffList[] diffsPerPoints, int i, int j, int maxNextPoints, boolean up) {
+                                 PaintChart.PriceDiffList[] diffsPerPoints, int i, int j,
+                                 int maxNextPointsToCheck, boolean up) {
         int confirmed = 0;
         int secondIndexStart = j + 1;
         int length = diffsPerPoints.length;
-        for(int k = 0, indx = i; (k <= maxNextPoints) && (indx < length); k++, indx++ ) {
+        for(int k = 0, indx = i; (k <= maxNextPointsToCheck) && (indx < length); k++, indx++ ) {
             PaintChart.PriceDiffList diffsPerPoint = diffsPerPoints[indx];
             if(diffsPerPoint != null) {
                 int size = diffsPerPoint.size();

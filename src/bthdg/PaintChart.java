@@ -16,7 +16,7 @@ public class PaintChart extends BaseChartPaint {
     public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;
 
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 7; // the period width - days
+    public static final int PERIOD_LENGTH_DAYS = 4; // the period width - days
     private static final long MOVING_AVERAGE_MILLIS = PAIR.m_movingAverage;
     private static final double EXPECTED_GAIN = PAIR.m_expectedGain;
     private static final Exchange EXCH1 = PAIR.m_exch1;
@@ -38,7 +38,7 @@ public class PaintChart extends BaseChartPaint {
     public static final boolean DROP_ONLY_IN_REVERSE_FROM_AVG = true;
 
     private static final boolean VARY_MOVING_AVERAGE_LEN = false;
-    private static final int MOVING_AVERAGE_VARY_STEPS = 100;
+    private static final int MOVING_AVERAGE_VARY_STEPS = 120;
     private static final double MOVING_AVERAGE_VARY_STEPS_VALUE = 0.01;
 
     private static final boolean VARY_EXPECTED_GAIN = false;
@@ -49,8 +49,8 @@ public class PaintChart extends BaseChartPaint {
     private static final int DROP_VARY_STEPS = 100;
     private static final double DROP_VARY_STEPS_VALUE = 0.005;
 
-    public static final int MIN_CONFIRMED_DIFFS = 5;
-    public static final int MAX_NEXT_POINTS_TO_CONFIRM = 4; // look to next points for prices to confirm
+    public static final int MIN_CONFIRMED_DIFFS = 2;
+    public static final int MAX_NEXT_POINTS_TO_CHECK = 10; // look to next points for prices to confirm
 
     public static final DecimalFormat XX_YYYYY = new DecimalFormat("#,##0.0####");
 
@@ -204,6 +204,8 @@ public class PaintChart extends BaseChartPaint {
         }
 
         if (VARY_MOVING_AVERAGE_LEN) {
+            double max = 0;
+            long bestMillis = 0;
             StringBuilder sb = new StringBuilder();
             for (int i = -MOVING_AVERAGE_VARY_STEPS; i <= MOVING_AVERAGE_VARY_STEPS; i++) {
                 long movingAverageMillis = MOVING_AVERAGE_MILLIS + (long) (i * MOVING_AVERAGE_VARY_STEPS_VALUE * MOVING_AVERAGE_MILLIS);
@@ -214,36 +216,50 @@ public class PaintChart extends BaseChartPaint {
                 movingAverage = calculateMovingAverage(diffsPerPoints, movingAveragePoints);
                 double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, DROP_LEVEL);
                 sb.append("\"" + Utils.millisToDHMSStr(movingAverageMillis) + "\"\t\"" + complex1m + "\"\n");
+                if (complex1m > max) {
+                    max = complex1m;
+                    bestMillis = movingAverageMillis;
+                }
             }
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             System.out.println(sb.toString());
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            System.out.println("Best moving average=" + Utils.millisToDHMSStr(bestMillis) + "; 1M gain=" + max);
         } else if (VARY_EXPECTED_GAIN) {
+            double max = 0;
+            double bestGain = 0;
             StringBuilder sb = new StringBuilder();
             for (int i = -EXPECTED_GAIN_VARY_STEPS; i <= EXPECTED_GAIN_VARY_STEPS; i++) {
                 double expectedGain = EXPECTED_GAIN + i * EXPECTED_GAIN_VARY_STEPS_VALUE;
                 halfTargetDelta = (runComission + expectedGain) / 2;
                 double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, DROP_LEVEL);
                 sb.append("\"" + expectedGain + "\"\t\"" + complex1m + "\"\n");
+                if (complex1m > max) {
+                    bestGain = expectedGain;
+                    max = complex1m;
+                }
             }
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             System.out.println(sb.toString());
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            System.out.println("Best expected gain=" + bestGain + "; 1M gain=" + max);
         } else if (DO_DROP && VARY_DROP) {
+            double max = 0;
+            double bestDrop = 0;
             StringBuilder sb = new StringBuilder();
             for (int i = -DROP_VARY_STEPS; i <= DROP_VARY_STEPS; i++) {
                 double dropLevel = DROP_LEVEL + i * DROP_VARY_STEPS_VALUE;
                 double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, dropLevel);
                 sb.append("\"" + dropLevel + "\"\t\"" + complex1m + "\"\n");
+                if (complex1m > max) {
+                    bestDrop = dropLevel;
+                    max = complex1m;
+                }
             }
-//            for (int i = DROP_VARY_STEPS; i >= -DROP_VARY_STEPS; i--) {
-//                double dropLevel = DROP_LEVEL + i * DROP_VARY_STEPS_VALUE;
-//                double complex1m = new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, dropLevel);
-//                sb.append("\"" + dropLevel + "\"\t\"" + complex1m + "\"\n");
-//            }
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             System.out.println(sb.toString());
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            System.out.println("Best drop level=" + bestDrop + "; 1M gain=" + max);
         } else {
             new ChartSimulator().simulate(diffsPerPoints, difAxe, g, movingAverage, halfTargetDelta, runComission, avgPrice, DROP_LEVEL);
         }
@@ -661,9 +677,9 @@ public class PaintChart extends BaseChartPaint {
 
     // BITSTAMP, BTCE, CAMPBX
     private static enum ExchangePair {
-        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE, 39/*70*/, 5.275/*4.3*/, -0.24/*-0.14*/),
+        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE, 60/*70*/, 4.55/*4.3*/, 0/*-0.14*/),
         BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX, 45, 5, 0.5),
-        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 27, 1.75, 0.11);
+        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 98/*27*/, 1.525/*1.75*/, 0.11);
 
         public final Exchange m_exch1;
         public final Exchange m_exch2;
