@@ -4,6 +4,8 @@ import bthdg.exch.BaseExch;
 import bthdg.exch.Bitstamp;
 import bthdg.exch.Btce;
 
+import java.util.Map;
+
 // to support others ?
 // ? https://www.bitfinex.com/
 // ? www.itbit.com
@@ -35,10 +37,11 @@ public enum Exchange {
           Btce.accountTestStr(), new UrlDef("https://btc-e.com/tapi", "method", "getInfo")
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
+        @Override public Map<Pair, TopData> parseTops(Object jObj, Pair[] pairs) { return Btce.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Btce.parseDeep(jObj); }
         @Override public TradesData parseTrades(Object jObj) { return Btce.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
-        @Override public UrlDef apiTopEndpoint(Pair pair) { return Btce.apiTopEndpoint(m_apiTopEndpoint, pair); }
+        @Override public UrlDef apiTopEndpoint(Pair ... pairs) { return Btce.apiTopEndpoint(m_apiTopEndpoint, pairs); }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -99,6 +102,7 @@ public enum Exchange {
     }
 
     public TopData parseTop(Object jObj, Pair pair) { return null; }
+    public Map<Pair, TopData> parseTops(Object jObj, Pair[] pairs) { return null; }
     public DeepData parseDeep(Object jObj) { return null; }
     public TradesData parseTrades(Object jObj) { return null; }
     public AccountData parseAccount(Object jObj) { return null; }
@@ -109,9 +113,10 @@ public enum Exchange {
         return Utils.round(price, m_priceDecimals);
     }
 
-    public UrlDef apiTopEndpoint(Pair pair) {
+    public UrlDef apiTopEndpoint(Pair ... pairs) {
         return m_apiTopEndpoint;
     }
+
 
     public static class UrlDef {
         public final String m_location;

@@ -210,6 +210,12 @@ public class Fetcher {
         return topData;
     }
 
+    static Map<Pair,TopData> fetchTops(Exchange exchange, Pair ... pairs) throws Exception {
+        Object jObj = fetch(exchange, FetchCommand.TOP, pairs);
+        Map<Pair,TopData> topData = exchange.parseTops(jObj, pairs);
+        return topData;
+    }
+
     static TopData fetchTopOnce(Exchange exchange) {
         return fetchTopOnce(exchange, Pair.BTC_USD);
     }
@@ -228,11 +234,11 @@ public class Fetcher {
         return null;
     }
 
-    private static Object fetch(Exchange exchange, FetchCommand command, Pair pair) throws Exception {
+    private static Object fetch(Exchange exchange, FetchCommand command, Pair ... pairs) throws Exception {
         long delay = START_REPEAT_DELAY;
         for (int attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt++) {
             try {
-                return fetchOnce(exchange, command, pair);
+                return fetchOnce(exchange, command, pairs);
             } catch (Exception e) {
                 if (!MUTE_SOCKET_TIMEOUTS || !(e instanceof SocketTimeoutException)) {
                     log(" loading error (attempt " + attempt + "): " + e);
@@ -245,13 +251,13 @@ public class Fetcher {
         throw new RuntimeException("unable to load after " + MAX_READ_ATTEMPTS + " attempts");
     }
 
-    private static Object fetchOnce(Exchange exchange, FetchCommand command, Pair pair) throws Exception {
+    private static Object fetchOnce(Exchange exchange, FetchCommand command, Pair ... pairs) throws Exception {
         Reader reader;
         if (command.useTestStr()) {
             String str = command.getTestStr(exchange);
             reader = new StringReader(str);
         } else {
-            Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange, pair);
+            Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange, pairs);
             String location = apiEndpoint.m_location;
             if (LOG_LOADING) {
                 log("loading from " + location + "...  ");
@@ -428,29 +434,29 @@ public class Fetcher {
     enum FetchCommand {
         TOP {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_topTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair pair) { return exchange.apiTopEndpoint(pair); }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.apiTopEndpoint(pairs); }
             @Override public boolean useTestStr() { return USE_TOP_TEST_STR; }
         },
         DEEP {
             @Override public String getTestStr(Exchange exchange) { return exchange.deepTestStr(); }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair pair) { return exchange.m_apiDeepEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.m_apiDeepEndpoint; }
             @Override public boolean useTestStr() { return USE_DEEP_TEST_STR; }
         },
         TRADES {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_tradesTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair pair) { return exchange.m_apiTradesEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.m_apiTradesEndpoint; }
             @Override public boolean useTestStr() { return USE_TRADES_TEST_STR; }
         },
         ACCOUNT {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_accountTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair pair) { return exchange.m_accountEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.m_accountEndpoint; }
             @Override public boolean useTestStr() { return USE_ACCOUNT_TEST_STR; }
             @Override public boolean doPost() { return true; }
             @Override public boolean needSsl() { return true; }
         },
         ;
         public String getTestStr(Exchange exchange) { return null; }
-        public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair pair) { return null; }
+        public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return null; }
         public boolean useTestStr() { return false; }
         public boolean doPost() { return false; }
         public boolean needSsl() { return false; }

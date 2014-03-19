@@ -116,6 +116,15 @@ public class Btce extends BaseExch {
         return new TopData(bid, ask, last);
     }
 
+    public static Map<Pair, TopData> parseTops(Object obj, Pair ... pairs) {
+        Map<Pair, TopData> ret = new HashMap<Pair, TopData>();
+        for(Pair pair: pairs) {
+            TopData top = parseTop(obj, pair);
+            ret.put(pair, top);
+        }
+        return ret;
+    }
+
     public static DeepData parseDeep(Object obj) {
         JSONObject jObj  = (JSONObject) obj;
         log("BTCE.parseDeep() " + jObj);
@@ -193,20 +202,26 @@ public class Btce extends BaseExch {
         return false;
     }
 
-    public static Exchange.UrlDef apiTopEndpoint(Exchange.UrlDef endpoint, Pair pair) {
-        return endpoint.replace("XXXX", getPairParam(pair));
+    public static Exchange.UrlDef apiTopEndpoint(Exchange.UrlDef endpoint, Pair ... pairs) {
+        return endpoint.replace("XXXX", getPairParam(pairs));
     }
 
-    private static String getPairParam(Pair pair) {
-        switch (pair) {
-            case BTC_USD: return "btc_usd";
-            case LTC_BTC: return "ltc_btc";
-            case LTC_USD: return "ltc_usd";
-            case BTC_EUR: return "btc_eur";
-            case LTC_EUR: return "ltc_eur";
-            case EUR_USD: return "eur_usd";
+    private static String getPairParam(Pair ... pairs) {
+        StringBuilder sb = new StringBuilder();
+        for(Pair pair: pairs) {
+            if(sb.length() > 0) {
+                sb.append("-");
+            }
+            switch (pair) {
+                case BTC_USD: sb.append("btc_usd"); break;
+                case LTC_BTC: sb.append("ltc_btc"); break;
+                case LTC_USD: sb.append( "ltc_usd"); break;
+                case BTC_EUR: sb.append( "btc_eur"); break;
+                case LTC_EUR: sb.append( "ltc_eur"); break;
+                case EUR_USD: sb.append( "eur_usd"); break;
+            }
         }
-        return null;
+        return sb.toString();
     }
 }
 

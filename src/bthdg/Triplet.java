@@ -1,85 +1,57 @@
 package bthdg;
 
+import java.util.Map;
+
 public class Triplet {
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
+
     public static void main(String[] args) {
         System.out.println("Started");
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
         try {
             while(true) {
-                TopData ltcBtcTop = Fetcher.fetchTop(Exchange.BTCE, Pair.LTC_BTC);
-                TopData btcUsdTop = Fetcher.fetchTop(Exchange.BTCE, Pair.BTC_USD);
-                TopData ltcUsdTop = Fetcher.fetchTop(Exchange.BTCE, Pair.LTC_USD);
-                TopData btcEurTop = Fetcher.fetchTop(Exchange.BTCE, Pair.BTC_EUR);
-                TopData ltcEurTop = Fetcher.fetchTop(Exchange.BTCE, Pair.LTC_EUR);
-                TopData eurUsdTop = Fetcher.fetchTop(Exchange.BTCE, Pair.EUR_USD);
+                Map<Pair,TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+
+                TopData ltcBtcTop = tops.get(Pair.LTC_BTC);
+                TopData btcUsdTop = tops.get(Pair.BTC_USD);
+                TopData ltcUsdTop = tops.get(Pair.LTC_USD);
+                TopData btcEurTop = tops.get(Pair.BTC_EUR);
+                TopData ltcEurTop = tops.get(Pair.LTC_EUR);
+                TopData eurUsdTop = tops.get(Pair.EUR_USD);
 //                System.out.println("btcUsdTop: " + btcUsdTop);
 
                 //-------------------------------------------------
                 // usd -> ltc -> btc -> usd
-                double usdIn = 100;
-                double ltc = usdIn / ltcUsdTop.getMid();
-                double btc = ltc * ltcBtcTop.getMid();
-                double usdOut = btc * btcUsdTop.getMid();
+                double usdOut  = calcMid(ltcUsdTop, false, ltcBtcTop, true, btcUsdTop, true);
+                double usdOut2 = calcMkt(ltcUsdTop, false, ltcBtcTop, true, btcUsdTop, true);
 
-                double usdIn2 = 100; // ASK > BID
-                double ltc2 = usdIn2 / ltcUsdTop.m_ask;
-                double btc2 = ltc2 * ltcBtcTop.m_bid;
-                double usdOut2 = btc2 * btcUsdTop.m_bid;
-
-                double usdIn3 = 100;
-                double btc3 = usdIn3 / btcUsdTop.getMid();
-                double ltc3 = btc3 / ltcBtcTop.getMid();
-                double usdOut3 = ltc3 * ltcUsdTop.getMid();
-
-                double usdIn4 = 100;
-                double btc4 = usdIn4 / btcUsdTop.m_ask;
-                double ltc4 = btc4 / ltcBtcTop.m_ask;
-                double usdOut4 = ltc4 * ltcUsdTop.m_bid;
+                double usdOut3 = calcMid(btcUsdTop, false, ltcBtcTop, false, ltcUsdTop, true);
+                double usdOut4 = calcMkt(btcUsdTop, false, ltcBtcTop, false, ltcUsdTop, true);
 
                 //-------------------------------------------------
                 // eur -> ltc -> btc -> eur
-                double eurIn = 100;
-                double ltc5 = eurIn / ltcEurTop.getMid();
-                double btc5 = ltc5 * ltcBtcTop.getMid();
-                double eurOut = btc5 * btcEurTop.getMid();
+                double eurOut  = calcMid(ltcEurTop, false, ltcBtcTop, true, btcEurTop, true);
+                double eurOut2 = calcMkt(ltcEurTop, false, ltcBtcTop, true, btcEurTop, true);
 
-                double eurIn2 = 100; // ASK > BID
-                double ltc6 = eurIn2 / ltcEurTop.m_ask;
-                double btc6 = ltc6 * ltcBtcTop.m_bid;
-                double eurOut2 = btc6 * btcEurTop.m_bid;
-
-                double eurIn3 = 100;
-                double btc7 = eurIn3 / btcEurTop.getMid();
-                double ltc7 = btc7 / ltcBtcTop.getMid();
-                double eurOut3 = ltc7 * ltcEurTop.getMid();
-
-                double eurIn4 = 100;
-                double btc8 = eurIn4 / btcEurTop.m_ask;
-                double ltc8 = btc8 / ltcBtcTop.m_ask;
-                double eurOut4 = ltc8 * ltcEurTop.m_bid;
+                double eurOut3 = calcMid(btcEurTop, false, ltcBtcTop, false, ltcEurTop, true);
+                double eurOut4 = calcMkt(btcEurTop, false, ltcBtcTop, false, ltcEurTop, true);
 
                 //-------------------------------------------------
                 // usd -> ltc -> eur -> usd
-                double usdIn5 = 100;
-                double ltc9 = usdIn5 / ltcUsdTop.getMid();
-                double eur = ltc9 * ltcEurTop.getMid();
-                double usdOut5 = eur * eurUsdTop.getMid();
+                double usdOut5 = calcMid(ltcUsdTop, false, ltcEurTop, true, eurUsdTop, true);
+                double usdOut6 = calcMkt(ltcUsdTop, false, ltcEurTop, true, eurUsdTop, true);
 
-                double usdIn6 = 100;
-                double ltc10 = usdIn6 / ltcUsdTop.m_ask;
-                double eur2 = ltc10 * ltcEurTop.m_bid;
-                double usdOut6 = eur2 * eurUsdTop.m_bid;
+                double usdOut7 = calcMid(eurUsdTop, false, ltcEurTop, false, ltcUsdTop, true);
+                double usdOut8 = calcMkt(eurUsdTop, false, ltcEurTop, false, ltcUsdTop, true);
 
-                double usdIn7 = 100;
-                double eur3 = usdIn7 / eurUsdTop.getMid();
-                double ltc11 = eur3 / ltcEurTop.getMid();
-                double usdOut7 = ltc11 * ltcUsdTop.getMid();
+                //-------------------------------------------------
+                // eur -> usd -> btc -> eur
+                double eurOut5 = calcMid(eurUsdTop, true, btcUsdTop, false, btcEurTop, true);
+                double eurOut6 = calcMkt(eurUsdTop, true, btcUsdTop, false, btcEurTop, true);
 
-                double usdIn8 = 100;
-                double eur4 = usdIn8 / eurUsdTop.m_ask;
-                double ltc12 = eur4 / ltcEurTop.m_ask;
-                double usdOut8 = ltc12 * ltcUsdTop.m_bid;
+                double eurOut7 = calcMid(btcEurTop, false, btcUsdTop, true, eurUsdTop, false);
+                double eurOut8 = calcMkt(btcEurTop, false, btcUsdTop, true, eurUsdTop, false);
 
                 System.out.println(
                                    format(usdOut) + " " + format(usdOut2) + " " +
@@ -87,18 +59,46 @@ public class Triplet {
                                    format(eurOut) + " " + format(eurOut2) + " " +
                                    format(eurOut3) + " " + format(eurOut4) + " | " +
                                    format(usdOut5) + " " + format(usdOut6) + " " +
-                                   format(usdOut7) + " " + format(usdOut8) + " " +
-                                   ((usdOut > 100.6) || (usdOut3 > 100.6) || (eurOut > 100.6) || (eurOut3 > 100.6) || (usdOut5 > 100.6) || (usdOut7 > 100.6) ? " *" : "") +
-                                   ((usdOut2 > 100.6) || (usdOut4 > 100.6) || (eurOut2 > 100.6) || (eurOut4 > 100.6) || (usdOut6 > 100.6) || (usdOut8 > 100.6) ? "\t******************************" : "")
+                                   format(usdOut7) + " " + format(usdOut8) + " | " +
+                                   format(eurOut5) + " " + format(eurOut6) + " " +
+                                   format(eurOut7) + " " + format(eurOut8) + "  " +
+                                   ((usdOut > 100.6) || (usdOut3 > 100.6) || (eurOut > 100.6) || (eurOut3 > 100.6)
+                                           || (usdOut5 > 100.6) || (usdOut7 > 100.6) || (eurOut5 > 100.6) || (eurOut7 > 100.6)? " *" : "") +
+                                   ((usdOut2 > 100.6) || (usdOut4 > 100.6) || (eurOut2 > 100.6) || (eurOut4 > 100.6)
+                                           || (usdOut6 > 100.6) || (usdOut8 > 100.6) || (eurOut6 > 100.6) || (eurOut8 > 100.6) ? "\t******************************" : "")
                 );
 //                System.out.println("=========================================================");
 
-                Thread.sleep(6000);
+                Thread.sleep(4000);
             }
         } catch (Exception e) {
             System.out.println("error: " + e);
             e.printStackTrace();
         }
+    }
+
+    private static double calcMkt(TopData top1, boolean mul1, TopData top2, boolean mul2, TopData top3, boolean mul3) {
+        double one = 100;
+        double two = mul2(one, top1, mul1);
+        double three = mul2(two, top2, mul2);
+        double ret = mul2(three, top3, mul3);
+        return ret;
+    }
+
+    private static double calcMid(TopData top1, boolean mul1, TopData top2, boolean mul2, TopData top3, boolean mul3) {
+        double one = 100;
+        double two = mul(one, top1, mul1);
+        double three = mul(two, top2, mul2);
+        double ret = mul(three, top3, mul3);
+        return ret;
+    }
+
+    private static double mul(double in, TopData top, boolean mul) {
+        return mul ? in * top.getMid() : in / top.getMid();
+    }
+
+    private static double mul2(double in, TopData top, boolean mul) {
+        return mul ? in * top.m_bid : in / top.m_ask; // ASK > BID
     }
 
     private static String format(double usdOut) {
