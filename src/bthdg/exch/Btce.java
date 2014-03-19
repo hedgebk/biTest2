@@ -138,10 +138,20 @@ public class Btce extends BaseExch {
         return DeepData.create(bids, asks);
     }
 
-    public static TradesData parseTrades(Object obj) {
+    public static Map<Pair, TradesData> parseTrades(Object obj, Pair ... pairs) {
+        Map<Pair, TradesData> ret = new HashMap<Pair, TradesData>();
+        for(Pair pair: pairs) {
+            TradesData trades = parseTrades(obj, pair);
+            ret.put(pair, trades);
+        }
+        return ret;
+    }
+
+    //Pair[] pairs
+    public static TradesData parseTrades(Object obj, Pair pair) {
         JSONObject jObj = (JSONObject) obj;
 //        log("BTCE.parseTrades() " + jObj);
-        JSONArray array = (JSONArray) jObj.get("btc_usd");
+        JSONArray array = (JSONArray) jObj.get(getPairParam(pair)); // "btc_usd"
 //        log(" class=" + array.getClass() + ", btc_usd=" + array);
         int len = array.size();
         List<TradeData> trades = new ArrayList<TradeData>(len);
@@ -202,7 +212,7 @@ public class Btce extends BaseExch {
         return false;
     }
 
-    public static Exchange.UrlDef apiTopEndpoint(Exchange.UrlDef endpoint, Pair ... pairs) {
+    public static Exchange.UrlDef fixEndpointForPairs(Exchange.UrlDef endpoint, Pair... pairs) {
         return endpoint.replace("XXXX", getPairParam(pairs));
     }
 

@@ -26,22 +26,24 @@ public enum Exchange {
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Bitstamp.parseTop(jObj); }
         @Override public DeepData parseDeep(Object jObj) { return Bitstamp.parseDeep(jObj); }
-        @Override public TradesData parseTrades(Object jObj) { return Bitstamp.parseTrades(jObj); }
+        @Override public TradesData parseTrades(Object jObj, Pair pair) { return Bitstamp.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Bitstamp.parseAccount(jObj); }
         @Override public String deepTestStr() { return Bitstamp.deepTestStr(); }
     },
     BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true, 3,
-          Btce.topTestStr(), "https://btc-e.com/api/3/ticker/XXXX", // "https://btc-e.com/api/3/ticker/btc_usd" // old? : "https://btc-e.com/api/2/btc_usd/ticker"
+          Btce.topTestStr(), "https://btc-e.com/api/3/ticker/XXXX", // XXXX like "btc_usd-ltc_btc" // old? : "https://btc-e.com/api/2/btc_usd/ticker"
           Btce.deepTestStr(), "https://btc-e.com/api/3/depth/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
-          Btce.tradesTestStr(), "https://btc-e.com/api/3/trades/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
+          Btce.tradesTestStr(), "https://btc-e.com/api/3/trades/XXXX?limit=50", // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.accountTestStr(), new UrlDef("https://btc-e.com/tapi", "method", "getInfo")
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
         @Override public Map<Pair, TopData> parseTops(Object jObj, Pair[] pairs) { return Btce.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Btce.parseDeep(jObj); }
-        @Override public TradesData parseTrades(Object jObj) { return Btce.parseTrades(jObj); }
+        @Override public TradesData parseTrades(Object jObj, Pair pair) { return Btce.parseTrades(jObj, pair); }
+        @Override public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return Btce.parseTrades(jObj, pairs); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
-        @Override public UrlDef apiTopEndpoint(Pair ... pairs) { return Btce.apiTopEndpoint(m_apiTopEndpoint, pairs); }
+        @Override public UrlDef apiTopEndpoint(Pair ... pairs) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, pairs); }
+        @Override public UrlDef apiTradesEndpoint(Pair ... pairs) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, pairs); }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -104,19 +106,17 @@ public enum Exchange {
     public TopData parseTop(Object jObj, Pair pair) { return null; }
     public Map<Pair, TopData> parseTops(Object jObj, Pair[] pairs) { return null; }
     public DeepData parseDeep(Object jObj) { return null; }
-    public TradesData parseTrades(Object jObj) { return null; }
+    public TradesData parseTrades(Object jObj, Pair pair) { return null; }
+    public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return null; }
     public AccountData parseAccount(Object jObj) { return null; }
+    public UrlDef apiTopEndpoint(Pair ... pairs) { return m_apiTopEndpoint; }
+    public UrlDef apiTradesEndpoint(Pair ... pairs) { return m_apiTradesEndpoint; }
 
     private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
 
     public double roundPrice(double price) {
         return Utils.round(price, m_priceDecimals);
     }
-
-    public UrlDef apiTopEndpoint(Pair ... pairs) {
-        return m_apiTopEndpoint;
-    }
-
 
     public static class UrlDef {
         public final String m_location;

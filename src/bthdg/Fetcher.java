@@ -169,18 +169,31 @@ public class Fetcher {
     }
 
     static TradesData fetchTrades(Exchange exchange) throws Exception {
-        Object jObj = fetch(exchange, FetchCommand.TRADES, Pair.BTC_USD);
-//        log("jObj=" + jObj);
-        TradesData tradesData = exchange.parseTrades(jObj);
-//        log("tradesData=" + tradesData);
+        Pair pair = Pair.BTC_USD;
+        return fetchTrades(exchange, pair);
+    }
+
+    static TradesData fetchTrades(Exchange exchange, Pair pair) throws Exception {
+        Object jObj = fetch(exchange, FetchCommand.TRADES, pair);
+        TradesData tradesData = exchange.parseTrades(jObj, pair);
         return tradesData;
     }
 
+    static Map<Pair,TradesData> fetchTrades(Exchange exchange, Pair ... pairs) throws Exception {
+        Object jObj = fetch(exchange, FetchCommand.TRADES, pairs);
+        Map<Pair,TradesData> trades = exchange.parseTrades(jObj, pairs);
+        return trades;
+    }
+
     static TradesData fetchTradesOnce(Exchange exchange) {
+        return fetchTradesOnce(exchange, Pair.BTC_USD);
+    }
+
+    private static TradesData fetchTradesOnce(Exchange exchange, Pair pair) {
         try {
-            Object jObj = fetchOnce(exchange, FetchCommand.TRADES, Pair.BTC_USD);
+            Object jObj = fetchOnce(exchange, FetchCommand.TRADES, pair);
 //        log("jObj=" + jObj);
-            TradesData tradesData = exchange.parseTrades(jObj);
+            TradesData tradesData = exchange.parseTrades(jObj, pair);
 //        log("tradesData=" + tradesData);
             return tradesData;
         } catch (Exception e) {
@@ -444,7 +457,7 @@ public class Fetcher {
         },
         TRADES {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_tradesTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.m_apiTradesEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.apiTradesEndpoint(pairs); }
             @Override public boolean useTestStr() { return USE_TRADES_TEST_STR; }
         },
         ACCOUNT {
