@@ -1,4 +1,6 @@
-package bthdg;
+package bthdg.triplet;
+
+import bthdg.*;
 
 import java.text.DecimalFormat;
 import java.util.Map;
@@ -6,12 +8,12 @@ import java.util.Map;
 public class Triplet {
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
     public static final double LVL = 100.6;
-    public static final DecimalFormat X_YYYY = new DecimalFormat("+0.0000;-0.0000");
+    public static final DecimalFormat X_YYY = new DecimalFormat("+0.000;-0.000");
 
-    public static final Triangle T1 = new Triangle(Pair.LTC_USD, false, Pair.LTC_BTC, true, Pair.BTC_USD, true); // usd -> ltc -> btc -> usd
-    public static final Triangle T2 = new Triangle(Pair.LTC_EUR, false, Pair.LTC_BTC, true, Pair.BTC_EUR, true); // eur -> ltc -> btc -> eur
-    public static final Triangle T3 = new Triangle(Pair.LTC_USD, false, Pair.LTC_EUR, true, Pair.EUR_USD, true); // usd -> ltc -> eur -> usd
-    public static final Triangle T4 = new Triangle(Pair.EUR_USD, true, Pair.BTC_USD, false, Pair.BTC_EUR, true); // eur -> usd -> btc -> eur
+    public static final Triangle T1 = new Triangle(Pair.LTC_USD, false, Pair.LTC_BTC, true,  Pair.BTC_USD, true); // usd -> ltc -> btc -> usd
+    public static final Triangle T2 = new Triangle(Pair.LTC_EUR, false, Pair.LTC_BTC, true,  Pair.BTC_EUR, true); // eur -> ltc -> btc -> eur
+    public static final Triangle T3 = new Triangle(Pair.LTC_USD, false, Pair.LTC_EUR, true,  Pair.EUR_USD, true); // usd -> ltc -> eur -> usd
+    public static final Triangle T4 = new Triangle(Pair.EUR_USD, true,  Pair.BTC_USD, false, Pair.BTC_EUR, true); // eur -> usd -> btc -> eur
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -22,63 +24,17 @@ public class Triplet {
                 Map<Pair,TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
 //                Map<Pair,TradesData> trades = Fetcher.fetchTrades(Exchange.BTCE, PAIRS);
 
-                TopData ltcBtcTop = tops.get(Pair.LTC_BTC);
-                TopData btcUsdTop = tops.get(Pair.BTC_USD);
-                TopData ltcUsdTop = tops.get(Pair.LTC_USD);
-                TopData btcEurTop = tops.get(Pair.BTC_EUR);
-                TopData ltcEurTop = tops.get(Pair.LTC_EUR);
-                TopData eurUsdTop = tops.get(Pair.EUR_USD);
-
-                //-------------------------------------------------
-                double usdOut1  = calcMid(tops, T1, true);
-                double usdOut2  = calcMkt(tops, T1, true);
-                OnePegData peg1 = calcPeg(tops, T1, true);
-
-                double usdOut3  = calcMid(tops, T1, false);
-                double usdOut4  = calcMkt(tops, T1, false);
-                OnePegData peg2 = calcPeg(tops, T1, false);
-
-                //-------------------------------------------------
-                double eurOut1  = calcMid(tops, T2, true);
-                double eurOut2  = calcMkt(tops, T2, true);
-                OnePegData peg3 = calcPeg(tops, T2, true);
-
-                double eurOut3  = calcMid(tops, T2, false);
-                double eurOut4  = calcMkt(tops, T2, false);
-                OnePegData peg4 = calcPeg(tops, T2, false);
-
-                //-------------------------------------------------
-                double usdOut5  = calcMid(tops, T3, true);
-                double usdOut6  = calcMkt(tops, T3, true);
-                OnePegData peg5 = calcPeg(tops, T3, true);
-
-                double usdOut7  = calcMid(tops, T3, false);
-                double usdOut8  = calcMkt(tops, T3, false);
-                OnePegData peg6 = calcPeg(tops, T3, false);
-
-                //-------------------------------------------------
-                // eur -> usd -> btc -> eur
-                double eurOut5  = calcMid(tops, T4, true);
-                double eurOut6  = calcMkt(tops, T4, true);
-                OnePegData peg7 = calcPeg(tops, T4, true);
-
-                double eurOut7  = calcMid(tops, T4, false);
-                double eurOut8  = calcMkt(tops, T4, false);
-                OnePegData peg8 = calcPeg(tops, T4, false);
+                TriangleData t1 = calc(tops, T1);
+                TriangleData t2 = calc(tops, T2);
+                TriangleData t3 = calc(tops, T3);
+                TriangleData t4 = calc(tops, T4);
 
                 System.out.println(
-                                   format(usdOut1) + " " + format(usdOut2) + " " + peg1.str() + " " +
-                                   format(usdOut3) + " " + format(usdOut4) + " " + peg2.str() + " | " +
-                                   format(eurOut1) + " " + format(eurOut2) + " " + peg3.str() + " " +
-                                   format(eurOut3) + " " + format(eurOut4) + " " + peg4.str() + " | " +
-                                   format(usdOut5) + " " + format(usdOut6) + " " + peg5.str() + " " +
-                                   format(usdOut7) + " " + format(usdOut8) + " " + peg6.str() + " | " +
-                                   format(eurOut5) + " " + format(eurOut6) + " " + peg7.str() + " " +
-                                   format(eurOut7) + " " + format(eurOut8) + " " + peg8.str() + " " +
-                                   ((usdOut1 > LVL) || (usdOut3 > LVL) || (eurOut1 > LVL) || (eurOut3 > LVL)
-                                           || (usdOut5 > LVL) || (usdOut7 > LVL) || (eurOut5 > LVL) || (eurOut7 > LVL)? " *" : "") +
-                                   ((usdOut2 > LVL) || (usdOut4 > LVL) || (eurOut2 > LVL) || (eurOut4 > LVL)
-                                           || (usdOut6 > LVL) || (usdOut8 > LVL) || (eurOut6 > LVL) || (eurOut8 > LVL) ? "\t******************************" : "")
+                                    t1.str() +
+                                    t2.str() +
+                                    t3.str() +
+                                    t4.str() +
+                                    (t1.mktCrossLvl() || t2.mktCrossLvl() || t3.mktCrossLvl() || t4.mktCrossLvl() ? "\t******************************" : "")
                 );
 //                System.out.println("=========================================================");
 
@@ -88,6 +44,20 @@ public class Triplet {
             System.out.println("error: " + e);
             e.printStackTrace();
         }
+    }
+
+    private static TriangleData calc(Map<Pair, TopData> tops, Triangle triangle) {
+        TriangleRotationData trf = calc(tops, triangle, true);
+        TriangleRotationData trb = calc(tops, triangle, false);
+
+        return new TriangleData(trf, trb);
+    }
+
+    private static TriangleRotationData calc(Map<Pair, TopData> tops, Triangle triangle, boolean forward) {
+        double mid  = calcMid(tops, triangle, forward);
+        double mkt = calcMkt(tops, triangle, forward);
+        OnePegData peg = calcPeg(tops, triangle, forward);
+        return new TriangleRotationData(triangle, forward, mid, mkt, peg);
     }
 
     private static OnePegData calcPeg(Map<Pair, TopData> tops, Triangle triangle, boolean forward) {
@@ -189,7 +159,7 @@ public class Triplet {
 
     private static String format(double usdOut) {
         double val = usdOut - 100;
-        return Utils.padLeft(X_YYYY.format(val), 7);
+        return Utils.padLeft(X_YYY.format(val), 6);
     }
 
     private static class OnePegData {
@@ -205,7 +175,7 @@ public class Triplet {
             if (m_max > LVL) {
                 return m_indx + ":" + format(m_max);
             }
-            return "         ";
+            return "        ";
         }
     }
 
@@ -224,6 +194,53 @@ public class Triplet {
             m_forward2 = forward2;
             m_pair3 = pair3;
             m_forward3 = forward3;
+        }
+    }
+
+    private static class TriangleRotationData {
+        private Triangle m_triangle;
+        private boolean m_forward;
+        private double m_mid;
+        private double m_mkt;
+        private OnePegData m_peg;
+
+        public TriangleRotationData(Triangle triangle, boolean forward, double mid, double mkt, OnePegData peg) {
+            m_triangle = triangle;
+            m_forward = forward;
+            m_mid = mid;
+            m_mkt = mkt;
+            m_peg = peg;
+        }
+
+        public String str() {
+            return format(m_mid) + " " + format(m_mkt) + " " + m_peg.str();
+        }
+
+        public boolean midCrossLvl() {
+            return (m_mid > LVL) || (m_mid > LVL);
+        }
+
+        public boolean mktCrossLvl() {
+            return (m_mkt > LVL) || (m_mkt > LVL);
+        }
+    }
+
+    private static class TriangleData {
+        private TriangleRotationData m_forward;
+        private TriangleRotationData m_backward;
+
+        public TriangleData(TriangleRotationData forward, TriangleRotationData backward) {
+            m_forward = forward;
+            m_backward = backward;
+        }
+
+        public String str() {
+            return m_forward.str() + " " + m_backward.str() + " " +
+                    ( m_forward.midCrossLvl() || m_backward.midCrossLvl() ? "*" : "|" ) + " ";
+        }
+
+        public boolean mktCrossLvl() {
+            return m_forward.mktCrossLvl() || m_backward.mktCrossLvl();
         }
     }
 }

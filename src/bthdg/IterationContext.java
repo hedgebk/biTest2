@@ -60,7 +60,7 @@ public class IterationContext {
                 log(" NO trades loaded for '" + exchName + "' this time");
                 data = new TradesData(new ArrayList<TradeData>()); // empty
             } else {
-                data = shExchData.filterOnlyNewTrades(trades); // this will update last processed trade time
+                data = filterOnlyNewTrades(trades, shExchData); // this will update last processed trade time
                 long millis1 = System.currentTimeMillis();
                 int size = trades.size();
                 log(" loaded " + size + " trades for '" + exchName + "' " +
@@ -73,6 +73,22 @@ public class IterationContext {
         }
         return data;
     }
+
+    public static TradesData filterOnlyNewTrades(TradesData trades, TradesData.ILastTradeTimeHolder holder) {
+        long lastProcessedTradesTime = holder.lastProcessedTradesTime();
+        TradesData newTrades = trades.newTrades(lastProcessedTradesTime);
+        if(!newTrades.m_trades.isEmpty()) {
+            for (TradeData trade : newTrades.m_trades) {
+                long timestamp = trade.m_timestamp;
+                if (timestamp > lastProcessedTradesTime) {
+                    lastProcessedTradesTime = timestamp;
+                }
+            }
+        }
+        holder.lastProcessedTradesTime(lastProcessedTradesTime);
+        return newTrades;
+    }
+
 
     private TopDatas requestTopsData(PairExchangeData pairExchangeData) throws Exception {
         SharedExchangeData sharedExch1data = pairExchangeData.m_sharedExch1;

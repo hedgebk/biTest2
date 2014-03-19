@@ -2,7 +2,7 @@ package bthdg;
 
 import java.io.IOException;
 
-public class SharedExchangeData {
+public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
     final Exchange m_exchange;
     public final Utils.AverageCounter m_averageCounter;
     // to calc average diff between bid and ask on exchange
@@ -44,16 +44,8 @@ public class SharedExchangeData {
         m_bidAskDiffCalculator = calculator;
     }
 
-    public TradesData filterOnlyNewTrades(TradesData trades) {
-        TradesData newTrades = trades.newTrades(m_lastProcessedTradesTime);
-        for (TradeData trade : newTrades.m_trades) {
-            long timestamp = trade.m_timestamp;
-            if (timestamp > m_lastProcessedTradesTime) {
-                m_lastProcessedTradesTime = timestamp;
-            }
-        }
-        return newTrades;
-    }
+    @Override public long lastProcessedTradesTime() { return m_lastProcessedTradesTime; }
+    @Override public void lastProcessedTradesTime(long lastProcessedTradesTime) { m_lastProcessedTradesTime = lastProcessedTradesTime; }
 
     public TopData fetchTopOnce() throws Exception {
         TopData top = Fetcher.fetchTopOnce(m_exchange);

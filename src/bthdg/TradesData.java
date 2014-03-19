@@ -52,4 +52,9 @@ public class TradesData {
             throw new RuntimeException("non supported trade type '" + typeStr + "'");
         }
     }
+
+    public interface ILastTradeTimeHolder {
+        long lastProcessedTradesTime();
+        void lastProcessedTradesTime(long lastProcessedTradesTime);
+    }
 }

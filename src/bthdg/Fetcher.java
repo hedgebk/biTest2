@@ -223,7 +223,7 @@ public class Fetcher {
         return topData;
     }
 
-    static Map<Pair,TopData> fetchTops(Exchange exchange, Pair ... pairs) throws Exception {
+    public static Map<Pair,TopData> fetchTops(Exchange exchange, Pair... pairs) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TOP, pairs);
         Map<Pair,TopData> topData = exchange.parseTops(jObj, pairs);
         return topData;
