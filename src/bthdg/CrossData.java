@@ -50,9 +50,9 @@ public class CrossData {
         m_buyOrder  = new OrderData(OrderSide.BUY,  buy, amount);
         m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
 
-        log("buy exch  " + Utils.pad(m_buyExch.m_exchange.toString(), 8) + ": " +
+        log("buy exch  " + Utils.padRight(m_buyExch.m_exchange.toString(), 8) + ": " +
                 ExchangeData.ordersAndPricesStr(buyExchTop, m_buyOrder, null, null, null));
-        log("sell exch " + Utils.pad(m_sellExch.m_exchange.toString(), 8) + ": " +
+        log("sell exch " + Utils.padRight(m_sellExch.m_exchange.toString(), 8) + ": " +
                 ExchangeData.ordersAndPricesStr(sellExchTop, null, null, m_sellOrder, null));
 
         boolean success = m_buyExch.placeOrderBracket(m_buyOrder);

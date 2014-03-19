@@ -22,7 +22,7 @@ public class PaintTrace extends BaseChartPaint {
     public static final Color LIGHT_X = new Color(60, 60, 60, 12);
     public static final double EXPECTED_GAIN = Fetcher.EXPECTED_GAIN;
     public static final double COMMISSION = 0.002;
-    public static final long MOVING_AVERAGE = Fetcher.MOVING_AVERAGE*4;
+    public static final long MOVING_AVERAGE = Fetcher.MOVING_AVERAGE;
     public static final boolean PAINT_PRICE = true;
     public static final boolean PAINT_ORDERS = true;
     public static final boolean PAINT_ORDERS_SHADOW = true;
@@ -356,13 +356,19 @@ public class PaintTrace extends BaseChartPaint {
             Map.Entry<Long, TradeData[]> openEntry = forkTrades.firstEntry();
             Map.Entry<Long, TradeData[]> closeEntry = (forkTrades.size() > 1) ? forkTrades.lastEntry() : null;
             paintBox(g, timeAxe, priceAxe, openEntry, closeEntry);
-            paintCross(g, timeAxe, priceAxe, priceDiffAxe, openEntry, diffAverageMap, true);
-            paintCross(g, timeAxe, priceAxe, priceDiffAxe, closeEntry, diffAverageMap, false);
+            XY p1 = paintCross(g, timeAxe, priceAxe, priceDiffAxe, openEntry, diffAverageMap, true);
+            XY p2 = paintCross(g, timeAxe, priceAxe, priceDiffAxe, closeEntry, diffAverageMap, false);
             if ((openEntry != null) && (closeEntry != null)) {
                 TradeData[] open = openEntry.getValue();
                 TradeData[] close = closeEntry.getValue();
                 paintBuySell(g, timeAxe, priceAxe, open[0], close[1]);
                 paintBuySell(g, timeAxe, priceAxe, close[0], open[1]);
+            }
+            if ((p1 != null) && (p2 != null)) {
+                drawLine(g, p1.m_x, p1.m_y, p2.m_x, p2.m_y, Color.CYAN);
+                double diffDiff = p1.m_value - p2.m_value;
+                String str = Fetcher.format(diffDiff);
+                paintShadedString(g, str, (p1.m_x + p2.m_x)/2 + 5, (p1.m_y + p2.m_y)/2 - 5, Color.magenta);
             }
         }
     }
@@ -416,17 +422,31 @@ public class PaintTrace extends BaseChartPaint {
             int yb = priceAxe.getPointReverse(buyPrice);
             int xs = timeAxe.getPoint(sellTrade.m_timestamp);
             int ys = priceAxe.getPointReverse(sellPrice);
-            Stroke old = g.getStroke();
-            g.setStroke(new BasicStroke(3.0f));
-            g.setPaint(Color.green);
-            g.drawLine(xb, yb, xs, ys);
-            g.setStroke(old);
+            drawLine(g, xb, yb, xs, ys, Color.green);
             String str = Fetcher.format(Math.abs(sellPrice - buyPrice));
-            g.drawString(str, (xb + xs) / 2 + 5, (yb + ys) / 2);
+            paintShadedString(g, str, (xb + xs) / 2 + 5, (yb + ys) / 2, Color.green);
         }
     }
 
-    private static void paintCross(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, PaintChart.ChartAxe priceDiffAxe,
+    private static void drawLine(Graphics2D g, int xb, int yb, int xs, int ys, Color green) {
+        Stroke old = g.getStroke();
+        g.setStroke(new BasicStroke(3.0f));
+        g.setPaint(green);
+        g.drawLine(xb, yb, xs, ys);
+        g.setStroke(old);
+    }
+
+    private static void paintShadedString(Graphics2D g, String str, int x, int y, Color color) {
+        g.setPaint(Color.white);
+        g.drawString(str, x - 1, y);
+        g.drawString(str, x + 1, y);
+        g.drawString(str, x, y - 1);
+        g.drawString(str, x, y + 1);
+        g.setPaint(color);
+        g.drawString(str, x, y);
+    }
+
+    private static XY paintCross(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, PaintChart.ChartAxe priceDiffAxe,
                                    Map.Entry<Long, TradeData[]> entry, TreeMap<Long, Double> diffAverageMap, boolean isOpenCross) {
         if(entry != null) {
             TradeData[] crossTrades = entry.getValue();
@@ -443,24 +463,27 @@ public class PaintTrace extends BaseChartPaint {
                 long buySellTime = (sellTrade.m_timestamp + buyTrade.m_timestamp)/2;
                 int x = timeAxe.getPoint(buySellTime);
                 String str = Fetcher.format(buySellPriceDiff);
-                g.drawString(str, x + 5, HEIGHT - 50);
+                paintShadedString(g, str, x + 5, HEIGHT - 50, Color.red);
 //                Map.Entry<Long, Double> avgDiffEntry = diffAverageMap.floorEntry(buySellTime);
 //                Double avgDiff = avgDiffEntry.getValue();
                 int y = priceDiffAxe.getPointReverse(buySellPriceDiff) + HEIGHT;
                 drawX(g, x, y, 20);
-                g.drawString(str, x + 5, y - 5);
+                paintShadedString(g, str, x + 5, y - 5, Color.red);
+                return new XY(x, y, buySellPriceDiff);
             }
         }
+        return null;
     }
 
     private static void paintTrade(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, TradeData trade) {
         if (trade != null) {
             int x = timeAxe.getPoint(trade.m_timestamp);
             int y = priceAxe.getPointReverse(trade.m_price);
-            g.setPaint(trade.m_orderSide.isBuy() ? Color.BLUE : Color.RED);
+            Color color = trade.m_orderSide.isBuy() ? Color.BLUE : Color.RED;
+            g.setPaint(color);
             drawX(g, x, y);
             String str = Fetcher.format(trade.m_price);
-            g.drawString(str, x + 5, y - 5);
+            paintShadedString(g, str, x + 5, y - 5, color);
         }
     }
 
@@ -487,7 +510,6 @@ public class PaintTrace extends BaseChartPaint {
             g.drawLine(x, y, x, y);
             g.drawRect(x - 1, y - 1, 2, 2);
         }
-
     }
 
     private static double paintBidAsk(Graphics2D g, TraceData.BidAsk bidAsk, PaintChart.ChartAxe priceAxe, int x) {
@@ -551,6 +573,18 @@ public class PaintTrace extends BaseChartPaint {
 
             public double mid() { return ( m_bid + m_ask) / 2; }
             public boolean hasMid() { return (m_bid != 0) && (m_ask != 0); }
+        }
+    }
+
+    private static class XY {
+        private int m_x;
+        private int m_y;
+        private double m_value;
+
+        public XY(int x, int y, double value) {
+            m_x = x;
+            m_y = y;
+            m_value = value;
         }
     }
 }

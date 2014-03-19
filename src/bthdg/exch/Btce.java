@@ -104,10 +104,10 @@ public class Btce extends BaseExch {
 //        return new TopData(bid, ask, last);
 //    }
 
-    public static TopData parseTop(Object obj) {
+    public static TopData parseTop(Object obj, Pair pair) {
         JSONObject jObj = (JSONObject) obj;
 //        log("BTCE.parseTop() " + jObj);
-        JSONObject ticker = (JSONObject) jObj.get("btc_usd"); // ticker
+        JSONObject ticker = (JSONObject) jObj.get(getPairParam(pair)); // "btc_usd"  // ticker
 //        log(" class="+ticker.getClass()+", ticker=" + ticker);
         double last = Utils.getDouble(ticker, "last");
         double bid = Utils.getDouble(ticker, "sell");
@@ -191,6 +191,22 @@ public class Btce extends BaseExch {
             }
         }
         return false;
+    }
+
+    public static Exchange.UrlDef apiTopEndpoint(Exchange.UrlDef endpoint, Pair pair) {
+        return endpoint.replace("XXXX", getPairParam(pair));
+    }
+
+    private static String getPairParam(Pair pair) {
+        switch (pair) {
+            case BTC_USD: return "btc_usd";
+            case LTC_BTC: return "ltc_btc";
+            case LTC_USD: return "ltc_usd";
+            case BTC_EUR: return "btc_eur";
+            case LTC_EUR: return "ltc_eur";
+            case EUR_USD: return "eur_usd";
+        }
+        return null;
     }
 }
 

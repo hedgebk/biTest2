@@ -100,7 +100,7 @@ public class PairExchangeData {
         String topStr = (top != null)
                 ? "bid=" + format(top.m_bid) + "; ask=" + format(top.m_ask) + "; bidAskDiff=" + format(top.m_ask-top.m_bid)
                 : "<no top data>";
-        log("exch " + Utils.pad(exch.m_exchange.toString(), 8) + ": " + topStr +
+        log("exch " + Utils.padRight(exch.m_exchange.toString(), 8) + ": " + topStr +
                 "; available: btc=" + format(account.m_btc) + ", usd=" + format(account.m_usd) +
                 "; allocated: btc=" + format(account.m_allocatedBtc) + ", usd=" + format(account.m_allocatedUsd));
     }

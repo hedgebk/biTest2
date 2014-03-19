@@ -22,22 +22,23 @@ public enum Exchange {
              Bitstamp.tradesTestStr(), "https://www.bitstamp.net/api/transactions/?time=minute",
              Bitstamp.accountTestStr(), new UrlDef("https://www.bitstamp.net/api/balance/")
     ) {
-        @Override public TopData parseTop(Object jObj) { return Bitstamp.parseTop(jObj); }
+        @Override public TopData parseTop(Object jObj, Pair pair) { return Bitstamp.parseTop(jObj); }
         @Override public DeepData parseDeep(Object jObj) { return Bitstamp.parseDeep(jObj); }
         @Override public TradesData parseTrades(Object jObj) { return Bitstamp.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Bitstamp.parseAccount(jObj); }
         @Override public String deepTestStr() { return Bitstamp.deepTestStr(); }
     },
     BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true, 3,
-          Btce.topTestStr(), "https://btc-e.com/api/3/ticker/btc_usd", // "https://btc-e.com/api/2/btc_usd/ticker"
+          Btce.topTestStr(), "https://btc-e.com/api/3/ticker/XXXX", // "https://btc-e.com/api/3/ticker/btc_usd" // old? : "https://btc-e.com/api/2/btc_usd/ticker"
           Btce.deepTestStr(), "https://btc-e.com/api/3/depth/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.tradesTestStr(), "https://btc-e.com/api/3/trades/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.accountTestStr(), new UrlDef("https://btc-e.com/tapi", "method", "getInfo")
     ) {
-        @Override public TopData parseTop(Object jObj) { return Btce.parseTop(jObj); }
+        @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
         @Override public DeepData parseDeep(Object jObj) { return Btce.parseDeep(jObj); }
         @Override public TradesData parseTrades(Object jObj) { return Btce.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
+        @Override public UrlDef apiTopEndpoint(Pair pair) { return Btce.apiTopEndpoint(m_apiTopEndpoint, pair); }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -97,7 +98,7 @@ public enum Exchange {
         m_accountTestStr = accountTestStr;
     }
 
-    public TopData parseTop(Object jObj) { return null; }
+    public TopData parseTop(Object jObj, Pair pair) { return null; }
     public DeepData parseDeep(Object jObj) { return null; }
     public TradesData parseTrades(Object jObj) { return null; }
     public AccountData parseAccount(Object jObj) { return null; }
@@ -108,6 +109,9 @@ public enum Exchange {
         return Utils.round(price, m_priceDecimals);
     }
 
+    public UrlDef apiTopEndpoint(Pair pair) {
+        return m_apiTopEndpoint;
+    }
 
     public static class UrlDef {
         public final String m_location;
@@ -130,6 +134,13 @@ public enum Exchange {
                     ((m_paramName != null) ? ", paramName='" + m_paramName + '\'' : "") +
                     ((m_paramValue != null) ? ", paramValue='" + m_paramValue + '\'' : "") +
                     '}';
+        }
+
+        public UrlDef replace(String key, String value) {
+            if ((key != null) && (value != null)) {
+                return new UrlDef(m_location.replace(key, value), m_paramName, m_paramValue);
+            }
+            return this;
         }
     }
 }

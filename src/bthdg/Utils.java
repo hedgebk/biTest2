@@ -151,10 +151,18 @@ public class Utils {
         return round(amount, decimals - 1, mult * 10);
     }
 
-    public static String pad(String str, int destLen) {
+    public static String padRight(String str, int destLen) {
         int currLen = str.length();
         if (currLen < destLen) {
-            return pad(str + PADS.substring(0, Math.min(destLen - currLen, PADS.length())), destLen);
+            return padRight(str + PADS.substring(0, Math.min(destLen - currLen, PADS.length())), destLen);
+        }
+        return str;
+    }
+
+    public static String padLeft(String str, int destLen) {
+        int currLen = str.length();
+        if (currLen < destLen) {
+            return padLeft(PADS.substring(0, Math.min(destLen - currLen, PADS.length())) + str, destLen);
         }
         return str;
     }
