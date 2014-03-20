@@ -9,6 +9,7 @@ package bthdg.exch;
 //
 
 import bthdg.*;
+import bthdg.Currency;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -186,6 +187,10 @@ public class Btce extends BaseExch {
         double usd = Utils.getDouble(funds.get("usd"));
         double btc = Utils.getDouble(funds.get("btc"));
         AccountData accountData = new AccountData(Exchange.BTCE.m_name, usd, btc, Double.MAX_VALUE);
+        double ltc = Utils.getDouble(funds.get("ltc"));
+        accountData.set(Currency.LTC, ltc);
+        double eur = Utils.getDouble(funds.get("eur"));
+        accountData.set(Currency.EUR, eur);
         return accountData;
     }
 

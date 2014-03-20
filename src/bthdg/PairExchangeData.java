@@ -251,7 +251,7 @@ public class PairExchangeData {
         return Fetcher.format(usd);
     }
 
-    private void requestTradesIfNeeded(IterationContext iContext) {
+    private void requestTradesIfNeeded(IterationContext iContext) throws Exception {
         boolean needQueryTrades = false;
         for (ForkData fork : m_forks) {
             if (fork.m_state.needQueryTrades()) { // for now most states need trades queried
@@ -260,8 +260,8 @@ public class PairExchangeData {
             }
         }
         if (needQueryTrades) {
-            iContext.getNewTradesData(m_sharedExch1);
-            iContext.getNewTradesData(m_sharedExch2);
+            iContext.m_newTrades.getNewTradesData(iContext, m_sharedExch1.m_exchange, m_sharedExch1);
+            iContext.m_newTrades.getNewTradesData(iContext, m_sharedExch2.m_exchange, m_sharedExch2);
         }
     }
 

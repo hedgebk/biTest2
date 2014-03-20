@@ -1,6 +1,6 @@
 package bthdg;
 
-public class CrossData {
+public class CrossData implements OrderState.IOrderExecListener {
     private static final long TIME_TO_WAIT_PARTIAL = 15000;
     private static final long TOO_LONG_TO_WAIT_PARTIAL = 50000;
     private static final double MOVE_BRACKET_ORDER_MIN_PERCENTAGE = 0.1; // move brackets of price change in 10% from mkt price
@@ -197,12 +197,16 @@ public class CrossData {
     public void checkState(IterationContext iContext, ForkData forkData) throws Exception {
         log("CrossData.checkState() on " + this);
         if (m_buyOrder != null) { // order can be not placed in case of error
-            m_buyOrder.checkState(iContext, m_buyExch, this);
+            m_buyOrder.checkState(iContext, m_buyExch.m_exchange, m_buyExch.m_account, this, m_buyExch);
         }
         if (m_sellOrder != null) { // order can be not placed in case of error
-            m_sellOrder.checkState(iContext, m_sellExch, this);
+            m_sellOrder.checkState(iContext, m_sellExch.m_exchange, m_sellExch.m_account, this, m_buyExch);
         }
         m_state.checkState(iContext, forkData, this);
+    }
+
+    @Override public void onOrderFilled(IIterationContext iContext, Exchange exchange, OrderData orderData) {
+       ((IterationContext)iContext).onOrderFilled(exchange, orderData, this);
     }
 
     public boolean checkBracketsExecuted(IterationContext iContext, ForkData forkData) throws Exception {

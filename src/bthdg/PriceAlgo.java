@@ -7,7 +7,7 @@ public enum PriceAlgo {
     },
     PEG  {
         @Override public double getRefPrice(TopData top, OrderSide orderSide) { return top.getMid(); }
-        @Override public double getMktPrice(TopData top, OrderSide side) { return side.pegPrice(top); }
+        @Override public double getMktPrice(TopData top, OrderSide side) { return side.pegPrice(top, null); }
     };
 
     public double getRefPrice(TopData top, OrderSide orderSide) { return 0; }

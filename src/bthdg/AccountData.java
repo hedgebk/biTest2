@@ -22,8 +22,8 @@ public class AccountData {
     public double available(Currency currency) { return notNull(m_funds.get(currency)); }
     public double allocated(Currency currency) { return notNull(m_allocatedFunds.get(currency)); }
 
-    private void set(Currency currency, double value) { m_funds.put(currency, value); }
-    private void setAllocated(Currency currency, double value) { m_allocatedFunds.put(currency, value); }
+    public void set(Currency currency, double value) { m_funds.put(currency, value); }
+    public void setAllocated(Currency currency, double value) { m_allocatedFunds.put(currency, value); }
 
     public AccountData(String name, double usd, double btc, double fee) {
         m_name = name;
@@ -35,6 +35,7 @@ public class AccountData {
     @Override public String toString() {
         return "AccountData{" +
                 "name='" + m_name + '\'' +
+                "funds='" + m_funds + '\'' +
                 ((m_fee != Double.MAX_VALUE) ? ", fee=" + m_fee : "") +
                 '}';
     }

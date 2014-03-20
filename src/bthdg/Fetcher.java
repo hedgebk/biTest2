@@ -35,7 +35,7 @@ public class Fetcher {
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
-    private static final boolean USE_ACCOUNT_TEST_STR = true;
+    public static boolean USE_ACCOUNT_TEST_STR = true;
     public static final long MOVING_AVERAGE = 60 * 60 * 1000; // better simulated = 1h 10 min
     public static final double EXPECTED_GAIN = 3; // better simulated = 4.3
     public static final PriceAlgo PRICE_ALGO = PriceAlgo.MARKET;
@@ -483,19 +483,19 @@ public class Fetcher {
             m_connection = connection;
         }
 
-        @Override public void recordOrderFilled(SharedExchangeData shExchData, OrderData orderData, CrossData crossData) {
-            recordTrade(m_connection, shExchData, orderData, crossData);
+        @Override public void recordOrderFilled(Exchange exchange, OrderData orderData, CrossData crossData) {
+            recordTrade(m_connection, exchange, orderData, crossData);
         }
 
-        @Override public void recordTrades(SharedExchangeData shExchData, TradesData data) {
-            recordTos(m_connection, shExchData, data);
+        @Override public void recordTrades(Exchange exchange, Map<Pair, TradesData> data) {
+            recordTos(m_connection, exchange, data);
         }
     }
 
     private static final String INSERT_TRACE_TRADE_SQL =
             "INSERT INTO TraceTrade ( stamp, exch, side, price, amount, crossId, forkId ) VALUES (?,?,?,?,?,?,?)";
 
-    private static void recordTrade(Connection connection, SharedExchangeData shExchData, OrderData orderData, CrossData crossData) {
+    private static void recordTrade(Connection connection, Exchange exchange, OrderData orderData, CrossData crossData) {
         if (connection != null) {
             try {
                 PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_TRADE_SQL);
@@ -503,7 +503,7 @@ public class Fetcher {
                     Thread.sleep(1);
 
                     statement.setLong(1, System.currentTimeMillis());
-                    statement.setInt(2, shExchData.m_exchange.m_databaseId);
+                    statement.setInt(2, exchange.m_databaseId);
                     statement.setString(3, orderData.m_side.m_char);
                     statement.setDouble(4, orderData.m_price);
                     statement.setDouble(5, orderData.m_amount);
@@ -521,23 +521,26 @@ public class Fetcher {
         }
     }
 
-    private static void recordTos(Connection connection, SharedExchangeData shExchData, TradesData data) {
+    private static void recordTos(Connection connection, Exchange exchange, Map<Pair, TradesData> map) {
         if (connection != null) {
             try {
                 PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_TRADE_SQL);
                 try {
-                    for (TradeData trade : data.m_trades) {
-                        Thread.sleep(1);
+                    for (Map.Entry<Pair, TradesData> entry : map.entrySet()) {
+                        TradesData data = entry.getValue();
+                        for (TradeData trade : data.m_trades) {
+                            Thread.sleep(1);
 
-                        statement.setLong(1, trade.m_timestamp);
-                        statement.setInt(2, shExchData.m_exchange.m_databaseId);
-                        statement.setNull(3, Types.VARCHAR);
-                        statement.setDouble(4, trade.m_price);
-                        statement.setDouble(5, trade.m_amount);
-                        statement.setNull(6, Types.BIGINT);
-                        statement.setNull(7, Types.BIGINT);
+                            statement.setLong(1, trade.m_timestamp);
+                            statement.setInt(2, exchange.m_databaseId);
+                            statement.setNull(3, Types.VARCHAR);
+                            statement.setDouble(4, trade.m_price);
+                            statement.setDouble(5, trade.m_amount);
+                            statement.setNull(6, Types.BIGINT);
+                            statement.setNull(7, Types.BIGINT);
 
-                        statement.executeUpdate(); // execute insert SQL statement - will be auto committed
+                            statement.executeUpdate(); // execute insert SQL statement - will be auto committed
+                        }
                     }
                 } finally {
                     statement.close();

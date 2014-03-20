@@ -1,10 +1,13 @@
 package bthdg.triplet;
 
 import bthdg.*;
+import bthdg.exch.BaseExch;
+import bthdg.exch.Btce;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Properties;
 
 public class Triplet {
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
@@ -22,47 +25,19 @@ public class Triplet {
         System.out.println("Started");
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
+        Fetcher.USE_ACCOUNT_TEST_STR = true;
+
         try {
-            TriangleRotationData rotation = null;
+            Properties keys = BaseExch.loadKeys();
+            Btce.init(keys);
+
+            AccountData account = getAccount();
+            System.out.println("account: " + account);
+
+            TriangleData td = new TriangleData(account);
             while (true) {
                 IterationData iData = new IterationData();
-
-                Map<Pair, TopData> tops = iData.getTops();
-//                Map<Pair, TradesData> trades = iData.getTrades();
-
-                TrianglesData triangles = calc(tops);
-                String str = triangles.str();
-
-                TriangleRotationData best = triangles.findBest();
-                if (best != null) {
-                    double maxPeg = best.maxPeg();
-                    if (maxPeg > LVL) {
-                        OnePegData peg = best.m_peg;
-                        int indx = peg.m_indx;
-                        Triangle triangle = best.m_triangle;
-                        String name = triangle.name();
-
-                        PairDirection pairDirection = triangle.get(indx);
-                        Pair pair = pairDirection.m_pair;
-                        boolean direction = pairDirection.m_forward;
-                        TopData topData = tops.get(pair);
-
-                        String start = pairDirection.getName();
-
-                        str += "\n#### best: " + format(maxPeg) + "; name=" + name + ", indx=" + indx +
-                                ", start=" + start + ", pair: " + pair + ", direction=" + direction + "; top: " + topData;
-
-                        // todo: check account first, and available funds
-                        AccountData account = iData.getAccount();
-
-                        rotation = best;
-
-//                        OrderData order = new OrderData(Pair.BTC_USD, OrderSide.BUY, buyPrice, amount);
-//                        placeOrder(order);
-                    }
-                }
-                System.out.println(str);
-
+                td.checkState(iData);
                 Thread.sleep(4000);
             }
         } catch (Exception e) {
@@ -71,47 +46,48 @@ public class Triplet {
         }
     }
 
-    public static boolean placeOrder(OrderData orderData) {
-        return placeOrder(orderData, OrderState.BRACKET_PLACED);
+    public static boolean placeOrder(AccountData account, OrderData orderData) {
+        return placeOrder(account, orderData, OrderState.MARKET_PLACED);
     }
 
-    public static boolean placeOrder(OrderData orderData, OrderState state) {
+    public static boolean placeOrder(AccountData account, OrderData orderData, OrderState state) {
         // todo: implement
-//        log("placeOrder(" + m_exchange.m_name + ") not implemented yet: " + orderData);
+        log("placeOrder(" + /*m_exchange.m_name +*/ ") not implemented yet: " + orderData);
 
-        boolean success = true;        // m_account.allocateOrder(orderData);
+        boolean success = account.allocateOrder(orderData);
+success = true;
         if(success) {
             // todo: pass to exch.baseExch if needed
             orderData.m_status = OrderStatus.SUBMITTED;
             orderData.m_state = state;
         } else {
-//            log("account allocateOrder unsuccessful: " + orderData + ", account: " + m_account);
+            log("account allocateOrder unsuccessful: " + orderData + ", account: " + account);
         }
         return success;
     }
 
 
-    private static TrianglesData calc(Map<Pair, TopData> tops) {
-        TrianglesData ret = new TrianglesData(TRIANGLES.length);
+    private static TrianglesCalcData calc(Map<Pair, TopData> tops) {
+        TrianglesCalcData ret = new TrianglesCalcData(TRIANGLES.length);
         for (Triangle tr : TRIANGLES) {
-            TriangleData t = calc(tops, tr);
+            TriangleCalcData t = calc(tops, tr);
             ret.add(t);
         }
         return ret;
     }
 
-    private static TriangleData calc(Map<Pair, TopData> tops, Triangle triangle) {
-        TriangleRotationData trf = calc(tops, triangle, true);
-        TriangleRotationData trb = calc(tops, triangle, false);
+    private static TriangleCalcData calc(Map<Pair, TopData> tops, Triangle triangle) {
+        TriangleRotationCalcData trf = calc(tops, triangle, true);
+        TriangleRotationCalcData trb = calc(tops, triangle, false);
 
-        return new TriangleData(trf, trb);
+        return new TriangleCalcData(trf, trb);
     }
 
-    private static TriangleRotationData calc(Map<Pair, TopData> tops, Triangle triangle, boolean forward) {
+    private static TriangleRotationCalcData calc(Map<Pair, TopData> tops, Triangle triangle, boolean forward) {
         double mid = calcMid(tops, triangle, forward);
         double mkt = calcMkt(tops, triangle, forward);
-        OnePegData peg = calcPeg(tops, triangle, forward);
-        return new TriangleRotationData(triangle, forward, mid, mkt, peg);
+        OnePegCalcData peg = calcPeg(tops, triangle, forward);
+        return new TriangleRotationCalcData(triangle, forward, mid, mkt, peg);
     }
 
     private static double calcMkt(Map<Pair, TopData> tops, Triangle triangle, boolean forward) {
@@ -146,15 +122,15 @@ public class Triplet {
         return ret;
     }
 
-    private static OnePegData calcPeg(Map<Pair, TopData> tops, Triangle triangle, boolean forward) {
+    private static OnePegCalcData calcPeg(Map<Pair, TopData> tops, Triangle triangle, boolean forward) {
         return calcPeg(tops, triangle.get(0).get(forward), triangle.get(1).get(forward), triangle.get(2).get(forward));
     }
 
-    private static OnePegData calcPeg(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
+    private static OnePegCalcData calcPeg(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
         return calcPeg(tops.get(pair1.m_pair), pair1.m_forward, tops.get(pair2.m_pair), pair2.m_forward, tops.get(pair3.m_pair), pair3.m_forward);
     }
 
-    private static OnePegData calcPeg(TopData top1, boolean mul1, TopData top2, boolean mul2, TopData top3, boolean mul3) {
+    private static OnePegCalcData calcPeg(TopData top1, boolean mul1, TopData top2, boolean mul2, TopData top3, boolean mul3) {
         double a1 = 100;
         double b1 = mulPeg(a1, top1, mul1);
         double c1 = mulMkt(b1, top2, mul2);
@@ -190,7 +166,7 @@ public class Triplet {
             }
         }
 
-        return new OnePegData(indx, max);
+        return new OnePegCalcData(indx, max);
     }
 
     private static double mulMid(double in, TopData top, boolean mul) {
@@ -205,25 +181,38 @@ public class Triplet {
         return mul ? in * top.m_ask : in / top.m_bid; // ASK > BID
     }
 
-    private static String format(double usdOut) {
-        return Utils.padLeft(X_YYY.format(usdOut - 100), 6);
+    private static String formatAndPad(double value) {
+        return Utils.padLeft(format(value - 100), 6);
     }
 
-    private static class OnePegData {
+    private static String format(double number) {
+        return X_YYY.format(number);
+    }
+
+    public static AccountData getAccount() throws Exception {
+        AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
+        return account;
+    }
+
+    private static class OnePegCalcData {
         private int m_indx;
         private double m_max;
 
-        public OnePegData(int indx, double max) {
+        public OnePegCalcData(int indx, double max) {
             m_indx = indx;
             m_max = max;
         }
 
         public String str() {
             if (m_max > LVL) {
-                return m_indx + ":" + format(m_max);
+                return m_indx + ":" + formatAndPad(m_max);
             }
             return "        ";
         }
+    }
+
+    private static void log(String s) {
+        Log.log(s);
     }
 
     public static class Triangle extends ArrayList<PairDirection> {
@@ -265,14 +254,14 @@ public class Triplet {
         }
     }
 
-    private static class TriangleRotationData {
+    private static class TriangleRotationCalcData {
         private Triangle m_triangle;
         private boolean m_forward;
         private double m_mid;
         private double m_mkt;
-        private OnePegData m_peg;
+        private OnePegCalcData m_peg;
 
-        public TriangleRotationData(Triangle triangle, boolean forward, double mid, double mkt, OnePegData peg) {
+        public TriangleRotationCalcData(Triangle triangle, boolean forward, double mid, double mkt, OnePegCalcData peg) {
             m_triangle = triangle;
             m_forward = forward;
             m_mid = mid;
@@ -281,7 +270,7 @@ public class Triplet {
         }
 
         public String str() {
-            return format(m_mid) + " " + format(m_mkt) + " " + m_peg.str();
+            return formatAndPad(m_mid) + " " + formatAndPad(m_mkt) + " " + m_peg.str();
         }
 
         public boolean midCrossLvl() {
@@ -297,11 +286,11 @@ public class Triplet {
         }
     }
 
-    private static class TriangleData {
-        private TriangleRotationData m_forward;
-        private TriangleRotationData m_backward;
+    private static class TriangleCalcData {
+        private TriangleRotationCalcData m_forward;
+        private TriangleRotationCalcData m_backward;
 
-        public TriangleData(TriangleRotationData forward, TriangleRotationData backward) {
+        public TriangleCalcData(TriangleRotationCalcData forward, TriangleRotationCalcData backward) {
             m_forward = forward;
             m_backward = backward;
         }
@@ -315,20 +304,20 @@ public class Triplet {
             return m_forward.mktCrossLvl() || m_backward.mktCrossLvl();
         }
 
-        public TriangleRotationData best() {
+        public TriangleRotationCalcData best() {
             return (m_forward.maxPeg() > m_backward.maxPeg()) ? m_forward : m_backward;
         }
     }
 
-    private static class TrianglesData extends ArrayList<TriangleData> {
-        public TrianglesData(int length) {
+    private static class TrianglesCalcData extends ArrayList<TriangleCalcData> {
+        public TrianglesCalcData(int length) {
             super(length);
         }
 
         public String str() {
             StringBuilder sb = new StringBuilder();
             boolean mktCrossLvl = false;
-            for (TriangleData t : this) {
+            for (TriangleCalcData t : this) {
                 sb.append(t.str());
                 mktCrossLvl |= t.mktCrossLvl();
             }
@@ -340,11 +329,11 @@ public class Triplet {
             return sb.toString();
         }
 
-        public TriangleRotationData findBest() {
-            TriangleRotationData best = null;
+        public TriangleRotationCalcData findBest() {
+            TriangleRotationCalcData best = null;
             double max = 0;
-            for (TriangleData triangle : this) {
-                TriangleRotationData current = triangle.best();
+            for (TriangleCalcData triangle : this) {
+                TriangleRotationCalcData current = triangle.best();
                 double val = current.maxPeg();
                 if (val > max) {
                     max = val;
@@ -355,10 +344,11 @@ public class Triplet {
         }
     }
 
-    private static class IterationData {
+    private static class IterationData implements IIterationContext {
         private Map<Pair, TopData> m_tops;
         private Map<Pair, TradesData> m_trades;
         private Object account;
+        public NewTradesAggregator m_newTrades = new NewTradesAggregator();
 
         public Map<Pair,TopData> getTops() throws Exception {
             if(m_tops == null){
@@ -374,9 +364,114 @@ public class Triplet {
             return m_trades;
         }
 
-        public AccountData getAccount() throws Exception {
-            AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
-            return account;
+        @Override public boolean acceptPriceSimulated() {
+            log("not implemented: acceptPriceSimulated()");
+            return false;
+        }
+
+        @Override public void acceptPriceSimulated(boolean b) {
+            log("not implemented: acceptPriceSimulated(boolean)");
+        }
+
+        @Override public Map<Pair, TradesData> fetchTrades(Exchange exchange) throws Exception {
+            return getTrades();
+        }
+
+        @Override public Map<Pair, TradesData> getNewTradesData(Exchange exchange, TradesData.ILastTradeTimeHolder holder) {
+            log("not implemented: getNewTradesData()");
+            return null;
+        }
+    }
+
+    private static enum TriangleState {
+        NONE {
+            public void checkState(IterationData iData, TriangleData tData) {
+                tData.setState(WAIT);
+            }
+        },
+        WAIT {
+            public void checkState(IterationData iData, TriangleData tData) throws Exception {
+                tData.calculate(iData);
+            }
+        },
+        PEG {
+            public void checkState(IterationData iData, TriangleData tData) throws Exception {
+                tData.checkPeg(iData, tData);
+            }
+        }
+        ;
+
+        public void checkState(IterationData iData, TriangleData tData) throws Exception {}
+    }
+
+    private static class TriangleData implements OrderState.IOrderExecListener, TradesData.ILastTradeTimeHolder {
+        private long m_lastProcessedTradesTime;
+        private AccountData m_account;
+        private OrderData m_order;
+        private TriangleRotationCalcData m_rotation;
+        private TriangleState m_state = TriangleState.NONE;
+
+        public void setState(TriangleState state) { m_state = state; }
+        @Override public long lastProcessedTradesTime() { return m_lastProcessedTradesTime; }
+        @Override public void lastProcessedTradesTime(long lastProcessedTradesTime) { m_lastProcessedTradesTime = lastProcessedTradesTime; }
+        @Override public void onOrderFilled(IIterationContext iContext, Exchange exchange, OrderData orderData) { /*noop*/ }
+
+        public TriangleData(AccountData account) {
+            m_account = account;
+        }
+
+        public void checkState(IterationData iData) throws Exception {
+            m_state.checkState(iData, this);
+        }
+
+        public void calculate(IterationData iData) throws Exception {
+            Map<Pair, TopData> tops = iData.getTops();
+
+            TrianglesCalcData triangles = calc(tops);
+            String str = triangles.str();
+
+            TriangleRotationCalcData best = triangles.findBest();
+            if (best != null) {
+                double maxPeg = best.maxPeg();
+                if (maxPeg > LVL) {
+                    OnePegCalcData peg = best.m_peg;
+                    int indx = peg.m_indx;
+                    Triangle triangle = best.m_triangle;
+                    String name = triangle.name();
+
+                    PairDirection pairDirection = triangle.get(indx);
+                    Pair pair = pairDirection.m_pair;
+                    boolean direction = pairDirection.m_forward;
+                    TopData topData = tops.get(pair);
+
+                    String start = pairDirection.getName();
+                    Currency fromCurrency = pair.currency(direction);
+                    double available = m_account.available(fromCurrency);
+                    OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
+                    double pegPrice = side.pegPrice(topData, pair);
+
+//                    str += "\n#### best: " + formatAndPad(maxPeg) + "; name=" + name + ", indx=" + indx +
+//                            ", start=" + start + ", pair: " + pair + ", direction=" + direction +
+//                            "; top: " + topData + ", fromCurrency=" + fromCurrency + "; available=" + available +
+//                            "; side=" + side + "; pegPrice=" + format(pegPrice);
+
+//                    m_order = new OrderData(pair, side, pegPrice, available);
+//                    placeOrder(m_account, m_order);
+//
+//                    m_rotation = best;
+//                    setState(TriangleState.PEG);
+                }
+            }
+            System.out.println(str);
+        }
+
+        public void checkPeg(IterationData iData, TriangleData tData) throws Exception {
+            // check peg order state
+            if (m_order != null) { // order can be not placed in case of error
+                m_order.checkState(iData, Exchange.BTCE, tData.m_account, this, tData);
+            } else {
+                log("ERROR: order is null");
+            }
         }
     }
 }

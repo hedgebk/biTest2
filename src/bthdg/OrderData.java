@@ -55,33 +55,30 @@ public class OrderData {
         return m_executions;
     }
 
-    public void xCheckExecutedLimit(IterationContext iContext, SharedExchangeData shExchData, OrderData orderData, TradesData newTrades) {
-        OrderSide orderSide = orderData.m_side;
-        double orderAmount = orderData.m_amount;
-        double price = orderData.m_price;
+    public void xCheckExecutedLimit(IIterationContext iContext, Exchange exchange, TradesData newTrades, AccountData account) {
         for (TradeData trade : newTrades.m_trades) {
             if (trade.m_amount == 0) {
                 continue; // this execution is already processed
             }
-            double mktPrice = trade.m_price; // ASK > BID
+            double tradePrice = trade.m_price; // ASK > BID
 
             boolean acceptPriceSimulated = false;
             //noinspection PointlessBooleanExpression,ConstantConditions
             if (Fetcher.SIMULATE_ACCEPT_ORDER_PRICE
-                    && !iContext.m_acceptPriceSimulated // not yet accept simulated this run
+                    && !iContext.acceptPriceSimulated() // not yet accept simulated this run
                     && (new Random().nextDouble() < Fetcher.SIMULATE_ACCEPT_ORDER_PRICE_RATE)) {
-                log("@@@@@@@@@@@@@@  !!!!!!!! SIMULATE ACCEPT_ORDER_PRICE mktPrice=" + Fetcher.format(mktPrice) + ", order=" + this);
+                log("@@@@@@@@@@@@@@  !!!!!!!! SIMULATE ACCEPT_ORDER_PRICE tradePrice=" + Fetcher.format(tradePrice) + ", order=" + this);
                 acceptPriceSimulated = true;
-                iContext.m_acceptPriceSimulated = true; // one accept order price simulation per iteration
+                iContext.acceptPriceSimulated(true); // one accept order price simulation per iteration
             }
 
             //noinspection ConstantConditions
-            if (orderData.acceptPrice(mktPrice) || acceptPriceSimulated) {
+            if (acceptPrice(tradePrice) || acceptPriceSimulated) {
                 double tradeAmount = trade.m_amount;
-                log("@@@@@@@@@@@@@@ we have LMT order " + orderSide + " " + orderAmount + " @ " + orderData.priceStr() +
-                        " on '" + shExchData.m_exchange.m_name + "' got matched trade=" + trade);
+                log("@@@@@@@@@@@@@@ we have LMT order " + m_side + " " + m_amount + " @ " + priceStr() +
+                        " on '" + exchange.m_name + "' got matched trade=" + trade);
 
-                double remained = orderAmount - orderData.m_filled;
+                double remained = remained();
                 double extra = tradeAmount - remained;
                 double amount;
                 if (extra > 0) { // to much trade to fill the order - split the trade
@@ -92,9 +89,9 @@ public class OrderData {
                     trade.m_amount = 0;
                 }
 
-                orderData.addExecution(price, amount);
-                shExchData.m_account.releaseTrade(m_pair, orderSide, price, amount);
-                if (orderData.isFilled()) {
+                addExecution(m_price, amount);
+                account.releaseTrade(m_pair, m_side, m_price, amount);
+                if (isFilled()) {
                     return; // the whole order executed
                 }
             }
@@ -291,7 +288,8 @@ public class OrderData {
         return ret;
     }
 
-    public void checkState(IterationContext iContext, SharedExchangeData shExchData, CrossData crossData) throws Exception {
-        m_state.checkState(iContext, shExchData, this, crossData);
+    public void checkState(IIterationContext iContext, Exchange exchange, AccountData account,
+                           OrderState.IOrderExecListener listener, TradesData.ILastTradeTimeHolder holder) throws Exception {
+        m_state.checkState(iContext, exchange, this, listener, account, holder);
     }
 } // OrderData

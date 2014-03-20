@@ -1,17 +1,23 @@
 package bthdg;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class IterationContext {
+public class IterationContext implements IIterationContext {
     private IRecorder m_recorder;
     public TopDatas m_top;
     public Map<Integer, LiveOrdersData> m_liveOrders;
     public long m_nextIterationDelay = 1000; // 1 sec by def
-    private Map<Integer, TradesData> m_newTrades;
     public boolean m_acceptPriceSimulated;
     public boolean m_accountRequested;
+    public NewTradesAggregator m_newTrades = new NewTradesAggregator() {
+        @Override protected void onNewTrades(Exchange exchange, Map<Pair, TradesData> data) {
+            IterationContext.this.onNewTrades(exchange, data);
+        }
+    };
+
+    public boolean acceptPriceSimulated() { return m_acceptPriceSimulated; }
+    public void acceptPriceSimulated(boolean b) { m_acceptPriceSimulated = b; }
 
     private static void log(String s) { Log.log(s); }
 
@@ -41,54 +47,6 @@ public class IterationContext {
         }
         return data;
     }
-
-    public TradesData getNewTradesData(SharedExchangeData shExchData) {
-        Exchange exch = shExchData.m_exchange;
-        int exchId = exch.m_databaseId;
-        TradesData data;
-        if (m_newTrades == null) {
-            m_newTrades = new HashMap<Integer, TradesData>();
-            data = null;
-        } else {
-            data = m_newTrades.get(exchId);
-        }
-        if (data == null) {
-            long millis0 = System.currentTimeMillis();
-            TradesData trades = Fetcher.fetchTradesOnce(exch);
-            String exchName = exch.m_name;
-            if(trades == null) {
-                log(" NO trades loaded for '" + exchName + "' this time");
-                data = new TradesData(new ArrayList<TradeData>()); // empty
-            } else {
-                data = filterOnlyNewTrades(trades, shExchData); // this will update last processed trade time
-                long millis1 = System.currentTimeMillis();
-                int size = trades.size();
-                log(" loaded " + size + " trades for '" + exchName + "' " +
-                        "in " + (millis1 - millis0) + " ms; new " + data.size() + " trades: " + data);
-                if (size > 0) {
-                    onNewTrades(shExchData, data);
-                }
-            }
-            m_newTrades.put(exchId, data);
-        }
-        return data;
-    }
-
-    public static TradesData filterOnlyNewTrades(TradesData trades, TradesData.ILastTradeTimeHolder holder) {
-        long lastProcessedTradesTime = holder.lastProcessedTradesTime();
-        TradesData newTrades = trades.newTrades(lastProcessedTradesTime);
-        if(!newTrades.m_trades.isEmpty()) {
-            for (TradeData trade : newTrades.m_trades) {
-                long timestamp = trade.m_timestamp;
-                if (timestamp > lastProcessedTradesTime) {
-                    lastProcessedTradesTime = timestamp;
-                }
-            }
-        }
-        holder.lastProcessedTradesTime(lastProcessedTradesTime);
-        return newTrades;
-    }
-
 
     private TopDatas requestTopsData(PairExchangeData pairExchangeData) throws Exception {
         SharedExchangeData sharedExch1data = pairExchangeData.m_sharedExch1;
@@ -120,21 +78,31 @@ public class IterationContext {
         }
     }
 
-    public void onOrderFilled(SharedExchangeData shExchData, OrderData orderData, CrossData crossData) {
+    public void onOrderFilled(Exchange exchange, OrderData orderData, CrossData crossData) {
         if (m_recorder != null) {
-            m_recorder.recordOrderFilled(shExchData, orderData, crossData);
+            m_recorder.recordOrderFilled(exchange, orderData, crossData);
         }
     }
 
-    private void onNewTrades(SharedExchangeData shExchData, TradesData data) {
+    private void onNewTrades(Exchange exchange, Map<Pair, TradesData> data) {
         if (m_recorder != null) {
-            m_recorder.recordTrades(shExchData, data);
+            m_recorder.recordTrades(exchange, data);
         }
     }
 
+    @Override public Map<Pair, TradesData> fetchTrades(Exchange exchange) {
+        Map<Pair, TradesData> ret = new HashMap<Pair, TradesData>();
+        TradesData trades = Fetcher.fetchTradesOnce(exchange);
+        ret.put(Pair.BTC_EUR, trades);
+        return ret;
+    }
+
+    public Map<Pair, TradesData> getNewTradesData(Exchange exchange, TradesData.ILastTradeTimeHolder holder) throws Exception {
+        return m_newTrades.getNewTradesData(this, exchange, holder);
+    }
 
     public interface IRecorder {
-        void recordOrderFilled(SharedExchangeData shExchData, OrderData orderData, CrossData crossData);
-        void recordTrades(SharedExchangeData shExchData, TradesData data);
+        void recordOrderFilled(Exchange exchange, OrderData orderData, CrossData crossData);
+        void recordTrades(Exchange exchange, Map<Pair, TradesData> data);
     }
 } // IterationContext
