@@ -185,7 +185,8 @@ public class Btce extends BaseExch {
 
         double usd = Utils.getDouble(funds.get("usd"));
         double btc = Utils.getDouble(funds.get("btc"));
-        return new AccountData(Exchange.BTCE.m_name, usd, btc, Double.MAX_VALUE);
+        AccountData accountData = new AccountData(Exchange.BTCE.m_name, usd, btc, Double.MAX_VALUE);
+        return accountData;
     }
 
     public static String accountTestStr() {

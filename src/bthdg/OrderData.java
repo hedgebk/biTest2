@@ -15,10 +15,14 @@ public class OrderData {
     public double m_amount;
     public double m_filled;
     public List<Execution> m_executions;
-    private long m_time; // todo: add to serialize
+    // todo: add to serialize
+    public long m_time;
+    public final Pair m_pair;
 
-    public OrderData(OrderSide side, double price, double amount) {
-        m_side = side;
+    public OrderData(Pair pair, OrderSide side, double price, double amount) {
+        // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
+        m_pair = pair; // like Pair.BTC_USD
+        m_side = side; // like OrderSide.BUY
         m_price = price;
         m_amount = amount;
     }
@@ -89,7 +93,7 @@ public class OrderData {
                 }
 
                 orderData.addExecution(price, amount);
-                shExchData.m_account.releaseTrade(orderSide, price, amount);
+                shExchData.m_account.releaseTrade(m_pair, orderSide, price, amount);
                 if (orderData.isFilled()) {
                     return; // the whole order executed
                 }
@@ -170,7 +174,8 @@ public class OrderData {
         OrderSide side = OrderSide.valueOf(sideStr);
         Double price = Double.parseDouble(priceStr);
         Double amount = Double.parseDouble(amountStr);
-        OrderData ret = new OrderData(side, price, amount);
+        OrderData ret = new OrderData(null, // todo
+                side, price, amount);
 
         ret.m_status = OrderStatus.valueOf(statusStr);
         ret.m_state = OrderState.valueOf(stateStr);
@@ -240,7 +245,7 @@ public class OrderData {
 
     public OrderData fork(double qty) {
         double amount2 = m_amount - qty;
-        OrderData ret = new OrderData(m_side, m_price, amount2);
+        OrderData ret = new OrderData(m_pair, m_side, m_price, amount2);
 
         double filled2;
         OrderStatus status2;

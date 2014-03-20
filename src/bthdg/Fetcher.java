@@ -179,7 +179,7 @@ public class Fetcher {
         return tradesData;
     }
 
-    static Map<Pair,TradesData> fetchTrades(Exchange exchange, Pair ... pairs) throws Exception {
+    public static Map<Pair,TradesData> fetchTrades(Exchange exchange, Pair... pairs) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TRADES, pairs);
         Map<Pair,TradesData> trades = exchange.parseTrades(jObj, pairs);
         return trades;

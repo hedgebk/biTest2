@@ -101,8 +101,8 @@ public class PairExchangeData {
                 ? "bid=" + format(top.m_bid) + "; ask=" + format(top.m_ask) + "; bidAskDiff=" + format(top.m_ask-top.m_bid)
                 : "<no top data>";
         log("exch " + Utils.padRight(exch.m_exchange.toString(), 8) + ": " + topStr +
-                "; available: btc=" + format(account.m_btc) + ", usd=" + format(account.m_usd) +
-                "; allocated: btc=" + format(account.m_allocatedBtc) + ", usd=" + format(account.m_allocatedUsd));
+                "; available: btc=" + format(account.available(Currency.BTC)) + ", usd=" + format(account.available(Currency.USD)) +
+                "; allocated: btc=" + format(account.allocated(Currency.BTC)) + ", usd=" + format(account.allocated(Currency.USD)));
     }
 
     private void logCross(CrossData cross, String crossSide) {

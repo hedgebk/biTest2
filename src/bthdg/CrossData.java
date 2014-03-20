@@ -47,8 +47,8 @@ public class CrossData {
         TopData buyExchTop = m_buyExch.m_lastTop;
         TopData sellExchTop = m_sellExch.m_lastTop;
 
-        m_buyOrder  = new OrderData(OrderSide.BUY,  buy, amount);
-        m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+        m_buyOrder  = new OrderData(Pair.BTC_USD, OrderSide.BUY,  buy, amount);
+        m_sellOrder = new OrderData(Pair.BTC_USD, OrderSide.SELL, sell, amount);
 
         log("buy exch  " + Utils.padRight(m_buyExch.m_exchange.toString(), 8) + ": " +
                 ExchangeData.ordersAndPricesStr(buyExchTop, m_buyOrder, null, null, null));
@@ -105,7 +105,7 @@ public class CrossData {
                             "delta=" + format(buyDelta) + ", deltaPrcnt=" + format(deltaPrcnt));
                     success = m_buyExch.cancelOrder(m_buyOrder); // todo: order can be executed at this point, so cancel will fail
                     if (success) {
-                        m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
+                        m_buyOrder = new OrderData(Pair.BTC_USD, OrderSide.BUY, buy, amount);
                         success = m_buyExch.placeOrderBracket(m_buyOrder);
                         if (success) {
                             buyDistance = buyExchTop.m_bid - buy;
@@ -128,7 +128,7 @@ public class CrossData {
                             "delta=" + format(buyDelta) + ", deltaPrcnt=" + format(deltaPrcnt));
                     success = m_sellExch.cancelOrder(m_sellOrder);  // todo: order can be executed at this point, so cancel will fail
                     if (success) {
-                        m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+                        m_sellOrder = new OrderData(Pair.BTC_USD, OrderSide.SELL, sell, amount);
                         success = m_sellExch.placeOrderBracket(m_sellOrder);
                         if (success) {
                             sellDistance = sell - sellExchTop.m_ask;
@@ -251,7 +251,7 @@ public class CrossData {
 
         boolean cancelled = shExch.cancelOrder(ord);
         if (cancelled) {
-            OrderData mktOrder = new OrderData(side, price, ord.m_amount);
+            OrderData mktOrder = new OrderData(Pair.BTC_USD, side, price, ord.m_amount);
             boolean success = shExch.placeOrder(mktOrder, OrderState.MARKET_PLACED);
             if (success) {
                 setState(CrossState.MKT_BRACKET_PLACED);
@@ -414,7 +414,7 @@ public class CrossData {
             double orderAmount = ord.m_amount;
             double orderPrice = ord.m_price;
 
-            OrderData mktOrder = new OrderData(side, orderPrice, ord.m_amount);
+            OrderData mktOrder = new OrderData(Pair.BTC_USD, side, orderPrice, ord.m_amount);
             boolean success = exch.placeOrder(mktOrder, OrderState.MARKET_PLACED);
             if (success) {
                 setState(CrossState.MKT_BRACKET_PLACED);
@@ -439,8 +439,8 @@ public class CrossData {
                     double buyPrice = m_buyOrder.m_price;
                     double sellPrice = m_sellOrder.m_price;
 
-                    m_buyOrder = new OrderData(OrderSide.BUY, buyPrice, amount);
-                    m_sellOrder = new OrderData(OrderSide.SELL, sellPrice, amount);
+                    m_buyOrder = new OrderData(Pair.BTC_USD, OrderSide.BUY, buyPrice, amount);
+                    m_sellOrder = new OrderData(Pair.BTC_USD, OrderSide.SELL, sellPrice, amount);
 
                     log("buy " + amount + " @ " + m_buyExch.m_exchange + ": " +
                             ExchangeData.ordersAndPricesStr(m_buyExch.m_lastTop, m_buyOrder, null, null, null));

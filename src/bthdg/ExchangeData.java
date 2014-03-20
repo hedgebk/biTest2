@@ -48,10 +48,10 @@ public class ExchangeData {
 
         double amount = calcAmountToOpen();
 
-        m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
+        m_buyOrder = new OrderData(Pair.BTC_USD, OrderSide.BUY, buy, amount);
         boolean success = placeOrderBracket(m_buyOrder);
         if (success) {
-            m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+            m_sellOrder = new OrderData(Pair.BTC_USD, OrderSide.SELL, sell, amount);
             success = placeOrderBracket(m_sellOrder);
             if (success) {
                 setState(ExchangeState.OPEN_BRACKETS_PLACED);
@@ -75,10 +75,10 @@ public class ExchangeData {
         boolean success;
         double amount = calcAmountToOpen();
         if(isBuy) {
-            m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
+            m_buyOrder = new OrderData(Pair.BTC_USD, OrderSide.BUY, buy, amount);
             success = placeOrderBracket(m_buyOrder);
         } else {
-            m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+            m_sellOrder = new OrderData(Pair.BTC_USD, OrderSide.SELL, sell, amount);
             success = placeOrderBracket(m_sellOrder);
         }
         if (success) {
@@ -116,7 +116,7 @@ public class ExchangeData {
             } else {
                 success = cancelOrder(m_buyOrder); // todo: order can be executed at this point, so cancel will fail
                 if (success) {
-                    m_buyOrder = new OrderData(OrderSide.BUY, buy, amount);
+                    m_buyOrder = new OrderData(Pair.BTC_USD, OrderSide.BUY, buy, amount);
                     success = placeOrderBracket(m_buyOrder);
                     if (success) {
                         distance = top.m_bid - buy ;
@@ -142,7 +142,7 @@ public class ExchangeData {
                 } else {
                     success = cancelOrder(m_sellOrder);  // todo: order can be executed at this point, so cancel will fail
                     if (success) {
-                        m_sellOrder = new OrderData(OrderSide.SELL, sell, amount);
+                        m_sellOrder = new OrderData(Pair.BTC_USD, OrderSide.SELL, sell, amount);
                         success = placeOrderBracket(m_sellOrder);
                         if (success) {
                             distance = sell - top.m_ask;
@@ -379,7 +379,7 @@ public class ExchangeData {
             // do not execute MKT order at price too different from average
             if (Math.max(mktPrice, avgPrice) / Math.min(mktPrice, avgPrice) < MKT_ORDER_THRESHOLD) {
                 double amount = calcAmountToOpen();
-                OrderData order = new OrderData(side, price, amount);
+                OrderData order = new OrderData(Pair.BTC_USD, side, price, amount);
                 boolean success = placeOrder(order, OrderState.MARKET_PLACED);
                 if (success) {
                     placed = true;
@@ -443,7 +443,7 @@ public class ExchangeData {
             double amount = calcAmountToOpen(); // todo: we may have partially executed order here - handle
             OrderSide side = order.m_side;
             double mktPrice = side.mktPrice(m_shExchData.m_lastTop);
-            OrderData newOrder = new OrderData(side, mktPrice, amount);
+            OrderData newOrder = new OrderData(Pair.BTC_USD, side, mktPrice, amount);
             log(" moving MKT order price: " + order.priceStr() + " -> " + format(mktPrice));
             boolean success = placeOrder(newOrder, OrderState.MARKET_PLACED);
             if (success) {
