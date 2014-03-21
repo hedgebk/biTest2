@@ -195,7 +195,7 @@ public class Btce extends BaseExch {
     }
 
     public static String accountTestStr() {
-        return "{\"return\":{\"open_orders\":0,\"funds\":{\"trc\":0,\"nmc\":0,\"ftc\":0,\"eur\":0,\"rur\":0,\"usd\":10.488,\"ltc\":0,\"ppc\":0,\"xpm\":0,\"nvc\":0,\"btc\":0.019},\"transaction_count\":2,\"rights\":{\"trade\":0,\"withdraw\":0,\"info\":1},\"server_time\":1393026300},\"success\":1}";
+        return "{\"return\":{\"open_orders\":0,\"funds\":{\"trc\":0,\"nmc\":0,\"ftc\":0,\"eur\":25,\"rur\":0,\"usd\":10.488,\"ltc\":11,\"ppc\":0,\"xpm\":0,\"nvc\":0,\"btc\":0.019},\"transaction_count\":2,\"rights\":{\"trade\":0,\"withdraw\":0,\"info\":1},\"server_time\":1393026300},\"success\":1}";
     }
 
     private void init() {

@@ -75,7 +75,7 @@ public class OrderData {
             //noinspection ConstantConditions
             if (acceptPrice(tradePrice) || acceptPriceSimulated) {
                 double tradeAmount = trade.m_amount;
-                log("@@@@@@@@@@@@@@ we have LMT order " + m_side + " " + m_amount + " @ " + priceStr() +
+                log("@@@@@@@@@@@@@@ we have LMT order " + m_side + " " + m_amount + " " + m_pair + " @ " + priceStr() +
                         " on '" + exchange.m_name + "' got matched trade=" + trade);
 
                 double remained = remained();
@@ -122,6 +122,7 @@ public class OrderData {
                 ", amount=" + m_amount +
                 ", price=" + Fetcher.format(m_price) +
                 ", status=" + m_status +
+                ", pair=" + m_pair +
                 ", state=" + m_state +
                 ", filled=" + m_filled +
                 '}';
@@ -291,5 +292,15 @@ public class OrderData {
     public void checkState(IIterationContext iContext, Exchange exchange, AccountData account,
                            OrderState.IOrderExecListener listener, TradesData.ILastTradeTimeHolder holder) throws Exception {
         m_state.checkState(iContext, exchange, this, listener, account, holder);
+    }
+
+    public void cancel() {
+        if ((m_status == OrderStatus.SUBMITTED) || (m_status == OrderStatus.PARTIALLY_FILLED)) {
+            log("cancelOrder() not implemented yet: " + this);
+        } else {
+            log("cancelOrder() no need to cancel oder in state: " + this);
+        }
+        m_status = OrderStatus.CANCELLED;
+        m_state = OrderState.NONE;
     }
 } // OrderData

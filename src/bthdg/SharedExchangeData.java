@@ -174,14 +174,8 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
     public boolean cancelOrder(OrderData orderData) {
         // todo: implement
         if (orderData != null) {
-            if ((orderData.m_status == OrderStatus.SUBMITTED) || (orderData.m_status == OrderStatus.PARTIALLY_FILLED)) {
-                log("cancelOrder() not implemented yet: " + orderData);
-            } else {
-                log("cancelOrder() no need to cancel oder in state: " + orderData);
-            }
+            orderData.cancel();
             m_account.releaseOrder(orderData);
-            orderData.m_status = OrderStatus.CANCELLED;
-            orderData.m_state = OrderState.NONE;
         }
         return true; // todo: order can be executed at this point, so cancel will fail
     }

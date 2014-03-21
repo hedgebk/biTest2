@@ -28,10 +28,9 @@ public class NewTradesAggregator {
                 data = new HashMap<Pair, TradesData>(); // empty
             } else {
                 data = filterOnlyNewTrades(tradesMap, holder); // this will update last processed trade time
-                long millis1 = System.currentTimeMillis();
 
                 logTradesLoaded("loaded trades num for '" + exchName + "': ", tradesMap);
-                logTradesLoaded(" new trades", tradesMap);
+                logTradesLoaded(" new trades :", data);
 
                 onNewTrades(exchange, data);
             }

@@ -37,7 +37,9 @@ public enum OrderState {
         if (orderData.m_filled > 0) {
             if (orderData.m_status == OrderStatus.FILLED) {
                 orderData.m_state = NONE;
-                listener.onOrderFilled(iContext, exchange, orderData);
+                if(listener != null) {
+                    listener.onOrderFilled(iContext, exchange, orderData);
+                }
                 return true;
             } else { // PARTIALLY FILLED
                 log("PARTIALLY FILLED, just wait more");
