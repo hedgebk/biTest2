@@ -7,16 +7,16 @@ public enum OrderState {
         @Override public void checkState(IIterationContext iContext, Exchange exchange, OrderData orderData, IOrderExecListener listener,
                                          AccountData account, TradesData.ILastTradeTimeHolder holder) throws Exception {}
     },
-    BRACKET_PLACED {
+    LIMIT_PLACED {
         @Override public void checkState(IIterationContext iContext, Exchange exchange, OrderData orderData, IOrderExecListener listener,
                                          AccountData account, TradesData.ILastTradeTimeHolder holder) throws Exception {
-            trackLimitOrderExecution(iContext, exchange, orderData, listener, account, null);
+            trackLimitOrderExecution(iContext, exchange, orderData, listener, account, holder);
         }
     },
     MARKET_PLACED {
         @Override public void checkState(IIterationContext iContext, Exchange exchange, OrderData orderData, IOrderExecListener listener,
                                          AccountData account, TradesData.ILastTradeTimeHolder holder) throws Exception {
-            boolean executed = trackLimitOrderExecution(iContext, exchange, orderData, listener, account, holder);
+            boolean executed = trackMktOrderExecution(iContext, exchange, orderData, listener, account);
             if( executed ) {
                 log(" OPEN MKT bracket order executed. we are fully OPENED " + orderData);
             } else {
@@ -24,6 +24,29 @@ public enum OrderState {
             }
         }
     };
+
+    private static boolean trackMktOrderExecution(IIterationContext iContext, Exchange exchange,
+                                                  OrderData orderData, IOrderExecListener listener,
+                                                  AccountData account) throws Exception {
+        // actually order execution should be checked via getLiveOrdersState()
+        //LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(shExchData);
+        // but for simulation we are checking via top
+        Pair pair = orderData.m_pair;
+        TopData top = iContext.getTop(exchange, pair);
+        orderData.xCheckExecutedMkt(exchange, top, account);
+        if (orderData.m_filled > 0) {
+            if (orderData.m_status == OrderStatus.FILLED) {
+                orderData.m_state = NONE;
+                if(listener != null) {
+                    listener.onOrderFilled(iContext, exchange, orderData);
+                }
+                return true;
+            } else { // PARTIALLY FILLED
+                log("PARTIALLY FILLED, just wait more / split?");
+            }
+        }
+        return false;
+    }
 
     private static boolean trackLimitOrderExecution(IIterationContext iContext, Exchange exchange,
                                                     OrderData orderData, IOrderExecListener listener,
@@ -42,7 +65,7 @@ public enum OrderState {
                 }
                 return true;
             } else { // PARTIALLY FILLED
-                log("PARTIALLY FILLED, just wait more");
+                log("PARTIALLY FILLED, just wait more / split?");
             }
         }
         return false;

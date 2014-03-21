@@ -30,7 +30,7 @@ import java.util.Properties;
  *  - simulate trade at MKT price fast (instanteously)
  */
 public class Fetcher {
-    static final boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
+    public static boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
     static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.7;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
@@ -111,7 +111,7 @@ public class Fetcher {
             iterationCounter++;
             log("---------------------------------------------- iteration: " + iterationCounter);
 
-            IterationContext iContext = new IterationContext(new DbRecorder(connection));
+            IterationContext iContext = new IterationContext(data, new DbRecorder(connection));
             try {
                 if (checkState(data, iContext)) {
                     log("GOT finish request");
@@ -164,6 +164,9 @@ public class Fetcher {
 //        log("jObj=" + jObj);
         AccountData accountData = exchange.parseAccount(jObj);
         log("accountData=" + accountData);
+        if (accountData.m_fee == Double.MAX_VALUE) {
+            accountData.m_fee = exchange.m_baseFee;
+        }
         return accountData;
         // todo: handle if query unsuccessful
     }

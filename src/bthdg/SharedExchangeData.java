@@ -136,9 +136,6 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
         AccountData account = Fetcher.fetchAccount(m_exchange);
         log("queryAccountData() account=" + account);
         m_account = account;
-        if (account.m_fee == Double.MAX_VALUE) {
-            m_account.m_fee = m_exchange.m_baseFee;
-        }
         // todo: handle if query unsuccessfull
     }
 
@@ -153,7 +150,7 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
     }
 
     public boolean placeOrderBracket(OrderData orderData) {
-        return placeOrder(orderData, OrderState.BRACKET_PLACED);
+        return placeOrder(orderData, OrderState.LIMIT_PLACED);
     }
 
     public boolean placeOrder(OrderData orderData, OrderState state) {

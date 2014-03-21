@@ -219,7 +219,7 @@ public class ExchangeData {
     }
 
     private boolean placeOrderBracket(OrderData orderData) {
-        return placeOrder(orderData, OrderState.BRACKET_PLACED);
+        return placeOrder(orderData, OrderState.LIMIT_PLACED);
     }
 
     public boolean placeOrder(OrderData orderData, OrderState state) {
@@ -364,7 +364,7 @@ public class ExchangeData {
 
     private void xBracketPlaced(OrderData orderData) {
         orderData.m_status = OrderStatus.SUBMITTED;
-        orderData.m_state = OrderState.BRACKET_PLACED;
+        orderData.m_state = OrderState.LIMIT_PLACED;
     }
 
     public boolean postOrderAtMarket(OrderSide side, TopData top, ExchangeState newState) {

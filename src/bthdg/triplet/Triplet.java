@@ -12,6 +12,7 @@ public class Triplet {
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
     public static final double LVL = 100.6; // commission level
     public static final double LVL2 = 100.65; // min target level
+    private static final double USE_ACCOUNT_FUNDS = 0.98;
     public static final DecimalFormat X_YYY = new DecimalFormat("+0.000;-0.000");
     public static final DecimalFormat X_YYYY = new DecimalFormat("0.0000");
 
@@ -27,6 +28,7 @@ public class Triplet {
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
         Fetcher.USE_ACCOUNT_TEST_STR = true;
+        Fetcher.SIMULATE_ACCEPT_ORDER_PRICE = true;
 
         try {
             Properties keys = BaseExch.loadKeys();
@@ -35,8 +37,11 @@ public class Triplet {
             AccountData account = getAccount();
             System.out.println("account: " + account);
 
+            long start = System.currentTimeMillis();
+            int counter = 1;
             TriangleData td = new TriangleData(account);
             while (true) {
+                log("============================================== iteration " + (counter++) + "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - start));
                 IterationData iData = new IterationData();
                 td.checkState(iData);
                 Thread.sleep(4000);
@@ -45,10 +50,6 @@ public class Triplet {
             System.out.println("error: " + e);
             e.printStackTrace();
         }
-    }
-
-    public static boolean placeOrder(AccountData account, OrderData orderData) {
-        return placeOrder(account, orderData, OrderState.MARKET_PLACED);
     }
 
     public static boolean placeOrder(AccountData account, OrderData orderData, OrderState state) {
@@ -123,6 +124,18 @@ success = true;
             }
             return false;
         }
+
+        public double calcPegPrice(Map<Pair, TopData> tops) {
+            Triangle triangle = m_parent.m_triangle;
+            boolean rotationDirection = m_parent.m_forward;
+            PairDirection pd = triangle.get(m_indx);
+            boolean pairDirection = pd.m_forward;
+            boolean direction = (pairDirection == rotationDirection);
+            Pair pair = pd.m_pair;
+            OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
+            TopData topData = tops.get(pair);
+            return side.pegPrice(topData, pair);
+        }
     }
 
     private static void log(String s) {
@@ -185,14 +198,10 @@ success = true;
         }
 
         private static OnePegCalcData[] calcPegs(TopData top1, boolean mul1, TopData top2, boolean mul2, TopData top3, boolean mul3) {
-            double d1 = mulMkt(mulMkt(mulPeg((double) 100, top1, mul1), top2, mul2), top3, mul3);
-            double d2 = mulMkt(mulPeg(mulMkt((double) 100, top1, mul1), top2, mul2), top3, mul3);
-            double d3 = mulPeg(mulMkt(mulMkt((double) 100, top1, mul1), top2, mul2), top3, mul3);
-
             return new OnePegCalcData[] {
-                    new OnePegCalcData(0, d1),
-                    new OnePegCalcData(1, d2),
-                    new OnePegCalcData(2, d3)
+                    new OnePegCalcData(0, mulMkt(mulMkt(mulPeg((double) 100, top1, mul1), top2, mul2), top3, mul3)),
+                    new OnePegCalcData(1, mulMkt(mulPeg(mulMkt((double) 100, top1, mul1), top2, mul2), top3, mul3)),
+                    new OnePegCalcData(2, mulPeg(mulMkt(mulMkt((double) 100, top1, mul1), top2, mul2), top3, mul3))
             };
         }
     }
@@ -383,8 +392,13 @@ success = true;
     private static class IterationData implements IIterationContext {
         private Map<Pair, TopData> m_tops;
         private Map<Pair, TradesData> m_trades;
-        private Object account;
         public NewTradesAggregator m_newTrades = new NewTradesAggregator();
+        private boolean m_acceptPriceSimulated;
+
+        @Override public boolean acceptPriceSimulated() { return m_acceptPriceSimulated; }
+        @Override public void acceptPriceSimulated(boolean b) { m_acceptPriceSimulated = b; }
+        @Override public Map<Pair, TradesData> fetchTrades(Exchange exchange) throws Exception { return getTrades(); }
+        @Override public TopData getTop(Exchange exchange, Pair pair) throws Exception { return getTops().get(pair); }
 
         public Map<Pair,TopData> getTops() throws Exception {
             if(m_tops == null){
@@ -398,16 +412,6 @@ success = true;
                 m_trades = Fetcher.fetchTrades(Exchange.BTCE, PAIRS);
             }
             return m_trades;
-        }
-
-        @Override public boolean acceptPriceSimulated() { return false; }
-
-        @Override public void acceptPriceSimulated(boolean b) {
-            log("not implemented: acceptPriceSimulated(boolean)");
-        }
-
-        @Override public Map<Pair, TradesData> fetchTrades(Exchange exchange) throws Exception {
-            return getTrades();
         }
 
         @Override public Map<Pair, TradesData> getNewTradesData(Exchange exchange, TradesData.ILastTradeTimeHolder holder) throws Exception {
@@ -436,33 +440,38 @@ success = true;
             log(trianglesCalc.str());
 
             TreeMap<Double,OnePegCalcData> bestMap = trianglesCalc.findBestMap();
-            checkOrdersToLive(bestMap);
+            checkOrdersToLive(bestMap, tops);
 
             checkNew(iData, bestMap, tops);
         }
 
-        private void checkOrdersToLive(TreeMap<Double, OnePegCalcData> bestMap) {
+        private void checkOrdersToLive(TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) {
             if (!m_triTrades.isEmpty()) {
                 List<TriTradeData> triTradesToLive = new ArrayList<TriTradeData>();
                 List<TriTradeData> triTradesToDie = new ArrayList<TriTradeData>();
 
                 for (TriTradeData triTrade : m_triTrades) {
-                    OnePegCalcData peg2 = triTrade.m_peg;
-                    boolean got = false;
-                    for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
-                        OnePegCalcData peg1 = entry.getValue();
-                        if (peg1.equals(peg2)) {
-                            got = true;
-                            break;
-                        }
-                    }
-
-                    // todo: cancel also orders from the same Currency but to another available currency having bigger gain
-
-                    if (got || (triTrade.m_state != TriTradeData.TriTradeState.PEG_PLACED)) {
+                    if (triTrade.m_state != TriTradeData.TriTradeState.PEG_PLACED) { // we are not in init state
                         triTradesToLive.add(triTrade);
                     } else {
-                        triTradesToDie.add(triTrade);
+                        OnePegCalcData peg2 = triTrade.m_peg;
+                        boolean toLive = false;
+                        for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
+                            OnePegCalcData peg1 = entry.getValue();
+                            if (peg1.equals(peg2)) {
+                                double pegPrice = peg1.calcPegPrice(tops);
+                                double orderPrice = triTrade.m_order.m_price;
+                                if (pegPrice == orderPrice) { // check if peg order needs to be moved
+                                    toLive = true;
+                                } else {
+                                    toLive = false;
+                                    log("   peg order should be moved. orderPrice=" + orderPrice + ", pegPrice=" + pegPrice);
+                                }
+                                break;
+                            }
+                        }
+                        // todo: cancel also orders from the same Currency but to another available cCrrency having bigger gain
+                        (toLive ? triTradesToLive : triTradesToDie).add(triTrade);
                     }
                 }
                 m_triTrades = triTradesToLive;
@@ -489,12 +498,39 @@ success = true;
                 for (TriTradeData triTrade : m_triTrades) {
                     triTrade.checkState(iData, triangleData);
                 }
+
+                forkIfNeeded(); // fork if needed -  for partially filled orders
+
+                // execute checkState() for PEG_FILLED immediately - no need to wait to run MKT orders
+                for (TriTradeData triTrade : m_triTrades) {
+                    if( triTrade.m_state == TriTradeData.TriTradeState.PEG_FILLED ) {
+                        triTrade.checkState(iData, triangleData);
+                    }
+                }
+            }
+        }
+
+        private void forkIfNeeded() {
+            List<TriTradeData> forks = null;
+            for (TriTradeData triTrade : m_triTrades) {
+                TriTradeData fork = triTrade.forkIfNeeded();
+                if(fork != null) { // forked
+                    if (forks == null) {
+                        forks = new ArrayList<TriTradeData>();
+                    }
+                    forks.add(fork);
+                }
+            }
+            if (forks != null) {
+                m_triTrades.addAll(forks);
             }
         }
 
         public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
             for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
                 OnePegCalcData peg = entry.getValue();
+                double pegPrice = peg.calcPegPrice(tops);
+
                 double maxPeg = peg.m_max;
                 int indx = peg.m_indx;
                 TriangleRotationCalcData rotationData = peg.m_parent;
@@ -510,36 +546,41 @@ success = true;
                 boolean direction = (pairDirection == rotationDirection);
                 Pair pair = pd.m_pair;
                 Currency fromCurrency = pair.currencyFrom(direction);
-                double available = m_account.available(fromCurrency);
+                double available = getAvailable(fromCurrency);
                 OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
                 TopData topData = tops.get(pair);
-                double pegPrice = side.pegPrice(topData, pair);
+                double amount = side.isBuy() ? available/pegPrice: available;
 
 //                str += " best: " + formatAndPad(maxPeg);
 
                 log("#### best: " + formatAndPad(maxPeg) + "; " + name + " rotationDir=" + rotationDirection + ", indx=" + indx +
                         ", start=" + start + ", start'=" + start_ + ", pair: " + pair + ", pairDir=" + pairDirection + ", direction=" + direction +
-                        "; top: " + topData + ", from=" + fromCurrency + "; available=" + available +
+                        "; top: " + topData + ", from=" + fromCurrency + "; available=" + available  + "; amount=" + amount +
                         "; side=" + side + "; pegPrice=" + format4(pegPrice));
 
-                if (available > 0) { // todo: check currency/pair min order size
+                if (amount > pair.m_minOrderSize) {
                     iData.getNewTradesData(Exchange.BTCE, this); // make sure we have loaded all trades on this iteration
-
-                    double amount = side.isBuy() ? available/pegPrice: available;
                     OrderData order = new OrderData(pair, side, pegPrice, amount);
-                    boolean ok = placeOrder(m_account, order);
-                    log("   place order = " + ok);
+                    boolean ok = placeOrder(m_account, order, OrderState.LIMIT_PLACED);
+                    log("   place order = " + ok + ":  " + order);
                     if (ok) {
                         TriTradeData ttData = new TriTradeData(order, peg);
                         m_triTrades.add(ttData);
                     }
+                } else {
+                    log(" no funds for NEW order: min order size=" + pair.m_minOrderSize + ", amount " + format4(amount) + " " + fromCurrency + " : " + m_account);
                 }
             }
+        }
+
+        private double getAvailable(Currency currency) {
+            return m_account.available(currency) * USE_ACCOUNT_FUNDS;
         }
     }
 
     private static class TriTradeData {
         private OrderData m_order;
+        private OrderData[] m_mktOrders;
         private OnePegCalcData m_peg;
         private TriTradeState m_state = TriTradeState.PEG_PLACED;
 
@@ -557,23 +598,160 @@ success = true;
             m_state = state;
         }
 
+        private void setMktOrder(OrderData order, int indx) {
+            if (m_mktOrders == null) {
+                m_mktOrders = new OrderData[2];
+            }
+            m_mktOrders[indx] = order;
+            setState(indx == 0 ? TriTradeState.MKT1_PLACED : TriTradeState.MKT2_PLACED);
+        }
+
+        public TriTradeData forkIfNeeded() {
+            if (m_order.isPartiallyFilled()) {
+                double filled = m_order.m_filled;
+                double remained = m_order.remained();
+
+                log("splitting: remained=" + remained + ".  " + m_order);
+
+                OrderData order2 = new OrderData(m_order.m_pair, m_order.m_side, m_order.m_price, remained);
+                order2.m_status = OrderStatus.SUBMITTED;
+                order2.m_state = m_order.m_state;
+                log(" new order: " + order2);
+
+                TriTradeData triTrade2 = new TriTradeData(order2, m_peg);
+
+                m_order.m_state = OrderState.NONE;
+                m_order.m_status = OrderStatus.FILLED;
+                m_order.m_amount = filled;
+                log(" existing order: " + m_order);
+                m_state = TriTradeData.TriTradeState.PEG_FILLED;
+
+                return triTrade2;
+            }
+            return null;
+        }
+
         private enum TriTradeState {
             PEG_PLACED {
                 @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
                     OrderData order = triTradeData.m_order;
+                    log("TriTradeState.PEG_PLACED() - check order " + order + " ...");
                     order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
                     if (order.isFilled()) {
                         triTradeData.setState(TriTradeState.PEG_FILLED);
                     } else {
                         // todo: move to PEG price if needed
+                        log("   todo: move to PEG price if needed");
                     }
                 }
             },
             PEG_FILLED {
                 @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
-                    // execute MKT orders
+                    log("TriTradeState.PEG_FILLED() - run 1st MKT order...");
+                    startMktOrder(iData, triangleData, triTradeData, 1);
                 }
-            };
+            },
+            MKT1_PLACED {
+                @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+                    OrderData order = triTradeData.m_mktOrders[0];
+                    log("TriTradeState.MKT1_PLACED() - check order " + order + " ...");
+                    order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
+                    if (order.isFilled()) {
+                        triTradeData.setState(TriTradeState.MKT1_EXECUTED);
+                    } else {
+                        log("   todo: move to MKT price 1 if needed / split if partially filled");
+                    }
+                }
+            },
+            MKT1_EXECUTED{
+                @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+                    log("TriTradeState.MKT1_EXECUTED() - run 2nd MKT order...");
+                    startMktOrder(iData, triangleData, triTradeData, 2);
+                }
+            },
+            MKT2_PLACED {
+                @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+                    OrderData order = triTradeData.m_mktOrders[1];
+                    log("TriTradeState.MKT2_PLACED() - check order " + order + " ...");
+                    order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
+                    if (order.isFilled()) {
+                        triTradeData.setState(TriTradeState.MKT2_EXECUTED);
+                    } else {
+                        log("   todo: move to MKT price 2 if needed / split if partially filled");
+                    }
+                }
+            },
+            MKT2_EXECUTED {
+                @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+                    log("MKT2_EXECUTED - we are done");
+                }
+            },
+            ERROR {
+                @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+                    log("ERROR state on "+this);
+                }
+            },
+            ;
+
+            private static void startMktOrder(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int num) throws Exception {
+                log("startMktOrder(" + num + ")");
+                AccountData account = triangleData.m_account;
+
+                OrderData prevOrder = (num == 1) ? triTradeData.m_order : triTradeData.m_mktOrders[0];
+                OrderSide prevSide = prevOrder.m_side;
+                Currency prevEndCurrency = prevOrder.m_pair.currencyFrom(!prevSide.isBuy());
+                double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - account.m_fee); // deduct commissions
+                log(" prev order " + prevOrder + "; exit amount " + prevEndAmount + " " + prevEndCurrency);
+
+                OnePegCalcData peg = triTradeData.m_peg;
+                int startIndx = peg.m_indx;
+                TriangleRotationCalcData rotationData = peg.m_parent;
+                Triangle triangle = rotationData.m_triangle;
+                boolean rotationDirection = rotationData.m_forward;
+                int indx = rotationDirection ? (startIndx + num) % 3 : (startIndx + 3 - num) % 3;
+                String name = triangle.name();
+
+                PairDirection pd = triangle.get(indx);
+                String start = pd.getName();
+                String start_ = pd.get(rotationDirection).getName();
+
+                boolean pairDirection = pd.m_forward;
+                boolean direction = (pairDirection == rotationDirection);
+                Pair pair = pd.m_pair;
+                Currency fromCurrency = pair.currencyFrom(direction);
+                if(prevEndCurrency != fromCurrency) {
+                    log("ERROR: currencies are not matched");
+                }
+                double available = triangleData.getAvailable(fromCurrency);
+                if(prevEndAmount > available) {
+                    log("ERROR: not enough available");
+                }
+                OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
+                Map<Pair, TopData> tops = iData.getTops();
+                TopData topData = tops.get(pair);
+                double mktPrice = side.mktPrice(topData);
+                double amount = side.isBuy() ? prevEndAmount / mktPrice : prevEndAmount;
+
+//                str += " best: " + formatAndPad(maxPeg);
+
+                log("1st order:" + name + " rotationDir=" + rotationDirection + ", startIndx=" + startIndx + ", indx=" + indx +
+                        ", start=" + start + ", start'=" + start_ + ", pair: " + pair + ", pairDir=" + pairDirection + ", direction=" + direction +
+                        "; top: " + topData + ", from=" + fromCurrency + "; available=" + available + "; amount=" + amount +
+                        "; side=" + side + "; mktPrice=" + format4(mktPrice));
+
+                if (amount > pair.m_minOrderSize) {
+                    OrderData order = new OrderData(pair, side, mktPrice, amount);
+                    boolean ok = placeOrder(account, order, OrderState.MARKET_PLACED);
+                    log("   place order = " + ok);
+                    if (ok) {
+                        triTradeData.setMktOrder(order, num - 1);
+                    } else {
+                        triTradeData.setState(ERROR);
+                    }
+                } else {
+                    log(" no funds for min order size=" + pair.m_minOrderSize + ", amount " + format4(amount) + " " + fromCurrency + " : " + account);
+                }
+            }
 
             public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {}
         }

@@ -226,7 +226,7 @@ public class TestServlet extends HttpServlet {
     }
 
     private void nextIteration(PairExchangeData data) {
-        IterationContext iContext = new IterationContext(null);
+        IterationContext iContext = new IterationContext(data, null);
         try {
             if (checkState(data, iContext)) {
                 log("GOT finish request - no more tasks to run");

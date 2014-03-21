@@ -303,4 +303,16 @@ public class OrderData {
         m_status = OrderStatus.CANCELLED;
         m_state = OrderState.NONE;
     }
+
+    public void xCheckExecutedMkt(Exchange exchange, TopData top, AccountData account) {
+        double mktPrice = m_side.mktPrice(top);
+        if (acceptPrice(mktPrice)) {
+            log("@@@@@@@@@@@@@@ we have MKT order " + m_side + " " + m_amount + " " + m_pair + " @ " + priceStr() +
+                    " on '" + exchange.m_name + "' have matched TOP price=" + mktPrice + "; top=" + top);
+
+            double remained = remained();
+            addExecution(m_price, remained);
+            account.releaseTrade(m_pair, m_side, m_price, remained);
+        }
+    }
 } // OrderData

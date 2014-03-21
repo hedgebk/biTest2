@@ -15,14 +15,21 @@ public class IterationContext implements IIterationContext {
             IterationContext.this.onNewTrades(exchange, data);
         }
     };
+    private PairExchangeData m_pairExchange;
 
     public boolean acceptPriceSimulated() { return m_acceptPriceSimulated; }
     public void acceptPriceSimulated(boolean b) { m_acceptPriceSimulated = b; }
 
     private static void log(String s) { Log.log(s); }
 
-    public IterationContext(IRecorder recorder) {
+    public IterationContext(PairExchangeData data, IRecorder recorder) {
+        m_pairExchange = data;
         m_recorder = recorder;
+    }
+
+    @Override public TopData getTop(Exchange exchange, Pair pair) throws Exception {
+        TopDatas topsData = getTopsData(m_pairExchange);
+        return (exchange == m_pairExchange.m_sharedExch1.m_exchange) ? topsData.m_top1 : topsData.m_top2;
     }
 
     public TopDatas getTopsData(PairExchangeData pairExchangeData) throws Exception {

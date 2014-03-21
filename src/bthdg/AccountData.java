@@ -1,9 +1,14 @@
 package bthdg;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 public class AccountData {
+    public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
+
     public final String m_name;
     public double m_fee;
                              // todo: serialize
@@ -22,22 +27,48 @@ public class AccountData {
     public double available(Currency currency) { return notNull(m_funds.get(currency)); }
     public double allocated(Currency currency) { return notNull(m_allocatedFunds.get(currency)); }
 
-    public void set(Currency currency, double value) { m_funds.put(currency, value); }
-    public void setAllocated(Currency currency, double value) { m_allocatedFunds.put(currency, value); }
+    public void setAvailable(Currency currency, double value) { m_funds.put(currency, round(value)); }
+    public void setAllocated(Currency currency, double value) { m_allocatedFunds.put(currency, round(value)); }
+
+    private Double round(double value) {
+        return Math.round(value * 10000000000d) / 10000000000d;
+    }
 
     public AccountData(String name, double usd, double btc, double fee) {
         m_name = name;
-        set(Currency.USD, usd);
-        set(Currency.BTC, btc);
+        setAvailable(Currency.USD, usd);
+        setAvailable(Currency.BTC, btc);
         m_fee = fee;
     }
 
     @Override public String toString() {
         return "AccountData{" +
-                "name='" + m_name + '\'' +
-                "funds='" + m_funds + '\'' +
+                "name='" + m_name + "\' " +
+                "funds=" + toString(m_funds) + "; " +
+                "allocated=" + toString(m_allocatedFunds) + " " +
                 ((m_fee != Double.MAX_VALUE) ? ", fee=" + m_fee : "") +
                 '}';
+    }
+
+    private String toString(HashMap<Currency, Double> funds) {
+        Iterator<Map.Entry<Currency, Double>> i = funds.entrySet().iterator();
+        if (!i.hasNext())
+            return "{}";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        for (; ; ) {
+            Map.Entry<Currency, Double> e = i.next();
+            Currency key = e.getKey();
+            Double value = e.getValue();
+            sb.append(key);
+            sb.append('=');
+            sb.append(X_YYYYY.format(value));
+            if (!i.hasNext()) {
+                return sb.append('}').toString();
+            }
+            sb.append(',').append(' ');
+        }
     }
 
     public void compare(AccountData other) {
@@ -79,18 +110,24 @@ public class AccountData {
     public boolean allocateOrder(OrderData orderData) {
         Pair pair = orderData.m_pair;
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
-        boolean isBuy = orderData.m_side.isBuy();
+        OrderSide orderSide = orderData.m_side;
+        boolean isBuy = orderSide.isBuy();
         Currency currency = isBuy ? pair.m_from : pair.m_to;
-        double amount = isBuy ? orderData.m_amount * orderData.m_price : orderData.m_amount;
+        double price = orderData.m_price;
+        double amount = isBuy ? orderData.m_amount * price : orderData.m_amount;
+
+        log("allocateOrder() pair: " + pair + "; side: " + orderSide + "; price=" + Fetcher.format(price) +
+            "; amount=" + amount + "; currency=" + currency + "   on " + this);
 
         double available = available(currency);
         if (amount > available) {
             log("Unable to allocate " + amount + " " + currency + ". available=" + available);
             return false;
         }
-        set(currency, available - amount);
+        setAvailable(currency, available - amount);
         double allocated = allocated(currency);
         setAllocated(currency, allocated + amount);
+        log("   result=" + this);
         return true;
     }
 
@@ -99,28 +136,38 @@ public class AccountData {
         if(orderData.m_filled > 0) { // special case - some portion is already executed. releasing only remained part
             log("special case - some portion is already executed. releasing only remained part="+ amount);
         }
-        Pair pair = orderData.m_pair;
-        // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
-        OrderSide orderSide = orderData.m_side;
-        double price = orderData.m_price;
-
-        release(pair, orderSide, price, amount);
+        release(orderData.m_pair, orderData.m_side, orderData.m_price, amount, false);
     }
 
-    private void release(Pair pair, OrderSide orderSide, double price, double amount) {
+    private void release(Pair pair, OrderSide orderSide, double price, double amount, boolean tradeHappens) {
+        // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
+        log("release() pair: " + pair + "; side: " + orderSide + "; price=" + Fetcher.format(price) +
+                "; amount=" + amount + "   on " + this);
         boolean isBuy = orderSide.isBuy();
         Currency fromCurrency = isBuy ? pair.m_from : pair.m_to;
-        Currency toCurrency = isBuy ? pair.m_to : pair.m_from;
-        double size = isBuy ? amount * price : amount;
+        double fromSize = isBuy ? amount * price : amount;
+        log(" fromCurrency " + fromCurrency + "; fromSize=" + fromSize);
 
         double allocated = allocated(fromCurrency);
-        setAllocated(fromCurrency, allocated - size);
+        setAllocated(fromCurrency, allocated - fromSize);
 
-        double available = available(toCurrency);
-        setAllocated(toCurrency, available + size);
+        if (tradeHappens) {
+            Currency toCurrency = isBuy ? pair.m_to : pair.m_from;
+            double toSize = isBuy ? amount : amount * price;
+            double commission = toSize * m_fee;
+            double rest = toSize - commission; // deduct commissions
+            log(" toCurrency " + toCurrency + "; toSize=" + toSize + "; commission=" + commission + "; rest=" + rest);
+
+            double available = available(toCurrency);
+            setAvailable(toCurrency, available + rest);
+        } else {
+            double available = available(fromCurrency);
+            setAvailable(fromCurrency, available + fromSize);
+        }
+        log("   result=" + this);
     }
 
     public void releaseTrade(Pair pair, OrderSide orderSide, double price, double amount) {
-        release(pair, orderSide, price, amount);
+        release(pair, orderSide, price, amount, true);
     }
 }

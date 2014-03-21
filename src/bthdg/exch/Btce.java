@@ -188,14 +188,14 @@ public class Btce extends BaseExch {
         double btc = Utils.getDouble(funds.get("btc"));
         AccountData accountData = new AccountData(Exchange.BTCE.m_name, usd, btc, Double.MAX_VALUE);
         double ltc = Utils.getDouble(funds.get("ltc"));
-        accountData.set(Currency.LTC, ltc);
+        accountData.setAvailable(Currency.LTC, ltc);
         double eur = Utils.getDouble(funds.get("eur"));
-        accountData.set(Currency.EUR, eur);
+        accountData.setAvailable(Currency.EUR, eur);
         return accountData;
     }
 
     public static String accountTestStr() {
-        return "{\"return\":{\"open_orders\":0,\"funds\":{\"trc\":0,\"nmc\":0,\"ftc\":0,\"eur\":25,\"rur\":0,\"usd\":10.488,\"ltc\":11,\"ppc\":0,\"xpm\":0,\"nvc\":0,\"btc\":0.019},\"transaction_count\":2,\"rights\":{\"trade\":0,\"withdraw\":0,\"info\":1},\"server_time\":1393026300},\"success\":1}";
+        return "{\"return\":{\"open_orders\":0,\"funds\":{\"trc\":0,\"nmc\":0,\"ftc\":0,\"eur\":40,\"rur\":0,\"usd\":60,\"ltc\":3.6,\"ppc\":0,\"xpm\":0,\"nvc\":0,\"btc\":0.1},\"transaction_count\":2,\"rights\":{\"trade\":0,\"withdraw\":0,\"info\":1},\"server_time\":1393026300},\"success\":1}";
     }
 
     private void init() {
