@@ -31,7 +31,7 @@ import java.util.Properties;
  */
 public class Fetcher {
     public static boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
-    static final double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.7;
+    public static double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.7;
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;

@@ -313,6 +313,23 @@ public class OrderData {
             double remained = remained();
             addExecution(m_price, remained);
             account.releaseTrade(m_pair, m_side, m_price, remained);
+        } else {
+            log("WARN: MKT order " + this + " not executed top: " + top);
         }
     }
+
+    public double[] logOrderEnds(AccountData account, int i) {
+        log(" order" + i + ": " + this);
+        boolean isBuy1 = m_side.isBuy();
+        Currency startCurrency1 = m_pair.currencyFrom(isBuy1);
+        double startAmount1 = isBuy1 ? m_amount * m_price : m_amount;
+        log("  start " + Fetcher.format(startAmount1) + " " + startCurrency1);
+
+        Currency endCurrency1 = m_pair.currencyFrom(!isBuy1);
+        double endAmount1 = (isBuy1 ? m_amount : m_amount * m_price) * (1 - account.m_fee); // deduct commissions
+        log("  end " + Fetcher.format(endAmount1) + " " + endCurrency1);
+
+        return new double[] {startAmount1, endAmount1};
+    }
+
 } // OrderData
