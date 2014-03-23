@@ -1,7 +1,6 @@
 package bthdg;
 
 import java.io.IOException;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -76,7 +75,7 @@ public class OrderData {
             //noinspection ConstantConditions
             if (acceptPrice(tradePrice) || acceptPriceSimulated) {
                 double tradeAmount = trade.m_amount;
-                log("@@@@@@@@@@@@@@ we have LMT order " + m_side + " " + m_amount + " " + m_pair + " @ " + priceStr() +
+                log("@@@@@@@@@@@@@@ we have LMT order " + m_side + " " + Utils.X_YYYYY.format(m_amount) + " " + m_pair + " @ " + priceStr() +
                         " on '" + exchange.m_name + "' got matched trade=" + trade);
 
                 double remained = remained();
@@ -95,6 +94,8 @@ public class OrderData {
                 if (isFilled()) {
                     return; // the whole order executed
                 }
+            } else {
+                log("    trade not matched to order: " + trade + "; " + this);
             }
         }
     }
@@ -119,13 +120,13 @@ public class OrderData {
 
     @Override public String toString() {
         return "OrderData{" +
-                "side=" + m_side +
-                ", amount=" + m_amount +
+                "pair=" + m_pair +
+                ", side=" + m_side +
+                ", amount=" + Utils.X_YYYYY.format(m_amount) +
                 ", price=" + Fetcher.format(m_price) +
                 ", status=" + m_status +
-                ", pair=" + m_pair +
                 ", state=" + m_state +
-                ", filled=" + m_filled +
+                ", filled=" + Utils.X_YYYYY.format(m_filled) +
                 '}';
     }
 
@@ -308,7 +309,7 @@ public class OrderData {
     public void xCheckExecutedMkt(Exchange exchange, TopData top, AccountData account) {
         double mktPrice = m_side.mktPrice(top);
         if (acceptPrice(mktPrice)) {
-            log("@@@@@@@@@@@@@@ we have MKT order " + m_side + " " + m_amount + " " + m_pair + " @ " + priceStr() +
+            log("@@@@@@@@@@@@@@ we have MKT order " + m_side + " " + Utils.X_YYYYY.format(m_amount) + " " + m_pair + " @ " + priceStr() +
                     " on '" + exchange.m_name + "' have matched TOP price=" + mktPrice + "; top=" + top);
 
             double remained = remained();

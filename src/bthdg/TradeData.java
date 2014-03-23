@@ -35,7 +35,7 @@ public class TradeData {
                 ", timestamp=" + m_timestamp +
                 ", tid=" + m_tid +
                 ", type=" + m_type +
-                ", orderSide=" + m_orderSide +
+                ((m_orderSide != null) ? ", orderSide=" + m_orderSide : "") +
                 ", exchId=" + m_exchId +
                 ", crossId=" + m_crossId +
                 ", forkId=" + m_forkId +

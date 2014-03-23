@@ -13,6 +13,9 @@ public class Utils {
     public static final DecimalFormat XX_YYYY = new DecimalFormat("#,##0.0000");
     public static final long ONE_DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
     public static final String PADS = "          ";
+    public static final DecimalFormat PLUS_YYY = new DecimalFormat("+0.000;-0.000");
+    public static final DecimalFormat X_YYYY = new DecimalFormat("0.0000");
+    public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
 
     public static String encodeHexString(byte[] hash) {
         return String.format("%064x", new BigInteger(1, hash));

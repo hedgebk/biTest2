@@ -1,6 +1,5 @@
 package bthdg;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,13 +22,13 @@ public class NewTradesAggregator {
         if (data == null) {
             Map<Pair, TradesData> tradesMap = iContext.fetchTrades(exchange);
             String exchName = exchange.m_name;
-            if(tradesMap == null) {
+            if (tradesMap == null) {
                 log(" NO trades loaded for '" + exchName + "' this time");
                 data = new HashMap<Pair, TradesData>(); // empty
             } else {
                 data = filterOnlyNewTrades(tradesMap, holder); // this will update last processed trade time
 
-                logTradesLoaded("loaded trades num for '" + exchName + "': ", tradesMap);
+//                logTradesLoaded("loaded trades num for '" + exchName + "': ", tradesMap);
                 logTradesLoaded(" new trades :", data);
 
                 onNewTrades(exchange, data);
@@ -41,11 +40,19 @@ public class NewTradesAggregator {
 
     private void logTradesLoaded(String prefix, Map<Pair, TradesData> tradesMap) {
         StringBuffer sb = new StringBuffer(prefix);
+        boolean noTrades = true;
         for (Map.Entry<Pair, TradesData> entry : tradesMap.entrySet()) {
-            sb.append(entry.getKey());
-            sb.append(":");
-            sb.append(entry.getValue().size());
-            sb.append("; ");
+            int size = entry.getValue().size();
+            if (size > 0) {
+                sb.append(entry.getKey());
+                sb.append(":");
+                sb.append(size);
+                sb.append("; ");
+                noTrades = false;
+            }
+        }
+        if (noTrades) {
+            sb.append("<no trades>");
         }
         log(sb.toString());
     }

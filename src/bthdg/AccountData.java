@@ -1,14 +1,11 @@
 package bthdg;
 
 import java.io.IOException;
-import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 public class AccountData {
-    public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
-
     public final String m_name;
     public double m_fee;
                              // todo: serialize
@@ -52,23 +49,25 @@ public class AccountData {
 
     private String toString(HashMap<Currency, Double> funds) {
         Iterator<Map.Entry<Currency, Double>> i = funds.entrySet().iterator();
-        if (!i.hasNext())
-            return "{}";
-
+        if (!i.hasNext()) { return "{}"; }
         StringBuilder sb = new StringBuilder();
         sb.append('{');
-        for (; ; ) {
+        while (i.hasNext()) {
             Map.Entry<Currency, Double> e = i.next();
-            Currency key = e.getKey();
             Double value = e.getValue();
-            sb.append(key);
-            sb.append('=');
-            sb.append(X_YYYYY.format(value));
-            if (!i.hasNext()) {
-                return sb.append('}').toString();
+            if (Math.abs(value) > 0.0000000001) {
+                Currency key = e.getKey();
+                sb.append(key);
+                sb.append('=');
+                sb.append(Utils.X_YYYYY.format(value));
+                sb.append(',').append(' ');
             }
-            sb.append(',').append(' ');
         }
+        int length = sb.length();
+        if (length > 2) {
+            sb.setLength(length - 2);
+        }
+        return sb.append('}').toString();
     }
 
     public void compare(AccountData other) {
@@ -146,7 +145,7 @@ public class AccountData {
         boolean isBuy = orderSide.isBuy();
         Currency fromCurrency = isBuy ? pair.m_from : pair.m_to;
         double fromSize = isBuy ? amount * price : amount;
-        log(" fromCurrency " + fromCurrency + "; fromSize=" + fromSize);
+        String str = " fromCurrency " + fromCurrency + "; fromSize=" + Utils.X_YYYYY.format(fromSize);
 
         double allocated = allocated(fromCurrency);
         setAllocated(fromCurrency, allocated - fromSize);
@@ -156,7 +155,8 @@ public class AccountData {
             double toSize = isBuy ? amount : amount * price;
             double commission = toSize * m_fee;
             double rest = toSize - commission; // deduct commissions
-            log(" toCurrency " + toCurrency + "; toSize=" + toSize + "; commission=" + commission + "; rest=" + rest);
+            str += ";   toCurrency " + Utils.X_YYYYY.format(toCurrency) + "; toSize=" + Utils.X_YYYYY.format(toSize) +
+                    "; commission=" + Utils.X_YYYYY.format(commission) + "; rest=" + Utils.X_YYYYY.format(rest);
 
             double available = available(toCurrency);
             setAvailable(toCurrency, available + rest);
@@ -164,6 +164,7 @@ public class AccountData {
             double available = available(fromCurrency);
             setAvailable(fromCurrency, available + fromSize);
         }
+        log(str);
         log("   result=" + this);
     }
 
