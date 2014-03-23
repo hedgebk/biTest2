@@ -1,6 +1,7 @@
 package bthdg;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -314,22 +315,24 @@ public class OrderData {
             addExecution(m_price, remained);
             account.releaseTrade(m_pair, m_side, m_price, remained);
         } else {
-            log("WARN: MKT order " + this + " not executed top: " + top);
+            log("WARN: MKT order " + this + " not executed; top: " + top);
         }
     }
 
     public double[] logOrderEnds(AccountData account, int i) {
         log(" order" + i + ": " + this);
-        boolean isBuy1 = m_side.isBuy();
-        Currency startCurrency1 = m_pair.currencyFrom(isBuy1);
-        double startAmount1 = isBuy1 ? m_amount * m_price : m_amount;
-        log("  start " + Fetcher.format(startAmount1) + " " + startCurrency1);
+        boolean isBuy = m_side.isBuy();
+        Currency startCurrency = m_pair.currencyFrom(isBuy);
+        double startAmount = isBuy ? m_amount * m_price : m_amount;
 
-        Currency endCurrency1 = m_pair.currencyFrom(!isBuy1);
-        double endAmount1 = (isBuy1 ? m_amount : m_amount * m_price) * (1 - account.m_fee); // deduct commissions
-        log("  end " + Fetcher.format(endAmount1) + " " + endCurrency1);
+        Currency endCurrency = m_pair.currencyFrom(!isBuy);
+        double endAmount = (isBuy ? m_amount : m_amount * m_price) * (1 - account.m_fee); // deduct commissions
+        log("  start " + startAmount + " " + startCurrency +
+            "  end " + endAmount + " " + endCurrency +
+            "  ratio: " + endAmount/startAmount
+        );
 
-        return new double[] {startAmount1, endAmount1};
+        return new double[] {startAmount, endAmount};
     }
 
 } // OrderData

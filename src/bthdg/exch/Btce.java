@@ -18,6 +18,7 @@ import java.util.*;
 
 public class Btce extends BaseExch {
     public static final String CRYPTO_ALGO = "HmacSHA512";
+    public static int BTCE_TRADES_IN_REQUEST = 50;
     private static String SECRET;
     private static String KEY;
     private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
@@ -43,6 +44,10 @@ public class Btce extends BaseExch {
         init();
         run("getInfo");
 //      run("TransHistory");
+    }
+
+    public static String apiTradesEndpoint() {
+        return "https://btc-e.com/api/3/trades/XXXX?limit=" + BTCE_TRADES_IN_REQUEST; // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
     }
 
     public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint) {

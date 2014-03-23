@@ -11,10 +11,11 @@ import java.util.*;
 public class Triplet {
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
     public static final double LVL = 100.6; // commission level
-    public static final double LVL2 = 100.65; // min target level
-    private static final double USE_ACCOUNT_FUNDS = 0.98;
+    public static final double LVL2 = 100.71; // min target level
+    private static final double USE_ACCOUNT_FUNDS = 0.97;
     public static final DecimalFormat X_YYY = new DecimalFormat("+0.000;-0.000");
     public static final DecimalFormat X_YYYY = new DecimalFormat("0.0000");
+    private static double s_totalRatio = 1;
 
     public static final Triangle T1 = new Triangle(Pair.LTC_USD, true,  Pair.LTC_BTC, false, Pair.BTC_USD, false); // usd -> ltc -> btc -> usd
     public static final Triangle T2 = new Triangle(Pair.LTC_EUR, true,  Pair.LTC_BTC, false, Pair.BTC_EUR, false); // eur -> ltc -> btc -> eur
@@ -28,8 +29,9 @@ public class Triplet {
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
         Fetcher.USE_ACCOUNT_TEST_STR = true;
-        Fetcher.SIMULATE_ACCEPT_ORDER_PRICE = true;
+        Fetcher.SIMULATE_ACCEPT_ORDER_PRICE = false;
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.99;
+        Btce.BTCE_TRADES_IN_REQUEST = 30;
 
         try {
             Properties keys = BaseExch.loadKeys();
@@ -108,19 +110,32 @@ public class Triplet {
         private double m_price1;
         private double m_price2;
         private double m_price3;
-        private boolean m_mul1;
-        private boolean m_mul2;
-        private boolean m_mul3;
+        private PairDirection m_pair1;
+        private PairDirection m_pair2;
+        private PairDirection m_pair3;
 
-        public OnePegCalcData(int indx, double max, double price1, boolean mul1, double price2, boolean mul2, double price3, boolean mul3) {
+        public OnePegCalcData(int indx, double max,
+                              PairDirection pair1, double price1,
+                              PairDirection pair2, double price2,
+                              PairDirection pair3, double price3) {
             m_indx = indx;
             m_max = max;
             m_price1 = price1;
             m_price2 = price2;
             m_price3 = price3;
-            m_mul1 = mul1;
-            m_mul2 = mul2;
-            m_mul3 = mul3;
+            m_pair1 = pair1;
+            m_pair2 = pair2;
+            m_pair3 = pair3;
+        }
+
+        public String name() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(m_pair1.getName());
+            sb.append(";");
+            sb.append(m_pair2.getName());
+            sb.append(";");
+            sb.append(m_pair3.getName());
+            return sb.toString();
         }
 
         @Override public String toString() {
@@ -128,11 +143,11 @@ public class Triplet {
                     "indx=" + m_indx +
                     ", max=" + m_max +
                     ", price1=" + m_price1 +
-                    ", mul1=" + m_mul1 +
+                    ", pair1=" + m_pair1 +
                     ", price2=" + m_price2 +
-                    ", mul2=" + m_mul2 +
+                    ", pair2=" + m_pair2 +
                     ", price3=" + m_price3 +
-                    ", mul3=" + m_mul3 +
+                    ", pair3=" + m_pair3 +
                     '}';
         }
 
@@ -155,12 +170,19 @@ public class Triplet {
         }
 
         public double calcPegPrice(Map<Pair, TopData> tops) {
-            Triangle triangle = m_parent.m_triangle;
-            boolean rotationDirection = m_parent.m_forward;
-            PairDirection pd = triangle.get(m_indx);
-            boolean pairDirection = pd.m_forward;
-            boolean direction = (pairDirection == rotationDirection);
-            Pair pair = pd.m_pair;
+//            Triangle triangle = m_parent.m_triangle;
+//            boolean rotationDirection = m_parent.m_forward;
+//            int indx_ = rotationDirection ? m_indx : 2 - m_indx;
+//            PairDirection pd = triangle.get(indx_);
+//            boolean pairDirection = pd.m_forward;
+//            boolean direction = (pairDirection == rotationDirection);
+//            Pair pair = pd.m_pair;
+//            OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
+//            TopData topData = tops.get(pair);
+//            return side.pegPrice(topData, pair);
+
+            Pair pair = m_pair1.m_pair;
+            boolean direction = m_pair1.m_forward;
             OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
             TopData topData = tops.get(pair);
             return side.pegPrice(topData, pair);
@@ -229,21 +251,27 @@ public class Triplet {
 
         private static OnePegCalcData[] calcPegs(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
 //            log("    calcPegs: pair1=" + pair1 + "; pair2=" + pair2 + "; pair3=" + pair3);
-            return calcPegs(tops.get(pair1.m_pair), pair1.m_forward, tops.get(pair2.m_pair), pair2.m_forward, tops.get(pair3.m_pair), pair3.m_forward);
-        }
-
-        private static OnePegCalcData[] calcPegs(TopData top1, boolean f1, TopData top2, boolean f2, TopData top3, boolean f3) {
+            TopData top1 = tops.get(pair1.m_pair);
+            TopData top2 = tops.get(pair2.m_pair);
+            TopData top3 = tops.get(pair3.m_pair);
 //            log("     calcPegs: f1=" + f1 + "; f2=" + f2 + "; f3=" + f3);
+
             return new OnePegCalcData[] {
-                    new OnePegCalcData(0, mulMkt(mulMkt(mulPeg((double) 100, top1, f1), top2, f2), top3, f3),
-                                       pegPrice(top1, f1), f1, mktPrice(top2, f2), f2, mktPrice(top3, f3), f3),
-                    new OnePegCalcData(1, mulMkt(mulPeg(mulMkt((double) 100, top1, f1), top2, f2), top3, f3),
-                                       mktPrice(top1, f1), f1, pegPrice(top2, f2), f2, mktPrice(top3, f3), f3),
-                    new OnePegCalcData(2, mulPeg(mulMkt(mulMkt((double) 100, top1, f1), top2, f2), top3, f3),
-                                       mktPrice(top1, f1), f1, mktPrice(top2, f2), f2, pegPrice(top3, f3), f3)
+                    new OnePegCalcData(0, mulMkt(mulMkt(mulPeg((double) 100, top1, pair1.m_forward), top2, pair2.m_forward), top3, pair3.m_forward),
+                            pair1, pegPrice(top1, pair1.m_forward),
+                            pair2, mktPrice(top2, pair2.m_forward),
+                            pair3, mktPrice(top3, pair3.m_forward)),
+                    new OnePegCalcData(1, mulMkt(mulPeg(mulMkt((double) 100, top1, pair1.m_forward), top2, pair2.m_forward), top3, pair3.m_forward),
+                            pair2, pegPrice(top2, pair2.m_forward),
+                            pair3, mktPrice(top3, pair3.m_forward),
+                            pair1, mktPrice(top1, pair1.m_forward)),
+                    new OnePegCalcData(2, mulPeg(mulMkt(mulMkt((double) 100, top1, pair1.m_forward), top2, pair2.m_forward), top3, pair3.m_forward),
+                            pair3, pegPrice(top3, pair3.m_forward),
+                            pair1, mktPrice(top1, pair1.m_forward),
+                            pair2, mktPrice(top2, pair2.m_forward))
             };
         }
-    }
+    } // Triangle
 
     public static class PairDirection {
         private final Pair m_pair;
@@ -511,6 +539,7 @@ public class Triplet {
                             if (peg1.equals(peg2)) {
                                 double pegPrice = peg1.calcPegPrice(tops);
                                 double orderPrice = triTrade.m_order.m_price;
+                                // todo - do not move if price change is too small
                                 if (pegPrice == orderPrice) { // check if peg order needs to be moved
                                     toLive = true;
                                 } else {
@@ -583,32 +612,35 @@ public class Triplet {
         public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
             for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
                 OnePegCalcData peg = entry.getValue();
+                String name = peg.name();
                 double pegPrice = peg.calcPegPrice(tops);
 
-                double maxPeg = peg.m_max;
-                int indx = peg.m_indx;
-                TriangleRotationCalcData rotationData = peg.m_parent;
-                Triangle triangle = rotationData.m_triangle;
-                boolean rotationDirection = rotationData.m_forward;
-                String name = triangle.name();
-
-                PairDirection pd = triangle.get(indx);
-                String start = pd.getName();
-                String start_ = pd.get(rotationDirection).getName();
-
-                boolean pairDirection = pd.m_forward;
-                boolean direction = (pairDirection == rotationDirection);
+                PairDirection pd = peg.m_pair1;
                 Pair pair = pd.m_pair;
-                Currency fromCurrency = pair.currencyFrom(direction);
-                double available = getAvailable(fromCurrency);
+                boolean direction = pd.m_forward;
                 OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
                 TopData topData = tops.get(pair);
+
+                double maxPeg = peg.m_max;
+//                int indx = peg.m_indx;
+//                TriangleRotationCalcData rotationData = peg.m_parent;
+//                Triangle triangle = rotationData.m_triangle;
+//                boolean rotationDirection = rotationData.m_forward;
+//                int indx_ = rotationDirection ? indx : 2 - indx;
+//                PairDirection pd = triangle.get(indx_);
+//                String start = pd.getName();
+//                String start_ = pd.get(rotationDirection).getName();
+//                boolean pairDirection = pd.m_forward;
+//                boolean direction = (pairDirection == rotationDirection);
+//                Pair pair = pd.m_pair;
+                Currency fromCurrency = pair.currencyFrom(direction);
+                double available = getAvailable(fromCurrency);
+//                OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
+//                TopData topData = tops.get(pair);
                 double amount = side.isBuy() ? available/pegPrice: available;
 
-//                str += " best: " + formatAndPad(maxPeg);
-
-                log("#### best: " + formatAndPad(maxPeg) + "; " + name + " rotationDir=" + rotationDirection + ", indx=" + indx +
-                        ", start=" + start + ", start'=" + start_ + ", pair: " + pair + ", pairDir=" + pairDirection + ", direction=" + direction +
+                log("#### best: " + formatAndPad(maxPeg) + "; " + name + /*" rotationDir=" + rotationDirection + ", indx=" + indx + ", indx_=" + indx_ +*/
+                        /*", start=" + start + ", start'=" + start_ +*/ ", pair: " + pair + /*", pairDir=" + pairDirection +*/ ", direction=" + direction +
                         "\n     top: " + topData + ", from=" + fromCurrency + "; available=" + available  + "; amount=" + amount +
                         "; side=" + side + "; pegPrice=" + format4(pegPrice));
 
@@ -639,6 +671,12 @@ public class Triplet {
         private TriTradeState m_state = TriTradeState.PEG_PLACED;
 
         public TriTradeData(OrderData order, OnePegCalcData peg) {
+double price = order.m_price;
+double priceFromPeg = peg.m_price1;
+double rate = price/priceFromPeg;
+if((rate < 0.7) || (1.3 < rate)) {
+    log("got: rate=" + rate);
+}
             m_order = order;
             m_peg = peg;
         }
@@ -735,7 +773,7 @@ public class Triplet {
                     if (order.isFilled()) {
                         triTradeData.setState(TriTradeState.MKT1_EXECUTED);
                     } else {
-                        log("1st MKT order run out of market " + order + ";  top="+iData.getTop(Exchange.BTCE, order.m_pair));
+                        log("1st MKT order run out of market " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
                         if(triangleData.cancelOrder(order)) {
                             triTradeData.m_mktOrders[0] = null;
                             log("placing new 1st MKT order...");
@@ -792,11 +830,19 @@ public class Triplet {
                     double in = ends1[0];
                     double out = ends3[1];
                     double gain = out / in;
-                    log(" @@@@@@   in=" + in + ";  out=" + out + ";  gain=" + gain);
+                    s_totalRatio *= gain;
+
+                    double ratio1 = ends1[1]/ends1[0];
+                    double ratio2 = ends2[1]/ends2[0];
+                    double ratio3 = ends3[1]/ends3[0];
+                    double ratio = ratio1 * ratio2 * ratio3;
+                    log(" @@@@@@   ratio1=" + ratio1 + ";  ratio2=" + ratio2 + ";  ratio3=" + ratio3 + ";    ratio=" + ratio);
+
+                    log(" @@@@@@   in=" + in + ";  out=" + out + ";  gain=" + gain + ";  totalRatio=" + s_totalRatio);
                     log(" @@@@@@    peg: max=" + peg.m_max + "; startIndx="+startIndx+
-                            "; price1=" + peg.m_price1 + "; f1=" + peg.m_mul1 +
-                            "; price2=" + peg.m_price2 + "; f2=" + peg.m_mul2 +
-                            "; price3=" + peg.m_price3 + "; f3=" + peg.m_mul3);
+                            "; price1=" + peg.m_price1 + "; p1=" + peg.m_pair1 +
+                            "; price2=" + peg.m_price2 + "; p2=" + peg.m_pair2 +
+                            "; price3=" + peg.m_price3 + "; p3=" + peg.m_pair3);
 
                     triTradeData.setState(DONE);
                 }
@@ -823,21 +869,32 @@ public class Triplet {
                 double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - account.m_fee); // deduct commissions
                 log(" prev order " + prevOrder + "; exit amount " + prevEndAmount + " " + prevEndCurrency);
 
+                Map<Pair, TopData> tops = iData.getTops();
                 OnePegCalcData peg = triTradeData.m_peg;
-                int startIndx = peg.m_indx;
-                TriangleRotationCalcData rotationData = peg.m_parent;
-                Triangle triangle = rotationData.m_triangle;
-                boolean rotationDirection = rotationData.m_forward;
-                int indx = rotationDirection ? (startIndx + num) % 3 : (startIndx + 3 - num) % 3;
-                String name = triangle.name();
-
-                PairDirection pd = triangle.get(indx);
-                String start = pd.getName();
-                String start_ = pd.get(rotationDirection).getName();
-
-                boolean pairDirection = pd.m_forward;
-                boolean direction = (pairDirection == rotationDirection);
+                String name = peg.name();
+                PairDirection pd = (num == 1) ? peg.m_pair2 : peg.m_pair3;
                 Pair pair = pd.m_pair;
+                boolean direction = pd.m_forward;
+                OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
+                TopData topData = tops.get(pair);
+                double mktPrice = side.mktPrice(topData);
+
+
+//                int startIndx = peg.m_indx;
+//                TriangleRotationCalcData rotationData = peg.m_parent;
+//                Triangle triangle = rotationData.m_triangle;
+//                boolean rotationDirection = rotationData.m_forward;
+//                int indx = rotationDirection ? (startIndx + num) % 3 : (2 - startIndx + num) % 3;
+//                String name = triangle.name();
+//
+//                PairDirection pd = triangle.get(indx);
+//                String start = pd.getName();
+//                String start_ = pd.get(rotationDirection).getName();
+//
+//                boolean pairDirection = pd.m_forward;
+//                boolean direction = (pairDirection == rotationDirection);
+//                Pair pair = pd.m_pair;
+
                 Currency fromCurrency = pair.currencyFrom(direction);
                 if (prevEndCurrency != fromCurrency) {
                     log("ERROR: currencies are not matched");
@@ -846,32 +903,27 @@ public class Triplet {
                 if (prevEndAmount > available) {
                     log("ERROR: not enough available");
                 }
-                OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
-                Map<Pair, TopData> tops = iData.getTops();
-                TopData topData = tops.get(pair);
-                double mktPrice = side.mktPrice(topData);
+
+//                OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
+//                Map<Pair, TopData> tops = iData.getTops();
+//                TopData topData = tops.get(pair);
+//                double mktPrice = side.mktPrice(topData);
                 double amount = side.isBuy() ? prevEndAmount / mktPrice : prevEndAmount;
 
-//                str += " best: " + formatAndPad(maxPeg);
-
-                log("1st order:" + name + " rotationDir=" + rotationDirection + ", startIndx=" + startIndx + ", indx=" + indx +
-                        ", start=" + start + ", start'=" + start_ + ", pair: " + pair + ", pairDir=" + pairDirection + ", direction=" + direction +
+                log("1st order:" + name + /*" rotationDir=" + rotationDirection + ", startIndx=" + startIndx + ", indx=" + indx +*/
+                        /*", start=" + start + ", start'=" + start_ +*/ ", pair: " + pair + /*", pairDir=" + pairDirection +*/ ", direction=" + direction +
                         "; top: " + topData + ", from=" + fromCurrency + "; available=" + available + "; amount=" + amount +
                         "; side=" + side + "; mktPrice=" + format4(mktPrice));
 
-                // todo: but check for physical min order size
-//                if (amount > pair.m_minOrderSize) {
-                    OrderData order = new OrderData(pair, side, mktPrice, amount);
-                    boolean ok = placeOrder(account, order, OrderState.MARKET_PLACED);
-                    log("   place order = " + ok);
-                    if (ok) {
-                        triTradeData.setMktOrder(order, num - 1);
-                    } else {
-                        triTradeData.setState(ERROR);
-                    }
-//                } else {
-//                    log(" no funds for min order size=" + pair.m_minOrderSize + ", amount " + format4(amount) + " " + fromCurrency + " : " + account);
-//                }
+                // todo: check for physical min order size like 0.01
+                OrderData order = new OrderData(pair, side, mktPrice, amount);
+                boolean ok = placeOrder(account, order, OrderState.MARKET_PLACED);
+                log("   place order = " + ok);
+                if (ok) {
+                    triTradeData.setMktOrder(order, num - 1);
+                } else {
+                    triTradeData.setState(ERROR);
+                }
             }
 
             public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {}

@@ -33,7 +33,7 @@ public enum Exchange {
     BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true, 3,
           Btce.topTestStr(), "https://btc-e.com/api/3/ticker/XXXX", // XXXX like "btc_usd-ltc_btc" // old? : "https://btc-e.com/api/2/btc_usd/ticker"
           Btce.deepTestStr(), "https://btc-e.com/api/3/depth/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
-          Btce.tradesTestStr(), "https://btc-e.com/api/3/trades/XXXX?limit=50", // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
+          Btce.tradesTestStr(), Btce.apiTradesEndpoint(), // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.accountTestStr(), new UrlDef("https://btc-e.com/tapi", "method", "getInfo")
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
