@@ -33,7 +33,7 @@ public class TopData {
     }
 
     @Override public String toString() {
-        return "TopData{" +
+        return "Top{" +
                 toStringX() +
                 '}';
     }

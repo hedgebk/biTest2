@@ -155,7 +155,7 @@ public class AccountData {
             double toSize = isBuy ? amount : amount * price;
             double commission = toSize * m_fee;
             double rest = toSize - commission; // deduct commissions
-            str += ";   toCurrency " + Utils.X_YYYYY.format(toCurrency) + "; toSize=" + Utils.X_YYYYY.format(toSize) +
+            str += ";   toCurrency " + toCurrency + "; toSize=" + Utils.X_YYYYY.format(toSize) +
                     "; commission=" + Utils.X_YYYYY.format(commission) + "; rest=" + Utils.X_YYYYY.format(rest);
 
             double available = available(toCurrency);

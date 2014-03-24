@@ -30,15 +30,15 @@ public class TradeData {
 
     @Override public String toString() {
         return "TradeData{" +
-                "amount=" + m_amount +
-                ", price=" + m_price +
-                ", timestamp=" + m_timestamp +
+                "amount=" + Utils.X_YYYYY.format(m_amount) +
+                ", price=" + Utils.X_YYYYY.format(m_price) +
+                ", time=" + m_timestamp +
                 ", tid=" + m_tid +
                 ", type=" + m_type +
                 ((m_orderSide != null) ? ", orderSide=" + m_orderSide : "") +
-                ", exchId=" + m_exchId +
-                ", crossId=" + m_crossId +
-                ", forkId=" + m_forkId +
+                ((m_exchId != 0) ? ", exchId=" + m_exchId : "") +
+                ((m_crossId != 0) ? ", crossId=" + m_crossId : "") +
+                ((m_forkId != 0) ? ", forkId=" + m_forkId : "") +
                 '}';
     }
 }

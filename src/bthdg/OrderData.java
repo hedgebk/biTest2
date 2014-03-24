@@ -123,7 +123,7 @@ public class OrderData {
                 "pair=" + m_pair +
                 ", side=" + m_side +
                 ", amount=" + Utils.X_YYYYY.format(m_amount) +
-                ", price=" + Fetcher.format(m_price) +
+                ", price=" + Utils.X_YYYYY.format(m_price) +
                 ", status=" + m_status +
                 ", state=" + m_state +
                 ", filled=" + Utils.X_YYYYY.format(m_filled) +
@@ -310,8 +310,7 @@ public class OrderData {
         double mktPrice = m_side.mktPrice(top);
         if (acceptPrice(mktPrice)) {
             log("@@@@@@@@@@@@@@ we have MKT order " + m_side + " " + Utils.X_YYYYY.format(m_amount) + " " + m_pair + " @ " + priceStr() +
-                    " on '" + exchange.m_name + "' have matched TOP price=" + mktPrice + "; top=" + top);
-
+                " on '" + exchange.m_name + "' have matched TOP price=" + mktPrice + "; top=" + top);
             double remained = remained();
             addExecution(m_price, remained);
             account.releaseTrade(m_pair, m_side, m_price, remained);
@@ -320,20 +319,19 @@ public class OrderData {
         }
     }
 
-    public double[] logOrderEnds(AccountData account, int i) {
-        log(" order" + i + ": " + this);
+    public double[] logOrderEnds(AccountData account, int i, double expectedPrice) {
+        log(" order" + i + "; " + m_side + " " + Utils.X_YYYYY.format(expectedPrice) + " -> " + Utils.X_YYYYY.format(m_price) +
+            "; delta=" + Utils.X_YYYYY.format(expectedPrice - m_price));
         boolean isBuy = m_side.isBuy();
         Currency startCurrency = m_pair.currencyFrom(isBuy);
         double startAmount = isBuy ? m_amount * m_price : m_amount;
 
         Currency endCurrency = m_pair.currencyFrom(!isBuy);
         double endAmount = (isBuy ? m_amount : m_amount * m_price) * (1 - account.m_fee); // deduct commissions
-        log("  start " + startAmount + " " + startCurrency +
-            "  end " + endAmount + " " + endCurrency +
-            "  ratio: " + endAmount/startAmount
+        log("  start " + Utils.X_YYYYY.format(startAmount) + " " + startCurrency +
+            "  end " + Utils.X_YYYYY.format(endAmount) + " " + endCurrency +
+            "  ratio: " + endAmount / startAmount + "; " + this
         );
-
         return new double[] {startAmount, endAmount};
     }
-
 } // OrderData
