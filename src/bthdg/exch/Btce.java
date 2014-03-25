@@ -50,13 +50,41 @@ public class Btce extends BaseExch {
         return "https://btc-e.com/api/3/trades/XXXX?limit=" + BTCE_TRADES_IN_REQUEST; // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
     }
 
-    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint) {
+    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
         Map<String, String> postParams = new HashMap<String, String>();
-
-        postParams.put(apiEndpoint.m_paramName, //"method",
-                       apiEndpoint.m_paramValue);  // Add the method to the post data.
+        postParams.put(apiEndpoint.m_paramName,   // "method",
+                       apiEndpoint.m_paramValue); // Add the method to the post data.
         postParams.put("nonce", nonce);
+
+        switch (command) {
+            case ORDER: {
+                OrderData order = options.getOrderData();
+                Pair pair = order.m_pair;
+                postParams.put("pair", getPairParam(pair));
+                postParams.put("type", order.m_side.isBuy() ? "buy" : "sell" );
+
+                String priceStr = roundToMinValue(order.m_price, pair.m_minPriceStep);
+                postParams.put("rate", priceStr);
+
+                String amountStr = roundToMinValue(order.m_amount, pair.m_minAmountStep);
+                postParams.put("amount", amountStr);
+
+                break;
+            }
+        }
+
         return postParams;
+    }
+
+    private static String roundToMinValue(double value,double minStep) {
+        double price = Utils.round(value, minStep); // 0.00001
+        String prec = Double.toString(minStep); // "0.00001"
+        int indx = prec.indexOf('.');
+        int num = prec.length() - indx - 1;
+        String priceStr = Utils.X_YYYYYYY.format(price); // 12.1243567
+        indx = priceStr.indexOf('.');
+        priceStr.substring(0, indx + num + 1);
+        return priceStr;
     }
 
     private JSONObject run(String method ) throws Exception {
@@ -199,6 +227,24 @@ public class Btce extends BaseExch {
         return accountData;
     }
 
+    public static String parseOrder(Object jObj) {
+        log("BTCE.parseOrder() " + jObj);
+//        "success":1,
+//        	"return":{
+//        		"received":0.1,
+//        		"remains":0,
+//        		"order_id":0,
+//        		"funds":{
+//        			"usd":325,
+//        			"btc":2.498,
+//        			"sc":121.998,
+//        			"ltc":0,
+//        			"ruc":0,
+//        			"nmc":0
+//        		}
+        return null;
+    }
+
     public static String accountTestStr() {
         return "{\"return\":{\"open_orders\":0,\"funds\":{\"trc\":0,\"nmc\":0,\"ftc\":0,\"eur\":40,\"rur\":0,\"usd\":60,\"ltc\":3.6,\"ppc\":0,\"xpm\":0,\"nvc\":0,\"btc\":0.1},\"transaction_count\":2,\"rights\":{\"trade\":0,\"withdraw\":0,\"info\":1},\"server_time\":1393026300},\"success\":1}";
     }
@@ -223,7 +269,8 @@ public class Btce extends BaseExch {
         return false;
     }
 
-    public static Exchange.UrlDef fixEndpointForPairs(Exchange.UrlDef endpoint, Pair... pairs) {
+    public static Exchange.UrlDef fixEndpointForPairs(Exchange.UrlDef endpoint, Fetcher.FetchOptions options) {
+        Pair[] pairs = options.getPairs();
         return endpoint.replace("XXXX", getPairParam(pairs));
     }
 
@@ -233,16 +280,21 @@ public class Btce extends BaseExch {
             if(sb.length() > 0) {
                 sb.append("-");
             }
-            switch (pair) {
-                case BTC_USD: sb.append("btc_usd"); break;
-                case LTC_BTC: sb.append("ltc_btc"); break;
-                case LTC_USD: sb.append( "ltc_usd"); break;
-                case BTC_EUR: sb.append( "btc_eur"); break;
-                case LTC_EUR: sb.append( "ltc_eur"); break;
-                case EUR_USD: sb.append( "eur_usd"); break;
-            }
+            sb.append(getPairParam(pair));
         }
         return sb.toString();
+    }
+
+    private static String getPairParam(Pair pair) {
+        switch (pair) {
+            case BTC_USD: return "btc_usd";
+            case LTC_BTC: return "ltc_btc";
+            case LTC_USD: return "ltc_usd";
+            case BTC_EUR: return "btc_eur";
+            case LTC_EUR: return "ltc_eur";
+            case EUR_USD: return "eur_usd";
+            default: return "?";
+        }
     }
 }
 

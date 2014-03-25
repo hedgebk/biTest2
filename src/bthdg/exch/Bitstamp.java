@@ -38,7 +38,7 @@ public class Bitstamp extends BaseExch {
         }
     }
 
-    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint) throws Exception {
+    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
         String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
         String signature = encoded.toUpperCase();
 

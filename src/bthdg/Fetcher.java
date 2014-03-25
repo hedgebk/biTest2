@@ -60,8 +60,13 @@ public class Fetcher {
             Bitstamp.init(keys);
             Btce.init(keys);
 
-//            AccountData account = fetchAccount(Exchange.BITSTAMP);
+
+            AccountData account = fetchAccount(Exchange.BITSTAMP);
 //            AccountData account = fetchAccount(Exchange.BTCE);
+
+            OrderData order = new OrderData(Pair.BTC_EUR, OrderSide.SELL, 800, 0.01);
+            boolean success = placeOrder(Exchange.BTCE, order);
+            log("placeOrder success=" + success);
 
 //            TradesData trades1 = fetchTrades(Exchange.BITSTAMP);
 //            TradesData trades2 = fetchTrades(Exchange.BTCE);
@@ -78,25 +83,28 @@ public class Fetcher {
 //            DeepData deep2 = fetchDeep(Exchange.BITSTAMP);
 //            printDeeps(deep1, deep2);
 
-//            pool(Exchange.BITSTAMP, Exchange.BTCE, null);
+//            pool(Exchange.BITSTAMP, Exchange.BTCE);
 
-            DbReady.goWithDb(new DbReady.IDbRunnable() {
-                public void run(Connection connection) throws SQLException {
-                    try {
-                        if( DO_DB_DROP ) {
-                            drop(connection);
-                        }
-                        pool(Exchange.BITSTAMP, Exchange.BTCE, connection);
-                    } catch (Exception e) {
-                        log("error: " + e);
-                        e.printStackTrace();
-                    }
-                }
-            });
         } catch (Exception e) {
             log("error: " + e);
             e.printStackTrace();
         }
+    }
+
+    private static void pool(final Exchange exch1, final Exchange exch2) {
+        DbReady.goWithDb(new DbReady.IDbRunnable() {
+            public void run(Connection connection) throws SQLException {
+                try {
+                    if (DO_DB_DROP) {
+                        drop(connection);
+                    }
+                    pool(exch1, exch2, connection);
+                } catch (Exception e) {
+                    log("error: " + e);
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     private static void log(String x) {
@@ -159,6 +167,15 @@ public class Fetcher {
         }
     }
 
+    private static boolean placeOrder(Exchange exchange, final OrderData order) throws Exception {
+        Object jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
+            @Override public OrderData getOrderData() { return order; }
+        });
+        log("jObj=" + jObj);
+        String orderId = exchange.parseOrder(jObj);
+        return (orderId != null);
+    }
+
     public static AccountData fetchAccount(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.ACCOUNT, null);
 //        log("jObj=" + jObj);
@@ -172,18 +189,16 @@ public class Fetcher {
     }
 
     static TradesData fetchTrades(Exchange exchange) throws Exception {
-        Pair pair = Pair.BTC_USD;
-        return fetchTrades(exchange, pair);
+        return fetchTrades(exchange, Pair.BTC_USD);
     }
 
     static TradesData fetchTrades(Exchange exchange, Pair pair) throws Exception {
-        Object jObj = fetch(exchange, FetchCommand.TRADES, pair);
-        TradesData tradesData = exchange.parseTrades(jObj, pair);
-        return tradesData;
+        Map<Pair, TradesData> map = fetchTrades(exchange, new Pair[]{pair});
+        return map.get(pair);
     }
 
     public static Map<Pair,TradesData> fetchTrades(Exchange exchange, Pair... pairs) throws Exception {
-        Object jObj = fetch(exchange, FetchCommand.TRADES, pairs);
+        Object jObj = fetch(exchange, FetchCommand.TRADES, new PairsFetchOptions(pairs));
         Map<Pair,TradesData> trades = exchange.parseTrades(jObj, pairs);
         return trades;
     }
@@ -194,10 +209,8 @@ public class Fetcher {
 
     private static TradesData fetchTradesOnce(Exchange exchange, Pair pair) {
         try {
-            Object jObj = fetchOnce(exchange, FetchCommand.TRADES, pair);
-//        log("jObj=" + jObj);
+            Object jObj = fetchOnce(exchange, FetchCommand.TRADES, new PairFetchOptions(pair));
             TradesData tradesData = exchange.parseTrades(jObj, pair);
-//        log("tradesData=" + tradesData);
             return tradesData;
         } catch (Exception e) {
             log(" loading error: " + e);
@@ -207,7 +220,7 @@ public class Fetcher {
     }
 
     private static DeepData fetchDeep(Exchange exchange) throws Exception {
-        Object jObj = fetch(exchange, FetchCommand.DEEP, Pair.BTC_USD);
+        Object jObj = fetch(exchange, FetchCommand.DEEP, new PairFetchOptions(Pair.BTC_USD));
         log("jObj=" + jObj);
         DeepData deepData = exchange.parseDeep(jObj);
         log("deepData=" + deepData);
@@ -219,7 +232,7 @@ public class Fetcher {
     }
 
     static TopData fetchTop(Exchange exchange, Pair pair) throws Exception {
-        Object jObj = fetch(exchange, FetchCommand.TOP, pair);
+        Object jObj = fetch(exchange, FetchCommand.TOP, new PairFetchOptions(pair));
         //log("jObj=" + jObj);
         TopData topData = exchange.parseTop(jObj, pair);
         //log("topData=" + topData);
@@ -227,7 +240,7 @@ public class Fetcher {
     }
 
     public static Map<Pair,TopData> fetchTops(Exchange exchange, Pair... pairs) throws Exception {
-        Object jObj = fetch(exchange, FetchCommand.TOP, pairs);
+        Object jObj = fetch(exchange, FetchCommand.TOP, new PairsFetchOptions(pairs));
         Map<Pair,TopData> topData = exchange.parseTops(jObj, pairs);
         return topData;
     }
@@ -238,10 +251,8 @@ public class Fetcher {
 
     static TopData fetchTopOnce(Exchange exchange, Pair pair) {
         try {
-            Object jObj = fetchOnce(exchange, FetchCommand.TOP, pair);
-//            log("jObj=" + jObj);
+            Object jObj = fetchOnce(exchange, FetchCommand.TOP, new PairFetchOptions(pair));
             TopData topData = exchange.parseTop(jObj, pair);
-//            log("topData=" + topData);
             return topData;
         } catch (Exception e) {
             log(" loading error: " + e);
@@ -250,11 +261,11 @@ public class Fetcher {
         return null;
     }
 
-    private static Object fetch(Exchange exchange, FetchCommand command, Pair ... pairs) throws Exception {
+    private static Object fetch(Exchange exchange, FetchCommand command, FetchOptions options) throws Exception {
         long delay = START_REPEAT_DELAY;
         for (int attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt++) {
             try {
-                return fetchOnce(exchange, command, pairs);
+                return fetchOnce(exchange, command, options);
             } catch (Exception e) {
                 if (!MUTE_SOCKET_TIMEOUTS || !(e instanceof SocketTimeoutException)) {
                     log(" loading error (attempt " + attempt + "): " + e);
@@ -267,13 +278,13 @@ public class Fetcher {
         throw new RuntimeException("unable to load after " + MAX_READ_ATTEMPTS + " attempts");
     }
 
-    private static Object fetchOnce(Exchange exchange, FetchCommand command, Pair ... pairs) throws Exception {
+    private static Object fetchOnce(Exchange exchange, FetchCommand command, FetchOptions options) throws Exception {
         Reader reader;
         if (command.useTestStr()) {
             String str = command.getTestStr(exchange);
             reader = new StringReader(str);
         } else {
-            Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange, pairs);
+            Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange, options);
             String location = apiEndpoint.m_location;
             if (LOG_LOADING) {
                 log("loading from " + location + "...  ");
@@ -303,7 +314,7 @@ public class Fetcher {
             String postData = null;
             if (doPost) {
                 String nonce = baseExch.getNextNonce();
-                Map<String, String> postParams = baseExch.getPostParams(nonce, apiEndpoint);
+                Map<String, String> postParams = baseExch.getPostParams(nonce, apiEndpoint, command, options);
                 postData = BaseExch.buildQueryString(postParams);
 
                 Map<String, String> headerLines = baseExch.getHeaders(postData);
@@ -447,32 +458,36 @@ public class Fetcher {
     }
 
 
-    enum FetchCommand {
+    public enum FetchCommand {
         TOP {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_topTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.apiTopEndpoint(pairs); }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.apiTopEndpoint(options); }
             @Override public boolean useTestStr() { return USE_TOP_TEST_STR; }
         },
         DEEP {
             @Override public String getTestStr(Exchange exchange) { return exchange.deepTestStr(); }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.m_apiDeepEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_apiDeepEndpoint; }
             @Override public boolean useTestStr() { return USE_DEEP_TEST_STR; }
         },
         TRADES {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_tradesTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.apiTradesEndpoint(pairs); }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.apiTradesEndpoint(options); }
             @Override public boolean useTestStr() { return USE_TRADES_TEST_STR; }
         },
         ACCOUNT {
             @Override public String getTestStr(Exchange exchange) { return exchange.m_accountTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return exchange.m_accountEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_accountEndpoint; }
             @Override public boolean useTestStr() { return USE_ACCOUNT_TEST_STR; }
             @Override public boolean doPost() { return true; }
             @Override public boolean needSsl() { return true; }
         },
-        ;
+        ORDER {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_orderEndpoint; }
+            @Override public boolean doPost() { return true; }
+            @Override public boolean needSsl() { return true; }
+        };
         public String getTestStr(Exchange exchange) { return null; }
-        public Exchange.UrlDef getApiEndpoint(Exchange exchange, Pair ... pairs) { return null; }
+        public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return null; }
         public boolean useTestStr() { return false; }
         public boolean doPost() { return false; }
         public boolean needSsl() { return false; }
@@ -555,4 +570,28 @@ public class Fetcher {
         }
     }
 
+    public static class FetchOptions {
+        public Pair[] getPairs() { return null; }
+        public OrderData getOrderData() { return null; }
+    }
+
+    private static class PairFetchOptions extends FetchOptions {
+        private final Pair m_pair;
+
+        public PairFetchOptions(Pair pair) {
+            m_pair = pair;
+        }
+
+        @Override public Pair[] getPairs() { return new Pair[]{m_pair}; }
+    }
+
+    private static class PairsFetchOptions extends FetchOptions {
+        private final Pair[] pairs;
+
+        public PairsFetchOptions(Pair... pairs) {
+            this.pairs = pairs;
+        }
+
+        @Override public Pair[] getPairs() { return pairs; }
+    }
 }

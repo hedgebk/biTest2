@@ -16,6 +16,7 @@ public class Utils {
     public static final DecimalFormat PLUS_YYY = new DecimalFormat("+0.000;-0.000");
     public static final DecimalFormat X_YYYY = new DecimalFormat("0.0000");
     public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
+    public static final DecimalFormat X_YYYYYYY = new DecimalFormat("0.0000000");
 
     public static String encodeHexString(byte[] hash) {
         return String.format("%064x", new BigInteger(1, hash));
@@ -152,6 +153,10 @@ public class Utils {
             return ((double) Math.round(amount * mult)) / mult;
         }
         return round(amount, decimals - 1, mult * 10);
+    }
+
+    public static double round(double amount, double minStep) {
+        return Math.round(amount / minStep) * minStep;
     }
 
     public static String padRight(String str, int destLen) {

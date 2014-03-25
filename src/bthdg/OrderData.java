@@ -334,4 +334,17 @@ public class OrderData {
         );
         return new double[] {startAmount, endAmount};
     }
+
+    public double ratio(AccountData account) {
+        boolean isBuy = m_side.isBuy();
+        return (isBuy ? 1 / m_price : m_price) * (1 - account.m_fee); // deduct commissions
+    }
+
+    public Currency currencyFrom() {
+        return m_pair.currencyFrom(m_side.isBuy());
+    }
+
+    public Currency currencyTo() {
+        return m_pair.currencyFrom(!m_side.isBuy());
+    }
 } // OrderData

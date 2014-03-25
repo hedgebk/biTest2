@@ -1,22 +1,16 @@
 package bthdg.exch;
 
-import bthdg.Config;
-import bthdg.Exchange;
-import bthdg.Log;
-import bthdg.Utils;
+import bthdg.*;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.*;
-import javax.security.cert.CertificateException;
-import javax.security.cert.X509Certificate;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -30,7 +24,7 @@ public abstract class BaseExch {
     protected abstract String getSecret();
     protected abstract String getApiEndpoint();
 
-    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint) throws Exception {return null;};
+    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {return null;};
     public Map<String, String> getHeaders(String postData) throws Exception { return null; }
     private static void log(String s) { Log.log(s); }
 
