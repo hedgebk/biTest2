@@ -23,7 +23,7 @@ public enum Exchange {
              null, "https://www.bitstamp.net/api/order_book/",
              Bitstamp.tradesTestStr(), "https://www.bitstamp.net/api/transactions/?time=minute",
              Bitstamp.accountTestStr(), new UrlDef("https://www.bitstamp.net/api/balance/"),
-             null
+             null, null, null
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Bitstamp.parseTop(jObj); }
         @Override public DeepData parseDeep(Object jObj) { return Bitstamp.parseDeep(jObj); }
@@ -36,7 +36,9 @@ public enum Exchange {
           Btce.deepTestStr(), "https://btc-e.com/api/3/depth/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.tradesTestStr(), Btce.apiTradesEndpoint(), // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.accountTestStr(), new UrlDef("https://btc-e.com/tapi", "method", "getInfo"),
-          new UrlDef("https://btc-e.com/tapi", "method", "Trade")
+          new UrlDef("https://btc-e.com/tapi", "method", "Trade"),
+          new UrlDef("https://btc-e.com/tapi", "method", "ActiveOrders"),
+          new UrlDef("https://btc-e.com/tapi", "method", "CancelOrder")
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
         @Override public Map<Pair, TopData> parseTops(Object jObj, Pair[] pairs) { return Btce.parseTops(jObj, pairs); }
@@ -44,17 +46,19 @@ public enum Exchange {
         @Override public TradesData parseTrades(Object jObj, Pair pair) { return Btce.parseTrades(jObj, pair); }
         @Override public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return Btce.parseTrades(jObj, pairs); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
-        @Override public String parseOrder(Object jObj) { return Btce.parseOrder(jObj); }
+        @Override public PlaceOrderData parseOrder(Object jObj) { return Btce.parseOrder(jObj); }
+        @Override public OrdersData parseOrders(Object jObj) { return Btce.parseOrders(jObj); }
+        @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btce.parseCancelOrders(jObj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, options); }
     },
-    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null), // DEAD
+    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
-           null, null, "", "", null, null, null),
+           null, null, "", "", null, null, null, null, null),
     BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.002, true, 2,
            null, null,
-           null, null, "", "", null, null, null);
+           null, null, "", "", null, null, null, null, null);
 
     public final String m_name;
     public BaseExch m_baseExch;
@@ -75,6 +79,8 @@ public enum Exchange {
     public final String m_accountTestStr;
 
     public UrlDef m_orderEndpoint;
+    public UrlDef m_ordersEndpoint;
+    public UrlDef m_cancelEndpoint;
 
     public final boolean m_doWebUpdate;
     private final int m_priceDecimals;
@@ -87,7 +93,9 @@ public enum Exchange {
              String deepTestStr, String apiDeepEndpoint,
              String tradesTestStr, String apiTradesEndpoint,
              String accountTestStr, UrlDef accountEndpoint,
-             UrlDef orderEndpoint
+             UrlDef orderEndpoint,
+             UrlDef ordersEndpoint,
+             UrlDef cancelEndpoint
     ) {
         m_name = name;
         m_baseExch = baseExch;
@@ -110,6 +118,8 @@ public enum Exchange {
         m_accountTestStr = accountTestStr;
 
         m_orderEndpoint = orderEndpoint;
+        m_ordersEndpoint = ordersEndpoint;
+        m_cancelEndpoint = cancelEndpoint;
     }
 
     public TopData parseTop(Object jObj, Pair pair) { return null; }
@@ -118,7 +128,9 @@ public enum Exchange {
     public TradesData parseTrades(Object jObj, Pair pair) { return null; }
     public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return null; }
     public AccountData parseAccount(Object jObj) { return null; }
-    public String parseOrder(Object jObj) { return null; }
+    public PlaceOrderData parseOrder(Object jObj) { return null; }
+    public OrdersData parseOrders(Object jObj) { return null; }
+    public CancelOrderData parseCancelOrder(Object jObj) { return null; }
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
     public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return m_apiTradesEndpoint; }
 

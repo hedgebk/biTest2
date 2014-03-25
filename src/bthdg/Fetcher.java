@@ -35,7 +35,7 @@ public class Fetcher {
     private static final boolean USE_TOP_TEST_STR = false;
     private static final boolean USE_DEEP_TEST_STR = false;
     private static final boolean USE_TRADES_TEST_STR = false;
-    public static boolean USE_ACCOUNT_TEST_STR = true;
+    public static boolean USE_ACCOUNT_TEST_STR = false;
     public static final long MOVING_AVERAGE = 60 * 60 * 1000; // better simulated = 1h 10 min
     public static final double EXPECTED_GAIN = 3; // better simulated = 4.3
     public static final PriceAlgo PRICE_ALGO = PriceAlgo.MARKET;
@@ -60,13 +60,13 @@ public class Fetcher {
             Bitstamp.init(keys);
             Btce.init(keys);
 
-
             AccountData account = fetchAccount(Exchange.BITSTAMP);
 //            AccountData account = fetchAccount(Exchange.BTCE);
+            log("account=" + account);
 
-            OrderData order = new OrderData(Pair.BTC_EUR, OrderSide.SELL, 800, 0.01);
-            boolean success = placeOrder(Exchange.BTCE, order);
-            log("placeOrder success=" + success);
+            // placeOrder();
+
+            cancelLiveOrders();
 
 //            TradesData trades1 = fetchTrades(Exchange.BITSTAMP);
 //            TradesData trades2 = fetchTrades(Exchange.BTCE);
@@ -88,6 +88,43 @@ public class Fetcher {
         } catch (Exception e) {
             log("error: " + e);
             e.printStackTrace();
+        }
+    }
+
+    private static void cancelLiveOrders() throws Exception {
+        OrdersData od = fetchOrder(Exchange.BTCE, null);
+        log("ordersData=" + od);
+        String error = od.m_erorr;
+        if (error == null) {
+            for (OrdersData.OrdData ord : od.m_ords) {
+                String orderId = ord.m_orderId;
+                log(" next order to cancel: " + orderId);
+                CancelOrderData coData = calcelOrder(Exchange.BTCE, orderId);
+                log("  cancel order data: " + coData);
+                String error2 = coData.m_error;
+                if (error2 == null) {
+                    long orderId2 = coData.m_orderId;
+                    log("   orderId: " + orderId2);
+                } else {
+                    log("   error: " + error);
+                }
+            }
+        } else {
+            log("error: " + error);
+        }
+    }
+
+    private static void placeOrder() throws Exception {
+        OrderData order = new OrderData(Pair.BTC_EUR, OrderSide.SELL, 800, 0.01);
+        PlaceOrderData poData = placeOrder(Exchange.BTCE, order);
+        log("placeOrder returns: " + poData);
+        String error = poData.m_error;
+        if (error == null) {
+            long orderId = poData.m_orderId;
+            log("orderId: " + orderId);
+            order.m_orderId = Long.toString(orderId);
+        } else {
+            log("error: " + error);
         }
     }
 
@@ -167,14 +204,33 @@ public class Fetcher {
         }
     }
 
-    private static boolean placeOrder(Exchange exchange, final OrderData order) throws Exception {
+    private static OrdersData fetchOrder(Exchange exchange, final Pair pair) throws Exception {
+        Object jObj = fetchOnce(exchange, FetchCommand.ORDERS, new FetchOptions() {
+            @Override public Pair getPair() { return pair; }
+        });
+        log("jObj=" + jObj);
+        OrdersData oData = exchange.parseOrders(jObj);
+        return oData;
+    }
+
+    private static PlaceOrderData placeOrder(Exchange exchange, final OrderData order) throws Exception {
         Object jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
             @Override public OrderData getOrderData() { return order; }
         });
         log("jObj=" + jObj);
-        String orderId = exchange.parseOrder(jObj);
-        return (orderId != null);
+        PlaceOrderData poData = exchange.parseOrder(jObj);
+        return poData;
     }
+
+    private static CancelOrderData calcelOrder(Exchange exchange, final String orderId) throws Exception {
+        Object jObj = fetchOnce(exchange, FetchCommand.CANCEL, new FetchOptions() {
+            @Override public String getOrderId() { return orderId; }
+        });
+        log("jObj=" + jObj);
+        CancelOrderData coData = exchange.parseCancelOrder(jObj);
+        return coData;
+    }
+
 
     public static AccountData fetchAccount(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.ACCOUNT, null);
@@ -485,6 +541,16 @@ public class Fetcher {
             @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_orderEndpoint; }
             @Override public boolean doPost() { return true; }
             @Override public boolean needSsl() { return true; }
+        },
+        ORDERS {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_ordersEndpoint; }
+            @Override public boolean doPost() { return true; }
+            @Override public boolean needSsl() { return true; }
+        },
+        CANCEL {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_cancelEndpoint; }
+            @Override public boolean doPost() { return true; }
+            @Override public boolean needSsl() { return true; }
         };
         public String getTestStr(Exchange exchange) { return null; }
         public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return null; }
@@ -573,6 +639,8 @@ public class Fetcher {
     public static class FetchOptions {
         public Pair[] getPairs() { return null; }
         public OrderData getOrderData() { return null; }
+        public Pair getPair() { return null; }
+        public String getOrderId() { return null; }
     }
 
     private static class PairFetchOptions extends FetchOptions {
@@ -594,4 +662,5 @@ public class Fetcher {
 
         @Override public Pair[] getPairs() { return pairs; }
     }
+
 }

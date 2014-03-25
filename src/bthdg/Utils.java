@@ -17,6 +17,7 @@ public class Utils {
     public static final DecimalFormat X_YYYY = new DecimalFormat("0.0000");
     public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
     public static final DecimalFormat X_YYYYYYY = new DecimalFormat("0.0000000");
+    public static final DecimalFormat X_X = new DecimalFormat("0.0#######");
 
     public static String encodeHexString(byte[] hash) {
         return String.format("%064x", new BigInteger(1, hash));
@@ -172,6 +173,17 @@ public class Utils {
         if (currLen < destLen) {
             return padLeft(PADS.substring(0, Math.min(destLen - currLen, PADS.length())) + str, destLen);
         }
+        return str;
+    }
+
+    public static String roundToMinValue(double v, double minStep) {
+        double val = round(v, minStep); // 0.00001
+        String prec = X_X.format(minStep); // "0.00001"
+        int indx = prec.indexOf('.');
+        int num = prec.length() - indx - 1;
+        String str = X_YYYYYYY.format(val); // 12.1243567
+        indx = str.indexOf('.');
+        str = str.substring(0, indx + num + 1);
         return str;
     }
 

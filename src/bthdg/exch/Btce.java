@@ -16,6 +16,8 @@ import org.json.simple.JSONObject;
 import java.io.*;
 import java.util.*;
 
+import static bthdg.Fetcher.*;
+
 public class Btce extends BaseExch {
     public static final String CRYPTO_ALGO = "HmacSHA512";
     public static int BTCE_TRADES_IN_REQUEST = 50;
@@ -50,23 +52,35 @@ public class Btce extends BaseExch {
         return "https://btc-e.com/api/3/trades/XXXX?limit=" + BTCE_TRADES_IN_REQUEST; // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
     }
 
-    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
+    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, FetchCommand command, FetchOptions options) {
         Map<String, String> postParams = new HashMap<String, String>();
         postParams.put(apiEndpoint.m_paramName,   // "method",
                        apiEndpoint.m_paramValue); // Add the method to the post data.
         postParams.put("nonce", nonce);
 
         switch (command) {
+            case CANCEL: {
+                String orderId = options.getOrderId();
+                postParams.put("order_id", orderId);
+                break;
+            }
+            case ORDERS: {
+                Pair pair = options.getPair();
+                if (pair != null) {
+                    postParams.put("pair", getPairParam(pair));
+                }
+                break;
+            }
             case ORDER: {
                 OrderData order = options.getOrderData();
                 Pair pair = order.m_pair;
                 postParams.put("pair", getPairParam(pair));
-                postParams.put("type", order.m_side.isBuy() ? "buy" : "sell" );
+                postParams.put("type", getOrderSideStr(order));
 
-                String priceStr = roundToMinValue(order.m_price, pair.m_minPriceStep);
+                String priceStr = Utils.roundToMinValue(order.m_price, pair.m_minPriceStep);
                 postParams.put("rate", priceStr);
 
-                String amountStr = roundToMinValue(order.m_amount, pair.m_minAmountStep);
+                String amountStr = Utils.roundToMinValue(order.m_amount, pair.m_minAmountStep);
                 postParams.put("amount", amountStr);
 
                 break;
@@ -74,17 +88,6 @@ public class Btce extends BaseExch {
         }
 
         return postParams;
-    }
-
-    private static String roundToMinValue(double value,double minStep) {
-        double price = Utils.round(value, minStep); // 0.00001
-        String prec = Double.toString(minStep); // "0.00001"
-        int indx = prec.indexOf('.');
-        int num = prec.length() - indx - 1;
-        String priceStr = Utils.X_YYYYYYY.format(price); // 12.1243567
-        indx = priceStr.indexOf('.');
-        priceStr.substring(0, indx + num + 1);
-        return priceStr;
     }
 
     private JSONObject run(String method ) throws Exception {
@@ -216,7 +219,11 @@ public class Btce extends BaseExch {
 
         JSONObject ret = (JSONObject) jObj.get("return");
         JSONObject funds = (JSONObject) ret.get("funds");
+        AccountData accountData = parseFunds(funds);
+        return accountData;
+    }
 
+    private static AccountData parseFunds(JSONObject funds) {
         double usd = Utils.getDouble(funds.get("usd"));
         double btc = Utils.getDouble(funds.get("btc"));
         AccountData accountData = new AccountData(Exchange.BTCE.m_name, usd, btc, Double.MAX_VALUE);
@@ -227,22 +234,94 @@ public class Btce extends BaseExch {
         return accountData;
     }
 
-    public static String parseOrder(Object jObj) {
+    public static PlaceOrderData parseOrder(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
         log("BTCE.parseOrder() " + jObj);
-//        "success":1,
+        Long success = (Long) jObj.get("success");
+        log(" success=" + success);
+        if( success == 1 ) {
+            JSONObject ret = (JSONObject)  jObj.get("return");
+            log(" ret=" + ret);
+            long orderId = Utils.getLong(ret.get("order_id"));
+            long remains = Utils.getLong(ret.get("remains"));
+            long received = Utils.getLong(ret.get("received"));
+            JSONObject funds = (JSONObject) ret.get("funds");
+            AccountData accountData = parseFunds(funds);
+            return new PlaceOrderData(orderId, remains, received, accountData);
+        } else {
+            String error = (String) jObj.get("error");
+            log(" error: " + error);
+            return new PlaceOrderData(error); // order is not placed
+        }
+// jObj={"return":{"funds":{"trc":0,"nmc":0,"ftc":0,"eur":0,"rur":0,"usd":0,"ltc":0,"ppc":0,"xpm":0,"nvc":0,"btc":0.1871},
+//       "remains":0.01,"received":0,"order_id":184588659},"success":1}
+    }
+
+    public static CancelOrderData parseCancelOrders(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
+        log("BTCE.parseCancelOrders() " + jObj);
+        Long success = (Long) jObj.get("success");
+        log(" success=" + success);
+        if( success == 1 ) {
+            JSONObject ret = (JSONObject)  jObj.get("return");
+            log(" ret=" + ret);
+            long orderId = Utils.getLong(ret.get("order_id"));
+            JSONObject funds = (JSONObject) ret.get("funds");
+            AccountData accountData = parseFunds(funds);
+            return new CancelOrderData(orderId, accountData);
+        } else {
+            String error = (String) jObj.get("error");
+            log(" error: " + error);
+            return new CancelOrderData(error);
+        }
+//        {
+//        	"success":1,
 //        	"return":{
-//        		"received":0.1,
-//        		"remains":0,
-//        		"order_id":0,
+//        		"order_id":343154,
 //        		"funds":{
 //        			"usd":325,
-//        			"btc":2.498,
+//        			"btc":24.998,
 //        			"sc":121.998,
 //        			"ltc":0,
 //        			"ruc":0,
 //        			"nmc":0
 //        		}
-        return null;
+//        	}
+//        }
+    }
+
+    public static OrdersData parseOrders(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
+        log("BTCE.parseOrders() " + jObj);
+        Long success = (Long) jObj.get("success");
+        log(" success=" + success);
+        if( success == 1 ) {
+            JSONObject ret = (JSONObject) jObj.get("return");
+            log(" ret=" + ret);
+            Set keys = ret.keySet();
+            log(" keys=" + keys);
+            List<OrdersData.OrdData> ords = new ArrayList<OrdersData.OrdData>();
+            for (Object key : keys) {
+                String orderId = (String) key;
+                log(" orderId=" + orderId);
+                JSONObject order = (JSONObject) ret.get(orderId);
+                // {"amount":0.01,"timestamp_created":1395784667,"rate":800.0,"status":0,"pair":"btc_eur","type":"sell"}
+                double amount = Utils.getDouble(order.get("amount"));
+                double rate = Utils.getDouble(order.get("rate"));
+                long createTime = Utils.getLong(order.get("timestamp_created"));
+                long status = Utils.getLong(order.get("status"));
+                String pair = (String) order.get("pair");
+                String type = (String) order.get("type");
+                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, amount, rate, createTime, status, getPair(pair), getOrderSide(type));
+                ords.add(ord);
+            }
+            return new OrdersData(ords);
+        } else {
+            String error = (String) jObj.get("error");
+            log(" error: " + error);
+            return new OrdersData(error); // order is not placed
+        }
+//        jObj={"return":{"184588659":{"amount":0.01,"timestamp_created":1395784667,"rate":800.0,"status":0,"pair":"btc_eur","type":"sell"}},"success":1}    }
     }
 
     public static String accountTestStr() {
@@ -269,7 +348,7 @@ public class Btce extends BaseExch {
         return false;
     }
 
-    public static Exchange.UrlDef fixEndpointForPairs(Exchange.UrlDef endpoint, Fetcher.FetchOptions options) {
+    public static Exchange.UrlDef fixEndpointForPairs(Exchange.UrlDef endpoint, FetchOptions options) {
         Pair[] pairs = options.getPairs();
         return endpoint.replace("XXXX", getPairParam(pairs));
     }
@@ -295,6 +374,28 @@ public class Btce extends BaseExch {
             case EUR_USD: return "eur_usd";
             default: return "?";
         }
+    }
+
+    private static Pair getPair(String pair) {
+        if (pair.equals("btc_usd")) { return Pair.BTC_USD; }
+        if (pair.equals("ltc_btc")) { return Pair.LTC_BTC; }
+        if (pair.equals("ltc_usd")) { return Pair.LTC_USD; }
+        if (pair.equals("btc_eur")) { return Pair.BTC_EUR; }
+        if (pair.equals("ltc_eur")) { return Pair.LTC_EUR; }
+        if (pair.equals("eur_usd")) { return Pair.EUR_USD; }
+        return null;
+    }
+
+    private static String getOrderSideStr(OrderData order) {
+        return order.m_side.isBuy() ? "buy" : "sell";
+    }
+
+    private static OrderSide getOrderSide(String side) {
+        return side.equals("buy")
+                ? OrderSide.BUY
+                : side.equals("sell")
+                    ? OrderSide.SELL
+                    : null;
     }
 }
 

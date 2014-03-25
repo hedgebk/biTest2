@@ -18,6 +18,7 @@ public class OrderData {
     // todo: add to serialize
     public long m_time;
     public final Pair m_pair;
+    public String m_orderId;
 
     public OrderData(Pair pair, OrderSide side, double price, double amount) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
@@ -127,6 +128,7 @@ public class OrderData {
                 ", status=" + m_status +
                 ", state=" + m_state +
                 ", filled=" + Utils.X_YYYYY.format(m_filled) +
+                (m_orderId != null ? m_orderId : "") +
                 '}';
     }
 
