@@ -1,8 +1,6 @@
 package bthdg;
 
-import bthdg.exch.BaseExch;
-import bthdg.exch.Bitstamp;
-import bthdg.exch.Btce;
+import bthdg.exch.*;
 
 import java.util.Map;
 

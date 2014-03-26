@@ -1,5 +1,7 @@
 package bthdg;
 
+import bthdg.exch.TopData;
+
 public enum OrderSide {
     BUY("B") {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice >= mktPrice; }

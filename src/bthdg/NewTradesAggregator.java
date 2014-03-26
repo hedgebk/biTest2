@@ -1,5 +1,7 @@
 package bthdg;
 
+import bthdg.exch.TradesData;
+
 import java.util.HashMap;
 import java.util.Map;
 

@@ -1,4 +1,7 @@
-package bthdg;
+package bthdg.exch;
+
+import bthdg.OrderSide;
+import bthdg.Pair;
 
 import java.util.List;
 

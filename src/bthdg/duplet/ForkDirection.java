@@ -1,4 +1,4 @@
-package bthdg;
+package bthdg.duplet;
 
 public enum ForkDirection {
     DOWN { // 1>2

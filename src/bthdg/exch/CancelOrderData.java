@@ -1,4 +1,6 @@
-package bthdg;
+package bthdg.exch;
+
+import bthdg.AccountData;
 
 public class CancelOrderData {
     public String m_error;

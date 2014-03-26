@@ -1,8 +1,9 @@
-package bthdg;
+package bthdg.duplet;
 
-import bthdg.ExchangeData;
-import bthdg.IterationContext;
 import bthdg.LiveOrdersData;
+import bthdg.Log;
+import bthdg.duplet.ExchangeData;
+import bthdg.duplet.IterationContext;
 
 public enum ExchangeState {
     NONE {

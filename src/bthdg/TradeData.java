@@ -1,5 +1,7 @@
 package bthdg;
 
+import bthdg.exch.TradesData;
+
 public class TradeData {
     public double m_amount;
     public final double m_price;

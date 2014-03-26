@@ -1,5 +1,8 @@
 package bthdg;
 
+import bthdg.exch.TopData;
+import bthdg.exch.TradesData;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;

@@ -1,5 +1,6 @@
-package bthdg;
+package bthdg.exch;
 
+import bthdg.Utils;
 import org.json.simple.JSONArray;
 
 import java.util.ArrayList;

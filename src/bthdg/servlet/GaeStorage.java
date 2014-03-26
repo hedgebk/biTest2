@@ -2,11 +2,10 @@ package bthdg.servlet;
 
 import bthdg.Deserializer;
 import bthdg.Log;
-import bthdg.PairExchangeData;
+import bthdg.duplet.PairExchangeData;
 import com.google.appengine.api.datastore.*;
 
 import java.io.IOException;
-import java.util.logging.Logger;
 
 public class GaeStorage {
     public static final String GAE_DATA_KEY = "data";

@@ -1,6 +1,9 @@
 package bthdg.servlet;
 
 import bthdg.*;
+import bthdg.duplet.ForkState;
+import bthdg.duplet.IterationContext;
+import bthdg.duplet.PairExchangeData;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 

@@ -1,4 +1,8 @@
-package bthdg;
+package bthdg.duplet;
+
+import bthdg.*;
+import bthdg.exch.TopData;
+import bthdg.exch.TradesData;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -66,8 +70,8 @@ public class IterationContext implements IIterationContext {
         TopData top2 = sharedExch2data.fetchTopOnce();
         long top2Millis = System.currentTimeMillis();
 //        log("  loaded in " + (top1Millis - millis0) + " and " + (top2Millis - top1Millis) + " ms");
-        Fetcher.logTop(sharedExch1data.m_exchange, top1);
-        Fetcher.logTop(sharedExch2data.m_exchange, top2);
+        logTop(sharedExch1data.m_exchange, top1);
+        logTop(sharedExch2data.m_exchange, top2);
 
         TopDatas ret = new TopDatas(top1, top2);
         pairExchangeData.onTopsLoaded(ret);
@@ -106,6 +110,19 @@ public class IterationContext implements IIterationContext {
 
     public Map<Pair, TradesData> getNewTradesData(Exchange exchange, TradesData.ILastTradeTimeHolder holder) throws Exception {
         return m_newTrades.getNewTradesData(this, exchange, holder);
+    }
+
+    static void logTop(Exchange exch, TopData top) {
+        if (top == null) {
+            log("NO top data for '" + exch.m_name + "'\t\t");
+        } else {
+//            log(exch.m_name +
+//                    ": bid: " + format(top.m_bid) +
+//                    ", ask: " + format(top.m_ask) +
+//                    ", last: " + format(top.m_last) +
+//                    ", bid_ask_dif: " + format(top.m_ask - top.m_bid) +
+//                    "\t\t");
+        }
     }
 
     public interface IRecorder {

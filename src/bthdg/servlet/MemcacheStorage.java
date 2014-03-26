@@ -2,13 +2,11 @@ package bthdg.servlet;
 
 import bthdg.Deserializer;
 import bthdg.Log;
-import bthdg.PairExchangeData;
+import bthdg.duplet.PairExchangeData;
 import com.google.appengine.api.memcache.MemcacheService;
 import com.google.appengine.api.memcache.MemcacheServiceFactory;
 
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class MemcacheStorage {
     public static final String MEM_CACHE_DATA_KEY = "data";

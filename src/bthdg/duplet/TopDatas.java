@@ -1,6 +1,6 @@
-package bthdg;
+package bthdg.duplet;
 
-import bthdg.TopData;
+import bthdg.exch.TopData;
 
 class TopDatas {
     public final TopData m_top1;

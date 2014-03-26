@@ -1,4 +1,8 @@
-package bthdg;
+package bthdg.duplet;
+
+import bthdg.*;
+import bthdg.exch.TopData;
+import bthdg.exch.TradesData;
 
 import java.io.IOException;
 

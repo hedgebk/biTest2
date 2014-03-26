@@ -1,5 +1,8 @@
 package bthdg;
 
+import bthdg.exch.TopData;
+import bthdg.exch.TradesData;
+
 import java.util.Map;
 
 public enum OrderState {

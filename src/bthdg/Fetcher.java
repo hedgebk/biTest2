@@ -1,8 +1,7 @@
 package bthdg;
 
-import bthdg.exch.BaseExch;
-import bthdg.exch.Bitstamp;
-import bthdg.exch.Btce;
+import bthdg.duplet.PairExchangeData;
+import bthdg.exch.*;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
@@ -12,8 +11,6 @@ import java.net.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Types;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -135,7 +132,7 @@ public class Fetcher {
                     if (DO_DB_DROP) {
                         drop(connection);
                     }
-                    pool(exch1, exch2, connection);
+                    PairExchangeData.pool(exch1, exch2, connection);
                 } catch (Exception e) {
                     log("error: " + e);
                     e.printStackTrace();
@@ -146,49 +143,6 @@ public class Fetcher {
 
     private static void log(String x) {
         Log.log(x);
-    }
-
-    private static void pool(Exchange exch1, Exchange exch2, final Connection connection) throws Exception {
-        PairExchangeData data = new PairExchangeData(exch1, exch2);
-        long startMillis = System.currentTimeMillis();
-        int iterationCounter = 0;
-        while (true) {
-            iterationCounter++;
-            log("---------------------------------------------- iteration: " + iterationCounter);
-
-            IterationContext iContext = new IterationContext(data, new DbRecorder(connection));
-            try {
-                if (checkState(data, iContext)) {
-                    log("GOT finish request");
-                    break;
-                }
-            } catch (Exception e) {
-                log("GOT exception during processing. setting ERROR, closing everything...");
-                e.printStackTrace();
-                data.setState(ForkState.ERROR); // error - stop ALL
-                iContext.delay(0);
-            }
-
-            long running = System.currentTimeMillis() - startMillis;
-            long delay = iContext.m_nextIterationDelay;
-            if (delay > 0) {
-                log("wait " + delay + " ms. total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter);
-                Thread.sleep(delay);
-            } else {
-                log("go to next iteration without sleep. total running " + Utils.millisToDHMSStr(running) + ", counter=" + iterationCounter);
-            }
-            logIntoDb(connection, data);
-        }
-        log("FINISHED.");
-    }
-
-    private static boolean checkState(PairExchangeData data, IterationContext iContext) throws Exception {
-        boolean ret = data.checkState(iContext);
-//        String serialized = data.serialize();
-//        log("serialized(len=" + serialized.length() + ")=" + serialized);
-//        PairExchangeData deserialized = Deserializer.deserialize(serialized);
-//        deserialized.compare(data); // make sure all fine
-        return ret;
     }
 
     private static void printDeeps(DeepData deep1, DeepData deep2) {
@@ -215,7 +169,9 @@ public class Fetcher {
 
     private static PlaceOrderData placeOrder(Exchange exchange, final OrderData order) throws Exception {
         Object jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
-            @Override public OrderData getOrderData() { return order; }
+            @Override public OrderData getOrderData() {
+                return order;
+            }
         });
         log("jObj=" + jObj);
         PlaceOrderData poData = exchange.parseOrder(jObj);
@@ -259,7 +215,7 @@ public class Fetcher {
         return trades;
     }
 
-    static TradesData fetchTradesOnce(Exchange exchange) {
+    public static TradesData fetchTradesOnce(Exchange exchange) {
         return fetchTradesOnce(exchange, Pair.BTC_USD);
     }
 
@@ -301,7 +257,7 @@ public class Fetcher {
         return topData;
     }
 
-    static TopData fetchTopOnce(Exchange exchange) {
+    public static TopData fetchTopOnce(Exchange exchange) {
         return fetchTopOnce(exchange, Pair.BTC_USD);
     }
 
@@ -414,78 +370,8 @@ public class Fetcher {
         }
     }
 
-    static void logTop(Exchange exch, TopData top) {
-        if (top == null) {
-            log("NO top data for '" + exch.m_name + "'\t\t");
-        } else {
-//            log(exch.m_name +
-//                    ": bid: " + format(top.m_bid) +
-//                    ", ask: " + format(top.m_ask) +
-//                    ", last: " + format(top.m_last) +
-//                    ", bid_ask_dif: " + format(top.m_ask - top.m_bid) +
-//                    "\t\t");
-        }
-    }
-
-    static String format(Double mktPrice) {
+    public static String format(Double mktPrice) {
         return (mktPrice == null) ? "-" : Utils.XX_YYYY.format(mktPrice);
-    }
-
-    private static final String INSERT_TRACE_SQL =
-            "INSERT INTO Trace ( stamp, bid1, ask1, bid2, ask2, fork, buy1, sell1, buy2, sell2 ) VALUES (?,?,?,?,?,?,?,?,?,?)";
-
-    private static void logIntoDb(Connection connection, PairExchangeData data) {
-        if (connection != null) {
-            try {
-                TopData top1 = data.m_sharedExch1.m_lastTop;
-                TopData top2 = data.m_sharedExch2.m_lastTop;
-
-                PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_SQL);
-                try {
-                    List<ForkData> forks = data.m_forks;
-                    for (int i = 0, forksSize = forks.size(); i < forksSize; i++) {
-                        Thread.sleep(1);
-
-                        ForkData fork = forks.get(i);
-
-                        statement.setLong(1, System.currentTimeMillis());
-                        if (i == 0) {
-                            statement.setDouble(2, top1.m_bid);
-                            statement.setDouble(3, top1.m_ask);
-                            statement.setDouble(4, top2.m_bid);
-                            statement.setDouble(5, top2.m_ask);
-                        } else {
-                            statement.setNull(2, Types.DOUBLE);
-                            statement.setNull(3, Types.DOUBLE);
-                            statement.setNull(4, Types.DOUBLE);
-                            statement.setNull(5, Types.DOUBLE);
-                        }
-                        statement.setLong(6, fork.m_id);
-                        setCross(fork.m_openCross, statement, 7);
-                        setCross(fork.m_closeCross, statement, 9);
-
-                        statement.executeUpdate(); // execute insert SQL statement - will be auto committed
-                    }
-                } finally {
-                    statement.close();
-                }
-            } catch (Exception e) {
-                System.out.println("Error: " + e);
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private static void setCross(CrossData cross, PreparedStatement statement, int index) throws SQLException {
-        if ((cross != null) && cross.isActive()) {
-            OrderData buyOrder = cross.m_buyOrder;
-            statement.setDouble(index, buyOrder.m_price);
-            OrderData sellOrder = cross.m_sellOrder;
-            statement.setDouble(index + 1, sellOrder.m_price);
-        } else {
-            statement.setNull(index, Types.DOUBLE);
-            statement.setNull(index + 1, Types.DOUBLE);
-        }
     }
 
     private static final String DELETE_TICKS_SQL = "DELETE FROM Trace";
@@ -559,82 +445,6 @@ public class Fetcher {
         public boolean needSsl() { return false; }
     } // FetchCommand
 
-
-    private static class DbRecorder implements IterationContext.IRecorder {
-        private final Connection m_connection;
-
-        public DbRecorder(Connection connection) {
-            m_connection = connection;
-        }
-
-        @Override public void recordOrderFilled(Exchange exchange, OrderData orderData, CrossData crossData) {
-            recordTrade(m_connection, exchange, orderData, crossData);
-        }
-
-        @Override public void recordTrades(Exchange exchange, Map<Pair, TradesData> data) {
-            recordTos(m_connection, exchange, data);
-        }
-    }
-
-    private static final String INSERT_TRACE_TRADE_SQL =
-            "INSERT INTO TraceTrade ( stamp, exch, side, price, amount, crossId, forkId ) VALUES (?,?,?,?,?,?,?)";
-
-    private static void recordTrade(Connection connection, Exchange exchange, OrderData orderData, CrossData crossData) {
-        if (connection != null) {
-            try {
-                PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_TRADE_SQL);
-                try {
-                    Thread.sleep(1);
-
-                    statement.setLong(1, System.currentTimeMillis());
-                    statement.setInt(2, exchange.m_databaseId);
-                    statement.setString(3, orderData.m_side.m_char);
-                    statement.setDouble(4, orderData.m_price);
-                    statement.setDouble(5, orderData.m_amount);
-                    statement.setLong(6, crossData.m_start);
-                    statement.setLong(7, crossData.m_forkData.m_id);
-
-                    statement.executeUpdate(); // execute insert SQL statement - will be auto committed
-                } finally {
-                    statement.close();
-                }
-            } catch (Exception e) {
-                System.out.println("Error: " + e);
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private static void recordTos(Connection connection, Exchange exchange, Map<Pair, TradesData> map) {
-        if (connection != null) {
-            try {
-                PreparedStatement statement = connection.prepareStatement(INSERT_TRACE_TRADE_SQL);
-                try {
-                    for (Map.Entry<Pair, TradesData> entry : map.entrySet()) {
-                        TradesData data = entry.getValue();
-                        for (TradeData trade : data.m_trades) {
-                            Thread.sleep(1);
-
-                            statement.setLong(1, trade.m_timestamp);
-                            statement.setInt(2, exchange.m_databaseId);
-                            statement.setNull(3, Types.VARCHAR);
-                            statement.setDouble(4, trade.m_price);
-                            statement.setDouble(5, trade.m_amount);
-                            statement.setNull(6, Types.BIGINT);
-                            statement.setNull(7, Types.BIGINT);
-
-                            statement.executeUpdate(); // execute insert SQL statement - will be auto committed
-                        }
-                    }
-                } finally {
-                    statement.close();
-                }
-            } catch (Exception e) {
-                System.out.println("Error: " + e);
-                e.printStackTrace();
-            }
-        }
-    }
 
     public static class FetchOptions {
         public Pair[] getPairs() { return null; }

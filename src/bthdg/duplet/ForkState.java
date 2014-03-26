@@ -1,4 +1,6 @@
-package bthdg;
+package bthdg.duplet;
+
+import bthdg.Log;
 
 public enum ForkState {
     NONE {

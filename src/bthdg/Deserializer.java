@@ -1,5 +1,7 @@
 package bthdg;
 
+import bthdg.duplet.PairExchangeData;
+
 import java.io.IOException;
 import java.io.PushbackReader;
 import java.io.StringReader;
@@ -66,7 +68,7 @@ public class Deserializer {
         }
     }
 
-    boolean readIf(String str) throws IOException {
+    public boolean readIf(String str) throws IOException {
         int length = str.length();
         int read = m_reader.read(m_buffer, 0, length);
         if(read != length) {

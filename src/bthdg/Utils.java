@@ -203,7 +203,7 @@ public class Utils {
             m_weightSum += weight;
         }
 
-        protected double getAverage() {
+        public double getAverage() {
             return m_sum/m_weightSum;
         }
 
@@ -335,7 +335,7 @@ public class Utils {
             return get();
         }
 
-        void justAdd(long millis, double addValue) {
+        public void justAdd(long millis, double addValue) {
             long limit = millis - m_limit;
             removeOld(limit, m_map);
             m_map.put(millis, addValue);

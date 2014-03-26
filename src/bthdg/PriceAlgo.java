@@ -1,5 +1,7 @@
 package bthdg;
 
+import bthdg.exch.TopData;
+
 public enum PriceAlgo {
     MARKET {
         @Override public double getRefPrice(TopData top, OrderSide orderSide) { return orderSide.opposite().mktPrice(top); }

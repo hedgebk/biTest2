@@ -1,4 +1,7 @@
-package bthdg;
+package bthdg.exch;
+
+import bthdg.Deserializer;
+import bthdg.Utils;
 
 import java.io.IOException;
 
@@ -45,7 +48,7 @@ public class TopData {
                 ", last=" + lastStr();
     }
 
-    static TopDataEx calcDiff(TopData top1, TopData top2) {
+    public static TopDataEx calcDiff(TopData top1, TopData top2) {
         if( (top1 != null) && (top2 != null)) {
             return new TopDataEx(top1.m_bid - top2.m_bid, top1.m_ask - top2.m_ask, top1.m_last - top2.m_last,
                                        ((top1.m_bid + top1.m_ask) - (top2.m_bid + top2.m_ask))/2 );

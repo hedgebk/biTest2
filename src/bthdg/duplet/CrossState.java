@@ -1,4 +1,9 @@
-package bthdg;
+package bthdg.duplet;
+
+import bthdg.Log;
+import bthdg.duplet.CrossData;
+import bthdg.duplet.ForkData;
+import bthdg.duplet.IterationContext;
 
 public enum CrossState {
     NONE,
