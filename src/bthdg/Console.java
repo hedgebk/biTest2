@@ -53,6 +53,8 @@ public class Console {
             doTops();
         } else if( line.startsWith("order ")) {
             doOrder(line);
+        } else if( line.startsWith("cancel ")) {
+            doCancel(line);
         } else if( line.equals("help")) {
             printHelp();
         } else {
@@ -83,13 +85,13 @@ public class Console {
         AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
 
         Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-        double valuate = account.evaluate(tops);
+        double valuate = account.evaluateEur(tops);
 
         System.out.println("account=" + account + "; valuate=" + valuate + " eur");
     }
 
     private static void printHelp() {
-        System.out.println("supported commands:\n help; exit; account; tops; order");
+        System.out.println("supported commands:\n help; exit; account; tops; order; cancel");
     }
 
     private static void doTops() throws Exception {
@@ -99,6 +101,20 @@ public class Console {
             TopData top = entry.getValue();
             System.out.println(" " + pair + " : " + top);
         }
+    }
+
+    private static void doCancel(String line) throws Exception {
+        // cancel 12345
+        StringTokenizer tok = new StringTokenizer(line.toLowerCase());
+        int tokensNum = tok.countTokens();
+        if (tokensNum == 2) {
+            String t1 = tok.nextToken();
+            String orderId = tok.nextToken();
+            CancelOrderData coData = Fetcher.calcelOrder(Exchange.BTCE, orderId);
+            System.out.println("cancel order '" + orderId + "' result: " + coData);
+            return;
+        }
+        System.err.println("invalid 'cancel' command: use followed format: cancel orderId");
     }
 
     private static void doOrder(String line) throws Exception {

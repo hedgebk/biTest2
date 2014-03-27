@@ -302,13 +302,12 @@ public class OrderData {
     }
 
     public void cancel() {
-        if ((m_status == OrderStatus.SUBMITTED) || (m_status == OrderStatus.PARTIALLY_FILLED)) {
-            log("cancelOrder() not implemented yet: " + this);
-        } else {
-            log("cancelOrder() no need to cancel oder in state: " + this);
-        }
         m_status = OrderStatus.CANCELLED;
         m_state = OrderState.NONE;
+    }
+
+    public boolean canCancel() {
+        return (m_status == OrderStatus.SUBMITTED) || (m_status == OrderStatus.PARTIALLY_FILLED);
     }
 
     public void xCheckExecutedMkt(Exchange exchange, TopData top, AccountData account) {

@@ -87,7 +87,7 @@ public enum TriTradeState {
             double in = ends1[0];
             double out = ends3[1];
             double gain = out / in;
-            Triplet.s_totalRatio *= gain;
+            Triplet.s_totalRatio *= ((gain-1)/4+1);
             Triplet.s_counter++;
 
             double ratio1 = ends1[1]/ends1[0];
@@ -96,14 +96,19 @@ public enum TriTradeState {
             double ratio = ratio1 * ratio2 * ratio3;
 
             Map<Pair, TopData> tops = iData.getTops();
-            double valuate = account.evaluate(tops);
-            double totalValuate = valuate / Triplet.s_startEvaluate;
+            double valuateEur = account.evaluateEur(tops);
+            double eurRate = valuateEur / Triplet.s_startEur;
+            double valuateUsd = account.evaluateUsd(tops);
+            double usdRate = valuateUsd / Triplet.s_startUsd;
+
+            double midMul = account.midMul(Triplet.s_startAccount);
 
             log(" @@@@@@   ratio1=" + Utils.X_YYYYY.format(ratio1) + ";  ratio2=" + Utils.X_YYYYY.format(ratio2) +
                     ";  ratio3=" + Utils.X_YYYYY.format(ratio3) + ";    ratio=" + Utils.X_YYYYY.format(ratio));
             log(" @@@@@@   in=" + in + ";  out=" + Utils.X_YYYYY.format(out) + ";  gain=" + Utils.X_YYYYY.format(gain) +
                     "; level=" + Triplet.s_level + ";  totalRatio=" + Utils.X_YYYYY.format(Triplet.s_totalRatio) +
-                    "; millis=" + System.currentTimeMillis() + "; totalValuate=" + Utils.X_YYYYY.format(totalValuate) +
+                    "; millis=" + System.currentTimeMillis() + "; valuateUsd=" + Utils.X_YYYYY.format(usdRate) +
+                    "; valuateEur=" + Utils.X_YYYYY.format(eurRate) + "; midMul=" + Utils.X_YYYYY.format(midMul) +
                     "; count=" + Triplet.s_counter);
             log(" @@@@@@    peg: max=" + peg.m_max + "; startIndx=" + startIndx + "; need=" + peg.m_need +
                     "; price1=" + peg.m_price1 + "; p1=" + peg.m_pair1 +

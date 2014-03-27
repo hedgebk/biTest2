@@ -174,12 +174,17 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
     }
 
     public boolean cancelOrder(OrderData orderData) {
-        // todo: implement
         if (orderData != null) {
-            orderData.cancel();
-            m_account.releaseOrder(orderData);
+            if(orderData.canCancel()) {
+                // todo: implement
+                orderData.cancel();
+                m_account.releaseOrder(orderData);
+                return true;
+            } else {
+                log("error: can not cancel order: " + orderData);
+            }
         }
-        return true; // todo: order can be executed at this point, so cancel will fail
+        return false;
     }
 
     public OrdersData fetchLiveOrders() {

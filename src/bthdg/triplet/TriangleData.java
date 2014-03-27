@@ -2,6 +2,7 @@ package bthdg.triplet;
 
 import bthdg.*;
 import bthdg.Currency;
+import bthdg.exch.CancelOrderData;
 import bthdg.exch.TopData;
 import bthdg.exch.TradesData;
 
@@ -102,7 +103,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         return bestPeg;
     }
 
-    private void checkOrdersToLive(TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) {
+    private void checkOrdersToLive(TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
         if (!m_triTrades.isEmpty()) {
             List<TriTradeData> triTradesToLive = new ArrayList<TriTradeData>();
             List<TriTradeData> triTradesToDie = new ArrayList<TriTradeData>();
@@ -160,17 +161,36 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         }
     }
 
-    private boolean cancelOrder(TriTradeData triTrade) {
+    private boolean cancelOrder(TriTradeData triTrade) throws Exception {
         OrderData order = triTrade.m_order;
         return cancelOrder(order);
     }
 
-    public boolean cancelOrder(OrderData order) {
+    public boolean cancelOrder(OrderData order) throws Exception {
         if (order != null) {
-            order.cancel();
-            m_account.releaseOrder(order);
+            if (order.canCancel()) {
+                if (Fetcher.SIMULATE_ORDER_EXECUTION) {
+                    order.cancel();
+                    m_account.releaseOrder(order);
+                    return true;
+                } else {
+                    String orderId = order.m_orderId;
+                    CancelOrderData coData = Fetcher.calcelOrder(Exchange.BTCE, orderId);
+                    String error = coData.m_error;
+                    if (error == null) {
+                        // todo: update/merge account data here
+                        order.cancel();
+                        m_account.releaseOrder(order);
+                        return true;
+                    } else {
+                        log("error in cancel order: " + error + "; " + order);
+                    }
+                }
+            } else {
+                log("error: can not cancel order: " + order);
+            }
         }
-        return true; // todo: order can be executed at this point, so cancel will fail
+        return false;
     }
 
     private void checkOrdersState(IterationData iData, TriangleData triangleData) throws Exception {
@@ -221,7 +241,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
     public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
         if(Triplet.ONLY_ONE_ACTIVE_TRIANGLE && !m_triTrades.isEmpty()) {
-            return;
+            return; // do not create new order if some already exist
         }
         for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
             OnePegCalcData peg = entry.getValue();
@@ -252,7 +272,11 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     if (ok) {
                         TriTradeData ttData = new TriTradeData(order, peg);
                         m_triTrades.add(ttData);
+                        if (Triplet.ONLY_ONE_ACTIVE_TRIANGLE) {
+                            break; // do not create more order
+                        }
                     }
+                    // else todo: handle errors
                 } else {
                     log(" no funds for NEW order: min order size=" + pair.m_minOrderSize +
                             ", amount " + Triplet.format4(amount) + " " + fromCurrency + " : " + m_account);

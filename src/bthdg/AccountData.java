@@ -185,21 +185,25 @@ public class AccountData {
         return ret;
     }
 
-    public double evaluate(Map<Pair, TopData> tops) {
+    public double evaluateEur(Map<Pair, TopData> tops) {
+        return evaluate(tops, Currency.EUR);
+    }
+
+    public double evaluateUsd(Map<Pair, TopData> tops) {
+        return evaluate(tops, Currency.USD);
+    }
+
+    private double evaluate(Map<Pair, TopData> tops, Currency curr) {
         double allValue = 0;
         for (Map.Entry<Currency, Double> entry : m_funds.entrySet()) {
-            double value = entry.getValue();
-            if (value != 0) {
-                Currency currency = entry.getKey();
-                Double allocated = m_allocatedFunds.get(currency);
-                if (allocated != null) {
-                    value += allocated;
-                }
+            Currency currency = entry.getKey();
+            double value = getAllValue(currency);
+            if (value > 0.000000001) {
                 double rate;
-                if (currency == Currency.EUR) {
+                if (currency == curr) {
                     rate = 1;
                 } else {
-                    PairDirection pd = PairDirection.get(currency, Currency.EUR);
+                    PairDirection pd = PairDirection.get(currency, curr);
                     Pair pair = pd.m_pair;
                     TopData top = tops.get(pair);
                     rate = top.getMid();
@@ -212,5 +216,33 @@ public class AccountData {
             }
         }
         return allValue;
+    }
+
+    private double getAllValue(Currency currency) {
+        double allValue = 0;
+        Double available = m_funds.get(currency);
+        if (available != null) {
+            allValue += available;
+        }
+        Double allocated = m_allocatedFunds.get(currency);
+        if (allocated != null) {
+            allValue += allocated;
+        }
+        return allValue;
+
+    }
+
+    public double midMul(AccountData account) {
+        int funds = 0;
+        double ratiosSum = 0.0;
+        for (Map.Entry<Currency, Double> entry : m_funds.entrySet()) {
+            Currency currency = entry.getKey();
+            double value1 = getAllValue(currency);
+            double value2 = account.getAllValue(currency);
+            double ratio = value1 / value2;
+            ratiosSum += ratio;
+            funds++;
+        }
+        return ratiosSum / funds;
     }
 }

@@ -52,8 +52,9 @@ public class Triplet {
     public static final Triangle T4 = new Triangle(Pair.EUR_USD, false, Pair.BTC_USD, true,  Pair.BTC_EUR, false); // eur -> usd -> btc -> eur
 
     public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4};
-    private static AccountData s_startAccount;
-    public static double s_startEvaluate;
+    static AccountData s_startAccount;
+    public static double s_startEur;
+    public static double s_startUsd;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -103,7 +104,8 @@ public class Triplet {
 
         IterationData iData = new IterationData(tAgg);
         Map<Pair,TopData> tops = iData.getTops();
-        s_startEvaluate = s_startAccount.evaluate(tops);
+        s_startEur = s_startAccount.evaluateEur(tops);
+        s_startUsd = s_startAccount.evaluateUsd(tops);
         return account;
     }
 
