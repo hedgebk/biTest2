@@ -27,6 +27,7 @@ import java.util.Properties;
  *  - simulate trade at MKT price fast (instanteously)
  */
 public class Fetcher {
+    public static boolean SIMULATE_ORDER_EXECUTION = true;
     public static boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
     public static double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.7;
     private static final boolean USE_TOP_TEST_STR = false;
@@ -89,11 +90,11 @@ public class Fetcher {
     }
 
     private static void cancelLiveOrders() throws Exception {
-        OrdersData od = fetchOrder(Exchange.BTCE, null);
+        OrdersData od = fetchOrders(Exchange.BTCE, null);
         log("ordersData=" + od);
         String error = od.m_erorr;
         if (error == null) {
-            for (OrdersData.OrdData ord : od.m_ords) {
+            for (OrdersData.OrdData ord : od.m_ords.values()) {
                 String orderId = ord.m_orderId;
                 log(" next order to cancel: " + orderId);
                 CancelOrderData coData = calcelOrder(Exchange.BTCE, orderId);
@@ -158,7 +159,7 @@ public class Fetcher {
         }
     }
 
-    private static OrdersData fetchOrder(Exchange exchange, final Pair pair) throws Exception {
+    public static OrdersData fetchOrders(Exchange exchange, final Pair pair) throws Exception {
         Object jObj = fetchOnce(exchange, FetchCommand.ORDERS, new FetchOptions() {
             @Override public Pair getPair() { return pair; }
         });
@@ -192,7 +193,7 @@ public class Fetcher {
         Object jObj = fetch(exchange, FetchCommand.ACCOUNT, null);
 //        log("jObj=" + jObj);
         AccountData accountData = exchange.parseAccount(jObj);
-        log("accountData=" + accountData);
+//        log("accountData=" + accountData);
         if (accountData.m_fee == Double.MAX_VALUE) {
             accountData.m_fee = exchange.m_baseFee;
         }

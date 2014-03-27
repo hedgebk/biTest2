@@ -4,10 +4,11 @@ import bthdg.OrderSide;
 import bthdg.Pair;
 
 import java.util.List;
+import java.util.Map;
 
 public class OrdersData {
     public String m_erorr;
-    public List<OrdData> m_ords;
+    public Map<String,OrdersData.OrdData> m_ords;
 
     public OrdersData(String error) {
         m_erorr = error;
@@ -16,7 +17,7 @@ public class OrdersData {
     public OrdersData() {
     }
 
-    public OrdersData(List<OrdData> ords) {
+    public OrdersData(Map<String,OrdData> ords) {
         m_ords = ords;
     }
 
@@ -27,6 +28,10 @@ public class OrdersData {
                     : "ords=" + m_ords
                 ) +
                 '}';
+    }
+
+    public OrdData getOrderData(String orderId) {
+        return m_ords.get(orderId);
     }
 
     public static class OrdData {

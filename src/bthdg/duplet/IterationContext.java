@@ -1,6 +1,7 @@
 package bthdg.duplet;
 
 import bthdg.*;
+import bthdg.exch.OrdersData;
 import bthdg.exch.TopData;
 import bthdg.exch.TradesData;
 
@@ -10,7 +11,7 @@ import java.util.Map;
 public class IterationContext implements IIterationContext {
     private IRecorder m_recorder;
     public TopDatas m_top;
-    public Map<Integer, LiveOrdersData> m_liveOrders;
+    public Map<Integer, OrdersData> m_liveOrders;
     public long m_nextIterationDelay = 1000; // 1 sec by def
     public boolean m_acceptPriceSimulated;
     public boolean m_accountRequested;
@@ -43,17 +44,22 @@ public class IterationContext implements IIterationContext {
         return m_top;
     }
 
-    public LiveOrdersData getLiveOrdersState(SharedExchangeData shExchData) {
-        int exchId = shExchData.m_exchange.m_databaseId;
-        LiveOrdersData data;
+    public OrdersData getLiveOrdersState(SharedExchangeData shExchData) throws Exception {
+        Exchange exchange = shExchData.m_exchange;
+        return getLiveOrders(exchange);
+    }
+
+    public OrdersData getLiveOrders(Exchange exchange) throws Exception {
+        int exchId = exchange.m_databaseId;
+        OrdersData data;
         if(m_liveOrders == null) {
-            m_liveOrders = new HashMap<Integer, LiveOrdersData>();
+            m_liveOrders = new HashMap<Integer, OrdersData>();
             data = null;
         } else {
             data = m_liveOrders.get(exchId);
         }
         if(data == null) {
-            data = shExchData.fetchLiveOrders();
+            data = Fetcher.fetchOrders(exchange, null);
             m_liveOrders.put(exchId, data);
         }
         return data;

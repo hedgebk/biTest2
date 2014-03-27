@@ -220,6 +220,9 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
     }
 
     public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
+        if(Triplet.ONLY_ONE_ACTIVE_TRIANGLE && !m_triTrades.isEmpty()) {
+            return;
+        }
         for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
             OnePegCalcData peg = entry.getValue();
             double maxPeg = peg.m_max;

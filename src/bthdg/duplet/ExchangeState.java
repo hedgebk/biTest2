@@ -1,9 +1,7 @@
 package bthdg.duplet;
 
-import bthdg.LiveOrdersData;
 import bthdg.Log;
-import bthdg.duplet.ExchangeData;
-import bthdg.duplet.IterationContext;
+import bthdg.exch.OrdersData;
 
 public enum ExchangeState {
     NONE {
@@ -12,10 +10,10 @@ public enum ExchangeState {
         }
     },
     OPEN_BRACKETS_WAITING {
-        @Override public void checkState(IterationContext iContext, ExchangeData exchData) {
+        @Override public void checkState(IterationContext iContext, ExchangeData exchData) throws Exception {
             log("ExchangeState.OPEN_BRACKETS_WAITING(" + exchData.exchName() + "). check orders status");
             // todo: check orders status here, can be submitted/queued, placed, rejected, and even filled/partially-filled
-            LiveOrdersData liveOrdersState = iContext.getLiveOrdersState(exchData.m_shExchData);
+            OrdersData liveOrdersState = iContext.getLiveOrdersState(exchData.m_shExchData);
 
             // actually one can be placed and another not - should be handled separately
             { // pretend that both orders are placed fine

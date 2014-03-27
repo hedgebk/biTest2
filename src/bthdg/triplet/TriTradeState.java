@@ -95,11 +95,17 @@ public enum TriTradeState {
             double ratio2 = ends2[1]/ends2[0];
             double ratio3 = ends3[1]/ends3[0];
             double ratio = ratio1 * ratio2 * ratio3;
+
+            Map<Pair, TopData> tops = iData.getTops();
+            double valuate = account.evaluate(tops);
+            double totalValuate = valuate / Triplet.s_startEvaluate;
+
             log(" @@@@@@   ratio1=" + Utils.X_YYYYY.format(ratio1) + ";  ratio2=" + Utils.X_YYYYY.format(ratio2) +
                     ";  ratio3=" + Utils.X_YYYYY.format(ratio3) + ";    ratio=" + Utils.X_YYYYY.format(ratio));
             log(" @@@@@@   in=" + in + ";  out=" + Utils.X_YYYYY.format(out) + ";  gain=" + Utils.X_YYYYY.format(gain) +
                     "; level=" + Triplet.s_level + ";  totalRatio=" + Utils.X_YYYYY.format(Triplet.s_totalRatio) +
-                    ";  date=" + (new Date().toString()) + "; count=" + Triplet.s_counter);
+                    "; millis=" + System.currentTimeMillis() + "; totalValuate=" + Utils.X_YYYYY.format(totalValuate) +
+                    "; count=" + Triplet.s_counter);
             log(" @@@@@@    peg: max=" + peg.m_max + "; startIndx=" + startIndx + "; need=" + peg.m_need +
                     "; price1=" + peg.m_price1 + "; p1=" + peg.m_pair1 +
                     "; price2=" + peg.m_price2 + "; p2=" + peg.m_pair2 +

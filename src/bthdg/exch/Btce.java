@@ -24,6 +24,7 @@ public class Btce extends BaseExch {
     private static String SECRET;
     private static String KEY;
     private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
+    public static boolean LOG_PARSE = false;
 
     @Override public String getNextNonce() { return Integer.toString(s_nonce++); }
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
@@ -143,7 +144,9 @@ public class Btce extends BaseExch {
 
     public static TopData parseTop(Object obj, Pair pair) {
         JSONObject jObj = (JSONObject) obj;
-//        log("BTCE.parseTop() " + jObj);
+        if (LOG_PARSE) {
+            log("BTCE.parseTop() " + jObj);
+        }
         JSONObject ticker = (JSONObject) jObj.get(getPairParam(pair)); // "btc_usd"  // ticker
 //        log(" class="+ticker.getClass()+", ticker=" + ticker);
         double last = Utils.getDouble(ticker, "last");
@@ -164,7 +167,9 @@ public class Btce extends BaseExch {
 
     public static DeepData parseDeep(Object obj) {
         JSONObject jObj  = (JSONObject) obj;
-        log("BTCE.parseDeep() " + jObj);
+        if (LOG_PARSE) {
+            log("BTCE.parseDeep() " + jObj);
+        }
         JSONObject btc_usd = (JSONObject) jObj.get("btc_usd");
         log(" class="+btc_usd.getClass()+", btc_usd=" + btc_usd);
         JSONArray bids = (JSONArray) btc_usd.get("bids");
@@ -187,7 +192,9 @@ public class Btce extends BaseExch {
     //Pair[] pairs
     public static TradesData parseTrades(Object obj, Pair pair) {
         JSONObject jObj = (JSONObject) obj;
-//        log("BTCE.parseTrades() " + jObj);
+        if (LOG_PARSE) {
+            log("BTCE.parseTrades() " + jObj);
+        }
         JSONArray array = (JSONArray) jObj.get(getPairParam(pair)); // "btc_usd"
 //        log(" class=" + array.getClass() + ", btc_usd=" + array);
         int len = array.size();
@@ -208,7 +215,9 @@ public class Btce extends BaseExch {
 
     public static AccountData parseAccount(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-        log("BTCE.parseAccount() " + jObj);
+        if (LOG_PARSE) {
+            log("BTCE.parseAccount() " + jObj);
+        }
 //         { "return":{
 //                "open_orders":0,
 //                "funds":{"trc":0,"nmc":0,"ftc":0,"eur":0,"rur":0,"usd":0,"ltc":0,"ppc":0,"xpm":0,"nvc":0,"btc":0.038},
@@ -236,9 +245,10 @@ public class Btce extends BaseExch {
 
     public static PlaceOrderData parseOrder(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-        log("BTCE.parseOrder() " + jObj);
+        if (LOG_PARSE) {
+            log("BTCE.parseOrder() " + jObj);
+        }
         Long success = (Long) jObj.get("success");
-        log(" success=" + success);
         if( success == 1 ) {
             JSONObject ret = (JSONObject)  jObj.get("return");
             log(" ret=" + ret);
@@ -259,9 +269,10 @@ public class Btce extends BaseExch {
 
     public static CancelOrderData parseCancelOrders(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-        log("BTCE.parseCancelOrders() " + jObj);
+        if (LOG_PARSE) {
+            log("BTCE.parseCancelOrders() " + jObj);
+        }
         Long success = (Long) jObj.get("success");
-        log(" success=" + success);
         if( success == 1 ) {
             JSONObject ret = (JSONObject)  jObj.get("return");
             log(" ret=" + ret);
@@ -292,15 +303,16 @@ public class Btce extends BaseExch {
 
     public static OrdersData parseOrders(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-        log("BTCE.parseOrders() " + jObj);
+        if (LOG_PARSE) {
+            log("BTCE.parseOrders() " + jObj);
+        }
         Long success = (Long) jObj.get("success");
-        log(" success=" + success);
         if( success == 1 ) {
             JSONObject ret = (JSONObject) jObj.get("return");
             log(" ret=" + ret);
             Set keys = ret.keySet();
             log(" keys=" + keys);
-            List<OrdersData.OrdData> ords = new ArrayList<OrdersData.OrdData>();
+            Map<String,OrdersData.OrdData> ords = new HashMap<String,OrdersData.OrdData>();
             for (Object key : keys) {
                 String orderId = (String) key;
                 log(" orderId=" + orderId);
@@ -313,7 +325,7 @@ public class Btce extends BaseExch {
                 String pair = (String) order.get("pair");
                 String type = (String) order.get("type");
                 OrdersData.OrdData ord = new OrdersData.OrdData(orderId, amount, rate, createTime, status, getPair(pair), getOrderSide(type));
-                ords.add(ord);
+                ords.put(orderId, ord);
             }
             return new OrdersData(ords);
         } else {

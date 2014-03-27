@@ -1,5 +1,6 @@
 package bthdg;
 
+import bthdg.exch.OrdersData;
 import bthdg.exch.TopData;
 import bthdg.exch.TradesData;
 
@@ -11,4 +12,5 @@ public interface IIterationContext {
     Map<Pair, TradesData> fetchTrades(Exchange exchange) throws Exception;
     Map<Pair, TradesData> getNewTradesData(Exchange exchange, TradesData.ILastTradeTimeHolder holder) throws Exception;
     TopData getTop(Exchange exchange, Pair pair) throws Exception;
+    OrdersData getLiveOrders(Exchange exchange) throws Exception;
 }

@@ -3,14 +3,14 @@ package bthdg;
 import bthdg.exch.TopData;
 
 public enum OrderSide {
-    BUY("B") {
+    BUY("B", "buy") {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice >= mktPrice; }
         @Override public OrderSide opposite() { return SELL; }
         @Override public double mktPrice(TopData top) { return top.m_ask; }
         @Override public double pegPrice(TopData top, Pair pair) { return top.m_bid + minPriceStep(pair); }
         @Override public boolean isBuy() { return true; }
     },
-    SELL("S") {
+    SELL("S", "sell") {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice <= mktPrice; }
         @Override public OrderSide opposite() { return BUY; }
         @Override public double mktPrice(TopData top) { return top.m_bid; }
@@ -23,9 +23,11 @@ public enum OrderSide {
     private static double minPriceStep(Pair pair) { return (pair == null) ? MIN_PRICE_PRECISION : pair.m_minPriceStep; }
 
     public final String m_char;
+    public final String m_name;
 
-    OrderSide(String s) {
+    OrderSide(String s, String name) {
         m_char = s;
+        m_name = name;
     }
 
     public boolean acceptPrice(double orderPrice, double mktPrice) { return false; }
@@ -34,12 +36,24 @@ public enum OrderSide {
     public double pegPrice(TopData top, Pair pair) { return 0; }
     public boolean isBuy() { return false; }
 
-    public static OrderSide get(String str) {
+    public static OrderSide getByCode(String str) {
         if (str == null) {
             return null;
         }
         for (OrderSide orderSide : values()) {
             if (orderSide.m_char.equals(str)) {
+                return orderSide;
+            }
+        }
+        throw new RuntimeException("non supported OrderSide '" + str + "'");
+    }
+
+    public static OrderSide getByName(String str) {
+        if (str == null) {
+            return null;
+        }
+        for (OrderSide orderSide : values()) {
+            if (orderSide.m_name.equals(str)) {
                 return orderSide;
             }
         }

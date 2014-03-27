@@ -1,6 +1,7 @@
 package bthdg.duplet;
 
 import bthdg.*;
+import bthdg.exch.OrdersData;
 import bthdg.exch.TopData;
 import bthdg.exch.TradesData;
 
@@ -181,9 +182,9 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
         return true; // todo: order can be executed at this point, so cancel will fail
     }
 
-    public LiveOrdersData fetchLiveOrders() {
+    public OrdersData fetchLiveOrders() {
         // todo: implement
 //        log("fetchLiveOrders() not implemented yet");
-        return new LiveOrdersData();
+        return new OrdersData();
     }
 } // SharedExchangeData

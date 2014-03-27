@@ -1,6 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
+import bthdg.exch.OrdersData;
 import bthdg.exch.TopData;
 import bthdg.exch.TradesData;
 
@@ -11,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class IterationData implements IIterationContext {
     private Map<Pair, TopData> m_tops;
     private Map<Pair, TradesData> m_trades;
+    private OrdersData m_liveOrders;
     public NewTradesAggregator m_newTrades = new NewTradesAggregator();
     private boolean m_acceptPriceSimulated;
     public TradesAggregator m_tradesAgg;
@@ -37,6 +39,13 @@ public class IterationData implements IIterationContext {
             m_trades = Fetcher.fetchTrades(Exchange.BTCE, Triplet.PAIRS);
         }
         return m_trades;
+    }
+
+    public OrdersData getLiveOrders(Exchange exchange) throws Exception {
+        if (m_liveOrders!=null) {
+            m_liveOrders = Fetcher.fetchOrders(exchange, null);
+        }
+        return m_liveOrders;
     }
 
     @Override public Map<Pair, TradesData> getNewTradesData(Exchange exchange, final TradesData.ILastTradeTimeHolder holder) throws Exception {

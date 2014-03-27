@@ -124,7 +124,7 @@ public class PaintTrace extends BaseChartPaint {
                     long crossId = result.getLong(6);
                     long forkId = result.getLong(7);
 
-                    TradeData trade = new TradeData(amount, price, stamp, -1, null, OrderSide.get(side), exchId, crossId, forkId);
+                    TradeData trade = new TradeData(amount, price, stamp, -1, null, OrderSide.getByCode(side), exchId, crossId, forkId);
                     trades.add(trade);
                 }
                 System.out.println(trades.size() + " trades read in " + Utils.millisToDHMSStr(System.currentTimeMillis() - four));

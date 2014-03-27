@@ -39,4 +39,16 @@ public class PairDirection {
         }
         return false;
     }
+
+    public static PairDirection get(Currency fromCurrency, Currency toCurrency) {
+        for( Pair pair: Pair.values() ) {
+            if((pair.m_from == fromCurrency) && (pair.m_to == toCurrency)) {
+                return new PairDirection(pair, true);
+            }
+            if((pair.m_to == fromCurrency) && (pair.m_from == toCurrency)) {
+                return new PairDirection(pair, false);
+            }
+        }
+        throw new RuntimeException("not supported pair: " + fromCurrency + "->" + toCurrency);
+    }
 }

@@ -1,5 +1,7 @@
 package bthdg;
 
+import bthdg.exch.TopData;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -28,13 +30,17 @@ public class AccountData {
     public void setAllocated(Currency currency, double value) { m_allocatedFunds.put(currency, round(value)); }
 
     private Double round(double value) {
-        return Math.round(value * 10000000000d) / 10000000000d;
+        return Math.round(value * 1000000000d) / 1000000000d;
     }
 
     public AccountData(String name, double usd, double btc, double fee) {
-        m_name = name;
+        this(name, fee);
         setAvailable(Currency.USD, usd);
         setAvailable(Currency.BTC, btc);
+    }
+
+    public AccountData(String name, double fee) {
+        m_name = name;
         m_fee = fee;
     }
 
@@ -170,5 +176,41 @@ public class AccountData {
 
     public void releaseTrade(Pair pair, OrderSide orderSide, double price, double amount) {
         release(pair, orderSide, price, amount, true);
+    }
+
+    public AccountData copy() {
+        AccountData ret = new AccountData(m_name, m_fee);
+        ret.m_funds.putAll(m_funds);
+        ret.m_allocatedFunds.putAll(m_allocatedFunds);
+        return ret;
+    }
+
+    public double evaluate(Map<Pair, TopData> tops) {
+        double allValue = 0;
+        for (Map.Entry<Currency, Double> entry : m_funds.entrySet()) {
+            double value = entry.getValue();
+            if (value != 0) {
+                Currency currency = entry.getKey();
+                Double allocated = m_allocatedFunds.get(currency);
+                if (allocated != null) {
+                    value += allocated;
+                }
+                double rate;
+                if (currency == Currency.EUR) {
+                    rate = 1;
+                } else {
+                    PairDirection pd = PairDirection.get(currency, Currency.EUR);
+                    Pair pair = pd.m_pair;
+                    TopData top = tops.get(pair);
+                    rate = top.getMid();
+                    if (!pd.m_forward) {
+                        rate = 1 / rate;
+                    }
+                }
+                value = value / rate;
+                allValue += value;
+            }
+        }
+        return allValue;
     }
 }
