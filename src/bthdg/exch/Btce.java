@@ -253,8 +253,8 @@ public class Btce extends BaseExch {
             JSONObject ret = (JSONObject)  jObj.get("return");
             log(" ret=" + ret);
             long orderId = Utils.getLong(ret.get("order_id"));
-            long remains = Utils.getLong(ret.get("remains"));
-            long received = Utils.getLong(ret.get("received"));
+            double remains = Utils.getDouble(ret.get("remains"));
+            double received = Utils.getDouble(ret.get("received"));
             JSONObject funds = (JSONObject) ret.get("funds");
             AccountData accountData = parseFunds(funds);
             return new PlaceOrderData(orderId, remains, received, accountData);

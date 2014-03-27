@@ -7,14 +7,20 @@ public enum OrderSide {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice >= mktPrice; }
         @Override public OrderSide opposite() { return SELL; }
         @Override public double mktPrice(TopData top) { return top.m_ask; }
-        @Override public double pegPrice(TopData top, Pair pair) { return top.m_bid + minPriceStep(pair); }
+        @Override public double pegPrice(TopData top, Pair pair) {
+            double pegPrice = top.m_bid + minPriceStep(pair); // bid and ask can be VERY close - peg will run out of mkt bid/ask bounds - adjust
+            return (pegPrice >= top.m_ask) ? top.getMid() : pegPrice;
+        }
         @Override public boolean isBuy() { return true; }
     },
     SELL("S", "sell") {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice <= mktPrice; }
         @Override public OrderSide opposite() { return BUY; }
         @Override public double mktPrice(TopData top) { return top.m_bid; }
-        @Override public double pegPrice(TopData top, Pair pair) { return top.m_ask - minPriceStep(pair); }
+        @Override public double pegPrice(TopData top, Pair pair) {
+            double pegPrice = top.m_ask - minPriceStep(pair); // bid and ask can be VERY close - peg will run out of mkt bid/ask bounds - adjust
+            return (pegPrice <= top.m_bid) ? top.getMid() : pegPrice;
+        }
         @Override public boolean isBuy() { return false; }
     };
 

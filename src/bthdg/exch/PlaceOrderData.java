@@ -5,11 +5,11 @@ import bthdg.AccountData;
 public class PlaceOrderData {
     public String m_error;
     public long m_orderId;
-    public long m_remains;
-    public long m_received;
+    public double m_remains;
+    public double m_received;
     public AccountData m_accountData;
 
-    public PlaceOrderData(long orderId, long remains, long received, AccountData accountData) {
+    public PlaceOrderData(long orderId, double remains, double received, AccountData accountData) {
         m_orderId = orderId;
         m_remains = remains;
         m_received = received;

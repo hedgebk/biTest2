@@ -3,38 +3,40 @@ package bthdg.triplet;
 import bthdg.*;
 import bthdg.exch.BaseExch;
 import bthdg.exch.Btce;
+import bthdg.exch.PlaceOrderData;
 import bthdg.exch.TopData;
 
 import java.util.*;
 
 /**
  * - try place brackets for non-profitable pairs / sorted by trades num
- * - stats:
- *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56
+ * - stats:                                                              ratio       btc
+ *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
  *  USD->BTC;BTC->LTC;LTC->USD	24		LTC->BTC;BTC->USD;USD->LTC
  *  BTC->USD;USD->LTC;LTC->BTC	17		LTC->EUR;EUR->BTC;BTC->LTC
  *  LTC->EUR;EUR->BTC;BTC->LTC	16		LTC->EUR;EUR->USD;USD->LTC
  *  EUR->LTC;LTC->BTC;BTC->EUR	9		LTC->USD;USD->BTC;BTC->LTC
  *  EUR->LTC;LTC->USD;USD->EUR	9		LTC->USD;USD->EUR;EUR->LTC
- *  USD->LTC;LTC->BTC;BTC->USD	9		USD->BTC;BTC->EUR;EUR->USD	35
+ *  USD->LTC;LTC->BTC;BTC->USD	9		USD->BTC;BTC->EUR;EUR->USD	35 = 0.241379310 0.047575862
  *  EUR->BTC;BTC->USD;USD->EUR	7		USD->BTC;BTC->LTC;LTC->USD
  *  BTC->USD;USD->EUR;EUR->BTC	6		USD->LTC;LTC->BTC;BTC->USD
  *  LTC->USD;USD->BTC;BTC->LTC	5		USD->LTC;LTC->EUR;EUR->USD
- *  BTC->LTC;LTC->USD;USD->BTC	3		BTC->EUR;EUR->LTC;LTC->BTC	28
+ *  BTC->LTC;LTC->USD;USD->BTC	3		BTC->EUR;EUR->LTC;LTC->BTC	28 = 0.193103448 0.038060689
  *  LTC->BTC;BTC->USD;USD->LTC	3		BTC->LTC;LTC->EUR;EUR->BTC
  *  LTC->EUR;EUR->USD;USD->LTC	2		BTC->LTC;LTC->USD;USD->BTC
  *  BTC->EUR;EUR->LTC;LTC->BTC	1		BTC->USD;USD->EUR;EUR->BTC
  *  BTC->LTC;LTC->EUR;EUR->BTC	1		BTC->USD;USD->LTC;LTC->BTC
- *  EUR->BTC;BTC->LTC;LTC->EUR	1		EUR->BTC;BTC->LTC;LTC->EUR	26
+ *  EUR->BTC;BTC->LTC;LTC->EUR	1		EUR->BTC;BTC->LTC;LTC->EUR	26 = 0.179310344 0.035342068
  *  LTC->BTC;BTC->EUR;EUR->LTC	1		EUR->BTC;BTC->USD;USD->EUR
  *  USD->BTC;BTC->EUR;EUR->USD	1		EUR->LTC;LTC->BTC;BTC->EUR
  *  USD->LTC;LTC->EUR;EUR->USD	1		EUR->LTC;LTC->USD;USD->EUR
+ *                                                                  145
  */
 public class Triplet {
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
     public static final int LOAD_TRADES_NUM = 30;
     public static final double LVL = 100.6; // commission level
-    public static final double LVL2 = 100.66; // min target level
+    public static final double LVL2 = 100.65; // min target level
     public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = true;
 
     public static final double USE_ACCOUNT_FUNDS = 0.97;
@@ -105,13 +107,26 @@ public class Triplet {
         return account;
     }
 
-    public static boolean placeOrder(AccountData account, OrderData orderData, OrderState state) {
-        log("placeOrder() not implemented yet: " + orderData);
+    public static boolean placeOrder(AccountData account, OrderData orderData, OrderState state) throws Exception {
+        log("placeOrder(): " + orderData);
 
         boolean success = account.allocateOrder(orderData);
         if (success) {
-            orderData.m_status = OrderStatus.SUBMITTED;
-            orderData.m_state = state;
+            if (Fetcher.SIMULATE_ORDER_EXECUTION) {
+                orderData.m_status = OrderStatus.SUBMITTED;
+                orderData.m_state = state;
+            } else {
+                PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
+                log(" PlaceOrderData: " + poData);
+                if (poData.m_error == null) {
+                    orderData.m_status = OrderStatus.SUBMITTED;
+                    orderData.m_state = state;
+                } else {
+                    orderData.m_status = OrderStatus.REJECTED;
+                    orderData.m_state = OrderState.NONE;
+                    success = false;
+                }
+            }
         } else {
             log("ERROR: account allocateOrder unsuccessful: " + orderData + ", account: " + account);
         }

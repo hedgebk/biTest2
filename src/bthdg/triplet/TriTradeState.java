@@ -3,7 +3,6 @@ package bthdg.triplet;
 import bthdg.*;
 import bthdg.exch.TopData;
 
-import java.util.Date;
 import java.util.Map;
 
 public enum TriTradeState {

@@ -114,7 +114,12 @@ public class Fetcher {
 
     private static void placeOrder() throws Exception {
         OrderData order = new OrderData(Pair.BTC_EUR, OrderSide.SELL, 800, 0.01);
-        PlaceOrderData poData = placeOrder(Exchange.BTCE, order);
+        Exchange exchange = Exchange.BTCE;
+        placeOrder(order, exchange);
+    }
+
+    public static PlaceOrderData placeOrder(OrderData order, Exchange exchange) throws Exception {
+        PlaceOrderData poData = placeOrder(exchange, order);
         log("placeOrder returns: " + poData);
         String error = poData.m_error;
         if (error == null) {
@@ -124,6 +129,7 @@ public class Fetcher {
         } else {
             log("error: " + error);
         }
+        return poData;
     }
 
     private static void pool(final Exchange exch1, final Exchange exch2) {
@@ -179,7 +185,7 @@ public class Fetcher {
         return poData;
     }
 
-    private static CancelOrderData calcelOrder(Exchange exchange, final String orderId) throws Exception {
+    public static CancelOrderData calcelOrder(Exchange exchange, final String orderId) throws Exception {
         Object jObj = fetchOnce(exchange, FetchCommand.CANCEL, new FetchOptions() {
             @Override public String getOrderId() { return orderId; }
         });
