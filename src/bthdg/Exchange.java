@@ -140,8 +140,11 @@ public enum Exchange {
 
     public double roundPrice(double price, Pair pair) { return m_baseExch.roundPrice(price, pair); }
     public String roundPriceStr(double price, Pair pair) { return m_baseExch.roundPriceStr(price, pair); }
-    public double roundAmount(double amount) { return m_baseExch.roundAmount(amount); }
-    public String roundAmountStr(double amount) { return m_baseExch.roundAmountStr(amount); }
+    public double roundAmount(double amount, Pair pair) { return m_baseExch.roundAmount(amount, pair); }
+    public String roundAmountStr(double amount, Pair pair) { return m_baseExch.roundAmountStr(amount, pair); }
+
+    public int connectTimeout() { return m_baseExch.connectTimeout(); }
+    public int readTimeout() { return m_baseExch.readTimeout(); }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class UrlDef {

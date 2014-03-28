@@ -97,7 +97,7 @@ public enum OrderState {
                     double remained = orderData.remained();
                     log("  amounts are not equals: orderAmount=" + orderAmount + "; filled=" + filled + "; remained=" + remained + ";  liveOrder.amount=" + amount);  // probably partial
                     double partial = remained - amount;
-                    log("   probably partial=" + partial);
+                    log("   probably partial=" + Utils.X_YYYYY.format(partial));
                     if (partial > 0) {
                         double price = orderData.m_price;
                         orderData.addExecution(price, partial, exchange);

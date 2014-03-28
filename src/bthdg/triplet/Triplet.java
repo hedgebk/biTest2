@@ -36,7 +36,7 @@ import java.util.*;
  *                                                                  145
  * account=AccountData{name='btce' funds={USD=22.57809, EUR=14.66755, LTC=2.59098, BTC=0.03806}; allocated={} , fee=0.002}; valuateEur=69.88963140051925 EUR; valuateUsd=93.09032635429794 USD
  * account: AccountData{name='btce' funds={LTC=2.27774, USD=21.86919, EUR=18.24521, BTC=0.03888}; allocated={} , fee=0.002}
- * account: AccountData{name='btce' funds={LTC=3.17240, USD=21.97626, EUR=12.62895, BTC=0.02680}; allocated={} , fee=0.002}
+ * account: AccountData{name='btce' funds={LTC=3.17240, USD=21.97626, EUR=12.62895, BTC=0.02680}; allocated={} , fee=0.002}; evaluateEur: 71.43604 evaluateUsd: 95.37413
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
@@ -45,7 +45,7 @@ public class Triplet {
     public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
 
     public static final double LVL = 100.6; // commission level
-    public static final double LVL2 = 100.68; // min target level
+    public static final double LVL2 = 100.65; // min target level
     public static final double USE_ACCOUNT_FUNDS = 0.93;
     public static final int WAIT_MKT_ORDER_STEPS = 6;
     public static final int ITERATIONS_SLEEP_TIME = 3500; // sleep between iterations
@@ -71,7 +71,7 @@ public class Triplet {
         System.out.println("Started");
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
-        Btce.LOG_PARSE = true;
+        Btce.LOG_PARSE = false;
         Fetcher.USE_ACCOUNT_TEST_STR = USE_ACCOUNT_TEST_STR;
         Fetcher.SIMULATE_ORDER_EXECUTION = SIMULATE_ORDER_EXECUTION;
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE = false;
@@ -119,6 +119,7 @@ public class Triplet {
         Map<Pair,TopData> tops = iData.getTops();
         s_startEur = s_startAccount.evaluateEur(tops);
         s_startUsd = s_startAccount.evaluateUsd(tops);
+        System.out.println(" evaluateEur: " + format5(s_startEur) + " evaluateUsd: " + format5(s_startUsd));
         return account;
     }
 
@@ -177,6 +178,10 @@ public class Triplet {
 
     public static String format4(double number) {
         return Utils.X_YYYY.format(number);
+    }
+
+    public static String format5(double number) {
+        return Utils.X_YYYYY.format(number);
     }
 
     public static AccountData getAccount() throws Exception {

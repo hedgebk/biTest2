@@ -76,13 +76,25 @@ public enum TriTradeState {
             String name = triangle.name();
             int startIndx = peg.m_indx;
             boolean rotationDirection = rotationData.m_forward;
-            log(" " + name + "; start=" + startIndx + "; direction=" + rotationDirection);
+//            log(" " + name + "; start=" + startIndx + "; direction=" + rotationDirection);
 
             AccountData account = triangleData.m_account;
 
-            double[] ends1 = triTradeData.m_order.logOrderEnds(account, 1, peg.m_price1);
-            double[] ends2 = triTradeData.m_mktOrders[0].logOrderEnds(account, 2, peg.m_price2);
-            double[] ends3 = triTradeData.m_mktOrders[1].logOrderEnds(account, 3, peg.m_price3);
+            OrderData order1 = triTradeData.m_order;
+            OrderData order2 = triTradeData.m_mktOrders[0];
+            OrderData order3 = triTradeData.m_mktOrders[1];
+
+            double[] ends1 = order1.logOrderEnds(account, 1, peg.m_price1);
+            double[] ends2 = order2.logOrderEnds(account, 2, peg.m_price2);
+            double[] ends3 = order3.logOrderEnds(account, 3, peg.m_price3);
+            log(
+                "  start " + Utils.X_YYYYY.format(order1.startAmount()) + " " + order1.startCurrency() +
+                "  end " + Utils.X_YYYYY.format(order1.endAmount(account)) + " " + order1.endCurrency() +
+                " | start " + Utils.X_YYYYY.format(order2.startAmount()) + " " + order2.startCurrency() +
+                "  end " + Utils.X_YYYYY.format(order2.endAmount(account)) + " " + order2.endCurrency() +
+                " | start " + Utils.X_YYYYY.format(order3.startAmount()) + " " + order3.startCurrency() +
+                "  end " + Utils.X_YYYYY.format(order3.endAmount(account)) + " " + order3.endCurrency()
+            );
 
             double in = ends1[0];
             double out = ends3[1];
@@ -178,7 +190,7 @@ public enum TriTradeState {
 
         OrderData prevOrder = (num == 1) ? triTradeData.m_order : triTradeData.m_mktOrders[0];
         OrderSide prevSide = prevOrder.m_side;
-        Currency prevEndCurrency = prevOrder.currencyTo();
+        Currency prevEndCurrency = prevOrder.endCurrency();
         double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - account.m_fee); // deduct commissions
         log(" prev order " + prevOrder + "; exit amount " + prevEndAmount + " " + prevEndCurrency);
 
@@ -196,13 +208,13 @@ public enum TriTradeState {
         }
         double available = account.available(fromCurrency);
         if (prevEndAmount > available) {
-            log("ERROR: not enough available funds to place MKT: available=" + available);
+            log("ERROR: not enough available funds to place MKT: available=" + available + "; needed=" + prevEndAmount);
             log(" try cancel PEG order for " + fromCurrency);
 
             for (TriTradeData nextTriTrade : triangleData.m_triTrades) {
                 if (nextTriTrade.m_state == PEG_PLACED) {
                     OrderData order = nextTriTrade.m_order;
-                    Currency startCurrency = order.currencyFrom();
+                    Currency startCurrency = order.startCurrency();
                     if (startCurrency == fromCurrency) {
                         log("  found PEG order for " + fromCurrency + " " + nextTriTrade.m_peg.name() + " " + order);
                         boolean canceled = triangleData.cancelOrder(order);
@@ -225,7 +237,7 @@ public enum TriTradeState {
                 triTradeData.setState(CANCELED);
                 return false;
             } else {
-                log("released enough funds to place MKT(" + num + "): available=" + available);
+                log("released enough funds to place MKT(" + num + "): available=" + available + "; needed=" + prevEndAmount);
             }
         }
 

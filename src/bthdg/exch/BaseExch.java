@@ -18,6 +18,8 @@ public abstract class BaseExch {
     private static boolean s_sslInitialized;
     public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
+    public static final int DEF_CONNECT_TIMEOUT = 6000;
+    public static final int DE_READ_TIMEOUT = 7000;
 
     public abstract String getNextNonce();
     protected abstract String getCryproAlgo();
@@ -25,8 +27,11 @@ public abstract class BaseExch {
     protected abstract String getApiEndpoint();
     public abstract double roundPrice(double pegPrice, Pair pair);
     public abstract String roundPriceStr(double price, Pair pair);
-    public abstract double roundAmount(double amount);
-    public abstract String roundAmountStr(double amount);
+    public abstract double roundAmount(double amount, Pair pair);
+    public abstract String roundAmountStr(double amount, Pair pair);
+
+    public int connectTimeout() { return DEF_CONNECT_TIMEOUT; };
+    public int readTimeout() { return DE_READ_TIMEOUT; };
 
     public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {return null;};
     public Map<String, String> getHeaders(String postData) throws Exception { return null; }

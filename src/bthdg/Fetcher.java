@@ -42,14 +42,12 @@ public class Fetcher {
     private static final int MAX_READ_ATTEMPTS = 100; // 5;
     public static final int START_REPEAT_DELAY = 200;
     public static final int REPEAT_DELAY_INCREMENT = 200;
-    public static final int CONNECT_TIMEOUT = 6000; // todo: maybe make it different for exchanges
-    public static final int READ_TIMEOUT = 7000;
 
     public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
     public static boolean LOG_LOADING = true;
+    public static boolean LOG_JOBJ = false;
     public static boolean MUTE_SOCKET_TIMEOUTS = false;
-
 
     public static void main(String[] args) {
         log("Started.  millis=" + System.currentTimeMillis());
@@ -171,7 +169,9 @@ public class Fetcher {
                 return pair;
             }
         });
-        log("jObj=" + jObj);
+        if (LOG_JOBJ) {
+            log("jObj=" + jObj);
+        }
         OrdersData oData = exchange.parseOrders(jObj);
         return oData;
     }
@@ -180,16 +180,22 @@ public class Fetcher {
         Object jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
             @Override public OrderData getOrderData() { return order; }
         });
-        log("jObj=" + jObj);
+        if (LOG_JOBJ) {
+            log("jObj=" + jObj);
+        }
         PlaceOrderData poData = exchange.parseOrder(jObj);
         return poData;
     }
 
     public static CancelOrderData calcelOrder(Exchange exchange, final String orderId) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.CANCEL, new FetchOptions() {
-            @Override public String getOrderId() { return orderId; }
+            @Override public String getOrderId() {
+                return orderId;
+            }
         });
-        log("jObj=" + jObj);
+        if (LOG_JOBJ) {
+            log("jObj=" + jObj);
+        }
         CancelOrderData coData = exchange.parseCancelOrder(jObj);
         return coData;
     }
@@ -197,7 +203,9 @@ public class Fetcher {
 
     public static AccountData fetchAccount(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.ACCOUNT, null);
-//        log("jObj=" + jObj);
+        if (LOG_JOBJ) {
+            log("jObj=" + jObj);
+        }
         AccountData accountData = exchange.parseAccount(jObj);
 //        log("accountData=" + accountData);
         if(accountData != null) {
@@ -232,6 +240,9 @@ public class Fetcher {
     private static TradesData fetchTradesOnce(Exchange exchange, Pair pair) {
         try {
             Object jObj = fetchOnce(exchange, FetchCommand.TRADES, new PairFetchOptions(pair));
+            if (LOG_JOBJ) {
+                log("jObj=" + jObj);
+            }
             TradesData tradesData = exchange.parseTrades(jObj, pair);
             return tradesData;
         } catch (Exception e) {
@@ -243,7 +254,9 @@ public class Fetcher {
 
     private static DeepData fetchDeep(Exchange exchange) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.DEEP, new PairFetchOptions(Pair.BTC_USD));
-        log("jObj=" + jObj);
+        if (LOG_JOBJ) {
+            log("jObj=" + jObj);
+        }
         DeepData deepData = exchange.parseDeep(jObj);
         log("deepData=" + deepData);
         return deepData;
@@ -255,7 +268,9 @@ public class Fetcher {
 
     static TopData fetchTop(Exchange exchange, Pair pair) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TOP, new PairFetchOptions(pair));
-        //log("jObj=" + jObj);
+        if (LOG_JOBJ) {
+            log("jObj=" + jObj);
+        }
         TopData topData = exchange.parseTop(jObj, pair);
         //log("topData=" + topData);
         return topData;
@@ -328,8 +343,8 @@ public class Fetcher {
                 con.setRequestProperty("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
             }
             con.setUseCaches(false);
-            con.setConnectTimeout(CONNECT_TIMEOUT);
-            con.setReadTimeout(READ_TIMEOUT);
+            con.setConnectTimeout(exchange.connectTimeout());
+            con.setReadTimeout(exchange.readTimeout());
             con.setRequestProperty("User-Agent", USER_AGENT);
             //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
 
@@ -372,7 +387,7 @@ public class Fetcher {
 //            System.out.print(" available " + available + " bytes; ");
             reader = new InputStreamReader(inputStream);
         }
-        return parseJson(reader);
+        return parseJson(reader); // will close reader inside
     }
 
     private static Object parseJson(Reader reader) throws IOException, ParseException {
@@ -470,21 +485,13 @@ public class Fetcher {
 
     private static class PairFetchOptions extends FetchOptions {
         private final Pair m_pair;
-
-        public PairFetchOptions(Pair pair) {
-            m_pair = pair;
-        }
-
+        public PairFetchOptions(Pair pair) { m_pair = pair; }
         @Override public Pair[] getPairs() { return new Pair[]{m_pair}; }
     }
 
     private static class PairsFetchOptions extends FetchOptions {
         private final Pair[] pairs;
-
-        public PairsFetchOptions(Pair... pairs) {
-            this.pairs = pairs;
-        }
-
+        public PairsFetchOptions(Pair... pairs) { this.pairs = pairs; }
         @Override public Pair[] getPairs() { return pairs; }
     }
 

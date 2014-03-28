@@ -29,29 +29,34 @@ public class Btce extends BaseExch {
     private static String KEY;
     private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
     public static boolean LOG_PARSE = false;
+    private static final int BTCE_CONNECT_TIMEOUT = 12000;
+    private static final int BTCE_READ_TIMEOUT = 15000;
 
-    //    LTC_USD(Currency.LTC, Currency.USD, 0.0001,       0.00001,      13.33333333, 0.36),
-    //    LTC_BTC(Currency.LTC, Currency.BTC, 0.00001,      0.00001,      20,          0.36),
-    //    BTC_USD(Currency.BTC, Currency.USD, 0.001,        0.00001,      3.636363636, 0.01),
-    //    LTC_EUR(Currency.LTC, Currency.EUR, 0.001,        0.00001,      0.357142857, 0.36),
-    //    BTC_EUR(Currency.BTC, Currency.EUR, 0.001,        0.00001,      0.285714286, 0.01),
-    //    EUR_USD(Currency.EUR, Currency.USD, 0.0001,       0.00001,      0.273972603, 6);
+//    trackMktOrderExecution() orderData=OrderData{pair=BTC_USD, side=BUY, amount=0.08198, price=493.14000, status=PARTIALLY_FILLED, state=MARKET_PLACED, filled=0.00000, id=187429820}
+//    jObj={"return":{"187429820":{"amount":0.08197999,"timestamp_created":1396041001,"rate":493.14,"status":0,"pair":"btc_usd","type":"buy"}},"success":1}
 
-    private static final DecimalFormat AMOUNT_FORMAT = mkFormat("#.#####");
-    private static final Map<Pair, DecimalFormat> s_formatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
     private static final Map<Pair, Double> s_minPriceStepMap = new HashMap<Pair, Double>();
 
     static {
         put(Pair.LTC_USD, "#.####",  0.0001);
         put(Pair.LTC_BTC, "#.#####", 0.00001);
-        put(Pair.BTC_USD, "#.###",   0.001);
+        put(Pair.BTC_USD, "#.###",   0.001,   "#.#######", 0.0000001);
         put(Pair.LTC_EUR, "#.###",   0.001);
         put(Pair.BTC_EUR, "#.####",  0.0001);
         put(Pair.EUR_USD, "#.####",  0.0001);
     }
 
     private static void put(Pair pair, String format, double minPriceStep) {
-        s_formatMap.put(pair, mkFormat(format));
+        put(pair,  format,  minPriceStep, "#.#####", 0.00001 );
+    }
+
+    private static void put(Pair pair, String format, double minPriceStep, String amountFormat, double minAmountStep) {
+        s_amountFormatMap.put(pair, mkFormat(amountFormat));
+        s_minAmountStepMap.put(pair, minAmountStep);
+        s_priceFormatMap.put(pair, mkFormat(format));
         s_minPriceStepMap.put(pair, minPriceStep);
     }
 
@@ -61,6 +66,10 @@ public class Btce extends BaseExch {
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
     @Override protected String getSecret() { return SECRET; }
     @Override protected String getApiEndpoint() { return "https://btc-e.com/tapi"; }
+
+    @Override public int connectTimeout() { return BTCE_CONNECT_TIMEOUT; }
+    @Override public int readTimeout() { return BTCE_READ_TIMEOUT; }
+
     private static void log(String s) { Log.log(s); }
 
     public Btce() {}
@@ -91,19 +100,20 @@ public class Btce extends BaseExch {
     }
 
     public String roundPriceStr(double price, Pair pair) {
-        DecimalFormat format = s_formatMap.get(pair);
+        DecimalFormat format = s_priceFormatMap.get(pair);
         String str = format.format(price);
         return str;
     }
 
-    public double roundAmount(double amount){
-        String str = roundAmountStr(amount);
+    public double roundAmount(double amount, Pair pair){
+        String str = roundAmountStr(amount, pair);
         double ret = Double.parseDouble(str);
         return ret;
     }
 
-    public String roundAmountStr(double amount) {
-        String str = AMOUNT_FORMAT.format(amount);
+    public String roundAmountStr(double amount, Pair pair) {
+        DecimalFormat format = s_amountFormatMap.get(pair);
+        String str = format.format(amount);
         return str;
     }
 
@@ -139,7 +149,7 @@ public class Btce extends BaseExch {
                 String priceStr = roundPriceStr(order.m_price, pair);
                 postParams.put("rate", priceStr);
 
-                String amountStr = roundAmountStr(order.m_amount);
+                String amountStr = roundAmountStr(order.m_amount, pair);
                 postParams.put("amount", amountStr);
 
                 break;
@@ -389,13 +399,13 @@ public class Btce extends BaseExch {
         Long success = (Long) jObj.get("success");
         if( success == 1 ) {
             JSONObject ret = (JSONObject) jObj.get("return");
-            log(" ret=" + ret);
+//            log(" ret=" + ret);
             Set keys = ret.keySet();
             log(" keys=" + keys);
             Map<String,OrdersData.OrdData> ords = new HashMap<String,OrdersData.OrdData>();
             for (Object key : keys) {
                 String orderId = (String) key;
-                log(" orderId=" + orderId);
+//                log(" orderId=" + orderId);
                 JSONObject order = (JSONObject) ret.get(orderId);
                 // {"amount":0.01,"timestamp_created":1395784667,"rate":800.0,"status":0,"pair":"btc_eur","type":"sell"}
                 double amount = Utils.getDouble(order.get("amount"));

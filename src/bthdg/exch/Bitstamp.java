@@ -34,11 +34,11 @@ public class Bitstamp extends BaseExch {
         return Double.toString(price);   // todo: implement
     }
 
-    @Override public double roundAmount(double amount) {
+    @Override public double roundAmount(double amount, Pair pair) {
         return amount;  // todo: implement
     }
 
-    @Override public String roundAmountStr(double amount) {
+    @Override public String roundAmountStr(double amount, Pair pair) {
         return Double.toString(amount);   // todo: implement
     }
 

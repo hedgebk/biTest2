@@ -155,7 +155,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             }
             m_triTrades = triTradesToLive;
             if(!triTradesToDie.isEmpty()) {
-                log(" we have " + triTradesToDie.size() + " trades to die");
+                log(" we have " + triTradesToDie.size() + " orders to die");
                 for (TriTradeData triTrade : triTradesToDie) {
                     if (!cancelOrder(triTrade)) {
                         // todo: in case of errors - add back to m_triTrades - will check in next iteration again
@@ -271,11 +271,12 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 double amount = side.isBuy() ? available/pegPrice: available;
 
                 pegPrice = exchange.roundPrice(pegPrice, pair);
-                amount = exchange.roundAmount(amount);
+                amount = exchange.roundAmount(amount, pair);
+                double needPeg = peg.m_need;
 
                 log("#### best: " + Triplet.formatAndPad(maxPeg) + "; " + name + ", pair: " + pair + ", direction=" + direction +
-                        ", from=" + fromCurrency + "; available=" + available + "; amount=" + amount + "; side=" + side +
-                        "; pegPrice=" + Triplet.format4(pegPrice) + "; top: " + topData);
+                        ", from=" + fromCurrency + "; available=" + Triplet.format5(available) + "; amount=" + amount + "; side=" + side +
+                        "; pegPrice=" + Triplet.format5(pegPrice) +"; needPeg=" + Triplet.format5(needPeg) + "; top: " + topData);
 
                 if (amount > pair.m_minOrderSize) {
                     if(Triplet.SIMULATE_ORDER_EXECUTION) {

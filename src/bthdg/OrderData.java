@@ -44,17 +44,19 @@ public class OrderData {
         List<Execution> executions = getExecutions();
         executions.add(new Execution(price, amount));
         m_filled += amount;
-        if (m_filled > m_amount) {
-            log("ERROR: m_filled > m_amount on order: " + this);
+        double minPriceStep = exchange.minPriceStep(m_pair);
+        double diff = m_filled - m_amount;
+        if (diff > minPriceStep) {
+            log("ERROR: m_filled(" + Utils.X_YYYYYYY.format(m_filled) + ") > m_amount(" + Utils.X_YYYYYYY.format(m_amount) +
+                    ") [delta=" + Utils.X_YYYYYYY.format(diff) + "] on order: " + this);
         }
         log("   addExecution: price=" + price + "; amount=" + amount + ";  result: filled=" + m_filled + "; remained=" + remained());
-        double dif = m_amount - m_filled;
-        double minPriceStep = exchange.minPriceStep(m_pair);
-        if (Math.abs(dif) < minPriceStep) {
-            log("    all filled - become OrderStatus.FILLED.  dif=" + dif + "; minPriceStep=" + minPriceStep);
+        if (Math.abs(diff) < minPriceStep) {
+            log("    all filled - become OrderStatus.FILLED.  dif=" + Utils.X_YYYYYYY.format(diff) + "; minPriceStep=" + Utils.X_YYYYYYY.format(minPriceStep));
             m_status = OrderStatus.FILLED;
+            m_filled = m_amount; // to be equal
         } else if (executions.size() == 1) { // just got the very first execution
-            log("    some filled - become OrderStatus.PARTIALLY_FILLED.  dif=" + dif + "; minPriceStep=" + minPriceStep);
+            log("    some filled - become OrderStatus.PARTIALLY_FILLED.  dif=" + diff + "; minPriceStep=" + minPriceStep);
             m_status = OrderStatus.PARTIALLY_FILLED;
             m_time = System.currentTimeMillis();
         }
@@ -333,18 +335,32 @@ public class OrderData {
 
     public double[] logOrderEnds(AccountData account, int i, double expectedPrice) {
         log(" order" + i + "; " + m_side + " " + Utils.X_YYYYY.format(expectedPrice) + " -> " + Utils.X_YYYYY.format(m_price) +
-            "; delta=" + Utils.X_YYYYY.format(expectedPrice - m_price));
-        boolean isBuy = m_side.isBuy();
-        Currency startCurrency = m_pair.currencyFrom(isBuy);
-        double startAmount = isBuy ? m_amount * m_price : m_amount;
-
-        Currency endCurrency = m_pair.currencyFrom(!isBuy);
-        double endAmount = (isBuy ? m_amount : m_amount * m_price) * (1 - account.m_fee); // deduct commissions
-        log("  start " + Utils.X_YYYYY.format(startAmount) + " " + startCurrency +
-            "  end " + Utils.X_YYYYY.format(endAmount) + " " + endCurrency +
-            "  ratio: " + endAmount / startAmount + "; " + this
-        );
+            "; delta=" + Utils.X_YYYYY.format(expectedPrice - m_price) + " on " + this);
+//        Currency startCurrency = startCurrency();
+        double startAmount = startAmount();
+//        Currency endCurrency = endCurrency();
+        double endAmount = endAmount(account);
+//        log("  start " + Utils.X_YYYYY.format(startAmount) + " " + startCurrency +
+//            "  end " + Utils.X_YYYYY.format(endAmount) + " " + endCurrency +
+//            "  ratio: " + endAmount / startAmount + "; " + this
+//        );
         return new double[] {startAmount, endAmount};
+    }
+
+    public double endAmount(AccountData account) {
+        return (m_side.isBuy() ? m_amount : m_amount * m_price) * (1 - account.m_fee);
+    }
+
+    public Currency endCurrency() {
+        return m_pair.currencyFrom(!m_side.isBuy());
+    }
+
+    public Currency startCurrency() {
+        return m_pair.currencyFrom(m_side.isBuy());
+    }
+
+    public double startAmount() {
+        return m_side.isBuy() ? m_amount * m_price : m_amount;
     }
 
     public double ratio(AccountData account) {
@@ -352,11 +368,4 @@ public class OrderData {
         return (isBuy ? 1 / m_price : m_price) * (1 - account.m_fee); // deduct commissions
     }
 
-    public Currency currencyFrom() {
-        return m_pair.currencyFrom(m_side.isBuy());
-    }
-
-    public Currency currencyTo() {
-        return m_pair.currencyFrom(!m_side.isBuy());
-    }
 } // OrderData
