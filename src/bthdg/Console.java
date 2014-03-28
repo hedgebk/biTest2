@@ -17,6 +17,7 @@ public class Console {
         printHelp();
         Fetcher.LOG_LOADING = true;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
+        Btce.LOG_PARSE = true;
 
         try {
             Properties keys = BaseExch.loadKeys();
@@ -45,8 +46,8 @@ public class Console {
     private static boolean process(String line) throws Exception {
         if( line.equals("exit")) {
             return true;
-        } else if( line.equals("account")) {
-            doAccount();
+        } else if( line.startsWith("account")) {
+            doAccount(line);
         } else if( line.equals("orders")) {
             doOrders();
         } else if( line.equals("tops")) {
@@ -81,13 +82,44 @@ public class Console {
         }
     }
 
-    private static void doAccount() throws Exception {
+    private static void doAccount(String line) throws Exception {
         AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
+        if (account != null) {
+            Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+            if (line.equals("account map")) {
+                String s = "              ";
+                for (Currency currencyOut : Currency.values()) {
+                    s += "      " + currencyOut + " ";
+                }
+                System.out.println(s);
 
-        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-        double valuate = account.evaluateEur(tops);
-
-        System.out.println("account=" + account + "; valuate=" + valuate + " eur");
+                for (Currency currencyIn : Currency.values()) {
+                    double all = account.getAllValue(currencyIn);
+                    String str = Utils.padLeft(Utils.X_YYYYY.format(all), 9) + " " + currencyIn;
+                    for (Currency currencyOut : Currency.values()) {
+                        if (currencyIn == currencyOut) {
+                            str += "        - ";
+                        } else {
+                            PairDirection pd = PairDirection.get(currencyIn, currencyOut);
+                            Pair pair = pd.m_pair;
+                            TopData top = tops.get(pair);
+                            double mid = top.getMid();
+                            if (!pd.m_forward) {
+                                mid = 1 / mid;
+                            }
+                            str += Utils.padLeft(Utils.X_YYYYY.format(all / mid), 9) + " ";
+                        }
+                    }
+                    System.out.println(str);
+                }
+            } else {
+                double valuateEur = account.evaluateEur(tops);
+                double valuateUsd = account.evaluateUsd(tops);
+                System.out.println("account=" + account + "; valuateEur=" + valuateEur + " EUR; valuateUsd=" + valuateUsd + " USD");
+            }
+        } else {
+            System.err.println("account request error");
+        }
     }
 
     private static void printHelp() {
@@ -146,33 +178,50 @@ public class Console {
                     String priceStr = tok.nextToken();
                     System.out.println(" order: side=" + side + "; amount=" + amount + "; fromCurrency=" + fromCurrency +
                             "; toCurrency=" + toCurrency + "; priceStr=" + priceStr + "; pair=" + pd);
-                    if (priceStr.equals("mkt")) {
-                        // place mkt
-                        System.out.println("not implemented - place mkt");
-                    } else if (priceStr.equals("peg")) {
-                        // place peg
-                        System.out.println("not implemented - place peg");
+                    double limitPrice;
+                    if (priceStr.equals("mkt")) { // place mkt
+                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopData top = tops.get(pair);
+                        limitPrice = side.mktPrice(top);
+                    } else if (priceStr.startsWith("mkt-")) { // place mkt  minus x%
+                        double perc = Double.parseDouble(priceStr.substring(4));
+                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopData top = tops.get(pair);
+                        double dif = top.m_ask - top.m_bid;
+                        double offset = dif * perc/100;
+                        limitPrice = side.isBuy() ? top.m_ask - offset : top.m_bid + offset;
+                    } else if (priceStr.equals("peg")) { // place peg
+                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopData top = tops.get(pair);
+                        double step = Exchange.BTCE.minPriceStep(pair);
+                        limitPrice = side.pegPrice(top, step);
+                    } else if (priceStr.equals("mid")) { // place mid
+                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopData top = tops.get(pair);
+                        limitPrice = top.getMid();
                     } else {
-                        double limitPrice = Double.parseDouble(priceStr);
-                        if(!forward) {
-                            limitPrice = 1/limitPrice;
-                            amount = amount/limitPrice;
-                        }
-                        OrderData orderData = new OrderData(pair, side, limitPrice, amount);
-                        System.out.println("confirm orderData=" + orderData);
-                        if(confirm()) {
-                            Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-                            TopData top = tops.get(pair);
-                            if (confirmLmtPrice(limitPrice, top)) {
-                                PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
-                                System.out.println("order place result: " + poData);
-                            } else {
-                                System.out.println(" limit price not confirmed");
-                            }
-                        } else {
-                            System.out.println(" orderData not confirmed");
-                        }
+                        limitPrice = Double.parseDouble(priceStr);
                     }
+
+                    if(!forward) {
+                        amount = amount/limitPrice;
+                    }
+
+                    OrderData orderData = new OrderData(pair, side, limitPrice, amount);
+                    System.out.println("confirm orderData=" + orderData);
+                    if(confirm()) {
+                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopData top = tops.get(pair);
+                        if (confirmLmtPrice(limitPrice, top)) {
+                            PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
+                            System.out.println("order place result: " + poData);
+                        } else {
+                            System.out.println(" limit price not confirmed");
+                        }
+                    } else {
+                        System.out.println(" orderData not confirmed");
+                    }
+
                     return;
                 }
             }

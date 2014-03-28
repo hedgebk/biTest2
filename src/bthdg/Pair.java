@@ -1,27 +1,33 @@
 package bthdg;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
+
 public enum Pair {
-    //                                  minPriceStep  minAmountStep freq         // minOrderSize
-    LTC_USD(Currency.LTC, Currency.USD, 0.0001,       0.00001,      13.33333333, 0.36),
-    LTC_BTC(Currency.LTC, Currency.BTC, 0.00002,      0.00001,      20,          0.36),
-    BTC_USD(Currency.BTC, Currency.USD, 0.001,        0.00001,      3.636363636, 0.01),
-    LTC_EUR(Currency.LTC, Currency.EUR, 0.001,        0.00001,      0.357142857, 0.36),
-    BTC_EUR(Currency.BTC, Currency.EUR, 0.001,        0.00001,      0.285714286, 0.01),
-    EUR_USD(Currency.EUR, Currency.USD, 0.0001,       0.00001,      0.273972603, 6);
+    //                                  minAmountStep freq         // minOrderSize
+    LTC_USD(Currency.LTC, Currency.USD, 0.00001,      13.33333333, 0.36),
+    LTC_BTC(Currency.LTC, Currency.BTC, 0.00001,      20,          0.36),
+    BTC_USD(Currency.BTC, Currency.USD, 0.00001,      3.636363636, 0.01),
+    LTC_EUR(Currency.LTC, Currency.EUR, 0.00001,      0.357142857, 0.36),
+    BTC_EUR(Currency.BTC, Currency.EUR, 0.00001,      0.285714286, 0.01),
+    EUR_USD(Currency.EUR, Currency.USD, 0.00001,      0.273972603, 6);
+
+    private static final DecimalFormat FORMAT_3 = new DecimalFormat( "#.###", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    private static final DecimalFormat FORMAT_4 = new DecimalFormat( "#.####", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    private static final DecimalFormat FORMAT_5 = new DecimalFormat( "#.#####", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
 
     private static final double DEF_MIN_PRICE_STEP = 0.01;
 
     public final Currency m_from;
     public final Currency m_to;
-    public final double m_minPriceStep;
     public final double m_minAmountStep;
     public final double m_freq; // btce trade frequency / minute   todo: move to BTCE class
     public final double m_minOrderSize; // minOrderSize for our trades
 
-    Pair(Currency to, Currency from, double minPriceStep, double minAmountStep, double freq, double minOrderSize) {
+    Pair(Currency to, Currency from, double minAmountStep, double freq, double minOrderSize) {
         m_from = from;
         m_to = to;
-        m_minPriceStep = minPriceStep;
         m_minAmountStep = minAmountStep;
         m_freq = freq;
         m_minOrderSize = minOrderSize;

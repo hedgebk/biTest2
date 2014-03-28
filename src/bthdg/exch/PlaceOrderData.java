@@ -24,7 +24,7 @@ public class PlaceOrderData {
         return "PlaceOrderData{" +
                 (m_error != null
                         ? "error='" + m_error
-                        : ", orderId=" + m_orderId +
+                        : "orderId=" + m_orderId +
                           ", remains=" + m_remains +
                           ", received=" + m_received +
                           ", accountData=" + m_accountData

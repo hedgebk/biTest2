@@ -56,7 +56,7 @@ public enum TriTradeState {
                 triTradeData.setState(TriTradeState.MKT2_EXECUTED);
             } else {
                 log("2nd MKT order run out of market " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
-                if(triangleData.cancelOrder(order)) {
+                if (triangleData.cancelOrder(order)) {
                     triTradeData.m_mktOrders[1] = null;
                     log("placing new 2nd MKT order...");
                     startMktOrder(iData, triangleData, triTradeData, 2);
@@ -161,7 +161,10 @@ public enum TriTradeState {
         double ratio = ratio1 * ratio2 * ratio3;
         log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio);
         if (ratio < 1) {
-            log("  MKT conditions do not allow profit on MKT orders close");
+            double zeroProfitPrice = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
+            TopData top = (num == 1) ? tops.get(peg.m_pair2.m_pair) : tops.get(peg.m_pair3.m_pair);
+
+            log("  MKT conditions do not allow profit on MKT orders close. zeroProfitPrice=" + zeroProfitPrice + "; top=" + top );
             if (triTradeData.m_waitMktOrder++ < Triplet.WAIT_MKT_ORDER_STEPS) {
                 log("   wait some time. waitMktOrder counter=" + triTradeData.m_waitMktOrder);
                 triTradeData.setState((num == 1) ? TriTradeState.PEG_FILLED : TriTradeState.MKT1_EXECUTED);

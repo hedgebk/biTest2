@@ -346,8 +346,8 @@ public class CrossData implements OrderState.IOrderExecListener {
     }
 
     public CrossData fork(double qty) {
-        OrderData buyOrder = m_buyOrder.fork(qty);
-        OrderData sellOrder = m_sellOrder.fork(qty);
+        OrderData buyOrder = m_buyOrder.fork(qty, m_buyExch.m_exchange);
+        OrderData sellOrder = m_sellOrder.fork(qty, m_sellExch.m_exchange);
 
         CrossData ret = new CrossData(m_buyExch, m_sellExch);
         ret.m_state = m_state;

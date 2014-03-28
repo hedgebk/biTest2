@@ -47,8 +47,10 @@ public enum Exchange {
         @Override public PlaceOrderData parseOrder(Object jObj) { return Btce.parseOrder(jObj); }
         @Override public OrdersData parseOrders(Object jObj) { return Btce.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btce.parseCancelOrders(jObj); }
+        @Override public boolean retryFetch(Object obj) { return Btce.retryFetch(obj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, options); }
+        @Override public double minPriceStep(Pair pair) { return Btce.minPriceStep(pair); }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -129,15 +131,19 @@ public enum Exchange {
     public PlaceOrderData parseOrder(Object jObj) { return null; }
     public OrdersData parseOrders(Object jObj) { return null; }
     public CancelOrderData parseCancelOrder(Object jObj) { return null; }
+    public boolean retryFetch(Object obj) { return false; }
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
     public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return m_apiTradesEndpoint; }
+    public double minPriceStep(Pair pair) { return 0.01; }
 
     private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
 
-    public double roundPrice(double price) {
-        return Utils.round(price, m_priceDecimals);
-    }
+    public double roundPrice(double price, Pair pair) { return m_baseExch.roundPrice(price, pair); }
+    public String roundPriceStr(double price, Pair pair) { return m_baseExch.roundPriceStr(price, pair); }
+    public double roundAmount(double amount) { return m_baseExch.roundAmount(amount); }
+    public String roundAmountStr(double amount) { return m_baseExch.roundAmountStr(amount); }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class UrlDef {
         public final String m_location;
         public final String m_paramName;

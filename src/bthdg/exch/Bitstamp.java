@@ -25,6 +25,23 @@ public class Bitstamp extends BaseExch {
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
     @Override protected String getSecret() { return SECRET; }
     @Override protected String getApiEndpoint() { return "https://www.bitstamp.net/api/balance/"; }
+
+    @Override public double roundPrice(double price, Pair pair) {
+        return price;  // todo: implement
+    }
+
+    @Override public String roundPriceStr(double price, Pair pair) {
+        return Double.toString(price);   // todo: implement
+    }
+
+    @Override public double roundAmount(double amount) {
+        return amount;  // todo: implement
+    }
+
+    @Override public String roundAmountStr(double amount) {
+        return Double.toString(amount);   // todo: implement
+    }
+
     private static void log(String s) { Log.log(s); }
 
     public Bitstamp() {}

@@ -42,7 +42,7 @@ public class IterationData implements IIterationContext {
     }
 
     public OrdersData getLiveOrders(Exchange exchange) throws Exception {
-        if (m_liveOrders!=null) {
+        if (m_liveOrders == null) {
             m_liveOrders = Fetcher.fetchOrders(exchange, null);
         }
         return m_liveOrders;

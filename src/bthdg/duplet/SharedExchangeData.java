@@ -22,7 +22,7 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
 
     public double midPrice() { return (m_lastTop == null) ? 0 : m_lastTop.getMid(); }
     public double midCommissionAmount() { return midPrice() * getFee(); }
-    public double roundPrice(double price) { return m_exchange.roundPrice(price); }
+    public double roundPrice(double price) { return m_exchange.roundPrice(price, Pair.BTC_USD); }
 
     private static void log(String s) { Log.log(s); }
 

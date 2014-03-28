@@ -6,7 +6,8 @@ public enum OrderStatus {
     PARTIALLY_FILLED,
     FILLED,
     REJECTED,
-    CANCELLED;
+    CANCELLED,
+    ERROR;
 
     public boolean isActive() {
         return (this == SUBMITTED) || (this == PARTIALLY_FILLED);

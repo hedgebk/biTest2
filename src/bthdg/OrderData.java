@@ -40,13 +40,21 @@ public class OrderData {
         return m_side.acceptPrice(m_price, mktPrice);
     }
 
-    public void addExecution(double price, double amount) {
+    public void addExecution(double price, double amount, Exchange exchange) {
         List<Execution> executions = getExecutions();
         executions.add(new Execution(price, amount));
         m_filled += amount;
-        if (m_amount == m_filled) { // todo: add check for very small diff like 0.00001
+        if (m_filled > m_amount) {
+            log("ERROR: m_filled > m_amount on order: " + this);
+        }
+        log("   addExecution: price=" + price + "; amount=" + amount + ";  result: filled=" + m_filled + "; remained=" + remained());
+        double dif = m_amount - m_filled;
+        double minPriceStep = exchange.minPriceStep(m_pair);
+        if (Math.abs(dif) < minPriceStep) {
+            log("    all filled - become OrderStatus.FILLED.  dif=" + dif + "; minPriceStep=" + minPriceStep);
             m_status = OrderStatus.FILLED;
         } else if (executions.size() == 1) { // just got the very first execution
+            log("    some filled - become OrderStatus.PARTIALLY_FILLED.  dif=" + dif + "; minPriceStep=" + minPriceStep);
             m_status = OrderStatus.PARTIALLY_FILLED;
             m_time = System.currentTimeMillis();
         }
@@ -93,7 +101,7 @@ public class OrderData {
                     trade.m_amount = 0;
                 }
 
-                addExecution(m_price, amount);
+                addExecution(m_price, amount, exchange);
                 account.releaseTrade(m_pair, m_side, m_price, amount);
                 if (isFilled()) {
                     return; // the whole order executed
@@ -131,7 +139,7 @@ public class OrderData {
                 ", status=" + m_status +
                 ", state=" + m_state +
                 ", filled=" + Utils.X_YYYYY.format(m_filled) +
-                (m_orderId != null ? m_orderId : "") +
+                (m_orderId != null ? ", id="+m_orderId : "") +
                 '}';
     }
 
@@ -248,7 +256,7 @@ public class OrderData {
         Log.log(s);
     }
 
-    public OrderData fork(double qty) {
+    public OrderData fork(double qty, Exchange exchange) {
         double amount2 = m_amount - qty;
         OrderData ret = new OrderData(m_pair, m_side, m_price, amount2);
 
@@ -270,13 +278,13 @@ public class OrderData {
                     if( nonFilled > 0 ) {
                         double split = amount - nonFilled;
                         if(split > 0) {
-                            addExecution(price, nonFilled);
-                            ret.addExecution(price, split);
+                            addExecution(price, nonFilled, exchange);
+                            ret.addExecution(price, split, exchange);
                         } else {
-                            addExecution(price, amount);
+                            addExecution(price, amount, exchange);
                         }
                     } else {
-                        ret.addExecution(price, amount);
+                        ret.addExecution(price, amount, exchange);
                     }
                 }
             }
@@ -316,7 +324,7 @@ public class OrderData {
             log("@@@@@@@@@@@@@@ we have MKT order " + m_side + " " + Utils.X_YYYYY.format(m_amount) + " " + m_pair + " @ " + priceStr() +
                 " on '" + exchange.m_name + "' have matched TOP price=" + mktPrice + "; top=" + top);
             double remained = remained();
-            addExecution(m_price, remained);
+            addExecution(m_price, remained, exchange);
             account.releaseTrade(m_pair, m_side, m_price, remained);
         } else {
             log("WARN: MKT order " + this + " not executed; top: " + top);

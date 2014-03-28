@@ -6,10 +6,13 @@ import bthdg.exch.Btce;
 import bthdg.exch.PlaceOrderData;
 import bthdg.exch.TopData;
 
+import java.net.SocketTimeoutException;
 import java.util.*;
 
 /**
  * - try place brackets for non-profitable pairs / sorted by trades num
+ * - increase socket timeout for btce
+ *
  * - stats:                                                              ratio       btc
  *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
  *  USD->BTC;BTC->LTC;LTC->USD	24		LTC->BTC;BTC->USD;USD->LTC
@@ -31,20 +34,28 @@ import java.util.*;
  *  USD->BTC;BTC->EUR;EUR->USD	1		EUR->LTC;LTC->BTC;BTC->EUR
  *  USD->LTC;LTC->EUR;EUR->USD	1		EUR->LTC;LTC->USD;USD->EUR
  *                                                                  145
+ * account=AccountData{name='btce' funds={USD=22.57809, EUR=14.66755, LTC=2.59098, BTC=0.03806}; allocated={} , fee=0.002}; valuateEur=69.88963140051925 EUR; valuateUsd=93.09032635429794 USD
+ * account: AccountData{name='btce' funds={LTC=2.27774, USD=21.86919, EUR=18.24521, BTC=0.03888}; allocated={} , fee=0.002}
+ * account: AccountData{name='btce' funds={LTC=3.17240, USD=21.97626, EUR=12.62895, BTC=0.02680}; allocated={} , fee=0.002}
  */
 public class Triplet {
-    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
-    public static final int LOAD_TRADES_NUM = 30;
-    public static final double LVL = 100.6; // commission level
-    public static final double LVL2 = 100.65; // min target level
-    public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = true;
+    public static final boolean SIMULATE = false;
+    public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
+    public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
+    public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
 
-    public static final double USE_ACCOUNT_FUNDS = 0.97;
+    public static final double LVL = 100.6; // commission level
+    public static final double LVL2 = 100.68; // min target level
+    public static final double USE_ACCOUNT_FUNDS = 0.93;
+    public static final int WAIT_MKT_ORDER_STEPS = 6;
+    public static final int ITERATIONS_SLEEP_TIME = 3500; // sleep between iterations
+    public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
+
     public static double s_totalRatio = 1;
     public static int s_counter = 0;
     public static double s_level = LVL2;
-    public static final int WAIT_MKT_ORDER_STEPS = 5;
-    public static final int ITERATIONS_SLEEP_TIME = 3000; // sleep between iterations
+
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
 
     public static final Triangle T1 = new Triangle(Pair.LTC_USD, true,  Pair.LTC_BTC, false, Pair.BTC_USD, false); // usd -> ltc -> btc -> usd
     public static final Triangle T2 = new Triangle(Pair.LTC_EUR, true,  Pair.LTC_BTC, false, Pair.BTC_EUR, false); // eur -> ltc -> btc -> eur
@@ -60,8 +71,9 @@ public class Triplet {
         System.out.println("Started");
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
-        Fetcher.USE_ACCOUNT_TEST_STR = true;
-        Fetcher.SIMULATE_ORDER_EXECUTION = true;
+        Btce.LOG_PARSE = true;
+        Fetcher.USE_ACCOUNT_TEST_STR = USE_ACCOUNT_TEST_STR;
+        Fetcher.SIMULATE_ORDER_EXECUTION = SIMULATE_ORDER_EXECUTION;
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE = false;
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.99;
         Btce.BTCE_TRADES_IN_REQUEST = LOAD_TRADES_NUM;
@@ -77,6 +89,7 @@ public class Triplet {
             TriangleData td = new TriangleData(account);
             while (true) {
                 log("============================================== iteration " + (counter++) +
+                        "; active " + td.m_triTrades.size() +
                         "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - start) +
                         "; date=" + new Date() );
                 IterationData iData = new IterationData(tAgg);
@@ -109,6 +122,7 @@ public class Triplet {
         return account;
     }
 
+    // todo: to move this to OrderData as static method
     public static boolean placeOrder(AccountData account, OrderData orderData, OrderState state) throws Exception {
         log("placeOrder(): " + orderData);
 
@@ -118,20 +132,38 @@ public class Triplet {
                 orderData.m_status = OrderStatus.SUBMITTED;
                 orderData.m_state = state;
             } else {
-                PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
-                log(" PlaceOrderData: " + poData);
-                if (poData.m_error == null) {
-                    orderData.m_status = OrderStatus.SUBMITTED;
-                    orderData.m_state = state;
-                } else {
-                    orderData.m_status = OrderStatus.REJECTED;
+                try {
+                    PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
+                    log(" PlaceOrderData: " + poData);
+                    if (poData.m_error == null) {
+                        orderData.m_status = OrderStatus.SUBMITTED;
+                        double amount = poData.m_received;
+                        if (amount != 0) {
+                            log("  some part of order is executed at the time of placing: " + amount);
+                            double price = orderData.m_price;
+                            orderData.addExecution(price, amount, Exchange.BTCE);
+                            account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount);
+                        }
+                        orderData.m_state = state;
+                    } else {
+                        orderData.m_status = OrderStatus.REJECTED;
+                        orderData.m_state = OrderState.NONE;
+                        success = false;
+                    }
+                } catch (SocketTimeoutException ste) {
+                    log("   SocketTimeoutException. -> OrderStatus.ERROR");
+                    orderData.m_status = OrderStatus.ERROR;
                     orderData.m_state = OrderState.NONE;
                     success = false;
                 }
             }
+            if(!success) {
+                account.releaseOrder(orderData);
+            }
         } else {
             log("ERROR: account allocateOrder unsuccessful: " + orderData + ", account: " + account);
         }
+        log("placeOrder() END: " + orderData);
         return success;
     }
 

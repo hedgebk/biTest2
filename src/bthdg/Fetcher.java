@@ -166,19 +166,19 @@ public class Fetcher {
     }
 
     public static OrdersData fetchOrders(Exchange exchange, final Pair pair) throws Exception {
-        Object jObj = fetchOnce(exchange, FetchCommand.ORDERS, new FetchOptions() {
-            @Override public Pair getPair() { return pair; }
+        Object jObj = fetch(exchange, FetchCommand.ORDERS, new FetchOptions() {
+            @Override public Pair getPair() {
+                return pair;
+            }
         });
         log("jObj=" + jObj);
         OrdersData oData = exchange.parseOrders(jObj);
         return oData;
     }
 
-    private static PlaceOrderData placeOrder(Exchange exchange, final OrderData order) throws Exception {
+    private static PlaceOrderData placeOrder(final Exchange exchange, final OrderData order) throws Exception {
         Object jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
-            @Override public OrderData getOrderData() {
-                return order;
-            }
+            @Override public OrderData getOrderData() { return order; }
         });
         log("jObj=" + jObj);
         PlaceOrderData poData = exchange.parseOrder(jObj);
@@ -186,7 +186,7 @@ public class Fetcher {
     }
 
     public static CancelOrderData calcelOrder(Exchange exchange, final String orderId) throws Exception {
-        Object jObj = fetchOnce(exchange, FetchCommand.CANCEL, new FetchOptions() {
+        Object jObj = fetch(exchange, FetchCommand.CANCEL, new FetchOptions() {
             @Override public String getOrderId() { return orderId; }
         });
         log("jObj=" + jObj);
@@ -200,11 +200,14 @@ public class Fetcher {
 //        log("jObj=" + jObj);
         AccountData accountData = exchange.parseAccount(jObj);
 //        log("accountData=" + accountData);
-        if (accountData.m_fee == Double.MAX_VALUE) {
-            accountData.m_fee = exchange.m_baseFee;
+        if(accountData != null) {
+            if (accountData.m_fee == Double.MAX_VALUE) {
+                accountData.m_fee = exchange.m_baseFee;
+            }
+            return accountData;
         }
-        return accountData;
         // todo: handle if query unsuccessful
+        return null;
     }
 
     static TradesData fetchTrades(Exchange exchange) throws Exception {
@@ -284,7 +287,12 @@ public class Fetcher {
         long delay = START_REPEAT_DELAY;
         for (int attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt++) {
             try {
-                return fetchOnce(exchange, command, options);
+                Object obj = fetchOnce(exchange, command, options);
+                if (exchange.retryFetch(obj)) { // this is to handle "error":"invalid sign"
+                    log("  retry fetch attempt: " + obj);
+                    continue;
+                }
+                return obj;
             } catch (Exception e) {
                 if (!MUTE_SOCKET_TIMEOUTS || !(e instanceof SocketTimeoutException)) {
                     log(" loading error (attempt " + attempt + "): " + e);

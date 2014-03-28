@@ -156,10 +156,6 @@ public class Utils {
         return round(amount, decimals - 1, mult * 10);
     }
 
-    public static double round(double amount, double minStep) {
-        return Math.round(amount / minStep) * minStep;
-    }
-
     public static String padRight(String str, int destLen) {
         int currLen = str.length();
         if (currLen < destLen) {
@@ -176,17 +172,7 @@ public class Utils {
         return str;
     }
 
-    public static String roundToMinValue(double v, double minStep) {
-        double val = round(v, minStep); // 0.00001
-        String prec = X_X.format(minStep); // "0.00001"
-        int indx = prec.indexOf('.');
-        int num = prec.length() - indx - 1;
-        String str = X_YYYYYYY.format(val); // 12.1243567
-        indx = str.indexOf('.');
-        str = str.substring(0, indx + num + 1);
-        return str;
-    }
-
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static abstract class DoubleAverageCalculator<O> {
         private double m_sum;
         private double m_weightSum;
@@ -245,6 +231,7 @@ public class Utils {
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static abstract class DoubleMinMaxCalculator<O> {
         public Double m_minValue;
         public Double m_maxValue;
@@ -285,6 +272,7 @@ public class Utils {
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static abstract class LongMinMaxCalculator<O> {
         public Long m_minValue;
         public Long m_maxValue;
@@ -316,6 +304,7 @@ public class Utils {
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class AverageCounter {
         // probably better to have average counter which counts older ticks with lower ratio/weight
         public final TreeMap<Long,Double> m_map; // sorted by time

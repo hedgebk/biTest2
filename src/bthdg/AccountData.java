@@ -218,7 +218,7 @@ public class AccountData {
         return allValue;
     }
 
-    private double getAllValue(Currency currency) {
+    public double getAllValue(Currency currency) {
         double allValue = 0;
         Double available = m_funds.get(currency);
         if (available != null) {

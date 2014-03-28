@@ -1,6 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
+import bthdg.exch.Btce;
 import bthdg.exch.TopData;
 
 import java.util.Map;
@@ -82,8 +83,9 @@ public class OnePegCalcData {
 
     public double calcPegPrice(Map<Pair, TopData> tops) {
         Pair pair = m_pair1.m_pair;
+        double minPriceStep = Btce.minPriceStep(pair);
         OrderSide side = m_pair1.m_forward ? OrderSide.BUY : OrderSide.SELL;
-        return side.pegPrice(tops.get(pair), pair);
+        return side.pegPrice(tops.get(pair), minPriceStep);
     }
 
     public double mktRatio2(Map<Pair, TopData> tops, AccountData account) {
