@@ -13,7 +13,7 @@ import java.util.List;
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
 // - check fading moving average
 public class PaintChart extends BaseChartPaint {
-    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX; // BITSTAMP_BTCE;
+    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX; // BITSTAMP_BTCE;
 
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
     public static final int PERIOD_LENGTH_DAYS = 7; // the period width - days
@@ -679,7 +679,7 @@ public class PaintChart extends BaseChartPaint {
     private static enum ExchangePair {
         BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE, 60/*70*/, 4.55/*4.3*/, 0/*-0.14*/),
         BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX, 45, 5, 0.5),
-        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 98/*27*/, 1.525/*1.75*/, 0.11);
+        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX, 98/*27*/, 1.525/*1.75*/, 0.11);
 
         public final Exchange m_exch1;
         public final Exchange m_exch2;

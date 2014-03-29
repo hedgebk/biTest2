@@ -6,18 +6,12 @@ import java.util.Locale;
 
 public enum Pair {
     //                                  minAmountStep freq         // minOrderSize
-    LTC_USD(Currency.LTC, Currency.USD, 0.00001,      13.33333333, 0.36),
-    LTC_BTC(Currency.LTC, Currency.BTC, 0.00001,      20,          0.36),
+    LTC_USD(Currency.LTC, Currency.USD, 0.00001,      13.33333333, 0.18),
+    LTC_BTC(Currency.LTC, Currency.BTC, 0.00001,      20,          0.18),
     BTC_USD(Currency.BTC, Currency.USD, 0.00001,      3.636363636, 0.01),
-    LTC_EUR(Currency.LTC, Currency.EUR, 0.00001,      0.357142857, 0.36),
+    LTC_EUR(Currency.LTC, Currency.EUR, 0.00001,      0.357142857, 0.18),
     BTC_EUR(Currency.BTC, Currency.EUR, 0.00001,      0.285714286, 0.01),
-    EUR_USD(Currency.EUR, Currency.USD, 0.00001,      0.273972603, 6);
-
-    private static final DecimalFormat FORMAT_3 = new DecimalFormat( "#.###", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
-    private static final DecimalFormat FORMAT_4 = new DecimalFormat( "#.####", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
-    private static final DecimalFormat FORMAT_5 = new DecimalFormat( "#.#####", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
-
-    private static final double DEF_MIN_PRICE_STEP = 0.01;
+    EUR_USD(Currency.EUR, Currency.USD, 0.00001,      0.273972603, 3);
 
     public final Currency m_from;
     public final Currency m_to;

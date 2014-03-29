@@ -245,4 +245,23 @@ public class AccountData {
         }
         return ratiosSum / funds;
     }
+
+    public void compareFunds(AccountData account) {
+        String s = "";
+        for (Map.Entry<Currency, Double> entry : m_funds.entrySet()) {
+            Currency curr = entry.getKey();
+            Double value = entry.getValue();
+            if ((value != null) && (value != 0)) {
+                Double other = account.m_funds.get(curr);
+                if ((other != null) && (other != 0)) {
+                    if( Math.abs(value - other) > 0.001 ) {
+                        s += " fund diff: " + curr + " " + value+ " " + other + ";";
+                    }
+                }
+            }
+        }
+        if (s.length() > 0) {
+            log("warning " + s + "\n acct1=" + account + "\n acct2=" + this);
+        }
+    }
 }

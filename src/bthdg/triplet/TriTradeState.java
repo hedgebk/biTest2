@@ -31,7 +31,7 @@ public enum TriTradeState {
                 triTradeData.setState(TriTradeState.MKT1_EXECUTED);
             } else {
                 log("1st MKT order run out of market " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
-                if (triangleData.cancelOrder(order)) {
+                if (triangleData.cancelOrder(order, iData)) {
                     triTradeData.m_mktOrders[0] = null;
                     log("placing new 1st MKT order...");
                     startMktOrder(iData, triangleData, triTradeData, 1);
@@ -56,7 +56,7 @@ public enum TriTradeState {
                 triTradeData.setState(TriTradeState.MKT2_EXECUTED);
             } else {
                 log("2nd MKT order run out of market " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
-                if (triangleData.cancelOrder(order)) {
+                if (triangleData.cancelOrder(order, iData)) {
                     triTradeData.m_mktOrders[1] = null;
                     log("placing new 2nd MKT order...");
                     startMktOrder(iData, triangleData, triTradeData, 2);
@@ -87,8 +87,9 @@ public enum TriTradeState {
             double[] ends1 = order1.logOrderEnds(account, 1, peg.m_price1);
             double[] ends2 = order2.logOrderEnds(account, 2, peg.m_price2);
             double[] ends3 = order3.logOrderEnds(account, 3, peg.m_price3);
+            Currency currency = order1.startCurrency();
             log(
-                "  start " + Utils.X_YYYYY.format(order1.startAmount()) + " " + order1.startCurrency() +
+                "  start " + Utils.X_YYYYY.format(order1.startAmount()) + " " + currency +
                 "  end " + Utils.X_YYYYY.format(order1.endAmount(account)) + " " + order1.endCurrency() +
                 " | start " + Utils.X_YYYYY.format(order2.startAmount()) + " " + order2.startCurrency() +
                 "  end " + Utils.X_YYYYY.format(order2.endAmount(account)) + " " + order2.endCurrency() +
@@ -99,7 +100,7 @@ public enum TriTradeState {
             double in = ends1[0];
             double out = ends3[1];
             double gain = out / in;
-            Triplet.s_totalRatio *= ((gain-1)/4+1);
+            Triplet.s_totalRatio *= ((gain - 1) / 4 + 1);
             Triplet.s_counter++;
 
             double ratio1 = ends1[1]/ends1[0];
@@ -117,7 +118,8 @@ public enum TriTradeState {
 
             log(" @@@@@@   ratio1=" + Utils.X_YYYYY.format(ratio1) + ";  ratio2=" + Utils.X_YYYYY.format(ratio2) +
                     ";  ratio3=" + Utils.X_YYYYY.format(ratio3) + ";    ratio=" + Utils.X_YYYYY.format(ratio));
-            log(" @@@@@@   in=" + in + ";  out=" + Utils.X_YYYYY.format(out) + ";  gain=" + Utils.X_YYYYY.format(gain) +
+            log(" @@@@@@   in=" + Utils.X_YYYYY.format(in) + ";  out=" + Utils.X_YYYYY.format(out) +
+                    "; out-in=" + Utils.X_YYYYY.format(out - in) + " " + currency + ";  gain=" + Utils.X_YYYYY.format(gain) +
                     "; level=" + Triplet.s_level + ";  totalRatio=" + Utils.X_YYYYY.format(Triplet.s_totalRatio) +
                     "; millis=" + System.currentTimeMillis() + "; valuateUsd=" + Utils.X_YYYYY.format(usdRate) +
                     "; valuateEur=" + Utils.X_YYYYY.format(eurRate) + "; midMul=" + Utils.X_YYYYY.format(midMul) +
@@ -166,6 +168,12 @@ public enum TriTradeState {
         OnePegCalcData peg = triTradeData.m_peg;
         Map<Pair, TopData> tops = iData.getTops();
 
+        PairDirection pd = (num == 1) ? peg.m_pair2 : peg.m_pair3;
+        Pair pair = pd.m_pair;
+        boolean forward = pd.m_forward;
+        TopData topData = tops.get(pair);
+        OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
+
         // evaluate current mkt prices
         double ratio1 = triTradeData.m_order.ratio(account);
         double ratio2 = (num == 1) ? peg.mktRatio2(tops, account) : triTradeData.m_mktOrders[0].ratio(account);
@@ -174,9 +182,13 @@ public enum TriTradeState {
         log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio);
         if (ratio < 1) {
             double zeroProfitPrice = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
-            TopData top = (num == 1) ? tops.get(peg.m_pair2.m_pair) : tops.get(peg.m_pair3.m_pair);
 
-            log("  MKT conditions do not allow profit on MKT orders close. zeroProfitPrice=" + zeroProfitPrice + "; top=" + top );
+            log("  MKT conditions do not allow profit on MKT orders close. pair=" + pair + "; forward=" + forward +
+                    "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData);
+            if( (topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
+                log("   ! zeroProfitPrice is between mkt edges" );
+            }
+
             if (triTradeData.m_waitMktOrder++ < Triplet.WAIT_MKT_ORDER_STEPS) {
                 log("   wait some time. waitMktOrder counter=" + triTradeData.m_waitMktOrder);
                 triTradeData.setState((num == 1) ? TriTradeState.PEG_FILLED : TriTradeState.MKT1_EXECUTED);
@@ -195,21 +207,15 @@ public enum TriTradeState {
         log(" prev order " + prevOrder + "; exit amount " + prevEndAmount + " " + prevEndCurrency);
 
         String name = peg.name();
-        PairDirection pd = (num == 1) ? peg.m_pair2 : peg.m_pair3;
-        Pair pair = pd.m_pair;
-        boolean direction = pd.m_forward;
-        OrderSide side = direction ? OrderSide.BUY : OrderSide.SELL;
-        TopData topData = tops.get(pair);
         double mktPrice = side.mktPrice(topData);
 
-        Currency fromCurrency = pair.currencyFrom(direction);
+        Currency fromCurrency = pair.currencyFrom(forward);
         if (prevEndCurrency != fromCurrency) {
             log("ERROR: currencies are not matched");
         }
         double available = account.available(fromCurrency);
         if (prevEndAmount > available) {
-            log("ERROR: not enough available funds to place MKT: available=" + available + "; needed=" + prevEndAmount);
-            log(" try cancel PEG order for " + fromCurrency);
+            log(" try cancel PEG orders for " + fromCurrency + " - not enough available funds to place MKT: available=" + available + "; needed=" + prevEndAmount);
 
             for (TriTradeData nextTriTrade : triangleData.m_triTrades) {
                 if (nextTriTrade.m_state == PEG_PLACED) {
@@ -217,7 +223,7 @@ public enum TriTradeState {
                     Currency startCurrency = order.startCurrency();
                     if (startCurrency == fromCurrency) {
                         log("  found PEG order for " + fromCurrency + " " + nextTriTrade.m_peg.name() + " " + order);
-                        boolean canceled = triangleData.cancelOrder(order);
+                        boolean canceled = triangleData.cancelOrder(order, iData);
                         if (canceled) {
                             nextTriTrade.setState(CANCELED);
                             available = account.available(fromCurrency);
@@ -237,19 +243,20 @@ public enum TriTradeState {
                 triTradeData.setState(CANCELED);
                 return false;
             } else {
-                log("released enough funds to place MKT(" + num + "): available=" + available + "; needed=" + prevEndAmount);
+                log(" fine - released enough funds to place MKT(" + num + "): available=" + available + "; needed=" + prevEndAmount);
+                tops = iData.loadTops(); // re-request tops since time passed - mktPrice can run out
             }
         }
 
         double amount = side.isBuy() ? prevEndAmount / mktPrice : prevEndAmount;
 
-        log("order(" + num + "):" + name + ", pair: " + pair + ", direction=" + direction + ", from=" + fromCurrency +
+        log("order(" + num + "):" + name + ", pair: " + pair + ", forward=" + forward + ", from=" + fromCurrency +
                 "; available=" + available + "; amount=" + amount + "; side=" + side +
                 "; mktPrice=" + Triplet.format4(mktPrice) + "; top: " + topData);
 
         // todo: check for physical min order size like 0.01
         OrderData order = new OrderData(pair, side, mktPrice, amount);
-        boolean ok = Triplet.placeOrder(account, order, OrderState.MARKET_PLACED);
+        boolean ok = Triplet.placeOrder(account, order, OrderState.MARKET_PLACED, iData);
         log("   place order = " + ok);
         if (ok) {
             triTradeData.setMktOrder(order, num - 1);

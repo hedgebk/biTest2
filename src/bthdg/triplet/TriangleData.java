@@ -30,7 +30,7 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
         log(trianglesCalc.str());
 
         TreeMap<Double,OnePegCalcData> bestMap = trianglesCalc.findBestMap();
-        checkOrdersToLive(bestMap, tops);
+        checkOrdersToLive(bestMap, tops, iData);
 
         checkNew(iData, bestMap, tops);
 
@@ -70,7 +70,7 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
             if (amount > pair.m_minOrderSize) {
                 iData.getNewTradesData(Exchange.BTCE, this); // make sure we have loaded all trades on this iteration
                 OrderData order = new OrderData(pair, side, bracketPrice, amount);
-                boolean ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED);
+                boolean ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
                 log("   place order = " + ok + ":  " + order);
                 if (ok) {
                     TriTradeData ttData = new TriTradeData(order, bestPeg);
@@ -104,7 +104,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         return bestPeg;
     }
 
-    private void checkOrdersToLive(TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
+    private void checkOrdersToLive(TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops, IterationData iData) throws Exception {
         if (!m_triTrades.isEmpty()) {
             List<TriTradeData> triTradesToLive = new ArrayList<TriTradeData>();
             List<TriTradeData> triTradesToDie = new ArrayList<TriTradeData>();
@@ -131,10 +131,10 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
                                 double priceDif = Math.abs(pegPrice - orderPrice); // like 16.220010999999998 and 16.22001
                                 double minPriceStep = Btce.minPriceStep(peg2.m_pair1.m_pair); // like 0.00001
-                                if (priceDif < minPriceStep / 2) { // check if peg order needs to be moved - do not move if price change is too small
+                                if (priceDif < minPriceStep * 1.5) { // check if peg order needs to be moved - do not move if price change is too small
                                     toLive = true;
                                     log("  peg to live (" + peg2.name() + "): max1=" + peg1.m_max + "; max2=" + peg2.m_max +
-                                            "; priceDif=" + priceDif + ", pegPrice=" + pegPrice + "; order=" + triTrade.m_order);
+                                            "; priceDif=" + Utils.X_YYYYY.format(priceDif) + ", pegPrice=" + pegPrice + "; order=" + triTrade.m_order);
                                 } else {
                                     toLive = false;
                                     log("   peg order should be moved (" + peg2.name() + "). orderPrice=" + Utils.X_YYYYY.format(orderPrice) +
@@ -157,20 +157,20 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             if(!triTradesToDie.isEmpty()) {
                 log(" we have " + triTradesToDie.size() + " orders to die");
                 for (TriTradeData triTrade : triTradesToDie) {
-                    if (!cancelOrder(triTrade)) {
-                        // todo: in case of errors - add back to m_triTrades - will check in next iteration again
+                    if (!cancelOrder(triTrade, iData)) {
+                        m_triTrades.add(triTrade); // in case of errors - add back to m_triTrades - will check in next iteration again
                     }
                 }
             }
         }
     }
 
-    private boolean cancelOrder(TriTradeData triTrade) throws Exception {
+    private boolean cancelOrder(TriTradeData triTrade, IterationData iData) throws Exception {
         OrderData order = triTrade.m_order;
-        return cancelOrder(order);
+        return cancelOrder(order, iData);
     }
 
-    public boolean cancelOrder(OrderData order) throws Exception {
+    public boolean cancelOrder(OrderData order, IterationData iData) throws Exception {
         if (order != null) {
             log(" cancelOrder: " + order);
             if (order.canCancel()) {
@@ -186,6 +186,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         // todo: update/merge account data here
                         order.cancel();
                         m_account.releaseOrder(order);
+                        iData.resetLiveOrders(); // clean cached data
                         return true;
                     } else {
                         log("error in cancel order: " + error + "; " + order);
@@ -283,7 +284,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         iData.getNewTradesData(exchange, this); // make sure we have loaded all trades on this iteration
                     }
                     OrderData order = new OrderData(pair, side, pegPrice, amount);
-                    boolean ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED);
+                    boolean ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
                     log("   place order = " + ok + ":  " + order);
                     if (ok) {
                         TriTradeData ttData = new TriTradeData(order, peg);
@@ -292,12 +293,12 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                             break; // do not create more orders
                         }
                     } else {
-                        log("   place order unsuccessful: " + order);
-                        // do nothing special here
+                        log("   place order unsuccessful: " + order); // do nothing special here
                     }
                 } else {
-                    log(" no funds for NEW order: min order size=" + pair.m_minOrderSize +
-                            ", amount " + Triplet.format4(amount) + " " + fromCurrency + " : " + m_account);
+                    log(" small amount " + Triplet.format4(amount) + " for NEW order; min order size=" +
+                            Triplet.format4(pair.m_minOrderSize) + " " + fromCurrency + " : " + m_account);
+                    // todo: if we have other non started TriTradeData with lower maxPeg holding required currency - cancel it
                 }
             }
         }

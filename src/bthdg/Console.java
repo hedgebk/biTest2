@@ -153,7 +153,7 @@ public class Console {
         // order [buy|sell] 0.1 eur for btc @ [11.5|mkt|peg]
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
-        if(tokensNum == 8) {
+        if(tokensNum >= 8) {
             String t1 = tok.nextToken();
             String sideStr = tok.nextToken();
             OrderSide side = OrderSide.getByName(sideStr);
@@ -176,6 +176,9 @@ public class Console {
                 String sep2 = tok.nextToken();
                 if(sep2.equals("@")) {
                     String priceStr = tok.nextToken();
+
+//                    String mode = tok.nextToken();
+
                     System.out.println(" order: side=" + side + "; amount=" + amount + "; fromCurrency=" + fromCurrency +
                             "; toCurrency=" + toCurrency + "; priceStr=" + priceStr + "; pair=" + pd);
                     double limitPrice;

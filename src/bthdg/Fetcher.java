@@ -177,9 +177,16 @@ public class Fetcher {
     }
 
     private static PlaceOrderData placeOrder(final Exchange exchange, final OrderData order) throws Exception {
-        Object jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
-            @Override public OrderData getOrderData() { return order; }
-        });
+        Object jObj = null;
+        try {
+            jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
+                @Override public OrderData getOrderData() { return order; }
+            });
+        } catch (IOException e) {
+            String error = "place order error: " + e;
+            log(error);
+            return new PlaceOrderData(error);
+        }
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
         }
@@ -383,8 +390,6 @@ public class Fetcher {
             InputStream inputStream = con.getInputStream(); //url.openStream();
                 // 502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
                 // 403 Forbidden
-//            int available = inputStream.available();
-//            System.out.print(" available " + available + " bytes; ");
             reader = new InputStreamReader(inputStream);
         }
         return parseJson(reader); // will close reader inside

@@ -11,7 +11,7 @@ import java.util.*;
 
 /**
  * - try place brackets for non-profitable pairs / sorted by trades num
- * - increase socket timeout for btce
+ * - try to place inner mkt order before mkt
  *
  * - stats:                                                              ratio       btc
  *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
@@ -37,6 +37,10 @@ import java.util.*;
  * account=AccountData{name='btce' funds={USD=22.57809, EUR=14.66755, LTC=2.59098, BTC=0.03806}; allocated={} , fee=0.002}; valuateEur=69.88963140051925 EUR; valuateUsd=93.09032635429794 USD
  * account: AccountData{name='btce' funds={LTC=2.27774, USD=21.86919, EUR=18.24521, BTC=0.03888}; allocated={} , fee=0.002}
  * account: AccountData{name='btce' funds={LTC=3.17240, USD=21.97626, EUR=12.62895, BTC=0.02680}; allocated={} , fee=0.002}; evaluateEur: 71.43604 evaluateUsd: 95.37413
+ * account: AccountData{name='btce' funds={BTC=0.02688, USD=75.17193, LTC=0.22164, EUR=3.33161}; allocated={} , fee=0.002}   evaluateEur: 71.19479 evaluateUsd: 96.14770
+ * account: AccountData{name='btce' funds={EUR=12.74370, USD=23.28824, LTC=2.67312, BTC=0.03719}; allocated={} , fee=0.002}  evaluateEur: 71.52619 evaluateUsd: 95.84035
+ * account: AccountData{name='btce' funds={USD=23.28823, EUR=12.74370, BTC=0.04637, LTC=2.33259}; allocated={} , fee=0.002}  evaluateEur: 71.70368 evaluateUsd: 96.82125
+ * account: AccountData{name='btce' funds={USD=22.92819, LTC=2.68048, EUR=11.90301, BTC=0.04017}; allocated={} , fee=0.002}  evaluateEur: 71.62901 evaluateUsd: 96.13304
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
@@ -45,7 +49,7 @@ public class Triplet {
     public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
 
     public static final double LVL = 100.6; // commission level
-    public static final double LVL2 = 100.65; // min target level
+    public static final double LVL2 = 100.64; // min target level
     public static final double USE_ACCOUNT_FUNDS = 0.93;
     public static final int WAIT_MKT_ORDER_STEPS = 6;
     public static final int ITERATIONS_SLEEP_TIME = 3500; // sleep between iterations
@@ -124,7 +128,7 @@ public class Triplet {
     }
 
     // todo: to move this to OrderData as static method
-    public static boolean placeOrder(AccountData account, OrderData orderData, OrderState state) throws Exception {
+    public static boolean placeOrder(AccountData account, OrderData orderData, OrderState state, IterationData iData) throws Exception {
         log("placeOrder(): " + orderData);
 
         boolean success = account.allocateOrder(orderData);
@@ -140,12 +144,15 @@ public class Triplet {
                         orderData.m_status = OrderStatus.SUBMITTED;
                         double amount = poData.m_received;
                         if (amount != 0) {
-                            log("  some part of order is executed at the time of placing: " + amount);
+                            log("  some part of order (" + amount + " from " + orderData.m_amount + ") is executed at the time of placing ");
                             double price = orderData.m_price;
                             orderData.addExecution(price, amount, Exchange.BTCE);
                             account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount);
                         }
-                        orderData.m_state = state;
+                        poData.m_accountData.compareFunds(account);
+                        orderData.m_state = (orderData.m_status == OrderStatus.FILLED)
+                                ? OrderState.NONE // can be filled once the order placed
+                                : state;
                     } else {
                         orderData.m_status = OrderStatus.REJECTED;
                         orderData.m_state = OrderState.NONE;
@@ -157,6 +164,7 @@ public class Triplet {
                     orderData.m_state = OrderState.NONE;
                     success = false;
                 }
+                iData.resetLiveOrders(); // clean cached data
             }
             if(!success) {
                 account.releaseOrder(orderData);

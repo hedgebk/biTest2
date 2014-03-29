@@ -84,24 +84,27 @@ public enum OrderState {
 
     private static void checkOrderExecuted(IIterationContext iContext, Exchange exchange, OrderData orderData, AccountData account) throws Exception {
         OrdersData liveOrders = iContext.getLiveOrders(exchange);
-        log(" liveOrders=" + liveOrders);
-
         if (liveOrders != null) {
             String orderId = orderData.m_orderId;
             double orderAmount = orderData.m_amount;
             OrdersData.OrdData ordData = liveOrders.getOrderData(orderId);
+            log(" liveOrder[" + orderId + "]=" + ordData);
+            Pair pair = orderData.m_pair;
             if (ordData != null) {
                 double amount = ordData.m_amount;
-                if (amount != orderAmount) {
+                double absAmountDelta = Math.abs(orderAmount - amount);
+                if (absAmountDelta > pair.m_minOrderSize) {
                     double filled = orderData.m_filled;
                     double remained = orderData.remained();
-                    log("  amounts are not equals: orderAmount=" + orderAmount + "; filled=" + filled + "; remained=" + remained + ";  liveOrder.amount=" + amount);  // probably partial
+                    log("  amounts are not equals: absAmountDelta=" + absAmountDelta + "; orderAmount=" + Utils.X_YYYYY.format(orderAmount) +
+                            "; filled=" + Utils.X_YYYYY.format(filled) + "; remained=" + Utils.X_YYYYY.format(remained) +
+                            ";  liveOrder.amount=" + Utils.X_YYYYY.format(amount));  // probably partial
                     double partial = remained - amount;
                     log("   probably partial=" + Utils.X_YYYYY.format(partial));
                     if (partial > 0) {
                         double price = orderData.m_price;
                         orderData.addExecution(price, partial, exchange);
-                        account.releaseTrade(orderData.m_pair, orderData.m_side, price, partial);
+                        account.releaseTrade(pair, orderData.m_side, price, partial);
                     }
                 } else {
                     log("  order " + orderId + " not executed");
@@ -110,9 +113,9 @@ public enum OrderState {
                 log("  no such liveOrder. EXECUTED");
                 double orderPrice = orderData.m_price;
                 double remained = orderData.remained();
-                log("   orderPrice=" + orderPrice + "; remained=" + remained);
+                log("   orderPrice=" + Utils.X_YYYYY.format(orderPrice) + "; remained=" + Utils.X_YYYYY.format(remained));
                 orderData.addExecution(orderPrice, remained, exchange);
-                account.releaseTrade(orderData.m_pair, orderData.m_side, orderPrice, remained);
+                account.releaseTrade(pair, orderData.m_side, orderPrice, remained);
                 log("    order at result: " + orderData);
             }
         } else {

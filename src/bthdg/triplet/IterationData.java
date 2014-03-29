@@ -28,9 +28,14 @@ public class IterationData implements IIterationContext {
 
     public Map<Pair, TopData> getTops() throws Exception {
         if (m_tops == null) {
-            m_tops = Fetcher.fetchTops(Exchange.BTCE, Triplet.PAIRS);
-            log(" loaded tops: " + m_tops);
+            return loadTops();
         }
+        return m_tops;
+    }
+
+    public Map<Pair, TopData> loadTops() throws Exception {
+        m_tops = Fetcher.fetchTops(Exchange.BTCE, Triplet.PAIRS);
+        log(" loaded tops: " + m_tops);
         return m_tops;
     }
 
@@ -44,8 +49,14 @@ public class IterationData implements IIterationContext {
     public OrdersData getLiveOrders(Exchange exchange) throws Exception {
         if (m_liveOrders == null) {
             m_liveOrders = Fetcher.fetchOrders(exchange, null);
+            log("liveOrders loaded: " + m_liveOrders);
         }
         return m_liveOrders;
+    }
+
+    public void resetLiveOrders() {
+        log("  resetLiveOrders");
+        m_liveOrders = null;
     }
 
     @Override public Map<Pair, TradesData> getNewTradesData(Exchange exchange, final TradesData.ILastTradeTimeHolder holder) throws Exception {

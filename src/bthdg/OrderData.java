@@ -45,18 +45,19 @@ public class OrderData {
         executions.add(new Execution(price, amount));
         m_filled += amount;
         double minPriceStep = exchange.minPriceStep(m_pair);
-        double diff = m_filled - m_amount;
-        if (diff > minPriceStep) {
+        // check for extra fill
+        double extraFill = m_filled - m_amount;
+        if (extraFill > minPriceStep) {
             log("ERROR: m_filled(" + Utils.X_YYYYYYY.format(m_filled) + ") > m_amount(" + Utils.X_YYYYYYY.format(m_amount) +
-                    ") [delta=" + Utils.X_YYYYYYY.format(diff) + "] on order: " + this);
+                    ") extraFill=" + Utils.X_YYYYYYY.format(extraFill) + " on order: " + this);
         }
         log("   addExecution: price=" + price + "; amount=" + amount + ";  result: filled=" + m_filled + "; remained=" + remained());
-        if (Math.abs(diff) < minPriceStep) {
-            log("    all filled - become OrderStatus.FILLED.  dif=" + Utils.X_YYYYYYY.format(diff) + "; minPriceStep=" + Utils.X_YYYYYYY.format(minPriceStep));
+        if (Math.abs(remained()) < minPriceStep) {
+            log("    all filled - become OrderStatus.FILLED.  remained=" + Utils.X_YYYYYYY.format(remained()) + "; minPriceStep=" + Utils.X_YYYYYYY.format(minPriceStep));
             m_status = OrderStatus.FILLED;
             m_filled = m_amount; // to be equal
         } else if (executions.size() == 1) { // just got the very first execution
-            log("    some filled - become OrderStatus.PARTIALLY_FILLED.  dif=" + diff + "; minPriceStep=" + minPriceStep);
+            log("    some filled - become OrderStatus.PARTIALLY_FILLED.  remained=" + remained() + "; minPriceStep=" + minPriceStep);
             m_status = OrderStatus.PARTIALLY_FILLED;
             m_time = System.currentTimeMillis();
         }
@@ -368,4 +369,11 @@ public class OrderData {
         return (isBuy ? 1 / m_price : m_price) * (1 - account.m_fee); // deduct commissions
     }
 
+    public String roundPriceStr(Exchange exchange) {
+        return exchange.roundPriceStr(m_price, m_pair);
+    }
+
+    public double roundPrice(Exchange exchange) {
+        return exchange.roundPrice(m_price, m_pair);
+    }
 } // OrderData
