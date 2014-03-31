@@ -5,6 +5,7 @@ import bthdg.exch.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
@@ -82,36 +83,57 @@ public class Console {
         }
     }
 
+
+
+    private static final Map<Currency,Double> s_distributeRatio = new HashMap<Currency, Double>();
+    static{
+        s_distributeRatio.put(Currency.LTC, 0.386206896);
+        s_distributeRatio.put(Currency.USD, 0.241379310);
+        s_distributeRatio.put(Currency.BTC, 0.193103448);
+        s_distributeRatio.put(Currency.EUR, 0.179310344);
+    }
+
     private static void doAccount(String line) throws Exception {
         AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
         if (account != null) {
-            Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+            TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
             if (line.equals("account map")) {
-                String s = "              ";
-                for (Currency currencyOut : Currency.values()) {
-                    s += "      " + currencyOut + " ";
+                Map<Currency, Double> valuateMap = new HashMap<Currency, Double>();
+
+                String s = "          ";
+                for (Currency inCurrency : Currency.values()) {
+                    double valuate = account.evaluate(tops, inCurrency);
+                    valuateMap.put(inCurrency, valuate);
+                    s += Utils.padLeft(inCurrency.toString(), 32);
                 }
                 System.out.println(s);
 
                 for (Currency currencyIn : Currency.values()) {
-                    double all = account.getAllValue(currencyIn);
-                    String str = Utils.padLeft(Utils.X_YYYYY.format(all), 9) + " " + currencyIn;
+                    double inValue = account.getAllValue(currencyIn);
+                    String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn;
+                    Double rate = s_distributeRatio.get(currencyIn);
                     for (Currency currencyOut : Currency.values()) {
-                        if (currencyIn == currencyOut) {
-                            str += "        - ";
-                        } else {
-                            PairDirection pd = PairDirection.get(currencyIn, currencyOut);
-                            Pair pair = pd.m_pair;
-                            TopData top = tops.get(pair);
-                            double mid = top.getMid();
-                            if (!pd.m_forward) {
-                                mid = 1 / mid;
-                            }
-                            str += Utils.padLeft(Utils.X_YYYYY.format(all / mid), 9) + " ";
-                        }
+                        double converted = (currencyIn == currencyOut)
+                                ? inValue :
+                                tops.convert(currencyIn, currencyOut, inValue);
+                        str += Utils.padLeft(Utils.X_YYYYY.format(converted), 9) + " ";
+
+                        double valuate = valuateMap.get(currencyOut);
+                        double expected = rate * valuate;
+                        str += Utils.padLeft(Utils.X_YYYYY.format(expected), 9) + " ";
+
+                        double diff = converted - expected;
+                        str += Utils.padLeft(Utils.X_YYYYY.format(diff), 9) + " | ";
                     }
                     System.out.println(str);
                 }
+
+                s = "             ";
+                for (Currency outCurrency : Currency.values()) {
+                    double valuate = valuateMap.get(outCurrency);
+                    s +=  Utils.padRight(Utils.padLeft(Utils.X_YYYYY.format(valuate), 9), 29) + " | ";
+                }
+                System.out.println(s);
             } else {
                 double valuateEur = account.evaluateEur(tops);
                 double valuateUsd = account.evaluateUsd(tops);
@@ -127,7 +149,7 @@ public class Console {
     }
 
     private static void doTops() throws Exception {
-        Map<Pair,TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
         for(Map.Entry<Pair, TopData> entry:tops.entrySet()) {
             Pair pair = entry.getKey();
             TopData top = entry.getValue();
@@ -183,23 +205,23 @@ public class Console {
                             "; toCurrency=" + toCurrency + "; priceStr=" + priceStr + "; pair=" + pd);
                     double limitPrice;
                     if (priceStr.equals("mkt")) { // place mkt
-                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
                         TopData top = tops.get(pair);
                         limitPrice = side.mktPrice(top);
                     } else if (priceStr.startsWith("mkt-")) { // place mkt  minus x%
                         double perc = Double.parseDouble(priceStr.substring(4));
-                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
                         TopData top = tops.get(pair);
                         double dif = top.m_ask - top.m_bid;
                         double offset = dif * perc/100;
                         limitPrice = side.isBuy() ? top.m_ask - offset : top.m_bid + offset;
                     } else if (priceStr.equals("peg")) { // place peg
-                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
                         TopData top = tops.get(pair);
                         double step = Exchange.BTCE.minPriceStep(pair);
                         limitPrice = side.pegPrice(top, step);
                     } else if (priceStr.equals("mid")) { // place mid
-                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
                         TopData top = tops.get(pair);
                         limitPrice = top.getMid();
                     } else {

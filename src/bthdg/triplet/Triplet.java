@@ -1,10 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
-import bthdg.exch.BaseExch;
-import bthdg.exch.Btce;
-import bthdg.exch.PlaceOrderData;
-import bthdg.exch.TopData;
+import bthdg.exch.*;
 
 import java.net.SocketTimeoutException;
 import java.util.*;
@@ -41,6 +38,9 @@ import java.util.*;
  * account: AccountData{name='btce' funds={EUR=12.74370, USD=23.28824, LTC=2.67312, BTC=0.03719}; allocated={} , fee=0.002}  evaluateEur: 71.52619 evaluateUsd: 95.84035
  * account: AccountData{name='btce' funds={USD=23.28823, EUR=12.74370, BTC=0.04637, LTC=2.33259}; allocated={} , fee=0.002}  evaluateEur: 71.70368 evaluateUsd: 96.82125
  * account: AccountData{name='btce' funds={USD=22.92819, LTC=2.68048, EUR=11.90301, BTC=0.04017}; allocated={} , fee=0.002}  evaluateEur: 71.62901 evaluateUsd: 96.13304
+ * account: AccountData{name='btce' funds={LTC=2.38048, EUR=11.90301, USD=27.06820, BTC=0.04013}; allocated={} , fee=0.002}  evaluateEur: 71.55296 evaluateUsd: 95.88487
+ * account: AccountData{name='btce' funds={EUR=11.92631, USD=21.78576, LTC=2.66067, BTC=0.03734}; allocated={} , fee=0.002}  evaluateEur: 66.27443 evaluateUsd: 90.74563
+ * account: AccountData{name='btce' funds={EUR=11.95935, LTC=2.66453, USD=21.83333, BTC=0.03848}; allocated={} , fee=0.002}  evaluateEur: 66.34168 evaluateUsd: 90.27166
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
@@ -49,7 +49,7 @@ public class Triplet {
     public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
 
     public static final double LVL = 100.6; // commission level
-    public static final double LVL2 = 100.64; // min target level
+    public static final double LVL2 = 100.63; // min target level
     public static final double USE_ACCOUNT_FUNDS = 0.93;
     public static final int WAIT_MKT_ORDER_STEPS = 6;
     public static final int ITERATIONS_SLEEP_TIME = 3500; // sleep between iterations
@@ -120,7 +120,7 @@ public class Triplet {
         s_startAccount = account.copy();
 
         IterationData iData = new IterationData(tAgg);
-        Map<Pair,TopData> tops = iData.getTops();
+        TopsData tops = iData.getTops();
         s_startEur = s_startAccount.evaluateEur(tops);
         s_startUsd = s_startAccount.evaluateUsd(tops);
         System.out.println(" evaluateEur: " + format5(s_startEur) + " evaluateUsd: " + format5(s_startUsd));

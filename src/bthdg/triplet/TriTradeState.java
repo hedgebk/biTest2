@@ -2,7 +2,9 @@ package bthdg.triplet;
 
 import bthdg.*;
 import bthdg.exch.TopData;
+import bthdg.exch.TopsData;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 public enum TriTradeState {
@@ -24,21 +26,7 @@ public enum TriTradeState {
     },
     MKT1_PLACED {
         @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
-            OrderData order = triTradeData.m_mktOrders[0];
-            log("TriTradeState.MKT1_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
-            order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
-            if (order.isFilled()) {
-                triTradeData.setState(TriTradeState.MKT1_EXECUTED);
-            } else {
-                log("1st MKT order run out of market " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
-                if (triangleData.cancelOrder(order, iData)) {
-                    triTradeData.m_mktOrders[0] = null;
-                    log("placing new 1st MKT order...");
-                    startMktOrder(iData, triangleData, triTradeData, 1);
-                } else {
-                    log("cancel order failed: " + order);
-                }
-            }
+            checkMktPlaced(iData, triangleData, triTradeData, 1);
         }
     },
     MKT1_EXECUTED{
@@ -49,21 +37,7 @@ public enum TriTradeState {
     },
     MKT2_PLACED {
         @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
-            OrderData order = triTradeData.m_mktOrders[1];
-            log("TriTradeState.MKT2_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
-            order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
-            if (order.isFilled()) {
-                triTradeData.setState(TriTradeState.MKT2_EXECUTED);
-            } else {
-                log("2nd MKT order run out of market " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
-                if (triangleData.cancelOrder(order, iData)) {
-                    triTradeData.m_mktOrders[1] = null;
-                    log("placing new 2nd MKT order...");
-                    startMktOrder(iData, triangleData, triTradeData, 2);
-                } else {
-                    log("cancel order failed: " + order);
-                }
-            }
+            checkMktPlaced(iData, triangleData, triTradeData, 2);
         }
     },
     MKT2_EXECUTED {
@@ -73,7 +47,7 @@ public enum TriTradeState {
             OnePegCalcData peg = triTradeData.m_peg;
             TriangleRotationCalcData rotationData = peg.m_parent;
             Triangle triangle = rotationData.m_triangle;
-            String name = triangle.name();
+//            String name = triangle.name();
             int startIndx = peg.m_indx;
             boolean rotationDirection = rotationData.m_forward;
 //            log(" " + name + "; start=" + startIndx + "; direction=" + rotationDirection);
@@ -108,7 +82,7 @@ public enum TriTradeState {
             double ratio3 = ends3[1]/ends3[0];
             double ratio = ratio1 * ratio2 * ratio3;
 
-            Map<Pair, TopData> tops = iData.getTops();
+            TopsData tops = iData.getTops();
             double valuateEur = account.evaluateEur(tops);
             double eurRate = valuateEur / Triplet.s_startEur;
             double valuateUsd = account.evaluateUsd(tops);
@@ -161,12 +135,33 @@ public enum TriTradeState {
     },
     ;
 
+    private static void checkMktPlaced(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int indx/*1 or 2*/) throws Exception {
+        OrderData order = triTradeData.m_mktOrders[indx - 1];
+        log("TriTradeState.MKT" + indx + "_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
+        order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
+        boolean isFirst = (indx == 1);
+        if (order.isFilled()) {
+            triTradeData.setState(isFirst ? TriTradeState.MKT1_EXECUTED : TriTradeState.MKT2_EXECUTED);
+        } else if (order.isPartiallyFilled()) {
+            log("MKT order " + indx + " is partially filled - will split");
+        } else {
+            log("MKT order " + indx + " run out of market: " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
+            if (triangleData.cancelOrder(order, iData)) {
+                triTradeData.m_mktOrders[indx - 1] = null;
+                log("placing new " + (isFirst ? "1st" : "1nd") + " MKT order...");
+                startMktOrder(iData, triangleData, triTradeData, indx);
+            } else {
+                log("cancel order failed: " + order);
+            }
+        }
+    }
+
     private static boolean startMktOrder(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int num /*1 or 2*/) throws Exception {
         log("startMktOrder(" + num + ")");
 
         AccountData account = triangleData.m_account;
         OnePegCalcData peg = triTradeData.m_peg;
-        Map<Pair, TopData> tops = iData.getTops();
+        TopsData tops = iData.getTops();
 
         PairDirection pd = (num == 1) ? peg.m_pair2 : peg.m_pair3;
         Pair pair = pd.m_pair;

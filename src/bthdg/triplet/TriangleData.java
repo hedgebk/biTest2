@@ -2,10 +2,7 @@ package bthdg.triplet;
 
 import bthdg.*;
 import bthdg.Currency;
-import bthdg.exch.Btce;
-import bthdg.exch.CancelOrderData;
-import bthdg.exch.TopData;
-import bthdg.exch.TradesData;
+import bthdg.exch.*;
 
 import java.util.*;
 
@@ -25,7 +22,7 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
     public void checkState(IterationData iData) throws Exception {
         checkOrdersState(iData, this);
 
-        Map<Pair, TopData> tops = iData.getTops();
+        TopsData tops = iData.getTops();
         TrianglesCalcData trianglesCalc = TrianglesCalcData.calc(tops);
         log(trianglesCalc.str());
 
@@ -187,6 +184,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         order.cancel();
                         m_account.releaseOrder(order);
                         iData.resetLiveOrders(); // clean cached data
+                        coData.m_funds.compareFunds(m_account);
                         return true;
                     } else {
                         log("error in cancel order: " + error + "; " + order);
@@ -235,12 +233,40 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
     private void forkIfNeeded() {
         List<TriTradeData> forks = null;
         for (TriTradeData triTrade : m_triTrades) {
-            TriTradeData fork = triTrade.forkPegIfNeeded();
-            if (fork != null) { // forked
+            OrderData order = triTrade.m_order;
+            TriTradeState state = triTrade.m_state;
+            TriTradeData ttd = null;
+            switch (state) {
+                case PEG_PLACED:
+                    if(order.isPartiallyFilled()) {
+                        log("PEG order is partially filled - splitting: " + order);
+                        ttd = triTrade.forkPeg();
+                    }
+                    break;
+                case MKT1_PLACED:
+                    if(triTrade.isMktOrderPartiallyFilled(0)) {
+                        log("MKT1 order is partially filled - splitting: " + triTrade.getMktOrder(0));
+                        ttd = triTrade.forkMkt(1);
+                    }
+                    break;
+                case MKT2_PLACED:
+                    if(triTrade.isMktOrderPartiallyFilled(1)) {
+                        log("MKT2 order is partially filled - splitting: " + triTrade.getMktOrder(1));
+                        ttd = triTrade.forkMkt(2);
+                    }
+                    break;
+                default:
+                    if(order.isPartiallyFilled() ||
+                       triTrade.isMktOrderPartiallyFilled(0) ||
+                       triTrade.isMktOrderPartiallyFilled(1)) {
+                        log("warning: unexpected state - some order is partially filled: " + triTrade);
+                    }
+            }
+            if (ttd != null) { // forked
                 if (forks == null) {
                     forks = new ArrayList<TriTradeData>();
                 }
-                forks.add(fork);
+                forks.add(ttd);
             }
         }
         if (forks != null) {

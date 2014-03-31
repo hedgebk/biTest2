@@ -193,7 +193,7 @@ public class AccountData {
         return evaluate(tops, Currency.USD);
     }
 
-    private double evaluate(Map<Pair, TopData> tops, Currency curr) {
+    public double evaluate(Map<Pair, TopData> tops, Currency curr) {
         double allValue = 0;
         for (Map.Entry<Currency, Double> entry : m_funds.entrySet()) {
             Currency currency = entry.getKey();
@@ -254,8 +254,12 @@ public class AccountData {
             if ((value != null) && (value != 0)) {
                 Double other = account.m_funds.get(curr);
                 if ((other != null) && (other != 0)) {
-                    if( Math.abs(value - other) > 0.001 ) {
-                        s += " fund diff: " + curr + " " + value+ " " + other + ";";
+                    double diffAbs = Math.abs(value - other);
+                    double maxAbs = Math.max(Math.abs(value), Math.abs(other));
+                    double ratio = diffAbs / maxAbs;
+                    if( ratio > 0.001 ) {
+                        s += " fund diff: " + curr + " " + value + " " + other + ", diffAbs=" + diffAbs +
+                                ", maxAbs=" + maxAbs + ", ratio=" + ratio + ";";
                     }
                 }
             }

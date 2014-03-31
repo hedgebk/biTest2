@@ -335,16 +335,12 @@ public class OrderData {
     }
 
     public double[] logOrderEnds(AccountData account, int i, double expectedPrice) {
-        log(" order" + i + "; " + m_side + " " + Utils.X_YYYYY.format(expectedPrice) + " -> " + Utils.X_YYYYY.format(m_price) +
+        log(" order" + i + "; " + Utils.padLeft(m_side.toString(), 4) +
+            " " + Utils.padLeft(Utils.X_YYYYY.format(expectedPrice), 10) +
+            " -> " + Utils.padLeft(Utils.X_YYYYY.format(m_price), 10) +
             "; delta=" + Utils.X_YYYYY.format(expectedPrice - m_price) + " on " + this);
-//        Currency startCurrency = startCurrency();
         double startAmount = startAmount();
-//        Currency endCurrency = endCurrency();
         double endAmount = endAmount(account);
-//        log("  start " + Utils.X_YYYYY.format(startAmount) + " " + startCurrency +
-//            "  end " + Utils.X_YYYYY.format(endAmount) + " " + endCurrency +
-//            "  ratio: " + endAmount / startAmount + "; " + this
-//        );
         return new double[] {startAmount, endAmount};
     }
 

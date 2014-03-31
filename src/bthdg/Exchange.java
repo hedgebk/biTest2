@@ -39,7 +39,7 @@ public enum Exchange {
           new UrlDef("https://btc-e.com/tapi", "method", "CancelOrder")
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
-        @Override public Map<Pair, TopData> parseTops(Object jObj, Pair[] pairs) { return Btce.parseTops(jObj, pairs); }
+        @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btce.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Btce.parseDeep(jObj); }
         @Override public TradesData parseTrades(Object jObj, Pair pair) { return Btce.parseTrades(jObj, pair); }
         @Override public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return Btce.parseTrades(jObj, pairs); }
@@ -123,7 +123,7 @@ public enum Exchange {
     }
 
     public TopData parseTop(Object jObj, Pair pair) { return null; }
-    public Map<Pair, TopData> parseTops(Object jObj, Pair[] pairs) { return null; }
+    public TopsData parseTops(Object jObj, Pair[] pairs) { return null; }
     public DeepData parseDeep(Object jObj) { return null; }
     public TradesData parseTrades(Object jObj, Pair pair) { return null; }
     public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return null; }

@@ -283,9 +283,9 @@ public class Fetcher {
         return topData;
     }
 
-    public static Map<Pair,TopData> fetchTops(Exchange exchange, Pair... pairs) throws Exception {
+    public static TopsData fetchTops(Exchange exchange, Pair... pairs) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TOP, new PairsFetchOptions(pairs));
-        Map<Pair,TopData> topData = exchange.parseTops(jObj, pairs);
+        TopsData topData = exchange.parseTops(jObj, pairs);
         return topData;
     }
 

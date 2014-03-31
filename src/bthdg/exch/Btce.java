@@ -228,11 +228,11 @@ public class Btce extends BaseExch {
         return new TopData(bid, ask, last);
     }
 
-    public static Map<Pair, TopData> parseTops(Object obj, Pair ... pairs) {
+    public static TopsData parseTops(Object obj, Pair ... pairs) {
         if (LOG_PARSE) {
             log("BTCE.parseTops() " + obj);
         }
-        Map<Pair, TopData> ret = new HashMap<Pair, TopData>();
+        TopsData ret = new TopsData();
         for(Pair pair: pairs) {
             TopData top = parseTopInt(obj, pair);
             ret.put(pair, top);

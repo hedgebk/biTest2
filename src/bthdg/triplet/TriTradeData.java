@@ -41,44 +41,74 @@ if((rate < 0.7) || (1.3 < rate)) {
         setState((indx == 0) ? TriTradeState.MKT1_PLACED : TriTradeState.MKT2_PLACED);
     }
 
-    public TriTradeData forkPegIfNeeded() {
-        if (m_order.isPartiallyFilled()) {
-            double filled = m_order.m_filled;
-            double remained = m_order.remained();
+    private OrderData fork(OrderData order, String name) {
+        double filled = order.m_filled;
+        double remained = order.remained();
 
-            log("splitting peg: remained=" + remained + ".  " + m_order);
+        log("forking " + name + ": remained=" + remained + ".  " + order);
 
-            OrderData remainedOrder = new OrderData(m_order.m_pair, m_order.m_side, m_order.m_price, remained);
-            remainedOrder.m_orderId = m_order.m_orderId;
-            remainedOrder.m_status = OrderStatus.SUBMITTED;
-            remainedOrder.m_state = m_order.m_state;
-            log(" new order (remained): " + remainedOrder);
+        OrderData remainedOrder = new OrderData(order.m_pair, order.m_side, order.m_price, remained);
+        remainedOrder.m_orderId = order.m_orderId;
+        remainedOrder.m_status = OrderStatus.SUBMITTED;
+        remainedOrder.m_state = order.m_state;
+        log(" new order (remained): " + remainedOrder);
 
-            TriTradeData triTrade2 = new TriTradeData(remainedOrder, m_peg);
-
-            m_order.m_state = OrderState.NONE;
-            m_order.m_status = OrderStatus.FILLED;
-            m_order.m_amount = filled;
-            log(" existing order: " + m_order);
-
-            m_state = TriTradeState.PEG_FILLED;
-
-            return triTrade2;
-        }
-        if (m_mktOrders != null) {
-            forkIfNeededOnMktOrder(0);
-            forkIfNeededOnMktOrder(1);
-        }
-        return null;
+        order.m_state = OrderState.NONE;
+        order.m_status = OrderStatus.FILLED;
+        order.m_amount = filled;
+        log(" existing order: " + order);
+        return remainedOrder;
     }
 
-    private void forkIfNeededOnMktOrder(int i) {
-        OrderData order = m_mktOrders[i];
-        if (order != null) {
-            if (order.isPartiallyFilled()) {
-                log(" warning: not implemented: partially filled mkt order, split too: " + order);
-                // todo: fork
-            }
+    private OrderData splitOrder(OrderData order, double remainedRatio) {
+        double amount = order.m_amount;
+        double remained = amount * remainedRatio;
+        double filled = amount - remained;
+
+        log("forking order. remained=" + remained + ".  " + order);
+
+        OrderData remainedOrder = new OrderData(order.m_pair, order.m_side, order.m_price, remained);
+        remainedOrder.m_orderId = order.m_orderId;
+        remainedOrder.m_status = order.m_status;
+        remainedOrder.m_state = order.m_state;
+        log(" new order (remained): " + remainedOrder);
+
+        remainedOrder.m_orderId = order.m_orderId;
+        remainedOrder.m_status = order.m_status;
+        remainedOrder.m_state = order.m_state;
+        order.m_amount = filled;
+        log(" existing order: " + order);
+
+        return remainedOrder;
+    }
+
+    public TriTradeData forkPeg() {
+        OrderData order = m_order;
+        OrderData remainedOrder = fork(order, "peg");
+        setState(TriTradeState.PEG_FILLED);
+        return new TriTradeData(remainedOrder, m_peg);
+    }
+
+    public TriTradeData forkMkt(int num /*1 or 2*/) {
+        OrderData mktOrder = m_mktOrders[num - 1];
+        OrderData mktFork = fork(mktOrder, "mkt" + num);
+        double ratio = mktFork.m_amount / mktOrder.m_amount;
+        log(" at ratio " + ratio + " forked mkt" + num + " order: " + mktFork);
+        OrderData pegOrder = splitOrder(m_order, ratio);
+        log(" at ratio " + ratio + " split peg order: " + pegOrder);
+        if (num == 1) {
+            TriTradeData ret = new TriTradeData(pegOrder, m_peg);
+            ret.setMktOrder(mktFork, 0);
+            setState(TriTradeState.MKT1_EXECUTED);
+            return ret;
+        } else { // 2
+            OrderData mkt1 = splitOrder(m_mktOrders[0], ratio);
+            log(" at ratio " + ratio + " split mkt1 order: " + mkt1);
+            TriTradeData ret = new TriTradeData(pegOrder, m_peg);
+            ret.setMktOrder(mkt1, 0);
+            ret.setMktOrder(mktFork, 1);
+            setState(TriTradeState.MKT2_EXECUTED);
+            return ret;
         }
     }
 
@@ -94,4 +124,14 @@ if((rate < 0.7) || (1.3 < rate)) {
     private static void log(String s) {
         Log.log(s);
     }
+
+    public OrderData getMktOrder(int indx) {
+        return (m_mktOrders != null) ? m_mktOrders[indx] : null;
+    }
+
+    public boolean isMktOrderPartiallyFilled(int indx) {
+        OrderData mktOrder = getMktOrder(indx);
+        return (mktOrder != null) && mktOrder.isPartiallyFilled();
+    }
+
 }
