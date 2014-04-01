@@ -74,7 +74,7 @@ public class CrossData implements OrderState.IOrderExecListener {
     }
 
     public void moveBracketsIfNeeded(final IterationContext iContext, final ForkData forkData) throws Exception {
-        if( m_buyOrder.isPartiallyFilled() || m_sellOrder.isPartiallyFilled() ) {
+        if( m_buyOrder.isPartiallyFilled(m_buyExch.m_exchange) || m_sellOrder.isPartiallyFilled(m_sellExch.m_exchange) ) {
             log("do not move brackets - one is partially filled - will be forked soon");
             return;
         }
@@ -275,12 +275,14 @@ public class CrossData implements OrderState.IOrderExecListener {
 
     public double needFork() {
         // check filled/partially filled case first
-        if (m_buyOrder.isFilled() && m_sellOrder.isPartiallyFilled()) {
+        Exchange sellExchange = m_sellExch.m_exchange;
+        if (m_buyOrder.isFilled() && m_sellOrder.isPartiallyFilled(sellExchange)) {
             if ((m_sellOrder.m_filled > MIN_QTY_TO_FORK) && (m_sellOrder.remained() > MIN_QTY_TO_FORK)) { // do not fork if orders becomes too small
                 return m_sellOrder.m_filled;
             }
         }
-        if (m_sellOrder.isFilled() && m_buyOrder.isPartiallyFilled()) {
+        Exchange buyExchange = m_buyExch.m_exchange;
+        if (m_sellOrder.isFilled() && m_buyOrder.isPartiallyFilled(buyExchange)) {
             if ((m_buyOrder.m_filled > MIN_QTY_TO_FORK) && (m_buyOrder.remained() > MIN_QTY_TO_FORK)) { // do not fork if orders becomes too small
                 return m_buyOrder.m_filled;
             }
@@ -290,8 +292,8 @@ public class CrossData implements OrderState.IOrderExecListener {
         long time = 0L;
         double filled = 0.0;
         double remained = 0.0;
-        boolean buyStarted = m_buyOrder.isPartiallyFilled();
-        boolean sellStarted = m_sellOrder.isPartiallyFilled();
+        boolean buyStarted = m_buyOrder.isPartiallyFilled(buyExchange);
+        boolean sellStarted = m_sellOrder.isPartiallyFilled(sellExchange);
         if (buyStarted) {
             time = m_buyOrder.time();
             filled = m_buyOrder.m_filled;
@@ -319,8 +321,8 @@ public class CrossData implements OrderState.IOrderExecListener {
     }
 
     public boolean stuckTooLong() {
-        boolean buyStarted = m_buyOrder.isPartiallyFilled();
-        boolean sellStarted = m_sellOrder.isPartiallyFilled();
+        boolean buyStarted = m_buyOrder.isPartiallyFilled(m_buyExch.m_exchange);
+        boolean sellStarted = m_sellOrder.isPartiallyFilled(m_sellExch.m_exchange);
         long time;
         if (buyStarted) {
             time = m_buyOrder.time();
@@ -366,16 +368,16 @@ public class CrossData implements OrderState.IOrderExecListener {
             log(" SELL on: " + m_sellExch.m_exchange + " " + m_sellOrder);
             setState(CrossState.BOTH_BRACKETS_EXECUTED);
         } else if (m_buyOrder.m_state == OrderState.MARKET_PLACED) {
-            moveMktBracketIfNeeded(iContext, forkData, m_buyOrder);
+            moveMktBracketIfNeeded(iContext, forkData, m_buyOrder, m_buyExch.m_exchange);
         } else if (m_sellOrder.m_state == OrderState.MARKET_PLACED) {
-            moveMktBracketIfNeeded(iContext, forkData, m_sellOrder);
+            moveMktBracketIfNeeded(iContext, forkData, m_sellOrder, m_sellExch.m_exchange);
         } else {
             log("Error: no mkt order: buyOrder=" + m_buyOrder + ", sellOrder=" + m_sellOrder);
         }
     }
 
-    private void moveMktBracketIfNeeded(final IterationContext iContext, ForkData forkData, final OrderData order) throws Exception {
-        if (order.isPartiallyFilled()) {
+    private void moveMktBracketIfNeeded(final IterationContext iContext, ForkData forkData, final OrderData order, Exchange exchange) throws Exception {
+        if (order.isPartiallyFilled(exchange)) {
             log("do not move partially filled MKT bracket: " + order);
             return;
         }

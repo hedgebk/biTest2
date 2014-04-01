@@ -172,7 +172,7 @@ public class Console {
     }
 
     private static void doOrder(String line) throws Exception {
-        // order [buy|sell] 0.1 eur for btc @ [11.5|mkt|peg]
+        // order [buy|sell] 0.1 eur for btc [@|at] [11.5|mkt|peg]
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
         if(tokensNum >= 8) {
@@ -196,7 +196,7 @@ public class Console {
                 }
 
                 String sep2 = tok.nextToken();
-                if(sep2.equals("@")) {
+                if(sep2.equals("@") || sep2.equals("at")) {
                     String priceStr = tok.nextToken();
 
 //                    String mode = tok.nextToken();

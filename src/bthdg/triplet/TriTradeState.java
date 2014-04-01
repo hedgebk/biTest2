@@ -4,9 +4,6 @@ import bthdg.*;
 import bthdg.exch.TopData;
 import bthdg.exch.TopsData;
 
-import java.util.ArrayList;
-import java.util.Map;
-
 public enum TriTradeState {
     PEG_PLACED {
         @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
@@ -62,13 +59,18 @@ public enum TriTradeState {
             double[] ends2 = order2.logOrderEnds(account, 2, peg.m_price2);
             double[] ends3 = order3.logOrderEnds(account, 3, peg.m_price3);
             Currency currency = order1.startCurrency();
+            Currency endCurrency = order3.endCurrency();
+            double amount1 = order1.startAmount();
+            double amount3 = order3.endAmount(account);
             log(
-                "  start " + Utils.X_YYYYY.format(order1.startAmount()) + " " + currency +
-                "  end " + Utils.X_YYYYY.format(order1.endAmount(account)) + " " + order1.endCurrency() +
-                " | start " + Utils.X_YYYYY.format(order2.startAmount()) + " " + order2.startCurrency() +
-                "  end " + Utils.X_YYYYY.format(order2.endAmount(account)) + " " + order2.endCurrency() +
-                " | start " + Utils.X_YYYYY.format(order3.startAmount()) + " " + order3.startCurrency() +
-                "  end " + Utils.X_YYYYY.format(order3.endAmount(account)) + " " + order3.endCurrency()
+                "  START " + Utils.X_YYYYYYYY.format(amount1) + " " + currency +
+                " -> END " + Utils.X_YYYYYYYY.format(amount3) + " " + endCurrency +
+                "  |||  start " + Utils.X_YYYYYYYY.format(amount1) + " " + currency +
+                "  end " + Utils.X_YYYYYYYY.format(order1.endAmount(account)) + " " + order1.endCurrency() +
+                " | start " + Utils.X_YYYYYYYY.format(order2.startAmount()) + " " + order2.startCurrency() +
+                "  end " + Utils.X_YYYYYYYY.format(order2.endAmount(account)) + " " + order2.endCurrency() +
+                " | start " + Utils.X_YYYYYYYY.format(order3.startAmount()) + " " + order3.startCurrency() +
+                "  end " + Utils.X_YYYYYYYY.format(amount3) + " " + endCurrency
             );
 
             double in = ends1[0];
@@ -135,29 +137,35 @@ public enum TriTradeState {
     },
     ;
 
-    private static void checkMktPlaced(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int indx/*1 or 2*/) throws Exception {
-        OrderData order = triTradeData.m_mktOrders[indx - 1];
-        log("TriTradeState.MKT" + indx + "_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
-        order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
-        boolean isFirst = (indx == 1);
-        if (order.isFilled()) {
-            triTradeData.setState(isFirst ? TriTradeState.MKT1_EXECUTED : TriTradeState.MKT2_EXECUTED);
-        } else if (order.isPartiallyFilled()) {
-            log("MKT order " + indx + " is partially filled - will split");
+    private static void checkMktPlaced(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int num/*1 or 2*/) throws Exception {
+        boolean isFirst = (num == 1);
+        int indx = num - 1;
+        OrderData order = triTradeData.m_mktOrders[indx];
+        log("TriTradeState.MKT" + num + "_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
+        if (order == null) { // move mkt order can be unsuccess - cancel fine, but placing failed - just start mkt again
+            log(" no mkt order - placing new " + (isFirst ? "1st" : "1nd") + " MKT order...");
+            startMktOrder(iData, triangleData, triTradeData, num);
         } else {
-            log("MKT order " + indx + " run out of market: " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
-            if (triangleData.cancelOrder(order, iData)) {
-                triTradeData.m_mktOrders[indx - 1] = null;
-                log("placing new " + (isFirst ? "1st" : "1nd") + " MKT order...");
-                startMktOrder(iData, triangleData, triTradeData, indx);
+            order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
+            if (order.isFilled()) {
+                triTradeData.setState(isFirst ? TriTradeState.MKT1_EXECUTED : TriTradeState.MKT2_EXECUTED);
+            } else if (order.isPartiallyFilled(Exchange.BTCE)) {
+                log("MKT order " + num + " is partially filled - will split");
             } else {
-                log("cancel order failed: " + order);
+                log("MKT order " + num + " run out of market: " + order + ";  top=" + iData.getTop(Exchange.BTCE, order.m_pair));
+                if (triangleData.cancelOrder(order, iData)) {
+                    triTradeData.m_mktOrders[indx] = null;
+                    log("placing new " + (isFirst ? "1st" : "1nd") + " MKT order...");
+                    startMktOrder(iData, triangleData, triTradeData, num);
+                } else {
+                    log("cancel order failed: " + order);
+                }
             }
         }
     }
 
-    private static boolean startMktOrder(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int num /*1 or 2*/) throws Exception {
-        log("startMktOrder(" + num + ")");
+    private static void startMktOrder(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int num /*1 or 2*/) throws Exception {
+        log("startMktOrder(" + num + ") waitStep=" + triTradeData.m_waitMktOrderStep);
 
         AccountData account = triangleData.m_account;
         OnePegCalcData peg = triTradeData.m_peg;
@@ -168,41 +176,51 @@ public enum TriTradeState {
         boolean forward = pd.m_forward;
         TopData topData = tops.get(pair);
         OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
+        double tryPrice = side.mktPrice(topData);
+        boolean useLmtPrice = false;
 
         // evaluate current mkt prices
-        double ratio1 = triTradeData.m_order.ratio(account);
-        double ratio2 = (num == 1) ? peg.mktRatio2(tops, account) : triTradeData.m_mktOrders[0].ratio(account);
-        double ratio3 = peg.mktRatio3(tops, account);
+        double ratio1 = triTradeData.m_order.ratio(account); // commission is applied to ratio
+        double ratio2 = (num == 1) ? peg.mktRatio2(tops, account) : triTradeData.m_mktOrders[0].ratio(account); // commission is applied to ratio
+        double ratio3 = peg.mktRatio3(tops, account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
         log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio);
         if (ratio < 1) {
-            double zeroProfitPrice = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
+            double zeroProfitRatio = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
+            double zeroProfitPrice = zeroProfitRatio / (1 - account.m_fee); // add commission
+            if (side.isBuy()) {
+                zeroProfitPrice = 1 / zeroProfitPrice;
+            }
+            double mid = topData.getMid();
 
             log("  MKT conditions do not allow profit on MKT orders close. pair=" + pair + "; forward=" + forward +
                     "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData);
             if( (topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
-                log("   ! zeroProfitPrice is between mkt edges" );
+                log("   ! zero_Profit_Price is between mkt edges; mid=" + mid);
             }
 
-            if (triTradeData.m_waitMktOrder++ < Triplet.WAIT_MKT_ORDER_STEPS) {
-                log("   wait some time. waitMktOrder counter=" + triTradeData.m_waitMktOrder);
-                triTradeData.setState((num == 1) ? TriTradeState.PEG_FILLED : TriTradeState.MKT1_EXECUTED);
-                return false;
+            if (triTradeData.m_waitMktOrderStep++ < Triplet.WAIT_MKT_ORDER_STEPS) {
+                double mktPrice = tryPrice;
+                double priceAdd = (tryPrice - mid) * (triTradeData.m_waitMktOrderStep - 1) / Triplet.WAIT_MKT_ORDER_STEPS;
+                tryPrice = mid + priceAdd;
+                log("     wait some time - try with mid->mkt orders first: mkt=" + mktPrice + "; mid=" + mid +
+                        "; step=" + triTradeData.m_waitMktOrderStep + "; priceAdd=" + priceAdd + ", lmtPrice=" + tryPrice);
+                useLmtPrice = true;
             } else {
                 log("   we run out of waitMktOrder attempts. placing MKT (" + num + ")");
 // todo: nothing to do - place non mkt order, but still profitable / zero / loss decreased
+                triTradeData.m_waitMktOrderStep = 0;
             }
+        } else {
+            // todo - try e.g. mkt-10 first  to get better profit
+            triTradeData.m_waitMktOrderStep = 0;
         }
-        triTradeData.m_waitMktOrder = 0;
 
         OrderData prevOrder = (num == 1) ? triTradeData.m_order : triTradeData.m_mktOrders[0];
         OrderSide prevSide = prevOrder.m_side;
         Currency prevEndCurrency = prevOrder.endCurrency();
         double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - account.m_fee); // deduct commissions
         log(" prev order " + prevOrder + "; exit amount " + prevEndAmount + " " + prevEndCurrency);
-
-        String name = peg.name();
-        double mktPrice = side.mktPrice(topData);
 
         Currency fromCurrency = pair.currencyFrom(forward);
         if (prevEndCurrency != fromCurrency) {
@@ -212,53 +230,59 @@ public enum TriTradeState {
         if (prevEndAmount > available) {
             log(" try cancel PEG orders for " + fromCurrency + " - not enough available funds to place MKT: available=" + available + "; needed=" + prevEndAmount);
 
-            for (TriTradeData nextTriTrade : triangleData.m_triTrades) {
-                if (nextTriTrade.m_state == PEG_PLACED) {
-                    OrderData order = nextTriTrade.m_order;
-                    Currency startCurrency = order.startCurrency();
-                    if (startCurrency == fromCurrency) {
-                        log("  found PEG order for " + fromCurrency + " " + nextTriTrade.m_peg.name() + " " + order);
-                        boolean canceled = triangleData.cancelOrder(order, iData);
-                        if (canceled) {
-                            nextTriTrade.setState(CANCELED);
-                            available = account.available(fromCurrency);
-                            if (prevEndAmount < available) {
-                                break;
-                            }
-                        } else {
-                            log("   cancel order error for " + order);
-                        }
-                    }
-                }
-            }
+            tryCancelPegOrders(iData, triangleData, account, prevEndAmount, fromCurrency);
 
             available = account.available(fromCurrency);
             if (prevEndAmount > available) {
                 log("ERROR: still not enough available funds to place MKT: available=" + available);
                 triTradeData.setState(CANCELED);
-                return false;
             } else {
                 log(" fine - released enough funds to place MKT(" + num + "): available=" + available + "; needed=" + prevEndAmount);
                 tops = iData.loadTops(); // re-request tops since time passed - mktPrice can run out
             }
         }
 
-        double amount = side.isBuy() ? prevEndAmount / mktPrice : prevEndAmount;
+        double amount = side.isBuy() ? (prevEndAmount / tryPrice) : prevEndAmount;
 
-        log("order(" + num + "):" + name + ", pair: " + pair + ", forward=" + forward + ", from=" + fromCurrency +
+        log("order(" + num + "):" + peg.name() + ", pair: " + pair + ", forward=" + forward + ", from=" + fromCurrency +
                 "; available=" + available + "; amount=" + amount + "; side=" + side +
-                "; mktPrice=" + Triplet.format4(mktPrice) + "; top: " + topData);
+                "; mktPrice=" + Triplet.format5(tryPrice) + "; top: " + topData);
 
         // todo: check for physical min order size like 0.01
-        OrderData order = new OrderData(pair, side, mktPrice, amount);
-        boolean ok = Triplet.placeOrder(account, order, OrderState.MARKET_PLACED, iData);
+        OrderData order = new OrderData(pair, side, tryPrice, amount);
+        OrderState ordState = useLmtPrice ? OrderState.LIMIT_PLACED : OrderState.MARKET_PLACED;
+        OrderData.OrderPlaceStatus ok = Triplet.placeOrder(account, order, ordState, iData);
         log("   place order = " + ok);
-        if (ok) {
+        if (ok == OrderData.OrderPlaceStatus.OK) {
             triTradeData.setMktOrder(order, num - 1);
-            return true;
+        } else if (ok == OrderData.OrderPlaceStatus.CAN_REPEAT) {
+            log("    some problem, but we can repeat place order on next iteraction");
         } else {
+            log("    error placing order - setting error in triTrade");
             triTradeData.setState(ERROR);
-            return false;
+        }
+    }
+
+    private static void tryCancelPegOrders(IterationData iData, TriangleData triangleData, AccountData account, double prevEndAmount, Currency fromCurrency) throws Exception {
+        double available;
+        for (TriTradeData nextTriTrade : triangleData.m_triTrades) {
+            if (nextTriTrade.m_state == PEG_PLACED) {
+                OrderData order = nextTriTrade.m_order;
+                Currency startCurrency = order.startCurrency();
+                if (startCurrency == fromCurrency) {
+                    log("  found PEG order for " + fromCurrency + " " + nextTriTrade.m_peg.name() + " " + order);
+                    boolean canceled = triangleData.cancelOrder(order, iData);
+                    if (canceled) {
+                        nextTriTrade.setState(CANCELED);
+                        available = account.available(fromCurrency);
+                        if (prevEndAmount < available) {
+                            break;
+                        }
+                    } else {
+                        log("   cancel peg order error for " + order);
+                    }
+                }
+            }
         }
     }
 

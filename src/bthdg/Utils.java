@@ -16,7 +16,7 @@ public class Utils {
     public static final DecimalFormat PLUS_YYY = new DecimalFormat("+0.000;-0.000");
     public static final DecimalFormat X_YYYY = new DecimalFormat("0.0000");
     public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
-    public static final DecimalFormat X_YYYYYYY = new DecimalFormat("0.0000000");
+    public static final DecimalFormat X_YYYYYYYY = new DecimalFormat("0.00000000");
     public static final DecimalFormat X_X = new DecimalFormat("0.0#######");
 
     public static String encodeHexString(byte[] hash) {

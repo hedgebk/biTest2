@@ -48,12 +48,12 @@ public class OrderData {
         // check for extra fill
         double extraFill = m_filled - m_amount;
         if (extraFill > minPriceStep) {
-            log("ERROR: m_filled(" + Utils.X_YYYYYYY.format(m_filled) + ") > m_amount(" + Utils.X_YYYYYYY.format(m_amount) +
-                    ") extraFill=" + Utils.X_YYYYYYY.format(extraFill) + " on order: " + this);
+            log("ERROR: m_filled(" + Utils.X_YYYYYYYY.format(m_filled) + ") > m_amount(" + Utils.X_YYYYYYYY.format(m_amount) +
+                    ") extraFill=" + Utils.X_YYYYYYYY.format(extraFill) + " on order: " + this);
         }
         log("   addExecution: price=" + price + "; amount=" + amount + ";  result: filled=" + m_filled + "; remained=" + remained());
         if (Math.abs(remained()) < minPriceStep) {
-            log("    all filled - become OrderStatus.FILLED.  remained=" + Utils.X_YYYYYYY.format(remained()) + "; minPriceStep=" + Utils.X_YYYYYYY.format(minPriceStep));
+            log("    all filled - become OrderStatus.FILLED.  remained=" + Utils.X_YYYYYYYY.format(remained()) + "; minPriceStep=" + Utils.X_YYYYYYYY.format(minPriceStep));
             m_status = OrderStatus.FILLED;
             m_filled = m_amount; // to be equal
         } else if (executions.size() == 1) { // just got the very first execution
@@ -124,17 +124,37 @@ public class OrderData {
         throw new RuntimeException("Error order state: status not matches filled qty: " + this);
     }
 
-    public boolean isPartiallyFilled() {
-        boolean statusOk = (m_status == OrderStatus.PARTIALLY_FILLED) || (m_status == OrderStatus.CANCELLED);
-        boolean filledOk = (m_filled != m_amount) && (m_filled > 0);
-        if (statusOk == filledOk) {
-            return statusOk;
+    public boolean isPartiallyFilled(Exchange exchange) {
+        if ((m_status == OrderStatus.CANCELLED) || (m_status == OrderStatus.REJECTED) || (m_status == OrderStatus.ERROR)) {
+            return false; // amount/filled can be different
+        } else {
+            double filled = roundPrice(exchange, m_filled);
+            if (m_status == OrderStatus.PARTIALLY_FILLED) {
+                if (filled >= m_pair.m_minAmountStep) {
+                    return true;
+                }
+                throw new RuntimeException("Error order state: PARTIALLY_FILLED order with zero filled(" + m_filled + "): " + this);
+            }
+            if ((m_status == OrderStatus.SUBMITTED) || (m_status == OrderStatus.NEW)) {
+                if (filled < m_pair.m_minAmountStep) {
+                    return false;
+                }
+                throw new RuntimeException("Error order state: NEW | SUBMITTED order with non zero filled(" + m_filled + "): " + this);
+            }
+            if (m_status == OrderStatus.FILLED) {
+                double amount = roundPrice(exchange, m_amount);
+                if (Math.abs(filled - amount) < m_pair.m_minAmountStep) {
+                    return false;
+                }
+                throw new RuntimeException("Error order state: FILLED order with non equal filled(" + m_filled + ") and amount(" + amount + "): " + this);
+            }
+            throw new RuntimeException("isPartiallyFilled check on order with unsupported status: " + this);
         }
-        throw new RuntimeException("Error order state: status not matches partially filled qty: " + this);
     }
 
     @Override public String toString() {
         return "OrderData{" +
+                (m_orderId != null ? ", id=" + m_orderId + " " : "") +
                 "pair=" + m_pair +
                 ", side=" + m_side +
                 ", amount=" + Utils.X_YYYYY.format(m_amount) +
@@ -142,7 +162,6 @@ public class OrderData {
                 ", status=" + m_status +
                 ", state=" + m_state +
                 ", filled=" + Utils.X_YYYYY.format(m_filled) +
-                (m_orderId != null ? ", id="+m_orderId : "") +
                 '}';
     }
 
@@ -336,9 +355,9 @@ public class OrderData {
 
     public double[] logOrderEnds(AccountData account, int i, double expectedPrice) {
         log(" order" + i + "; " + Utils.padLeft(m_side.toString(), 4) +
-            " " + Utils.padLeft(Utils.X_YYYYY.format(expectedPrice), 10) +
-            " -> " + Utils.padLeft(Utils.X_YYYYY.format(m_price), 10) +
-            "; delta=" + Utils.X_YYYYY.format(expectedPrice - m_price) + " on " + this);
+            " " + Utils.padLeft(Utils.X_YYYYYYYY.format(expectedPrice), 13) +
+            " -> " + Utils.padLeft(Utils.X_YYYYYYYY.format(m_price), 13) +
+            "; delta=" + Utils.X_YYYYYYYY.format(expectedPrice - m_price) + " on " + this);
         double startAmount = startAmount();
         double endAmount = endAmount(account);
         return new double[] {startAmount, endAmount};
@@ -370,6 +389,17 @@ public class OrderData {
     }
 
     public double roundPrice(Exchange exchange) {
-        return exchange.roundPrice(m_price, m_pair);
+        double price = m_price;
+        return roundPrice(exchange, price);
+    }
+
+    private double roundPrice(Exchange exchange, double price) {
+        return exchange.roundPrice(price, m_pair);
+    }
+
+    public enum OrderPlaceStatus {
+        OK,
+        ERROR,
+        CAN_REPEAT
     }
 } // OrderData

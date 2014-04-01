@@ -41,12 +41,12 @@ public class Btce extends BaseExch {
     private static final Map<Pair, Double> s_minPriceStepMap = new HashMap<Pair, Double>();
 
     static {
-        put(Pair.LTC_USD, "#.####",  0.0001);
+        put(Pair.LTC_USD, "#.####",  0.0001,  "#.########", 0.00000001);
         put(Pair.LTC_BTC, "#.#####", 0.00001, "#.########", 0.00000001);
-        put(Pair.BTC_USD, "#.###",   0.001,   "#.#######",  0.0000001);
-        put(Pair.LTC_EUR, "#.###",   0.001);
-        put(Pair.BTC_EUR, "#.####",  0.0001);
-        put(Pair.EUR_USD, "#.####",  0.0001);
+        put(Pair.BTC_USD, "#.###",   0.001,   "#.########", 0.00000001);
+        put(Pair.LTC_EUR, "#.###",   0.001,   "#.########", 0.00000001);
+        put(Pair.BTC_EUR, "#.####",  0.00005, "#.########", 0.00000001);
+        put(Pair.EUR_USD, "#.####",  0.0001,  "#.########", 0.00000001);
     }
 
     private static void put(Pair pair, String format, double minPriceStep) {

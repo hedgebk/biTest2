@@ -3,7 +3,6 @@ package bthdg.triplet;
 import bthdg.*;
 import bthdg.exch.*;
 
-import java.net.SocketTimeoutException;
 import java.util.*;
 
 /**
@@ -41,6 +40,13 @@ import java.util.*;
  * account: AccountData{name='btce' funds={LTC=2.38048, EUR=11.90301, USD=27.06820, BTC=0.04013}; allocated={} , fee=0.002}  evaluateEur: 71.55296 evaluateUsd: 95.88487
  * account: AccountData{name='btce' funds={EUR=11.92631, USD=21.78576, LTC=2.66067, BTC=0.03734}; allocated={} , fee=0.002}  evaluateEur: 66.27443 evaluateUsd: 90.74563
  * account: AccountData{name='btce' funds={EUR=11.95935, LTC=2.66453, USD=21.83333, BTC=0.03848}; allocated={} , fee=0.002}  evaluateEur: 66.34168 evaluateUsd: 90.27166
+ * account: AccountData{name='btce' funds={EUR=11.95267, LTC=2.68616, USD=21.51320, BTC=0.03848}; allocated={} , fee=0.002}  evaluateEur: 66.49649 evaluateUsd: 90.34984
+ * account: AccountData{name='btce' funds={BTC=0.03733, USD=23.71019, EUR=10.59954, LTC=2.65862}; allocated={} , fee=0.002}  evaluateEur: 66.78655 evaluateUsd: 90.03562
+ * account: AccountData{name='btce' funds={LTC=2.66919, USD=21.62340, BTC=0.03728, EUR=11.81885}; allocated={} , fee=0.002}  evaluateEur: 66.39638 evaluateUsd: 89.52065
+ * account: AccountData{name='btce' funds={EUR=11.81885, LTC=2.63499, BTC=0.03738, USD=22.06731}; allocated={} , fee=0.002}  evaluateEur: 66.23796 evaluateUsd: 89.25250
+ * account: AccountData{name='btce' funds={LTC=2.63499, USD=22.06731, EUR=11.81885, BTC=0.03738}; allocated={} , fee=0.002}  evaluateEur: 66.22481 evaluateUsd: 89.18593
+ * account: AccountData{name='btce' funds={EUR=11.81885, USD=21.42877, LTC=2.66835, BTC=0.03733}; allocated={} , fee=0.002}  evaluateEur: 65.88974 evaluateUsd: 88.65482
+ * account: AccountData{name='btce' funds={LTC=2.66876, USD=21.42871, EUR=11.79688, BTC=0.03732}; allocated={} , fee=0.002}  evaluateEur: 65.99338 evaluateUsd: 89.04589
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
@@ -48,11 +54,11 @@ public class Triplet {
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
     public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
 
-    public static final double LVL = 100.6; // commission level
+    public static final double LVL = 100.602408; // commission level - complex percnts
     public static final double LVL2 = 100.63; // min target level
     public static final double USE_ACCOUNT_FUNDS = 0.93;
     public static final int WAIT_MKT_ORDER_STEPS = 6;
-    public static final int ITERATIONS_SLEEP_TIME = 3500; // sleep between iterations
+    public static final int ITERATIONS_SLEEP_TIME = 3000; // sleep between iterations
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
 
     public static double s_totalRatio = 1;
@@ -127,53 +133,58 @@ public class Triplet {
         return account;
     }
 
-    // todo: to move this to OrderData as static method
-    public static boolean placeOrder(AccountData account, OrderData orderData, OrderState state, IterationData iData) throws Exception {
+    // todo: to move this to OrderData as NON-static method
+    public static OrderData.OrderPlaceStatus placeOrder(AccountData account, OrderData orderData, OrderState state, IterationData iData) throws Exception {
         log("placeOrder(): " + orderData);
 
-        boolean success = account.allocateOrder(orderData);
-        if (success) {
+        OrderData.OrderPlaceStatus ret;
+        if (account.allocateOrder(orderData)) {
             if (Fetcher.SIMULATE_ORDER_EXECUTION) {
                 orderData.m_status = OrderStatus.SUBMITTED;
                 orderData.m_state = state;
+                ret = OrderData.OrderPlaceStatus.OK;
             } else {
-                try {
-                    PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
-                    log(" PlaceOrderData: " + poData);
-                    if (poData.m_error == null) {
-                        orderData.m_status = OrderStatus.SUBMITTED;
-                        double amount = poData.m_received;
-                        if (amount != 0) {
-                            log("  some part of order (" + amount + " from " + orderData.m_amount + ") is executed at the time of placing ");
-                            double price = orderData.m_price;
-                            orderData.addExecution(price, amount, Exchange.BTCE);
-                            account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount);
-                        }
-                        poData.m_accountData.compareFunds(account);
-                        orderData.m_state = (orderData.m_status == OrderStatus.FILLED)
-                                ? OrderState.NONE // can be filled once the order placed
-                                : state;
-                    } else {
-                        orderData.m_status = OrderStatus.REJECTED;
-                        orderData.m_state = OrderState.NONE;
-                        success = false;
+                PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
+                log(" PlaceOrderData: " + poData);
+                String error = poData.m_error;
+                if (error == null) {
+                    orderData.m_status = OrderStatus.SUBMITTED;
+                    double amount = poData.m_received;
+                    if (amount != 0) {
+                        log("  some part of order (" + amount + " from " + orderData.m_amount + ") is executed at the time of placing ");
+                        double price = orderData.m_price;
+                        orderData.addExecution(price, amount, Exchange.BTCE);
+                        account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount);
                     }
-                } catch (SocketTimeoutException ste) {
-                    log("   SocketTimeoutException. -> OrderStatus.ERROR");
+                    poData.m_accountData.compareFunds(account);
+                    orderData.m_state = (orderData.m_status == OrderStatus.FILLED)
+                            ? OrderState.NONE // can be fully filled once the order placed
+                            : state;
+                    ret = OrderData.OrderPlaceStatus.OK;
+                } else {
+                    // todo; track not enough funds here separately
+                    //orderData.m_status = OrderStatus.REJECTED;
                     orderData.m_status = OrderStatus.ERROR;
                     orderData.m_state = OrderState.NONE;
-                    success = false;
+                    if (error.contains("invalid sign")) {
+                        ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
+                    } else if (error.contains("SocketTimeoutException")) {
+                        ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
+                    } else {
+                        ret = OrderData.OrderPlaceStatus.ERROR;
+                    }
                 }
                 iData.resetLiveOrders(); // clean cached data
             }
-            if(!success) {
+            if(ret != OrderData.OrderPlaceStatus.OK) {
                 account.releaseOrder(orderData);
             }
         } else {
             log("ERROR: account allocateOrder unsuccessful: " + orderData + ", account: " + account);
+            ret = OrderData.OrderPlaceStatus.ERROR;
         }
         log("placeOrder() END: " + orderData);
-        return success;
+        return ret;
     }
 
     public static String formatAndPad(double value) {

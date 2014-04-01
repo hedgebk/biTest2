@@ -86,28 +86,34 @@ public enum OrderState {
         OrdersData liveOrders = iContext.getLiveOrders(exchange);
         if (liveOrders != null) {
             String orderId = orderData.m_orderId;
-            double orderAmount = orderData.m_amount;
             OrdersData.OrdData ordData = liveOrders.getOrderData(orderId);
             log(" liveOrder[" + orderId + "]=" + ordData);
             Pair pair = orderData.m_pair;
             if (ordData != null) {
-                double amount = ordData.m_amount;
-                double absAmountDelta = Math.abs(orderAmount - amount);
-                if (absAmountDelta > pair.m_minOrderSize) {
+                double orderAmount = orderData.m_amount;
+                double liveAmount = ordData.m_amount;
+                double absAmountDelta = Math.abs(orderAmount - liveAmount);
+                if (absAmountDelta > pair.m_minAmountStep) {
+                    log("  amounts are not equals: " + orderData);
+                    if (orderData.m_status == OrderStatus.PARTIALLY_FILLED) {
+                        log("   looks not OK - reprocessing PARTIALLY_FILLED status: ");
+                        new Exception("TRACE").printStackTrace();
+                    }
                     double filled = orderData.m_filled;
                     double remained = orderData.remained();
-                    log("  amounts are not equals: absAmountDelta=" + absAmountDelta + "; orderAmount=" + Utils.X_YYYYY.format(orderAmount) +
-                            "; filled=" + Utils.X_YYYYY.format(filled) + "; remained=" + Utils.X_YYYYY.format(remained) +
-                            ";  liveOrder.amount=" + Utils.X_YYYYY.format(amount));  // probably partial
-                    double partial = remained - amount;
-                    log("   probably partial=" + Utils.X_YYYYY.format(partial));
-                    if (partial > 0) {
+                    log("   order: amount=" + Utils.X_YYYYY.format(orderAmount) + ", filled=" + Utils.X_YYYYY.format(filled) + ", remained=" + Utils.X_YYYYY.format(remained) +
+                            ";  liveOrder.amount=" + Utils.X_YYYYY.format(liveAmount));  // probably partial
+                    double partial = remained - liveAmount;
+                    log("   probably partial: " + partial);
+                    if (partial > pair.m_minAmountStep) {
                         double price = orderData.m_price;
                         orderData.addExecution(price, partial, exchange);
                         account.releaseTrade(pair, orderData.m_side, price, partial);
+                    } else {
+                        log("    skipped: < minAmountStep (" + pair.m_minAmountStep + ")");
                     }
                 } else {
-                    log("  order " + orderId + " not executed");
+                    log("  order " + orderId + " not executed.  absAmountDelta(" + absAmountDelta + ") < pair.minAmountStep(" + pair.m_minAmountStep + ")");
                 }
             } else {
                 log("  no such liveOrder. EXECUTED");

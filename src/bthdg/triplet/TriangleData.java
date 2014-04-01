@@ -67,9 +67,9 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
             if (amount > pair.m_minOrderSize) {
                 iData.getNewTradesData(Exchange.BTCE, this); // make sure we have loaded all trades on this iteration
                 OrderData order = new OrderData(pair, side, bracketPrice, amount);
-                boolean ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
+                OrderData.OrderPlaceStatus ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
                 log("   place order = " + ok + ":  " + order);
-                if (ok) {
+                if (ok == OrderData.OrderPlaceStatus.OK) {
                     TriTradeData ttData = new TriTradeData(order, bestPeg);
                     m_triTrades.add(ttData);
                 }
@@ -180,7 +180,6 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     CancelOrderData coData = Fetcher.calcelOrder(Exchange.BTCE, orderId);
                     String error = coData.m_error;
                     if (error == null) {
-                        // todo: update/merge account data here
                         order.cancel();
                         m_account.releaseOrder(order);
                         iData.resetLiveOrders(); // clean cached data
@@ -191,6 +190,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         if (error.equals("invalid parameter: order_id")) {
                             log("got");
                         }
+                        // todo - looks 'bad status' here meant - order already cancelled - handle specially
                     }
                 }
             } else {
@@ -202,25 +202,42 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
     private void checkOrdersState(IterationData iData, TriangleData triangleData) throws Exception {
         if (!m_triTrades.isEmpty()) {
+            List<TriTradeData> changed = null;
             for (TriTradeData triTrade : m_triTrades) {
-                triTrade.checkState(iData, triangleData);
+                TriTradeState oldState = triTrade.m_state;
+                triTrade.checkState(iData, triangleData); // <---------------------------------
+                TriTradeState newState = triTrade.m_state;
+                if (oldState != newState) { // state changed
+                    if (changed == null) {
+                        changed = new ArrayList<TriTradeData>();
+                    }
+                    log(" triTrade state changed (" + oldState + "->" + newState + ") save for no-delay re-process");
+                    changed.add(triTrade);
+                }
             }
-
             forkIfNeeded(); // fork if needed -  for partially filled orders
+            noDelayReprocess(iData, triangleData, changed);
+        }
+    }
 
+    private void noDelayReprocess(IterationData iData, TriangleData triangleData, List<TriTradeData> changed) throws Exception {
+        if (changed != null) {
+            log(" we have " + changed.size() + " triTrades for no-delay re-process");
             // execute checkState() for PEG_FILLED immediately - no need to wait to run MKT orders
-            for (TriTradeData triTrade : m_triTrades) {
+            for (TriTradeData triTrade : changed) {
+                log("  no-delay re-process for: " + triTrade);
                 TriTradeState state = triTrade.m_state;
                 if ((state == TriTradeState.PEG_FILLED) || (state == TriTradeState.MKT1_EXECUTED)) {
                     triTrade.checkState(iData, triangleData); // place MKT order without wait.
                     state = triTrade.m_state;
-                    if ((state == TriTradeState.MKT1_PLACED) || (state == TriTradeState.MKT2_PLACED)) {
+                    if (((state == TriTradeState.MKT1_PLACED) && !triTrade.isMktOrderPartiallyFilled(0))
+                            || ((state == TriTradeState.MKT2_PLACED) && !triTrade.isMktOrderPartiallyFilled(1))) {
                         triTrade.checkState(iData, triangleData);
                         state = triTrade.m_state;
                         if (state == TriTradeState.MKT1_EXECUTED) {
                             triTrade.checkState(iData, triangleData);
                             state = triTrade.m_state;
-                            if (state == TriTradeState.MKT2_PLACED) {
+                            if ((state == TriTradeState.MKT2_PLACED) && !triTrade.isMktOrderPartiallyFilled(1)) {
                                 triTrade.checkState(iData, triangleData);
                             }
                         }
@@ -238,7 +255,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             TriTradeData ttd = null;
             switch (state) {
                 case PEG_PLACED:
-                    if(order.isPartiallyFilled()) {
+                    if(order.isPartiallyFilled(Exchange.BTCE)) {
                         log("PEG order is partially filled - splitting: " + order);
                         ttd = triTrade.forkPeg();
                     }
@@ -256,10 +273,10 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     }
                     break;
                 default:
-                    if(order.isPartiallyFilled() ||
+                    if(order.isPartiallyFilled(Exchange.BTCE) ||
                        triTrade.isMktOrderPartiallyFilled(0) ||
                        triTrade.isMktOrderPartiallyFilled(1)) {
-                        log("warning: unexpected state - some order is partially filled: " + triTrade);
+                       log("warning: unexpected state - some order is partially filled: " + triTrade);
                     }
             }
             if (ttd != null) { // forked
@@ -305,14 +322,18 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         ", from=" + fromCurrency + "; available=" + Triplet.format5(available) + "; amount=" + amount + "; side=" + side +
                         "; pegPrice=" + Triplet.format5(pegPrice) +"; needPeg=" + Triplet.format5(needPeg) + "; top: " + topData);
 
+                if( (topData.m_ask > needPeg) && (needPeg > topData.m_bid)) {
+                    log("   ! needPegPrice is between mkt edges" );
+                }
+
                 if (amount > pair.m_minOrderSize) {
                     if(Triplet.SIMULATE_ORDER_EXECUTION) {
                         iData.getNewTradesData(exchange, this); // make sure we have loaded all trades on this iteration
                     }
                     OrderData order = new OrderData(pair, side, pegPrice, amount);
-                    boolean ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
+                    OrderData.OrderPlaceStatus ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
                     log("   place order = " + ok + ":  " + order);
-                    if (ok) {
+                    if (ok == OrderData.OrderPlaceStatus.OK) {
                         TriTradeData ttData = new TriTradeData(order, peg);
                         m_triTrades.add(ttData);
                         if (Triplet.ONLY_ONE_ACTIVE_TRIANGLE) {
@@ -322,7 +343,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         log("   place order unsuccessful: " + order); // do nothing special here
                     }
                 } else {
-                    log(" small amount " + Triplet.format4(amount) + " for NEW order; min order size=" +
+                    log(" small amount " + Triplet.format4(amount) + " for NEW order; minAmountStep=" +
                             Triplet.format4(pair.m_minOrderSize) + " " + fromCurrency + " : " + m_account);
                     // todo: if we have other non started TriTradeData with lower maxPeg holding required currency - cancel it
                 }

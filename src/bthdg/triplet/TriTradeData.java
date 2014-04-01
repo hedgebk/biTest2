@@ -1,16 +1,13 @@
 package bthdg.triplet;
 
-import bthdg.Log;
-import bthdg.OrderData;
-import bthdg.OrderState;
-import bthdg.OrderStatus;
+import bthdg.*;
 
 public class TriTradeData {
     public OrderData m_order;
     public OrderData[] m_mktOrders;
     public OnePegCalcData m_peg;
     public TriTradeState m_state = TriTradeState.PEG_PLACED;
-    public int m_waitMktOrder;
+    public int m_waitMktOrderStep;
 
     public TriTradeData(OrderData order, OnePegCalcData peg) {
 
@@ -65,18 +62,17 @@ if((rate < 0.7) || (1.3 < rate)) {
         double remained = amount * remainedRatio;
         double filled = amount - remained;
 
-        log("forking order. remained=" + remained + ".  " + order);
+        log("forking order at ratio " + remainedRatio + ". amount=" + amount + "; remained=" + remained + ".  " + order);
 
         OrderData remainedOrder = new OrderData(order.m_pair, order.m_side, order.m_price, remained);
         remainedOrder.m_orderId = order.m_orderId;
         remainedOrder.m_status = order.m_status;
         remainedOrder.m_state = order.m_state;
+        remainedOrder.m_filled = remained;
         log(" new order (remained): " + remainedOrder);
 
-        remainedOrder.m_orderId = order.m_orderId;
-        remainedOrder.m_status = order.m_status;
-        remainedOrder.m_state = order.m_state;
         order.m_amount = filled;
+        order.m_filled = filled;
         log(" existing order: " + order);
 
         return remainedOrder;
@@ -91,11 +87,11 @@ if((rate < 0.7) || (1.3 < rate)) {
 
     public TriTradeData forkMkt(int num /*1 or 2*/) {
         OrderData mktOrder = m_mktOrders[num - 1];
+        double amount = mktOrder.m_amount;
         OrderData mktFork = fork(mktOrder, "mkt" + num);
-        double ratio = mktFork.m_amount / mktOrder.m_amount;
-        log(" at ratio " + ratio + " forked mkt" + num + " order: " + mktFork);
+        double ratio = mktFork.m_amount / amount;
+        log("  mkt" + num + " order forked at ratio " + ratio + ": " + mktFork);
         OrderData pegOrder = splitOrder(m_order, ratio);
-        log(" at ratio " + ratio + " split peg order: " + pegOrder);
         if (num == 1) {
             TriTradeData ret = new TriTradeData(pegOrder, m_peg);
             ret.setMktOrder(mktFork, 0);
@@ -103,7 +99,6 @@ if((rate < 0.7) || (1.3 < rate)) {
             return ret;
         } else { // 2
             OrderData mkt1 = splitOrder(m_mktOrders[0], ratio);
-            log(" at ratio " + ratio + " split mkt1 order: " + mkt1);
             TriTradeData ret = new TriTradeData(pegOrder, m_peg);
             ret.setMktOrder(mkt1, 0);
             ret.setMktOrder(mktFork, 1);
@@ -131,7 +126,7 @@ if((rate < 0.7) || (1.3 < rate)) {
 
     public boolean isMktOrderPartiallyFilled(int indx) {
         OrderData mktOrder = getMktOrder(indx);
-        return (mktOrder != null) && mktOrder.isPartiallyFilled();
+        return (mktOrder != null) && mktOrder.isPartiallyFilled(Exchange.BTCE);
     }
 
 }
