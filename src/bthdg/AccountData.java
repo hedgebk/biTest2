@@ -166,12 +166,14 @@ public class AccountData {
 
             double available = available(toCurrency);
             setAvailable(toCurrency, available + rest);
+            log(str);
+            log("   result=" + this);
         } else {
             double available = available(fromCurrency);
             setAvailable(fromCurrency, available + fromSize);
+            str += ";   result=" + this;
+            log(str);
         }
-        log(str);
-        log("   result=" + this);
     }
 
     public void releaseTrade(Pair pair, OrderSide orderSide, double price, double amount) {

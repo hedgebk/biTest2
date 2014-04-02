@@ -24,20 +24,14 @@ public class Console {
             Properties keys = BaseExch.loadKeys();
             Btce.init(keys);
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-            while(true) {
-                System.out.print(">");
-                String line = reader.readLine();
-                try {
-                    boolean exit = process(line);
-                    if(exit) {
-                        break;
-                    }
-                } catch (Exception e) {
-                    System.err.println("error for command '"+line+"': " + e);
-                    e.printStackTrace();
+            new ConsoleReader() {
+                @Override protected void beforeLine() {
+                    System.out.print(">");
                 }
-            }
+                @Override protected boolean processLine(String line) throws Exception {
+                    return process(line);
+                }
+            }.run();
         } catch (Exception e) {
             System.err.println("error: " + e);
             e.printStackTrace();
@@ -270,9 +264,40 @@ public class Console {
     private static boolean confirm() throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String line = reader.readLine();
-        if(line.equals("y")) {
+        if (line.equals("y")) {
             return true;
         }
         return false;
+    }
+
+    public static abstract class ConsoleReader extends Thread {
+        protected abstract void beforeLine();
+        protected abstract boolean processLine(String line) throws Exception;
+
+        public ConsoleReader() {
+            super("ConsoleReader");
+        }
+
+        public void run() {
+            try {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+                while(!isInterrupted()) {
+                    beforeLine();
+                    String line = reader.readLine();
+                    try {
+                        boolean exit = processLine(line);
+                        if(exit) {
+                            break;
+                        }
+                    } catch (Exception e) {
+                        System.err.println("error for command '"+line+"': " + e);
+                        e.printStackTrace();
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("error: " + e);
+                e.printStackTrace();
+            }
+        }
     }
 }

@@ -47,6 +47,16 @@ import java.util.*;
  * account: AccountData{name='btce' funds={LTC=2.63499, USD=22.06731, EUR=11.81885, BTC=0.03738}; allocated={} , fee=0.002}  evaluateEur: 66.22481 evaluateUsd: 89.18593
  * account: AccountData{name='btce' funds={EUR=11.81885, USD=21.42877, LTC=2.66835, BTC=0.03733}; allocated={} , fee=0.002}  evaluateEur: 65.88974 evaluateUsd: 88.65482
  * account: AccountData{name='btce' funds={LTC=2.66876, USD=21.42871, EUR=11.79688, BTC=0.03732}; allocated={} , fee=0.002}  evaluateEur: 65.99338 evaluateUsd: 89.04589
+ * account: AccountData{name='btce' funds={LTC=2.57592, USD=22.24297, EUR=12.73021, BTC=0.03638}; allocated={} , fee=0.002}  evaluateEur: 68.18542 evaluateUsd: 92.28889
+ * account: AccountData{name='btce' funds={USD=20.14310, LTC=2.79220, BTC=0.03659, EUR=12.73021}; allocated={} , fee=0.002}  evaluateEur: 68.31025 evaluateUsd: 92.21095
+ * account: AccountData{name='btce' funds={USD=20.17423, EUR=12.73021, BTC=0.04168, LTC=2.61609}; allocated={} , fee=0.002}  evaluateEur: 68.43546 evaluateUsd: 92.68294
+ * account: AccountData{name='btce' funds={LTC=2.70028, EUR=12.73011, USD=22.27144, BTC=0.03558}; allocated={} , fee=0.002}  evaluateEur: 68.07087 evaluateUsd: 92.22809
+ * account: AccountData{name='btce' funds={BTC=0.03558, USD=22.28602, LTC=2.70059, EUR=12.73011}; allocated={} , fee=0.002}  evaluateEur: 68.08198 evaluateUsd: 92.25919
+ * account: AccountData{name='btce' funds={EUR=12.73011, USD=22.24245, BTC=0.03560, LTC=2.70622}; allocated={} , fee=0.002}  evaluateEur: 68.34063 evaluateUsd: 92.26624
+ * account: AccountData{name='btce' funds={LTC=2.68859, BTC=0.03665, USD=22.34098, EUR=12.26514}; allocated={} , fee=0.002}  evaluateEur: 68.28362 evaluateUsd: 92.50624
+ * account: AccountData{name='btce' funds={BTC=0.03652, LTC=2.70237, USD=22.48932, EUR=12.37476}; allocated={} , fee=0.002}  evaluateEur: 69.05520 evaluateUsd: 93.07373
+ * account: AccountData{name='btce' funds={EUR=12.29769, USD=22.51507, LTC=2.67356, BTC=0.03731}; allocated={} , fee=0.002}  evaluateEur: 67.15116 evaluateUsd: 89.94537
+ * account: AccountData{name='btce' funds={EUR=11.89775, LTC=2.82626, BTC=0.03752, USD=21.18753}; allocated={} , fee=0.002}  evaluateEur: 65.98443 evaluateUsd: 87.93049
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
@@ -54,8 +64,8 @@ public class Triplet {
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
     public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
 
-    public static final double LVL = 100.602408; // commission level - complex percnts
-    public static final double LVL2 = 100.63; // min target level
+    public static final double LVL = 100.602408; // commission level - note - complex percents here
+    public static final double LVL2 = 100.73; // min target level
     public static final double USE_ACCOUNT_FUNDS = 0.93;
     public static final int WAIT_MKT_ORDER_STEPS = 6;
     public static final int ITERATIONS_SLEEP_TIME = 3000; // sleep between iterations
@@ -76,6 +86,7 @@ public class Triplet {
     static AccountData s_startAccount;
     public static double s_startEur;
     public static double s_startUsd;
+    static boolean s_stopRequested;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -92,23 +103,47 @@ public class Triplet {
             TradesAggregator tAgg = new TradesAggregator();
             tAgg.load();
 
-            AccountData account = init(tAgg);
+            Console.ConsoleReader consoleReader = new Console.ConsoleReader() {
+                @Override protected void beforeLine() {}
 
-            long start = System.currentTimeMillis();
-            int counter = 1;
-            TriangleData td = new TriangleData(account);
-            while (true) {
-                log("============================================== iteration " + (counter++) +
-                        "; active " + td.m_triTrades.size() +
-                        "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - start) +
-                        "; date=" + new Date() );
-                IterationData iData = new IterationData(tAgg);
-                td.checkState(iData);
-                int sleep = ITERATIONS_SLEEP_TIME;
-                if(td.m_triTrades.isEmpty()) {
-                    sleep += sleep/2;
+                @Override protected boolean processLine(String line) throws Exception {
+                    if (line.equals("stop")) {
+                        System.out.println("~~~~~~~~~~~ stopRequested ~~~~~~~~~~~");
+                        s_stopRequested = true;
+                        return true;
+                    } else {
+                        System.out.println("~~~~~~~~~~~ command ignored: " + line);
+                    }
+                    return false;
                 }
-                Thread.sleep(sleep);
+            };
+            consoleReader.start();
+
+            try {
+                AccountData account = init(tAgg);
+
+                long start = System.currentTimeMillis();
+                int counter = 1;
+                TriangleData td = new TriangleData(account);
+                while (true) {
+                    log("============================================== iteration " + (counter++) +
+                            "; active " + td.m_triTrades.size() +
+                            "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - start) +
+                            "; date=" + new Date() );
+                    IterationData iData = new IterationData(tAgg);
+                    td.checkState(iData);
+                    int sleep = ITERATIONS_SLEEP_TIME;
+                    if(td.m_triTrades.isEmpty()) {
+                        if( s_stopRequested ) {
+                            System.out.println("stopRequested; nothing to process - exit");
+                            break;
+                        }
+                        sleep += sleep/2;
+                    }
+                    Thread.sleep(sleep);
+                }
+            } finally {
+                consoleReader.interrupt();
             }
         } catch (Exception e) {
             System.out.println("error: " + e);
@@ -163,13 +198,20 @@ public class Triplet {
                     ret = OrderData.OrderPlaceStatus.OK;
                 } else {
                     // todo; track not enough funds here separately
+                    //    error: It is not enough LTC in the account for sale.
                     //orderData.m_status = OrderStatus.REJECTED;
                     orderData.m_status = OrderStatus.ERROR;
                     orderData.m_state = OrderState.NONE;
                     if (error.contains("invalid sign")) {
                         ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
+                    } else if (error.contains("must be greater than")) { // Value BTC must be greater than 0.01 BTC.
+                        ret = OrderData.OrderPlaceStatus.ERROR; // too small order - can not continue
+                        orderData.m_status = OrderStatus.REJECTED;
+                        log("  too small order - can not continue: " + error );
                     } else if (error.contains("SocketTimeoutException")) {
                         ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
+                    } else if (error.contains("invalid nonce parameter")) {
+                        throw new RuntimeException("from server: "+ error);
                     } else {
                         ret = OrderData.OrderPlaceStatus.ERROR;
                     }

@@ -56,7 +56,7 @@ public class IterationData implements IIterationContext {
     }
 
     public void resetLiveOrders() {
-        log("  resetLiveOrders");
+//        log("  resetLiveOrders");
         m_liveOrders = null;
     }
 

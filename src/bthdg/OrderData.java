@@ -48,12 +48,12 @@ public class OrderData {
         // check for extra fill
         double extraFill = m_filled - m_amount;
         if (extraFill > minPriceStep) {
-            log("ERROR: m_filled(" + Utils.X_YYYYYYYY.format(m_filled) + ") > m_amount(" + Utils.X_YYYYYYYY.format(m_amount) +
-                    ") extraFill=" + Utils.X_YYYYYYYY.format(extraFill) + " on order: " + this);
+            log("ERROR: m_filled(" + format8(m_filled) + ") > m_amount(" + format8(m_amount) +
+                    ") extraFill=" + format8(extraFill) + " on order: " + this);
         }
-        log("   addExecution: price=" + price + "; amount=" + amount + ";  result: filled=" + m_filled + "; remained=" + remained());
+        log("   addExecution: price=" + price + "; amount=" + amount + ";  result: filled=" + m_filled + "; remained=" + format8(remained()));
         if (Math.abs(remained()) < minPriceStep) {
-            log("    all filled - become OrderStatus.FILLED.  remained=" + Utils.X_YYYYYYYY.format(remained()) + "; minPriceStep=" + Utils.X_YYYYYYYY.format(minPriceStep));
+            log("    all filled - become OrderStatus.FILLED.  remained=" + format8(remained()) + "; minPriceStep=" + format8(minPriceStep));
             m_status = OrderStatus.FILLED;
             m_filled = m_amount; // to be equal
         } else if (executions.size() == 1) { // just got the very first execution
@@ -128,33 +128,41 @@ public class OrderData {
         if ((m_status == OrderStatus.CANCELLED) || (m_status == OrderStatus.REJECTED) || (m_status == OrderStatus.ERROR)) {
             return false; // amount/filled can be different
         } else {
-            double filled = roundPrice(exchange, m_filled);
+            double filled = roundAmount(exchange, m_filled);
+            double minAmountStep = exchange.minAmountStep(m_pair);
             if (m_status == OrderStatus.PARTIALLY_FILLED) {
-                if (filled >= m_pair.m_minAmountStep) {
+                if (filled >= minAmountStep) {
                     return true;
                 }
-                throw new RuntimeException("Error order state: PARTIALLY_FILLED order with zero filled(" + m_filled + "): " + this);
+                throw new RuntimeException("Error order state: PARTIALLY_FILLED order with zero filled(" + format8(filled) + "), " +
+                        "m_filled=" + format8(m_filled) + "; minAmountStep=" + format8(minAmountStep) + ": " + this);
             }
             if ((m_status == OrderStatus.SUBMITTED) || (m_status == OrderStatus.NEW)) {
-                if (filled < m_pair.m_minAmountStep) {
+                if (filled < minAmountStep) {
                     return false;
                 }
-                throw new RuntimeException("Error order state: NEW | SUBMITTED order with non zero filled(" + m_filled + "): " + this);
+                throw new RuntimeException("Error order state: NEW | SUBMITTED order with non zero filled(" + format8(filled) + ", " +
+                        "m_filled=" + format8(m_filled) + "; minAmountStep=" + format8(minAmountStep) + ": " + this);
             }
             if (m_status == OrderStatus.FILLED) {
-                double amount = roundPrice(exchange, m_amount);
-                if (Math.abs(filled - amount) < m_pair.m_minAmountStep) {
+                double amount = roundAmount(exchange, m_amount);
+                if (Math.abs(filled - amount) < minAmountStep) {
                     return false;
                 }
-                throw new RuntimeException("Error order state: FILLED order with non equal filled(" + m_filled + ") and amount(" + amount + "): " + this);
+                throw new RuntimeException("Error order state: FILLED order with non equal filled(" + format8(filled) + "), " +
+                        "m_filled=" + m_filled + " and amount(" + format8(amount) + "), minAmountStep=" + format8(minAmountStep) + ": " + this);
             }
             throw new RuntimeException("isPartiallyFilled check on order with unsupported status: " + this);
         }
     }
 
+    private static String format8(double value) {
+        return Utils.X_YYYYYYYY.format(value);
+    }
+
     @Override public String toString() {
         return "OrderData{" +
-                (m_orderId != null ? ", id=" + m_orderId + " " : "") +
+                (m_orderId != null ? "id=" + m_orderId + " " : "") +
                 "pair=" + m_pair +
                 ", side=" + m_side +
                 ", amount=" + Utils.X_YYYYY.format(m_amount) +
@@ -355,9 +363,9 @@ public class OrderData {
 
     public double[] logOrderEnds(AccountData account, int i, double expectedPrice) {
         log(" order" + i + "; " + Utils.padLeft(m_side.toString(), 4) +
-            " " + Utils.padLeft(Utils.X_YYYYYYYY.format(expectedPrice), 13) +
-            " -> " + Utils.padLeft(Utils.X_YYYYYYYY.format(m_price), 13) +
-            "; delta=" + Utils.X_YYYYYYYY.format(expectedPrice - m_price) + " on " + this);
+            " " + Utils.padLeft(format8(expectedPrice), 13) +
+            " -> " + Utils.padLeft(format8(m_price), 13) +
+            "; delta=" + format8(expectedPrice - m_price) + " on " + this);
         double startAmount = startAmount();
         double endAmount = endAmount(account);
         return new double[] {startAmount, endAmount};
@@ -385,7 +393,11 @@ public class OrderData {
     }
 
     public String roundPriceStr(Exchange exchange) {
-        return exchange.roundPriceStr(m_price, m_pair);
+        return roundPriceStr(exchange, m_price);
+    }
+
+    public String roundPriceStr(Exchange exchange, double price) {
+        return exchange.roundPriceStr(price, m_pair);
     }
 
     public double roundPrice(Exchange exchange) {
@@ -393,8 +405,25 @@ public class OrderData {
         return roundPrice(exchange, price);
     }
 
-    private double roundPrice(Exchange exchange, double price) {
+    public double roundPrice(Exchange exchange, double price) {
         return exchange.roundPrice(price, m_pair);
+    }
+
+    public double roundAmount(Exchange exchange) {
+        double amount = m_amount;
+        return roundAmount(exchange, amount);
+    }
+
+    public double roundAmount(Exchange exchange, double amount) {
+        return exchange.roundAmount(amount, m_pair);
+    }
+
+    public String roundAmountStr(Exchange exchange, double amount) {
+        return exchange.roundAmountStr(amount, m_pair);
+    }
+
+    public String roundAmountStr(Exchange exchange) {
+        return roundAmountStr(exchange, m_amount);
     }
 
     public enum OrderPlaceStatus {

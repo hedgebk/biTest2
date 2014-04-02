@@ -2,7 +2,12 @@ package bthdg.triplet;
 
 import bthdg.*;
 
+import java.util.Random;
+
 public class TriTradeData {
+    public static final int ID_CHARR_NUM = 6;
+
+    public final String m_id;
     public OrderData m_order;
     public OrderData[] m_mktOrders;
     public OnePegCalcData m_peg;
@@ -10,6 +15,7 @@ public class TriTradeData {
     public int m_waitMktOrderStep;
 
     public TriTradeData(OrderData order, OnePegCalcData peg) {
+        m_id = generateId();
 
 double price = order.m_price;
 double priceFromPeg = peg.m_price1;
@@ -19,6 +25,17 @@ if((rate < 0.7) || (1.3 < rate)) {
 }
         m_order = order;
         m_peg = peg;
+    }
+
+    private String generateId() {
+        Random rnd = new Random();
+        StringBuilder buf = new StringBuilder(ID_CHARR_NUM + 3);
+        buf.append('{');
+        for (int i = 0; i < ID_CHARR_NUM; i++) {
+            buf.append((char) ('A' + rnd.nextInt(25)));
+        }
+        buf.append('}');
+        return buf.toString();
     }
 
     public void checkState(IterationData iData, TriangleData triangleData) throws Exception {
@@ -108,7 +125,7 @@ if((rate < 0.7) || (1.3 < rate)) {
     }
 
     @Override public String toString() {
-        return "TriTradeData[" + m_peg.name() + " " +
+        return "TriTradeData[" + m_id + " " + m_peg.name() + " " +
                 "state=" + m_state +
                 "; order=" + m_order +
                 (((m_mktOrders != null) && (m_mktOrders[0] != null)) ? "; mktOrder1=" + m_mktOrders[0] : "") +
@@ -116,8 +133,8 @@ if((rate < 0.7) || (1.3 < rate)) {
                 "]";
     }
 
-    private static void log(String s) {
-        Log.log(s);
+    public void log(String s) {
+        Log.log(m_id + " " + s);
     }
 
     public OrderData getMktOrder(int indx) {

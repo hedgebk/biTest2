@@ -5,6 +5,8 @@ import bthdg.exch.*;
 import java.util.Map;
 
 // to support others ?
+// https://www.kraken.com
+// https://vircurex.com
 // ? https://www.bitfinex.com/
 // ? www.itbit.com
 //    http://docs.itbit.apiary.io/
@@ -51,6 +53,7 @@ public enum Exchange {
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, options); }
         @Override public double minPriceStep(Pair pair) { return Btce.minPriceStep(pair); }
+        @Override public double minAmountStep(Pair pair) { return Btce.minAmountStep(pair); }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -135,6 +138,7 @@ public enum Exchange {
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
     public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return m_apiTradesEndpoint; }
     public double minPriceStep(Pair pair) { return 0.01; }
+    public double minAmountStep(Pair pair) { return 0.0001; }
 
     private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
 

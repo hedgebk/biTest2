@@ -45,7 +45,7 @@ public class Btce extends BaseExch {
         put(Pair.LTC_BTC, "#.#####", 0.00001, "#.########", 0.00000001);
         put(Pair.BTC_USD, "#.###",   0.001,   "#.########", 0.00000001);
         put(Pair.LTC_EUR, "#.###",   0.001,   "#.########", 0.00000001);
-        put(Pair.BTC_EUR, "#.####",  0.00005, "#.########", 0.00000001);
+        put(Pair.BTC_EUR, "#.#####", 0.00005, "#.########", 0.00000001);
         put(Pair.EUR_USD, "#.####",  0.0001,  "#.########", 0.00000001);
     }
 
@@ -61,6 +61,7 @@ public class Btce extends BaseExch {
     }
 
     public static double minPriceStep(Pair pair) { return s_minPriceStepMap.get(pair); }
+    public static double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
 
     @Override public String getNextNonce() { return Integer.toString(s_nonce++); }
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }

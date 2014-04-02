@@ -87,13 +87,15 @@ public enum OrderState {
         if (liveOrders != null) {
             String orderId = orderData.m_orderId;
             OrdersData.OrdData ordData = liveOrders.getOrderData(orderId);
-            log(" liveOrder[" + orderId + "]=" + ordData);
             Pair pair = orderData.m_pair;
+            double orderPrice = orderData.m_price;
             if (ordData != null) {
+                log(" order still alive - liveOrder[" + orderId + "]=" + ordData);
                 double orderAmount = orderData.m_amount;
                 double liveAmount = ordData.m_amount;
                 double absAmountDelta = Math.abs(orderAmount - liveAmount);
-                if (absAmountDelta > pair.m_minAmountStep) {
+                double minAmountStep = exchange.minAmountStep(pair);
+                if (absAmountDelta > minAmountStep) {
                     log("  amounts are not equals: " + orderData);
                     if (orderData.m_status == OrderStatus.PARTIALLY_FILLED) {
                         log("   looks not OK - reprocessing PARTIALLY_FILLED status: ");
@@ -105,27 +107,25 @@ public enum OrderState {
                             ";  liveOrder.amount=" + Utils.X_YYYYY.format(liveAmount));  // probably partial
                     double partial = remained - liveAmount;
                     log("   probably partial: " + partial);
-                    if (partial > pair.m_minAmountStep) {
-                        double price = orderData.m_price;
-                        orderData.addExecution(price, partial, exchange);
-                        account.releaseTrade(pair, orderData.m_side, price, partial);
+                    if (partial > minAmountStep) {
+                        orderData.addExecution(orderPrice, partial, exchange);
+                        account.releaseTrade(pair, orderData.m_side, orderPrice, partial);
                     } else {
-                        log("    skipped: < minAmountStep (" + pair.m_minAmountStep + ")");
+                        log("    skipped: < minAmountStep (" + minAmountStep + ")");
                     }
                 } else {
-                    log("  order " + orderId + " not executed.  absAmountDelta(" + absAmountDelta + ") < pair.minAmountStep(" + pair.m_minAmountStep + ")");
+                    log("  order " + orderId + " not executed.  absAmountDelta(" + absAmountDelta + ") < pair.minAmountStep(" + Utils.X_YYYYYYYY.format(minAmountStep) + ")");
                 }
             } else {
-                log("  no such liveOrder. EXECUTED");
-                double orderPrice = orderData.m_price;
+                log(" liveOrder[" + orderId + "]=" + ordData + ";  no such liveOrder. EXECUTED");
                 double remained = orderData.remained();
-                log("   orderPrice=" + Utils.X_YYYYY.format(orderPrice) + "; remained=" + Utils.X_YYYYY.format(remained));
+                log("   orderPrice=" + orderData.roundPrice(exchange) + "; remained=" + Utils.X_YYYYY.format(remained));
                 orderData.addExecution(orderPrice, remained, exchange);
                 account.releaseTrade(pair, orderData.m_side, orderPrice, remained);
                 log("    order at result: " + orderData);
             }
         } else {
-            log("  error loading liveOrder");
+            log("  error loading liveOrder: " + liveOrders);
         }
     }
 
