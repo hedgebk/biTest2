@@ -39,29 +39,37 @@ public class Btce extends BaseExch {
     private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
     private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
     private static final Map<Pair, Double> s_minPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
     static {
-        put(Pair.LTC_USD, "#.####",  0.0001,  "#.########", 0.00000001);
-        put(Pair.LTC_BTC, "#.#####", 0.00001, "#.########", 0.00000001);
-        put(Pair.BTC_USD, "#.###",   0.001,   "#.########", 0.00000001);
-        put(Pair.LTC_EUR, "#.###",   0.001,   "#.########", 0.00000001);
-        put(Pair.BTC_EUR, "#.#####", 0.00005, "#.########", 0.00000001);
-        put(Pair.EUR_USD, "#.####",  0.0001,  "#.########", 0.00000001);
+        put(Pair.LTC_USD, "0.0000",  0.0001,  "#.########", 0.00000001, 0.1);
+        put(Pair.LTC_BTC, "0.00000", 0.00001, "#.########", 0.00000001, 0.1);
+        put(Pair.BTC_USD, "0.000",   0.001,   "#.########", 0.00000001, 0.01);
+        put(Pair.LTC_EUR, "0.000",   0.001,   "#.########", 0.00000001, 0.1);
+        put(Pair.BTC_EUR, "0.00000", 0.00005, "#.########", 0.00000001, 0.01);
+        put(Pair.EUR_USD, "0.0000",  0.0001,  "#.########", 0.00000001, 1);
+
+            //                                  freq         // minOrderSize
+//    LTC_USD(Currency.LTC, Currency.USD, 13.33333333, 0.18),
+//    LTC_BTC(Currency.LTC, Currency.BTC, 20,          0.18),
+//    BTC_USD(Currency.BTC, Currency.USD, 3.636363636, 0.01),
+//    LTC_EUR(Currency.LTC, Currency.EUR, 0.357142857, 0.18),
+//    BTC_EUR(Currency.BTC, Currency.EUR, 0.285714286, 0.01),
+//    EUR_USD(Currency.EUR, Currency.USD, 0.273972603, 3);
+
     }
 
-    private static void put(Pair pair, String format, double minPriceStep) {
-        put(pair,  format,  minPriceStep, "#.#####", 0.00001 );
-    }
-
-    private static void put(Pair pair, String format, double minPriceStep, String amountFormat, double minAmountStep) {
+    private static void put(Pair pair, String format, double minPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
         s_amountFormatMap.put(pair, mkFormat(amountFormat));
         s_minAmountStepMap.put(pair, minAmountStep);
         s_priceFormatMap.put(pair, mkFormat(format));
         s_minPriceStepMap.put(pair, minPriceStep);
+        s_minOrderToCreateMap.put(pair, minOrderToCreate);
     }
 
     public static double minPriceStep(Pair pair) { return s_minPriceStepMap.get(pair); }
     public static double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
+    public static double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
 
     @Override public String getNextNonce() { return Integer.toString(s_nonce++); }
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }

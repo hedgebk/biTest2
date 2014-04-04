@@ -36,7 +36,7 @@ public class IterationData implements IIterationContext {
 
     public TopsData loadTops() throws Exception {
         m_tops = Fetcher.fetchTops(Exchange.BTCE, Triplet.PAIRS);
-        log(" loaded tops: " + m_tops);
+        log(" loaded tops: " + m_tops.toString(Exchange.BTCE));
         return m_tops;
     }
 

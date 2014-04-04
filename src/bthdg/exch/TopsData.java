@@ -1,10 +1,13 @@
 package bthdg.exch;
 
 import bthdg.Currency;
+import bthdg.Exchange;
 import bthdg.Pair;
 import bthdg.PairDirection;
 
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 public class TopsData extends HashMap<Pair,TopData> {
     public double convert(Currency inCurrency, Currency outCurrency, double all) {
@@ -18,4 +21,25 @@ public class TopsData extends HashMap<Pair,TopData> {
         double converted = all / mid;
         return converted;
     }
+
+    public String toString(Exchange exchange) {
+        Iterator<Map.Entry<Pair,TopData>> i = entrySet().iterator();
+        if (!i.hasNext()){ return "{}"; }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        for (;;) {
+            Map.Entry<Pair,TopData> e = i.next();
+            Pair pair = e.getKey();
+            TopData top = e.getValue();
+            sb.append(pair);
+            sb.append('=');
+            sb.append(top.toString(exchange, pair));
+            if (! i.hasNext()) {
+                return sb.append('}').toString();
+            }
+            sb.append(',').append(' ');
+        }
+    }
+
 }

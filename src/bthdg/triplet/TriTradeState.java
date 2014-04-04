@@ -12,7 +12,7 @@ public enum TriTradeState {
             order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
             if (order.isFilled()) {
                 triTradeData.setState(TriTradeState.PEG_FILLED);
-            } // else : move to PEG price if needed
+            }
         }
     },
     PEG_FILLED {
@@ -93,7 +93,8 @@ public enum TriTradeState {
             double midMul = account.midMul(Triplet.s_startAccount);
 
             triTradeData.log(" @@@@@@   ratio1=" + Utils.X_YYYYY.format(ratio1) + ";  ratio2=" + Utils.X_YYYYY.format(ratio2) +
-                    ";  ratio3=" + Utils.X_YYYYY.format(ratio3) + ";    ratio=" + Utils.X_YYYYY.format(ratio));
+                    ";  ratio3=" + Utils.X_YYYYY.format(ratio3) + ";    ratio=" + Utils.X_YYYYY.format(ratio) +
+                    "; executed in " + Utils.millisToDHMSStr(System.currentTimeMillis() - triTradeData.m_startTime));
             triTradeData.log(" @@@@@@   in=" + Utils.X_YYYYY.format(in) + ";  out=" + Utils.X_YYYYY.format(out) +
                     "; out-in=" + Utils.X_YYYYY.format(out - in) + " " + currency + ";  gain=" + Utils.X_YYYYY.format(gain) +
                     "; level=" + Triplet.s_level + ";  totalRatio=" + Utils.X_YYYYY.format(Triplet.s_totalRatio) +
@@ -141,7 +142,7 @@ public enum TriTradeState {
         boolean isFirst = (num == 1);
         int indx = num - 1;
         OrderData order = triTradeData.m_mktOrders[indx];
-        triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
+        triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order.toString(Exchange.BTCE) + " ...");
         if (order == null) { // move mkt order can be unsuccess - cancel fine, but placing failed - just start mkt again
             triTradeData.log(" no mkt order - placing new " + (isFirst ? "1st" : "1nd") + " MKT order...");
             startMktOrder(iData, triangleData, triTradeData, num);
@@ -158,7 +159,7 @@ public enum TriTradeState {
                     triTradeData.log("placing new " + (isFirst ? "1st" : "1nd") + " MKT order...");
                     startMktOrder(iData, triangleData, triTradeData, num);
                 } else {
-                    triTradeData.log("cancel order failed: " + order);
+                    triTradeData.log("cancel order failed: " + order.toString(Exchange.BTCE));
                 }
             }
         }
@@ -177,6 +178,8 @@ public enum TriTradeState {
         TopData topData = tops.get(pair);
         OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
         double tryPrice = side.mktPrice(topData);
+        String mktPriceStr = Exchange.BTCE.roundPriceStr(tryPrice, pair);
+
         boolean useLmtPrice = false;
 
         // evaluate current mkt prices
@@ -184,7 +187,7 @@ public enum TriTradeState {
         double ratio2 = (num == 1) ? peg.mktRatio2(tops, account) : triTradeData.m_mktOrders[0].ratio(account); // commission is applied to ratio
         double ratio3 = peg.mktRatio3(tops, account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
-        triTradeData.log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio);
+        triTradeData.log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio + ";  mktPrice=" + mktPriceStr);
         if (ratio < 1) {
             double zeroProfitRatio = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
             double zeroProfitPrice = zeroProfitRatio / (1 - account.m_fee); // add commission
@@ -192,22 +195,40 @@ public enum TriTradeState {
                 zeroProfitPrice = 1 / zeroProfitPrice;
             }
             double mid = topData.getMid();
-
+            String midStr = Exchange.BTCE.roundPriceStr(mid, pair);
             triTradeData.log("  MKT conditions do not allow profit on MKT orders close. pair=" + pair + "; forward=" + forward +
-                    "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData);
-            if( (topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
-                triTradeData.log("   ! zero_Profit_Price is between mkt edges; mid=" + mid);
-            }
+                    "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Exchange.BTCE, pair) +
+                    "; mid=" + midStr);
 
             if (triTradeData.m_waitMktOrderStep++ < Triplet.WAIT_MKT_ORDER_STEPS) {
-                double mktPrice = tryPrice;
-                double priceAdd = (tryPrice - mid) * (triTradeData.m_waitMktOrderStep - 1) / Triplet.WAIT_MKT_ORDER_STEPS;
-                tryPrice = mid + priceAdd;
-                triTradeData.log("     wait some time - try with mid->mkt orders first: mkt=" + mktPrice + "; mid=" + mid +
-                        "; step=" + triTradeData.m_waitMktOrderStep + "; priceAdd=" + priceAdd + ", lmtPrice=" + tryPrice);
-                useLmtPrice = true;
+                if ((topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
+                    boolean betweenMidMkt = side.isBuy()
+                            ? ((mid > zeroProfitPrice) && (zeroProfitPrice > tryPrice))
+                            : ((mid < zeroProfitPrice) && (zeroProfitPrice < tryPrice));
+                    if (betweenMidMkt) {
+                        tryPrice = Exchange.BTCE.roundPrice(zeroProfitPrice, pair);
+                        triTradeData.log("    ! zero_Profit_Price is between mid and mkt - try zero price " + mktPriceStr);
+                    } else {
+                        triTradeData.log("    ! zero_Profit_Price is between mkt edges but too far from mkt - use mkt price " + mktPriceStr);
+                    }
+                } else {
+                    triTradeData.log("    ! zero_Profit_Price is outside of mkt edges");
+
+                    double mktPrice = tryPrice;
+                    double priceAdd = (tryPrice - mid) * (triTradeData.m_waitMktOrderStep - 1) / Triplet.WAIT_MKT_ORDER_STEPS;
+                    tryPrice = mid + priceAdd;
+                    String priceAddStr = Exchange.BTCE.roundPriceStr(priceAdd, pair);
+                    String tryPriceStr = Exchange.BTCE.roundPriceStr(tryPrice, pair);
+                    triTradeData.log("     wait some time - try with mid->mkt orders first: mkt=" + mktPrice + "; mid=" + midStr +
+                            "; step=" + triTradeData.m_waitMktOrderStep + "; priceAdd=" + priceAddStr + ", lmtPrice=" + tryPriceStr);
+                    useLmtPrice = true;
+                    if ((tryPrice > topData.m_ask) || (topData.m_bid > tryPrice)) {
+                        triTradeData.log("     ! calculated price is out of mkt bounds : use mid: " + mid);
+                        tryPrice = mid;
+                    }
+                }
             } else {
-                triTradeData.log("   we run out of waitMktOrder attempts. placing MKT (" + num + ")");
+                triTradeData.log("   we run out of waitMktOrder attempts. placing MKT(" + num + ") @ mkt price " + mktPriceStr);
 // todo: nothing to do - place non mkt order, but still profitable / zero / loss decreased
                 triTradeData.m_waitMktOrderStep = 0;
             }
@@ -244,9 +265,12 @@ public enum TriTradeState {
 
         double amount = side.isBuy() ? (prevEndAmount / tryPrice) : prevEndAmount;
 
+        String tryPriceStr = Exchange.BTCE.roundPriceStr(tryPrice, pair);
+        String amountStr = Exchange.BTCE.roundAmountStr(amount, pair);
+        String availableStr = Exchange.BTCE.roundAmountStr(available, pair);
         triTradeData.log("order(" + num + "):" + peg.name() + ", pair: " + pair + ", forward=" + forward + ", from=" + fromCurrency +
-                "; available=" + available + "; amount=" + amount + "; side=" + side +
-                "; mktPrice=" + Triplet.format5(tryPrice) + "; top: " + topData);
+                "; available=" + availableStr + "; amount=" + amountStr + "; side=" + side +
+                "; mktPrice=" + tryPriceStr + "; top: " + topData.toString(Exchange.BTCE, pair));
 
         // todo: check for physical min order size like 0.01
         OrderData order = new OrderData(pair, side, tryPrice, amount);

@@ -44,20 +44,23 @@ public class OrderData {
         List<Execution> executions = getExecutions();
         executions.add(new Execution(price, amount));
         m_filled += amount;
-        double minPriceStep = exchange.minPriceStep(m_pair);
+        double minAmountStep = exchange.minAmountStep(m_pair);
+        String filledStr = roundAmountStr(exchange, m_filled);
         // check for extra fill
         double extraFill = m_filled - m_amount;
-        if (extraFill > minPriceStep) {
-            log("ERROR: m_filled(" + format8(m_filled) + ") > m_amount(" + format8(m_amount) +
-                    ") extraFill=" + format8(extraFill) + " on order: " + this);
+        if (extraFill > minAmountStep) {
+            log("ERROR: m_filled(" + filledStr + ") > m_amount(" + roundAmountStr(exchange) +
+                    ") extraFill=" + roundAmountStr(exchange, extraFill) + " on order: " + this.toString(exchange));
         }
-        log("   addExecution: price=" + price + "; amount=" + amount + ";  result: filled=" + m_filled + "; remained=" + format8(remained()));
-        if (Math.abs(remained()) < minPriceStep) {
-            log("    all filled - become OrderStatus.FILLED.  remained=" + format8(remained()) + "; minPriceStep=" + format8(minPriceStep));
+        String remainedStr = roundAmountStr(exchange, remained());
+        log("   addExecution: price=" + roundPriceStr(exchange, price) + "; amount=" + roundAmountStr(exchange, amount) +
+                ";  result: filled=" + filledStr + "; remained=" + remainedStr);
+        if (Math.abs(remained()) < minAmountStep) {
+            log("    all filled - become OrderStatus.FILLED.  remained=" + remainedStr + "; minAmountStep=" + roundAmountStr(exchange, minAmountStep));
             m_status = OrderStatus.FILLED;
             m_filled = m_amount; // to be equal
         } else if (executions.size() == 1) { // just got the very first execution
-            log("    some filled - become OrderStatus.PARTIALLY_FILLED.  remained=" + remained() + "; minPriceStep=" + minPriceStep);
+            log("    some filled - become OrderStatus.PARTIALLY_FILLED.  remained=" + remainedStr + "; minAmountStep=" + roundAmountStr(exchange, minAmountStep));
             m_status = OrderStatus.PARTIALLY_FILLED;
             m_time = System.currentTimeMillis();
         }
@@ -170,6 +173,19 @@ public class OrderData {
                 ", status=" + m_status +
                 ", state=" + m_state +
                 ", filled=" + Utils.X_YYYYY.format(m_filled) +
+                '}';
+    }
+
+    public String toString(Exchange exchange) {
+        return "OrderData{" +
+                (m_orderId != null ? "id=" + m_orderId + " " : "") +
+                "pair=" + m_pair +
+                ", side=" + m_side +
+                ", amount=" + roundAmountStr(exchange) +
+                ", price=" + roundPriceStr(exchange) +
+                ", status=" + m_status +
+                ", state=" + m_state +
+                ", filled=" + roundPriceStr(exchange, m_filled) +
                 '}';
     }
 

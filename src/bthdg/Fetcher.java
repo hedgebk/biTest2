@@ -118,11 +118,11 @@ public class Fetcher {
 
     public static PlaceOrderData placeOrder(OrderData order, Exchange exchange) throws Exception {
         PlaceOrderData poData = placeOrder(exchange, order);
-        log("placeOrder returns: " + poData);
+        //log("placeOrder returns: " + poData);
         String error = poData.m_error;
         if (error == null) {
             long orderId = poData.m_orderId;
-            log("orderId: " + orderId);
+            //log("orderId: " + orderId);
             order.m_orderId = Long.toString(orderId);
         } else {
             log("error: " + error);

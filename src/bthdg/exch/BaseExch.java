@@ -25,7 +25,7 @@ public abstract class BaseExch {
     protected abstract String getCryproAlgo();
     protected abstract String getSecret();
     protected abstract String getApiEndpoint();
-    public abstract double roundPrice(double pegPrice, Pair pair);
+    public abstract double roundPrice(double price, Pair pair);
     public abstract String roundPriceStr(double price, Pair pair);
     public abstract double roundAmount(double amount, Pair pair);
     public abstract String roundAmountStr(double amount, Pair pair);

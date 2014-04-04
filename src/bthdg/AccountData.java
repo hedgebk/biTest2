@@ -259,7 +259,7 @@ public class AccountData {
                     double diffAbs = Math.abs(value - other);
                     double maxAbs = Math.max(Math.abs(value), Math.abs(other));
                     double ratio = diffAbs / maxAbs;
-                    if( ratio > 0.001 ) {
+                    if( ratio > 0.01 ) { // log if more that 1%
                         s += " fund diff: " + curr + " " + value + " " + other + ", diffAbs=" + diffAbs +
                                 ", maxAbs=" + maxAbs + ", ratio=" + ratio + ";";
                     }

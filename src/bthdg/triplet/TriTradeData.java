@@ -5,8 +5,9 @@ import bthdg.*;
 import java.util.Random;
 
 public class TriTradeData {
-    public static final int ID_CHARR_NUM = 6;
+    public static final int ID_CHARS_NUM = 6;
 
+    public final long m_startTime;
     public final String m_id;
     public OrderData m_order;
     public OrderData[] m_mktOrders;
@@ -15,7 +16,11 @@ public class TriTradeData {
     public int m_waitMktOrderStep;
 
     public TriTradeData(OrderData order, OnePegCalcData peg) {
-        m_id = generateId();
+        this(System.currentTimeMillis(), null, order, peg);
+    }
+    public TriTradeData(long startTime, String parentId, OrderData order, OnePegCalcData peg) {
+        m_startTime = startTime;
+        m_id = generateId(parentId);
 
 double price = order.m_price;
 double priceFromPeg = peg.m_price1;
@@ -27,12 +32,16 @@ if((rate < 0.7) || (1.3 < rate)) {
         m_peg = peg;
     }
 
-    private String generateId() {
+    private String generateId(String parentId) {
         Random rnd = new Random();
-        StringBuilder buf = new StringBuilder(ID_CHARR_NUM + 3);
+        StringBuilder buf = new StringBuilder(ID_CHARS_NUM + 3);
         buf.append('{');
-        for (int i = 0; i < ID_CHARR_NUM; i++) {
+        for (int i = 0; i < ID_CHARS_NUM; i++) {
             buf.append((char) ('A' + rnd.nextInt(25)));
+        }
+        if (parentId != null) {
+            buf.append('-');
+            buf.append(parentId);
         }
         buf.append('}');
         return buf.toString();
@@ -99,7 +108,7 @@ if((rate < 0.7) || (1.3 < rate)) {
         OrderData order = m_order;
         OrderData remainedOrder = fork(order, "peg");
         setState(TriTradeState.PEG_FILLED);
-        return new TriTradeData(remainedOrder, m_peg);
+        return new TriTradeData(m_startTime, m_id, remainedOrder, m_peg);
     }
 
     public TriTradeData forkMkt(int num /*1 or 2*/) {
@@ -107,16 +116,16 @@ if((rate < 0.7) || (1.3 < rate)) {
         double amount = mktOrder.m_amount;
         OrderData mktFork = fork(mktOrder, "mkt" + num);
         double ratio = mktFork.m_amount / amount;
-        log("  mkt" + num + " order forked at ratio " + ratio + ": " + mktFork);
+        log("  MKT" + num + " order forked at ratio " + ratio + ": " + mktFork);
         OrderData pegOrder = splitOrder(m_order, ratio);
         if (num == 1) {
-            TriTradeData ret = new TriTradeData(pegOrder, m_peg);
+            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg);
             ret.setMktOrder(mktFork, 0);
             setState(TriTradeState.MKT1_EXECUTED);
             return ret;
         } else { // 2
             OrderData mkt1 = splitOrder(m_mktOrders[0], ratio);
-            TriTradeData ret = new TriTradeData(pegOrder, m_peg);
+            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg);
             ret.setMktOrder(mkt1, 0);
             ret.setMktOrder(mktFork, 1);
             setState(TriTradeState.MKT2_EXECUTED);

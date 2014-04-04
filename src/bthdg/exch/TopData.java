@@ -1,6 +1,8 @@
 package bthdg.exch;
 
 import bthdg.Deserializer;
+import bthdg.Exchange;
+import bthdg.Pair;
 import bthdg.Utils;
 
 import java.io.IOException;
@@ -35,10 +37,19 @@ public class TopData {
         m_live = live;
     }
 
+    public String toString(Exchange exchange, Pair pair) {
+        return "Top{" + toStringX(exchange, pair) + '}';
+    }
+
     @Override public String toString() {
-        return "Top{" +
-                toStringX() +
-                '}';
+        return "Top{" + toStringX() + '}';
+    }
+
+    String toStringX(Exchange exchange, Pair pair) {
+        return (m_live ? "" : "OBSOLETE, ") +
+                "bid=" + exchange.roundPriceStr(m_bid, pair) +
+                ", ask=" + exchange.roundPriceStr(m_ask, pair) +
+                ", last=" + exchange.roundPriceStr(m_last, pair);
     }
 
     String toStringX() {

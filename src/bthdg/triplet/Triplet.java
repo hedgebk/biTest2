@@ -8,6 +8,7 @@ import java.util.*;
 /**
  * - try place brackets for non-profitable pairs / sorted by trades num
  * - try to place inner mkt order before mkt
+ * - try adjust account if no profitables found
  *
  * - stats:                                                              ratio       btc
  *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
@@ -57,6 +58,16 @@ import java.util.*;
  * account: AccountData{name='btce' funds={BTC=0.03652, LTC=2.70237, USD=22.48932, EUR=12.37476}; allocated={} , fee=0.002}  evaluateEur: 69.05520 evaluateUsd: 93.07373
  * account: AccountData{name='btce' funds={EUR=12.29769, USD=22.51507, LTC=2.67356, BTC=0.03731}; allocated={} , fee=0.002}  evaluateEur: 67.15116 evaluateUsd: 89.94537
  * account: AccountData{name='btce' funds={EUR=11.89775, LTC=2.82626, BTC=0.03752, USD=21.18753}; allocated={} , fee=0.002}  evaluateEur: 65.98443 evaluateUsd: 87.93049
+ * account: AccountData{name='btce' funds={EUR=11.59681, BTC=0.03806, USD=20.77948, LTC=2.94535}; allocated={} , fee=0.002}  evaluateEur: 64.38586 evaluateUsd: 85.82370
+ * account: AccountData{name='btce' funds={USD=18.64292, EUR=11.59681, LTC=2.75415, BTC=0.04734}; allocated={} , fee=0.002}  evaluateEur: 64.73080 evaluateUsd: 85.90225
+ * account: AccountData{name='btce' funds={BTC=0.03234, USD=25.32938, EUR=11.59586, LTC=2.73575}; allocated={} , fee=0.002}  evaluateEur: 63.59411 evaluateUsd: 83.95240
+ * account: AccountData{name='btce' funds={EUR=11.59586, BTC=0.03813, USD=19.74571, LTC=3.02394}; allocated={} , fee=0.002}  evaluateEur: 63.39227 evaluateUsd: 83.51752
+ * account: AccountData{name='btce' funds={BTC=0.03819, USD=20.84158, EUR=11.10746, LTC=3.06003}; allocated={} , fee=0.002}  evaluateEur: 63.05567 evaluateUsd: 83.91506
+ * account: AccountData{name='btce' funds={BTC=0.04906, USD=16.25132, EUR=11.09549, LTC=3.08846}; allocated={} , fee=0.002}  evaluateEur: 62.99141 evaluateUsd: 84.26006
+ * account: AccountData{name='btce' funds={EUR=11.09549, LTC=3.05676, USD=20.71768, BTC=0.03811}; allocated={} , fee=0.002}  evaluateEur: 64.67839 evaluateUsd: 86.06910
+ * account: AccountData{name='btce' funds={EUR=12.74699, LTC=2.84737, BTC=0.03899, USD=20.36479}; allocated={} , fee=0.002}  evaluateEur: 63.37806 evaluateUsd: 84.36548
+ * account: AccountData{name='btce' funds={USD=18.14144, BTC=0.03738, EUR=12.99810, LTC=2.98036}; allocated={} , fee=0.002}  evaluateEur: 63.29617 evaluateUsd: 86.15721
+ * account: AccountData{name='btce' funds={USD=21.83478, BTC=0.03732, EUR=11.46111, LTC=2.88838}; allocated={} , fee=0.002}  evaluateEur: 63.27659 evaluateUsd: 85.14999
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
@@ -67,9 +78,10 @@ public class Triplet {
     public static final double LVL = 100.602408; // commission level - note - complex percents here
     public static final double LVL2 = 100.73; // min target level
     public static final double USE_ACCOUNT_FUNDS = 0.93;
-    public static final int WAIT_MKT_ORDER_STEPS = 6;
+    public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final int ITERATIONS_SLEEP_TIME = 3000; // sleep between iterations
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
+    private static final int MAX_PLACE_ORDER_REPEAT = 3;
 
     public static double s_totalRatio = 1;
     public static int s_counter = 0;
@@ -81,12 +93,13 @@ public class Triplet {
     public static final Triangle T2 = new Triangle(Pair.LTC_EUR, true,  Pair.LTC_BTC, false, Pair.BTC_EUR, false); // eur -> ltc -> btc -> eur
     public static final Triangle T3 = new Triangle(Pair.LTC_USD, true,  Pair.LTC_EUR, false, Pair.EUR_USD, false); // usd -> ltc -> eur -> usd
     public static final Triangle T4 = new Triangle(Pair.EUR_USD, false, Pair.BTC_USD, true,  Pair.BTC_EUR, false); // eur -> usd -> btc -> eur
-
     public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4};
+
     static AccountData s_startAccount;
     public static double s_startEur;
     public static double s_startUsd;
     static boolean s_stopRequested;
+    private static int s_notEnoughFundsCounter;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -131,14 +144,18 @@ public class Triplet {
                             "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - start) +
                             "; date=" + new Date() );
                     IterationData iData = new IterationData(tAgg);
-                    td.checkState(iData);
+                    td.checkState(iData); // <<---------------------------------------------------------------------<<
+
                     int sleep = ITERATIONS_SLEEP_TIME;
                     if(td.m_triTrades.isEmpty()) {
                         if( s_stopRequested ) {
                             System.out.println("stopRequested; nothing to process - exit");
                             break;
                         }
+                        td.m_account = syncAccountIfNeeded(account);
                         sleep += sleep/2;
+                    } else if (td.m_triTrades.size() > 1) {
+                        sleep /= 2;
                     }
                     Thread.sleep(sleep);
                 }
@@ -149,6 +166,21 @@ public class Triplet {
             System.out.println("error: " + e);
             e.printStackTrace();
         }
+    }
+
+    private static AccountData syncAccountIfNeeded(AccountData account) throws Exception {
+        if (s_notEnoughFundsCounter > 3) {
+            System.out.println("!!!!!----- account is out of sync: " + account);
+            AccountData newAccount = getAccount();
+            if (newAccount != null) {
+                System.out.println(" synced with new Account: " + newAccount);
+                s_notEnoughFundsCounter = 0;
+                return newAccount;
+            } else {
+                System.out.println(" error getting account to sync");
+            }
+        }
+        return account;
     }
 
     private static AccountData init(TradesAggregator tAgg) throws Exception {
@@ -170,7 +202,7 @@ public class Triplet {
 
     // todo: to move this to OrderData as NON-static method
     public static OrderData.OrderPlaceStatus placeOrder(AccountData account, OrderData orderData, OrderState state, IterationData iData) throws Exception {
-        log("placeOrder(): " + orderData);
+        log("placeOrder(): " + orderData.toString(Exchange.BTCE));
 
         OrderData.OrderPlaceStatus ret;
         if (account.allocateOrder(orderData)) {
@@ -179,54 +211,74 @@ public class Triplet {
                 orderData.m_state = state;
                 ret = OrderData.OrderPlaceStatus.OK;
             } else {
-                PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
-                log(" PlaceOrderData: " + poData);
-                String error = poData.m_error;
-                if (error == null) {
-                    orderData.m_status = OrderStatus.SUBMITTED;
-                    double amount = poData.m_received;
-                    if (amount != 0) {
-                        log("  some part of order (" + amount + " from " + orderData.m_amount + ") is executed at the time of placing ");
-                        double price = orderData.m_price;
-                        orderData.addExecution(price, amount, Exchange.BTCE);
-                        account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount);
-                    }
-                    poData.m_accountData.compareFunds(account);
-                    orderData.m_state = (orderData.m_status == OrderStatus.FILLED)
-                            ? OrderState.NONE // can be fully filled once the order placed
-                            : state;
-                    ret = OrderData.OrderPlaceStatus.OK;
-                } else {
-                    // todo; track not enough funds here separately
-                    //    error: It is not enough LTC in the account for sale.
-                    //orderData.m_status = OrderStatus.REJECTED;
-                    orderData.m_status = OrderStatus.ERROR;
-                    orderData.m_state = OrderState.NONE;
-                    if (error.contains("invalid sign")) {
-                        ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
-                    } else if (error.contains("must be greater than")) { // Value BTC must be greater than 0.01 BTC.
-                        ret = OrderData.OrderPlaceStatus.ERROR; // too small order - can not continue
-                        orderData.m_status = OrderStatus.REJECTED;
-                        log("  too small order - can not continue: " + error );
-                    } else if (error.contains("SocketTimeoutException")) {
-                        ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
-                    } else if (error.contains("invalid nonce parameter")) {
-                        throw new RuntimeException("from server: "+ error);
-                    } else {
-                        ret = OrderData.OrderPlaceStatus.ERROR;
-                    }
-                }
-                iData.resetLiveOrders(); // clean cached data
+                ret = placeOrderToExchange(account, orderData, state, iData);
             }
-            if(ret != OrderData.OrderPlaceStatus.OK) {
+            if (ret != OrderData.OrderPlaceStatus.OK) {
                 account.releaseOrder(orderData);
             }
         } else {
             log("ERROR: account allocateOrder unsuccessful: " + orderData + ", account: " + account);
             ret = OrderData.OrderPlaceStatus.ERROR;
         }
-        log("placeOrder() END: " + orderData);
+        log("placeOrder() END: " + orderData.toString(Exchange.BTCE));
         return ret;
+    }
+
+    private static OrderData.OrderPlaceStatus placeOrderToExchange(AccountData account, OrderData orderData, OrderState state, IterationData iData) throws Exception {
+        int repeatCounter = MAX_PLACE_ORDER_REPEAT;
+        while( true ) {
+            OrderData.OrderPlaceStatus ret;
+            PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
+            log(" PlaceOrderData: " + poData);
+            String error = poData.m_error;
+            if (error == null) {
+                orderData.m_status = OrderStatus.SUBMITTED;
+                double amount = poData.m_received;
+                if (amount != 0) {
+                    String amountStr = orderData.roundAmountStr(Exchange.BTCE, amount);
+                    String orderAmountStr = orderData.roundAmountStr(Exchange.BTCE);
+                    log("  some part of order (" + amountStr + " from " + orderAmountStr + ") is executed at the time of placing ");
+                    double price = orderData.m_price;
+                    orderData.addExecution(price, amount, Exchange.BTCE);
+                    account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount);
+                }
+                poData.m_accountData.compareFunds(account);
+                orderData.m_state = (orderData.m_status == OrderStatus.FILLED)
+                        ? OrderState.NONE // can be fully filled once the order placed
+                        : state;
+                ret = OrderData.OrderPlaceStatus.OK;
+            } else {
+                orderData.m_status = OrderStatus.ERROR;
+                orderData.m_state = OrderState.NONE;
+                if (error.contains("invalid sign")) {
+                    if (repeatCounter-- > 0) {
+                        log(" repeat place order, count=" + repeatCounter);
+                        continue;
+                    }
+                    ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
+                } else if (error.contains("SocketTimeoutException")) {
+                    if (repeatCounter-- > 0) {
+                        log(" repeat place order, count=" + repeatCounter);
+                        continue;
+                    }
+                    ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
+                } else if (error.contains("It is not enough")) { // It is not enough BTC in the account for sale
+                    s_notEnoughFundsCounter++;
+                    ret = OrderData.OrderPlaceStatus.ERROR;
+                    log("  EnoughFunds detected - increased account sync counter" );
+                } else if (error.contains("must be greater than")) { // Value BTC must be greater than 0.01 BTC.
+                    ret = OrderData.OrderPlaceStatus.ERROR; // too small order - can not continue
+                    orderData.m_status = OrderStatus.REJECTED;
+                    log("  too small order - can not continue: " + error );
+                } else if (error.contains("invalid nonce parameter")) {
+                    throw new RuntimeException("from server: "+ error);
+                } else {
+                    ret = OrderData.OrderPlaceStatus.ERROR;
+                }
+            }
+            iData.resetLiveOrders(); // clean cached data
+            return ret;
+        }
     }
 
     public static String formatAndPad(double value) {
