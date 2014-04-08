@@ -68,6 +68,11 @@ import java.util.*;
  * account: AccountData{name='btce' funds={EUR=12.74699, LTC=2.84737, BTC=0.03899, USD=20.36479}; allocated={} , fee=0.002}  evaluateEur: 63.37806 evaluateUsd: 84.36548
  * account: AccountData{name='btce' funds={USD=18.14144, BTC=0.03738, EUR=12.99810, LTC=2.98036}; allocated={} , fee=0.002}  evaluateEur: 63.29617 evaluateUsd: 86.15721
  * account: AccountData{name='btce' funds={USD=21.83478, BTC=0.03732, EUR=11.46111, LTC=2.88838}; allocated={} , fee=0.002}  evaluateEur: 63.27659 evaluateUsd: 85.14999
+ * account: AccountData{name='btce' funds={LTC=2.52380, EUR=11.45314, BTC=0.02219, USD=32.79849}; allocated={} , fee=0.002}  evaluateEur: 63.55309 evaluateUsd: 86.16763
+ * account: AccountData{name='btce' funds={BTC=0.03280, LTC=3.17588, USD=20.72897, EUR=11.45314}; allocated={} , fee=0.002}  evaluateEur: 63.36702 evaluateUsd: 85.91002
+ * account: AccountData{name='btce' funds={BTC=0.03728, USD=21.29369, LTC=2.91970, EUR=11.45314}; allocated={} , fee=0.002}  evaluateEur: 64.61165 evaluateUsd: 88.22558
+ * account: AccountData{name='btce' funds={EUR=11.45314, LTC=3.25309, USD=21.29369, BTC=0.02877}; allocated={} , fee=0.002}  evaluateEur: 64.30440 evaluateUsd: 86.68882
+ * account: AccountData{name='btce' funds={BTC=0.03777, LTC=2.93381, USD=20.90069, EUR=11.45314}; allocated={} , fee=0.002}  evaluateEur: 64.27578 evaluateUsd: 86.55528
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
@@ -76,7 +81,7 @@ public class Triplet {
     public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.73; // min target level
+    public static final double LVL2 = 100.75; // min target level
     public static final double USE_ACCOUNT_FUNDS = 0.93;
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final int ITERATIONS_SLEEP_TIME = 3000; // sleep between iterations

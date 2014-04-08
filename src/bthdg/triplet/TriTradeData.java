@@ -1,6 +1,8 @@
 package bthdg.triplet;
 
 import bthdg.*;
+import bthdg.exch.TopData;
+import bthdg.exch.TopsData;
 
 import java.util.Random;
 
@@ -30,6 +32,177 @@ if((rate < 0.7) || (1.3 < rate)) {
 }
         m_order = order;
         m_peg = peg;
+    }
+
+    public void startMktOrder(IterationData iData, TriangleData triangleData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
+        log("startMktOrder(" + num + ") waitStep=" + m_waitMktOrderStep);
+
+        AccountData account = triangleData.m_account;
+        TopsData tops = iData.getTops();
+
+        PairDirection pd = (num == 1) ? m_peg.m_pair2 : m_peg.m_pair3;
+        Pair pair = pd.m_pair;
+        boolean forward = pd.m_forward;
+        TopData topData = tops.get(pair);
+        OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
+        double tryPrice = side.mktPrice(topData);
+
+        // evaluate current mkt prices
+        Double limitPrice = calcLimitPrice(num, account, tops, pair, forward, topData, side, tryPrice);
+        if(limitPrice != null) {
+            tryPrice = limitPrice;
+        }
+
+        CurrencyAmount currencyAmount = calcAmountFromPrevTrade(num, account, pair, forward);
+        Currency currency = currencyAmount.m_currency;
+        double amount = currencyAmount.m_amount;
+
+        double available = checkAvailable(iData, triangleData, num, account, currencyAmount);
+        if(available != 0) {
+            double orderAmount = side.isBuy() ? (amount / tryPrice) : amount;
+
+            String tryPriceStr = Exchange.BTCE.roundPriceStr(tryPrice, pair);
+            String amountStr = Exchange.BTCE.roundAmountStr(orderAmount, pair);
+            String availableStr = Exchange.BTCE.roundAmountStr(available, pair);
+            log("order(" + num + "):" + m_peg.name() + ", pair: " + pair + ", forward=" + forward + ", from=" + currency +
+                    "; available=" + availableStr + "; orderAmount=" + amountStr + "; side=" + side +
+                    "; mktPrice=" + tryPriceStr + "; top: " + topData.toString(Exchange.BTCE, pair));
+
+            // todo: check for physical min order size like 0.01
+            OrderData order = new OrderData(pair, side, tryPrice, orderAmount);
+            OrderState ordState = (limitPrice != null) ? OrderState.LIMIT_PLACED : OrderState.MARKET_PLACED;
+            OrderData.OrderPlaceStatus ok = Triplet.placeOrder(account, order, ordState, iData);
+            log("   place order = " + ok);
+            if (ok == OrderData.OrderPlaceStatus.OK) {
+                setMktOrder(order, num - 1);
+                triangleData.forkAndCheckFilledIfNeeded(iData, this, order, stateForFilled);
+            } else if (ok == OrderData.OrderPlaceStatus.CAN_REPEAT) {
+                log("    some problem, but we can repeat place order on next iteration");
+            } else {
+                log("    error placing order - setting error in triTrade");
+                setState(TriTradeState.ERROR);
+            }
+        }
+        log("startMktOrder(" + num + ") END: " + toString(Exchange.BTCE));
+    }
+
+    private double checkAvailable(IterationData iData, TriangleData triangleData, int num, AccountData account, CurrencyAmount currencyAmount) throws Exception {
+        Currency currency = currencyAmount.m_currency;
+        double amount = currencyAmount.m_amount;
+        double available = account.available(currency);
+        if (amount > available) {
+            log(" try cancel PEG orders for " + currency + " - not enough available funds to place MKT: available=" + available + "; needed=" + amount);
+
+            tryCancelPegOrders(iData, triangleData, account, currencyAmount);
+
+            available = account.available(currency);
+            if (amount > available) {
+                log("ERROR: still not enough available funds to place MKT: available=" + available);
+                setState(TriTradeState.CANCELED);
+                // todo: do not cancel too fast - wait several iterations - funds can be released
+                available = 0; // not available funds - do not place the order
+            } else {
+                log(" fine - released enough funds to place MKT(" + num + "): available=" + available + "; needed=" + amount);
+//                tops = iData.loadTops(); // re-request tops since time passed - mktPrice can run out
+            }
+        }
+        return available;
+    }
+
+    private CurrencyAmount calcAmountFromPrevTrade(int num, AccountData account, Pair pair, boolean forward) {
+        OrderData prevOrder = (num == 1) ? m_order : m_mktOrders[0];
+        OrderSide prevSide = prevOrder.m_side;
+        Currency prevEndCurrency = prevOrder.endCurrency();
+        double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - account.m_fee); // deduct commissions
+        log(" prev order " + prevOrder + "; exit amount " + prevEndAmount + " " + prevEndCurrency);
+
+        Currency fromCurrency = pair.currencyFrom(forward);
+        if (prevEndCurrency != fromCurrency) {
+            log("ERROR: currencies are not matched");
+        }
+
+        return new CurrencyAmount(prevEndAmount, fromCurrency);
+    }
+
+    private double calcLimitPrice(int num, AccountData account, TopsData tops, Pair pair,
+                                  boolean forward, TopData topData, OrderSide side, final double mktPrice) {
+        Double limitPrice = null;
+        String mktPriceStr = Exchange.BTCE.roundPriceStr(mktPrice, pair);
+
+        double ratio1 = m_order.ratio(account); // commission is applied to ratio
+        double ratio2 = (num == 1) ? m_peg.mktRatio2(tops, account) : m_mktOrders[0].ratio(account); // commission is applied to ratio
+        double ratio3 = m_peg.mktRatio3(tops, account); // commission is applied to ratio
+        double ratio = ratio1 * ratio2 * ratio3;
+        log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio + ";  mktPrice=" + mktPriceStr);
+        if (ratio < 1) {
+            double zeroProfitRatio = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
+            double zeroProfitPrice = zeroProfitRatio / (1 - account.m_fee); // add commission
+            if (side.isBuy()) {
+                zeroProfitPrice = 1 / zeroProfitPrice;
+            }
+            double mid = topData.getMid();
+            String midStr = Exchange.BTCE.roundPriceStr(mid, pair);
+            log("  MKT conditions do not allow profit on MKT orders close. pair=" + pair + "; forward=" + forward +
+                    "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Exchange.BTCE, pair) +
+                    "; mid=" + midStr);
+
+            if (m_waitMktOrderStep++ < Triplet.WAIT_MKT_ORDER_STEPS) {
+                if ((topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
+                    boolean betweenMidMkt = side.isBuy()
+                            ? ((mid > zeroProfitPrice) && (zeroProfitPrice > mktPrice))
+                            : ((mid < zeroProfitPrice) && (zeroProfitPrice < mktPrice));
+                    if (betweenMidMkt) {
+                        limitPrice = Exchange.BTCE.roundPrice(zeroProfitPrice, pair);
+                        log("    ! zero_Profit_Price is between mid and mkt - try zero price " + mktPriceStr);
+                    } else {
+                        log("    ! zero_Profit_Price is between mkt edges but too far from mkt - use mkt price " + mktPriceStr);
+                    }
+                } else {
+                    log("    ! zero_Profit_Price is outside of mkt edges");
+                    double priceAdd = (mktPrice - mid) * (m_waitMktOrderStep - 1) / Triplet.WAIT_MKT_ORDER_STEPS;
+                    limitPrice = mid + priceAdd;
+                    String priceAddStr = Exchange.BTCE.roundPriceStr(priceAdd, pair);
+                    log("     wait some time - try with mid->mkt orders first: mkt=" + mktPrice + "; mid=" + midStr +
+                            "; step=" + m_waitMktOrderStep + "; priceAdd=" + priceAddStr + ", lmtPrice=" + mktPriceStr);
+                    if ((mktPrice > topData.m_ask) || (topData.m_bid > mktPrice)) {
+                        log("     ! calculated price is out of mkt bounds : use mid: " + mid);
+                        limitPrice = mid;
+                    }
+                }
+            } else {
+                log("   we run out of waitMktOrder attempts. placing MKT(" + num + ") @ mkt price " + mktPriceStr);
+// todo: nothing to do - place non mkt order, but still profitable / zero / loss decreased
+                m_waitMktOrderStep = 0;
+            }
+        } else {
+            // todo - try e.g. mkt-10 first  to get better profit
+            m_waitMktOrderStep = 0;
+        }
+        return mktPrice;
+    }
+
+    private void tryCancelPegOrders(IterationData iData, TriangleData triangleData,
+                                    AccountData account, CurrencyAmount currencyAmount) throws Exception {
+        for (TriTradeData nextTriTrade : triangleData.m_triTrades) {
+            if (nextTriTrade.m_state == TriTradeState.PEG_PLACED) {
+                OrderData order = nextTriTrade.m_order;
+                Currency startCurrency = order.startCurrency();
+                Currency currency = currencyAmount.m_currency;
+                if (startCurrency == currency) {
+                    log("  found PEG order for " + currency + " " + nextTriTrade.m_peg.name() + " " + order);
+                    boolean canceled = triangleData.cancelOrder(order, iData);
+                    if (canceled) {
+                        nextTriTrade.setState(TriTradeState.CANCELED);
+                        double available = account.available(currency);
+                        if (currencyAmount.m_amount < available) {
+                            break;
+                        }
+                    } else {
+                        log("   cancel peg order error for " + order);
+                    }
+                }
+            }
+        }
     }
 
     private String generateId(String parentId) {
@@ -105,10 +278,13 @@ if((rate < 0.7) || (1.3 < rate)) {
     }
 
     public TriTradeData forkPeg() {
-        OrderData order = m_order;
-        OrderData remainedOrder = fork(order, "peg");
+        log("   forking peg..");
+        OrderData remainedOrder = fork(m_order, "peg");
+        log("   remainedOrder="+remainedOrder);
         setState(TriTradeState.PEG_FILLED);
-        return new TriTradeData(m_startTime, m_id, remainedOrder, m_peg);
+        TriTradeData triTradeData = new TriTradeData(m_startTime, m_id, remainedOrder, m_peg);
+        log("   created new triTradeData="+triTradeData);
+        return triTradeData;
     }
 
     public TriTradeData forkMkt(int num /*1 or 2*/) {
@@ -122,6 +298,7 @@ if((rate < 0.7) || (1.3 < rate)) {
             TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg);
             ret.setMktOrder(mktFork, 0);
             setState(TriTradeState.MKT1_EXECUTED);
+            log("  created fork: " + ret);
             return ret;
         } else { // 2
             OrderData mkt1 = splitOrder(m_mktOrders[0], ratio);
@@ -129,6 +306,7 @@ if((rate < 0.7) || (1.3 < rate)) {
             ret.setMktOrder(mkt1, 0);
             ret.setMktOrder(mktFork, 1);
             setState(TriTradeState.MKT2_EXECUTED);
+            log("  created fork: " + ret);
             return ret;
         }
     }
@@ -139,6 +317,15 @@ if((rate < 0.7) || (1.3 < rate)) {
                 "; order=" + m_order +
                 (((m_mktOrders != null) && (m_mktOrders[0] != null)) ? "; mktOrder1=" + m_mktOrders[0] : "") +
                 (((m_mktOrders != null) && (m_mktOrders[1] != null)) ? "; mktOrder2=" + m_mktOrders[1] : "") +
+                "]";
+    }
+
+    public String toString(Exchange exchange) {
+        return "TriTradeData[" + m_id + " " + m_peg.name() + " " +
+                "state=" + m_state +
+                "; order=" + m_order.toString(exchange) +
+                (((m_mktOrders != null) && (m_mktOrders[0] != null)) ? "; mktOrder1=" + m_mktOrders[0].toString(exchange) : "") +
+                (((m_mktOrders != null) && (m_mktOrders[1] != null)) ? "; mktOrder2=" + m_mktOrders[1].toString(exchange) : "") +
                 "]";
     }
 
@@ -155,4 +342,45 @@ if((rate < 0.7) || (1.3 < rate)) {
         return (mktOrder != null) && mktOrder.isPartiallyFilled(Exchange.BTCE);
     }
 
+    public TriTradeData forkIfNeeded() {
+        TriTradeData forkRemainded = null;
+        switch (m_state) {
+            case PEG_PLACED:
+                if(m_order.isPartiallyFilled(Exchange.BTCE)) {
+                    log("PEG order is partially filled - splitting: " + m_order.toString(Exchange.BTCE));
+                    forkRemainded = forkPeg();
+                }
+                break;
+            case MKT1_PLACED:
+                if(isMktOrderPartiallyFilled(0)) {
+                    log("MKT1 order is partially filled - splitting: " + getMktOrder(0).toString(Exchange.BTCE));
+                    forkRemainded = forkMkt(1);
+                }
+                break;
+            case MKT2_PLACED:
+                if(isMktOrderPartiallyFilled(1)) {
+                    log("MKT2 order is partially filled - splitting: " + getMktOrder(1).toString(Exchange.BTCE));
+                    forkRemainded = forkMkt(2);
+                }
+                break;
+            default:
+                if(m_order.isPartiallyFilled(Exchange.BTCE) ||
+                    isMktOrderPartiallyFilled(0) ||
+                    isMktOrderPartiallyFilled(1)) {
+                    log("warning: unexpected state - some order is partially filled: " + toString(Exchange.BTCE));
+                }
+        }
+        return forkRemainded;
+    }
+
+
+    public static class CurrencyAmount {
+        public double m_amount;
+        public Currency m_currency;
+
+        public CurrencyAmount(double amount, Currency currency) {
+            m_amount = amount;
+            m_currency = currency;
+        }
+    }
 }

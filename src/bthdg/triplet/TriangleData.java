@@ -38,6 +38,20 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
 //            checkBrackets(iData, bestMap, tops, m_account);
     }
 
+    public void forkAndCheckFilledIfNeeded(IterationData iData, TriTradeData triTradeData, OrderData order, TriTradeState stateForFilled) throws Exception {
+        // order can become partially filled - need to fork check
+        TriTradeData fork = triTradeData.forkIfNeeded();
+        if (fork != null) {
+            triTradeData.log("  forked. adding non executed part to triTrades list. " + fork);
+            m_triTrades.add(fork); // add non-executed part to the list
+        }
+        if (order.isFilled()) { // reprocess immediately
+            triTradeData.log("  order is filled - reprocess " + triTradeData);
+            triTradeData.setState(stateForFilled);
+            triTradeData.checkState(iData, this); // <---------------------------------
+        }
+    }
+
     private void checkBrackets(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops, AccountData account) throws Exception {
         List<Map.Entry<Pair, Integer>> list = new ArrayList<Map.Entry<Pair, Integer>>(iData.m_tradesAgg.m_tradesMap.entrySet());
         Collections.sort(list, new Comparator<Map.Entry<Pair, Integer>>() {  // sort by frequency
@@ -207,66 +221,67 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
     private void checkOrdersState(IterationData iData, TriangleData triangleData) throws Exception {
         if (!m_triTrades.isEmpty()) {
-            List<TriTradeData> changed = null;
-            for (TriTradeData triTrade : m_triTrades) {
-                TriTradeState oldState = triTrade.m_state;
+//            List<TriTradeData> changed = null;
+            List<TriTradeData> triTrades = new ArrayList<TriTradeData>(m_triTrades); // iterate over the copy - avoid concurrent modifications
+            for (TriTradeData triTrade : triTrades) {
+//                TriTradeState oldState = triTrade.m_state;
                 triTrade.checkState(iData, triangleData); // <---------------------------------
-                TriTradeState newState = triTrade.m_state;
-                if (oldState != newState) { // state changed
-                    if (changed == null) {
-                        changed = new ArrayList<TriTradeData>();
-                    }
-                    triTrade.log(" triTrade state changed (" + oldState + "->" + newState + ") save for no-delay re-process");
-                    changed.add(triTrade);
-                }
+//                TriTradeState newState = triTrade.m_state;
+//                if (oldState != newState) { // state changed
+//                    if (changed == null) {
+//                        changed = new ArrayList<TriTradeData>();
+//                    }
+//                    triTrade.log(" triTrade state changed (" + oldState + "->" + newState + ") save for no-delay re-process");
+//                    changed.add(triTrade);
+//                }
             }
-            List<TriTradeData> reprocess = forkIfNeeded(m_triTrades);// fork if needed -  for partially filled orders
-            if (reprocess != null) {
-                if (changed == null) {
-                    changed = new ArrayList<TriTradeData>();
-                }
-                changed.addAll(reprocess);
-            }
-            noDelayReprocess(iData, triangleData, changed);
+//            List<TriTradeData> reprocess = forkIfNeeded(m_triTrades);// fork if needed -  for partially filled orders
+//            if (reprocess != null) {
+//                if (changed == null) {
+//                    changed = new ArrayList<TriTradeData>();
+//                }
+//                changed.addAll(reprocess);
+//            }
+//            noDelayReprocess(iData, triangleData, changed);
         }
     }
 
-    private void noDelayReprocess(IterationData iData, TriangleData triangleData, List<TriTradeData> reprocess) throws Exception {
-        if (reprocess != null) {
-            log(" we have " + reprocess.size() + " triTrades for no-delay re-process");
-            // execute checkState() for PEG_FILLED immediately - no need to wait to run MKT orders
-            for (TriTradeData triTrade : reprocess) {
-                noDelayReprocessOne(iData, triangleData, triTrade);
-            }
-        }
-    }
+//    private void noDelayReprocess(IterationData iData, TriangleData triangleData, List<TriTradeData> reprocess) throws Exception {
+//        if (reprocess != null) {
+//            log(" we have " + reprocess.size() + " triTrades for no-delay re-process");
+//            // execute checkState() for PEG_FILLED immediately - no need to wait to run MKT orders
+//            for (TriTradeData triTrade : reprocess) {
+//                noDelayReprocessOne(iData, triangleData, triTrade);
+//            }
+//        }
+//    }
 
-    private void noDelayReprocessOne(IterationData iData, TriangleData triangleData, TriTradeData triTrade) throws Exception {
-        triTrade.log("  try no-delay re-process for: " + triTrade);
-        TriTradeState state = triTrade.m_state;
-        if ((state == TriTradeState.PEG_FILLED) || (state == TriTradeState.MKT1_EXECUTED)) {
-            triTrade.checkState(iData, triangleData); // place MKT order without wait.
-            state = triTrade.m_state;
-            if (((state == TriTradeState.MKT1_PLACED) && !triTrade.isMktOrderPartiallyFilled(0))
-                    || ((state == TriTradeState.MKT2_PLACED) && !triTrade.isMktOrderPartiallyFilled(1))) {
-                triTrade.checkState(iData, triangleData);
-                state = triTrade.m_state;
-                if (state == TriTradeState.MKT1_EXECUTED) {
-                    triTrade.checkState(iData, triangleData);
-                    state = triTrade.m_state;
-                    if ((state == TriTradeState.MKT2_PLACED) && !triTrade.isMktOrderPartiallyFilled(1)) {
-                        triTrade.checkState(iData, triangleData);
-                    }
-                }
-            }
-        }
-    }
+//    private void noDelayReprocessOne(IterationData iData, TriangleData triangleData, TriTradeData triTrade) throws Exception {
+//        triTrade.log("  try no-delay re-process for: " + triTrade);
+//        TriTradeState state = triTrade.m_state;
+//        if ((state == TriTradeState.PEG_FILLED) || (state == TriTradeState.MKT1_EXECUTED)) {
+//            triTrade.checkState(iData, triangleData); // place MKT order without wait.
+//            state = triTrade.m_state;
+//            if (((state == TriTradeState.MKT1_PLACED) && !triTrade.isMktOrderPartiallyFilled(0))
+//                    || ((state == TriTradeState.MKT2_PLACED) && !triTrade.isMktOrderPartiallyFilled(1))) {
+//                triTrade.checkState(iData, triangleData);
+//                state = triTrade.m_state;
+//                if (state == TriTradeState.MKT1_EXECUTED) {
+//                    triTrade.checkState(iData, triangleData);
+//                    state = triTrade.m_state;
+//                    if ((state == TriTradeState.MKT2_PLACED) && !triTrade.isMktOrderPartiallyFilled(1)) {
+//                        triTrade.checkState(iData, triangleData);
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     private static List<TriTradeData> forkIfNeeded(List<TriTradeData> triTrades) {
         List<TriTradeData> forks = null;
         List<TriTradeData> reprocess = null;
         for (TriTradeData triTrade : triTrades) {
-            TriTradeData forkRemainded = forkIfNeeded(triTrade);
+            TriTradeData forkRemainded = triTrade.forkIfNeeded();
             if (forkRemainded != null) { // forked
                 if (forks == null) {
                     forks = new ArrayList<TriTradeData>();
@@ -284,64 +299,34 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         return reprocess;
     }
 
-    private static TriTradeData forkIfNeeded(TriTradeData triTrade) {
-        OrderData order = triTrade.m_order;
-        TriTradeState state = triTrade.m_state;
-        TriTradeData forkRemainded = null;
-        switch (state) {
-            case PEG_PLACED:
-                if(order.isPartiallyFilled(Exchange.BTCE)) {
-                    triTrade.log("PEG order is partially filled - splitting: " + order);
-                    forkRemainded = triTrade.forkPeg();
-                }
-                break;
-            case MKT1_PLACED:
-                if(triTrade.isMktOrderPartiallyFilled(0)) {
-                    triTrade.log("MKT1 order is partially filled - splitting: " + triTrade.getMktOrder(0));
-                    forkRemainded = triTrade.forkMkt(1);
-                }
-                break;
-            case MKT2_PLACED:
-                if(triTrade.isMktOrderPartiallyFilled(1)) {
-                    triTrade.log("MKT2 order is partially filled - splitting: " + triTrade.getMktOrder(1));
-                    forkRemainded = triTrade.forkMkt(2);
-                }
-                break;
-            default:
-                if(order.isPartiallyFilled(Exchange.BTCE) ||
-                    triTrade.isMktOrderPartiallyFilled(0) ||
-                    triTrade.isMktOrderPartiallyFilled(1)) {
-                    triTrade.log("warning: unexpected state - some order is partially filled: " + triTrade);
-                }
-        }
-        return forkRemainded;
-    }
-
     public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
         Exchange exchange = Exchange.BTCE;
         //noinspection PointlessBooleanExpression,ConstantConditions
         if(Triplet.ONLY_ONE_ACTIVE_TRIANGLE && !m_triTrades.isEmpty()) {
             return; // do not create new order if some already exist
         }
-        ArrayList<TriTradeData> reprocess = null;
+//        ArrayList<TriTradeData> reprocess = null;
         for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
             OnePegCalcData peg = entry.getValue();
             double maxPeg = peg.m_max;
             if (maxPeg > Triplet.s_level) {
                 TriTradeData newTriTrade = createNewOne(iData, tops, exchange, peg, maxPeg);
-                if (newTriTrade != null) {
+                if (newTriTrade != null) { // order placed
                     m_triTrades.add(newTriTrade);
-                    OrderData order = newTriTrade.m_order;
 
-                    // todo: in case of partially/filled - better put reprocess code immediately here - no need to delay
+                    forkAndCheckFilledIfNeeded(iData, newTriTrade, newTriTrade.m_order, TriTradeState.PEG_FILLED);
 
-                    // we may have PARTIALLY/FILLED peg order just at the time of placing - no need to wait - reprocess immediately - on this iteration
-                    if ((order.m_status == OrderStatus.FILLED) || (order.m_status == OrderStatus.PARTIALLY_FILLED)) {
-                        if (reprocess == null) {
-                            reprocess = new ArrayList<TriTradeData>();
-                        }
-                        reprocess.add(newTriTrade);
-                    }
+//                    OrderData order = newTriTrade.m_order;
+//
+//                    // todo: in case of partially/filled - better put reprocess code immediately here - no need to delay
+//
+//                    // we may have PARTIALLY/FILLED peg order just at the time of placing - no need to wait - reprocess immediately - on this iteration
+//                    if ((order.m_status == OrderStatus.FILLED) || (order.m_status == OrderStatus.PARTIALLY_FILLED)) {
+//                        if (reprocess == null) {
+//                            reprocess = new ArrayList<TriTradeData>();
+//                        }
+//                        reprocess.add(newTriTrade);
+//                    }
                     if (Triplet.ONLY_ONE_ACTIVE_TRIANGLE) {
                         break; // do not create more orders
                     }
@@ -349,20 +334,22 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             }
         }
 
-        if (reprocess != null) {
-            log("  we have " + reprocess.size() + " triTrades which have PARTIALLY/FILLED peg order just at the time of placing - reprocess them");
-            List<TriTradeData> forked = forkIfNeeded(reprocess);// reprocess will be updated with forks if needed
-            if (forked != null) {
-                log("   + forked " + forked.size() + " triTrades ");
-            }
-            noDelayReprocess(iData, this, reprocess);
-        }
+//        if (reprocess != null) {
+//            log("  we have " + reprocess.size() + " triTrades which have PARTIALLY/FILLED peg order just at the time of placing - reprocess them");
+//            List<TriTradeData> forked = forkIfNeeded(reprocess);// reprocess will be updated with forks if needed
+//            if (forked != null) {
+//                log("   + forked " + forked.size() + " triTrades ");
+//            }
+//            noDelayReprocess(iData, this, reprocess);
+//        }
     }
 
     private TriTradeData createNewOne(IterationData iData, Map<Pair, TopData> tops, Exchange exchange,
                                       OnePegCalcData peg, double maxPeg) throws Exception {
         String name = peg.name();
         double pegPrice = peg.calcPegPrice(tops);
+        double mkt1Price = peg.calcMktPrice(tops, 0);
+        double mkt2Price = peg.calcMktPrice(tops, 1);
 
         PairDirection pd = peg.m_pair1;
         Pair pair = pd.m_pair;
@@ -386,21 +373,22 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 ", from=" + fromCurrency + "; available=" + availableStr + "; amount=" + amountStr + "; side=" + side +
                 "; pegPrice=" + pegPriceStr +"; needPeg=" + needPegStr + "; top: " + topData.toString(Exchange.BTCE, pair));
 
-        boolean needInTheMiddle = false;
-        if( (topData.m_ask > needPeg) && (needPeg > topData.m_bid)) {
-            log("   ! needPegPrice is between mkt edges: " + topData.m_ask + " - " + needPegStr + " - " + topData.m_bid);
-            needInTheMiddle = true;
-        }
-
         double minOrderToCreate = Btce.minOrderToCreate(pair);
         if (amount >= minOrderToCreate) {
-            if (needInTheMiddle) {
-                if( new Random().nextDouble() < 0.12 ) { // 12% probability
-                    double price = (pegPrice + needPeg) / 2;
-                    pegPrice = exchange.roundPrice(price, pair);
-                    log("     ! try price between peg and need: " + pegPrice);
-                }
-            }
+            String mkt1PriceStr = exchange.roundPriceStr(mkt1Price, pair);
+            String mkt2PriceStr = exchange.roundPriceStr(mkt2Price, pair);
+            log("   expected prices: " + pegPriceStr + " -> " + mkt1PriceStr + " -> " + mkt2PriceStr);
+
+            // todo: try price between peg and need, but not for all pairs
+//            if( (topData.m_ask > needPeg) && (needPeg > topData.m_bid)) {
+//                log("   ! needPegPrice is between mkt edges: " + topData.m_ask + " - " + needPegStr + " - " + topData.m_bid);
+//                if( new Random().nextDouble() < 0.12 ) { // 12% probability
+//                    double price = (pegPrice + needPeg) / 2;
+//                    pegPrice = exchange.roundPrice(price, pair);
+//                    log("     ! try price between peg and need: " + pegPrice);
+//                }
+//            }
+
             if (Triplet.SIMULATE_ORDER_EXECUTION) {
                 iData.getNewTradesData(exchange, this); // make sure we have loaded all trades on this iteration
             }

@@ -88,6 +88,12 @@ public class OnePegCalcData {
         return side.pegPrice(tops.get(pair), minPriceStep);
     }
 
+    public double calcMktPrice(Map<Pair, TopData> tops, int indx) {
+        PairDirection pd = (indx == 0) ? m_pair2 : m_pair3;
+        OrderSide side = pd.m_forward ? OrderSide.BUY : OrderSide.SELL;
+        return side.mktPrice(tops.get(pd.m_pair));
+    }
+
     public double mktRatio2(Map<Pair, TopData> tops, AccountData account) {
         return mktRatio(tops, account, m_pair2);
     }
