@@ -26,6 +26,7 @@ public class TopsData extends HashMap<Pair,TopData> {
         Iterator<Map.Entry<Pair,TopData>> i = entrySet().iterator();
         if (!i.hasNext()){ return "{}"; }
 
+        int counter = 0;
         StringBuilder sb = new StringBuilder();
         sb.append('{');
         for (;;) {
@@ -39,6 +40,10 @@ public class TopsData extends HashMap<Pair,TopData> {
                 return sb.append('}').toString();
             }
             sb.append(',').append(' ');
+            counter++;
+            if (counter % 3 == 0) {
+                sb.append("\n    ");
+            }
         }
     }
 

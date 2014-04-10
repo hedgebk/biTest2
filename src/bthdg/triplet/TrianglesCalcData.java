@@ -32,6 +32,10 @@ public class TrianglesCalcData extends ArrayList<TriangleCalcData> {
         if (mktCrossLvl) {
             sb.append("\t******************************");
         }
+        sb.append("\n");
+        for (TriangleCalcData t : this) {
+            sb.append(t.str2());
+        }
         return sb.toString();
     }
 

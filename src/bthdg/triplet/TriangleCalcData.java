@@ -21,8 +21,13 @@ public class TriangleCalcData {
     }
 
     public String str() {
-        return m_forward.str() + " " + m_backward.str() + " " +
-                (m_forward.midCrossLvl() || m_backward.midCrossLvl() ? "*" : "|") + " ";
+        return m_forward.str() + " " + (m_forward.midCrossLvl() ? "*" : ".") +
+               m_backward.str() + " " + (m_backward.midCrossLvl() ? "*" : "|") +
+               " ";
+    }
+
+    public String str2() {
+        return m_forward.str2() + " " + m_backward.str2() + "| ";
     }
 
     public boolean mktCrossLvl() {

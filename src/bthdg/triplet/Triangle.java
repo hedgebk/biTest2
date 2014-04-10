@@ -20,8 +20,18 @@ public class Triangle extends ArrayList<PairDirection> {
                 : calcMkt(tops, get(2).get(forward), get(1).get(forward), get(0).get(forward));
     }
 
+    public double calcMkt(Map<Pair, TopData> tops, boolean forward, double offset) {
+        return forward
+                ? calcMkt(tops, get(0).get(forward), get(1).get(forward), get(2).get(forward), offset)
+                : calcMkt(tops, get(2).get(forward), get(1).get(forward), get(0).get(forward), offset);
+    }
+
     private static double calcMkt(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
         return mulMkt(mulMkt(mulMkt((double) 100, tops.get(pair1.m_pair), pair1), tops.get(pair2.m_pair), pair2), tops.get(pair3.m_pair), pair3);
+    }
+
+    private static double calcMkt(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3, double offset) {
+        return mulMkt(mulMkt(mulMkt((double) 100, tops.get(pair1.m_pair), pair1, offset), tops.get(pair2.m_pair), pair2, offset), tops.get(pair3.m_pair), pair3, offset);
     }
 
     public double calcMid(Map<Pair, TopData> tops, boolean forward) {
@@ -55,51 +65,82 @@ public class Triangle extends ArrayList<PairDirection> {
         TopData top1 = tops.get(pair1.m_pair);
         TopData top2 = tops.get(pair2.m_pair);
         TopData top3 = tops.get(pair3.m_pair);
+        double offset = Triplet.MINUS_MKT_OFFSET;
 
         return new OnePegCalcData[] {
-                new OnePegCalcData(0, mulMkt(mulMkt(mulPeg(100.0, top1, pair1), top2, pair2), top3, pair3),
+                new OnePegCalcData(0,
+                        mulMkt(mulMkt(mulPeg(100.0, top1, pair1), top2, pair2), top3, pair3),
+                        mulMkt(mulMkt(mulPeg(100.0, top1, pair1), top2, pair2, offset), top3, pair3, offset),
                         pair1, pegPrice(top1, pair1),
-                        pair2, mktPrice(top2, pair2),
-                        pair3, mktPrice(top3, pair3)),
-                new OnePegCalcData(1, mulMkt(mulPeg(mulMkt(100.0, top1, pair1), top2, pair2), top3, pair3),
+                        pair2, mktPrice(top2, pair2), mktPrice(top2, pair2, offset),
+                        pair3, mktPrice(top3, pair3), mktPrice(top3, pair3, offset)),
+                new OnePegCalcData(1,
+                        mulMkt(mulPeg(mulMkt(100.0, top1, pair1), top2, pair2), top3, pair3),
+                        mulMkt(mulPeg(mulMkt(100.0, top1, pair1, offset), top2, pair2), top3, pair3, offset),
                         pair2, pegPrice(top2, pair2),
-                        pair3, mktPrice(top3, pair3),
-                        pair1, mktPrice(top1, pair1)),
-                new OnePegCalcData(2, mulPeg(mulMkt(mulMkt(100.0, top1, pair1), top2, pair2), top3, pair3),
+                        pair3, mktPrice(top3, pair3), mktPrice(top3, pair3, offset),
+                        pair1, mktPrice(top1, pair1), mktPrice(top1, pair1, offset)),
+                new OnePegCalcData(2,
+                        mulPeg(mulMkt(mulMkt(100.0, top1, pair1), top2, pair2), top3, pair3),
+                        mulPeg(mulMkt(mulMkt(100.0, top1, pair1, offset), top2, pair2, offset), top3, pair3),
                         pair3, pegPrice(top3, pair3),
-                        pair1, mktPrice(top1, pair1),
-                        pair2, mktPrice(top2, pair2))
+                        pair1, mktPrice(top1, pair1), mktPrice(top1, pair1, offset),
+                        pair2, mktPrice(top2, pair2), mktPrice(top2, pair2, offset))
         };
     }
 
-    private static double mulMid(double in, TopData top, PairDirection pd) {
-        double price = pd.m_forward ? in / top.getMid() : in * top.getMid();
+    public static double mulMid(double in, TopData top, PairDirection pd) {
+        double mid = midPrice(top, pd);
+        double ret = pd.m_forward ? in / mid : in * mid;
+        return ret;
+    }
+
+    public static double midPrice(TopData top, PairDirection pd) {
+        double price = top.getMid();
+        // the price is changed from quoted by exchange - need to be rounded
         double ret = Exchange.BTCE.roundPrice(price, pd.m_pair);
         return ret;
     }
 
-    private static double mulMkt(double in, TopData top, PairDirection pd) {
-        double price = pd.m_forward ? in / top.m_ask : in * top.m_bid; // ASK > BID
-        double ret = Exchange.BTCE.roundPrice(price, pd.m_pair);
+    public static double mulMkt(double in, TopData top, PairDirection pd) {
+        double mkt = mktPrice(top, pd);
+        double ret = pd.m_forward ? in / mkt : in * mkt; // ASK > BID
         return ret;
     }
-    private static double mktPrice(TopData top, PairDirection pd) {
-        double price = pd.m_forward ? top.m_ask : top.m_bid; // ASK > BID
+    public static double mktPrice(TopData top, PairDirection pd) {
+        double price = pd.getSide().mktPrice(top); // ASK > BID
+        return price;
+    }
+
+    public static double mulMkt(double in, TopData top, PairDirection pd, double offset) {
+        double mktPrice = mktPrice(top, pd, offset);
+        double ret = pd.m_forward ? in / mktPrice : in * mktPrice; // ASK > BID
+        return ret;
+    }
+
+    public static double mktPrice(TopData top, PairDirection pd, double offset) {
+        double delta = (top.m_ask - top.m_bid) * offset;
+        OrderSide side = pd.getSide();
+        double mktPrice = side.mktPrice(top);
+        double price = pd.m_forward ? mktPrice - delta : mktPrice + delta; // ASK > BID
+        // the price is changed from quoted by exchange - need to be rounded
         double ret = Exchange.BTCE.roundPrice(price, pd.m_pair);
         return ret;
     }
 
-    private static double mulPeg(double in, TopData top, PairDirection pd) {
-        double price = pd.m_forward ? in / pegPrice(top, pd) : in * pegPrice(top, pd); // ASK > BID
-        double ret = Exchange.BTCE.roundPrice(price, pd.m_pair);
+    public static double mulPeg(double in, TopData top, PairDirection pd) {
+        double pegPrice = pegPrice(top, pd);
+        double ret = pd.m_forward ? in / pegPrice : in * pegPrice; // ASK > BID
         return ret;
     }
 
-    private static double pegPrice(TopData top, PairDirection pd) {
+    public static double pegPrice(TopData top, PairDirection pd) {
         Pair pair = pd.m_pair;
         double minPriceStep = Btce.minPriceStep(pair);
-        double price = pd.m_forward ? OrderSide.BUY.pegPrice(top, minPriceStep) : OrderSide.SELL.pegPrice(top, minPriceStep); // ASK > BID
-        double ret = Exchange.BTCE.roundPrice(price, pd.m_pair);
+        OrderSide side = pd.getSide(); // ASK > BID
+        double price = side.pegPrice(top, minPriceStep);
+        // the price is changed from quoted by exchange - need to be rounded
+        double ret = Exchange.BTCE.roundPrice(price, pair);
         return ret;
     }
 } // Triangle

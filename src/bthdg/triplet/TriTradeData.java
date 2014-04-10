@@ -16,13 +16,15 @@ public class TriTradeData {
     public OnePegCalcData m_peg;
     public TriTradeState m_state = TriTradeState.PEG_PLACED;
     public int m_waitMktOrderStep;
+    public boolean m_doMktOffset;
 
-    public TriTradeData(OrderData order, OnePegCalcData peg) {
-        this(System.currentTimeMillis(), null, order, peg);
+    public TriTradeData(OrderData order, OnePegCalcData peg, boolean doMktOffset) {
+        this(System.currentTimeMillis(), null, order, peg, doMktOffset);
     }
-    public TriTradeData(long startTime, String parentId, OrderData order, OnePegCalcData peg) {
+    public TriTradeData(long startTime, String parentId, OrderData order, OnePegCalcData peg, boolean doMktOffset) {
         m_startTime = startTime;
         m_id = generateId(parentId);
+        m_doMktOffset = doMktOffset;
 
 double price = order.m_price;
 double priceFromPeg = peg.m_price1;
@@ -45,7 +47,9 @@ if((rate < 0.7) || (1.3 < rate)) {
         boolean forward = pd.m_forward;
         TopData topData = tops.get(pair);
         OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
-        double tryPrice = side.mktPrice(topData);
+        double tryPrice = m_doMktOffset
+                ? Triangle.mktPrice(topData, pd, Triplet.MINUS_MKT_OFFSET)
+                : Triangle.mktPrice(topData, pd);
 
         // evaluate current mkt prices
         Double limitPrice = calcLimitPrice(num, account, tops, pair, forward, topData, side, tryPrice);
@@ -58,19 +62,21 @@ if((rate < 0.7) || (1.3 < rate)) {
         double amount = currencyAmount.m_amount;
 
         double available = checkAvailable(iData, triangleData, num, account, currencyAmount);
-        if(available != 0) {
+        if (available != 0) {
             double orderAmount = side.isBuy() ? (amount / tryPrice) : amount;
 
             String tryPriceStr = Exchange.BTCE.roundPriceStr(tryPrice, pair);
+            String bidPriceStr = Exchange.BTCE.roundPriceStr(topData.m_bid, pair);
+            String askPriceStr = Exchange.BTCE.roundPriceStr(topData.m_ask, pair);
             String amountStr = Exchange.BTCE.roundAmountStr(orderAmount, pair);
             String availableStr = Exchange.BTCE.roundAmountStr(available, pair);
             log("order(" + num + "):" + m_peg.name() + ", pair: " + pair + ", forward=" + forward + ", from=" + currency +
                     "; available=" + availableStr + "; orderAmount=" + amountStr + "; side=" + side +
-                    "; mktPrice=" + tryPriceStr + "; top: " + topData.toString(Exchange.BTCE, pair));
+                    "; tryPrice=[" + bidPriceStr + "; " + tryPriceStr + "; " + askPriceStr + "]");
 
             // todo: check for physical min order size like 0.01
             OrderData order = new OrderData(pair, side, tryPrice, orderAmount);
-            OrderState ordState = (limitPrice != null) ? OrderState.LIMIT_PLACED : OrderState.MARKET_PLACED;
+            OrderState ordState = (m_doMktOffset || (limitPrice != null)) ? OrderState.LIMIT_PLACED : OrderState.MARKET_PLACED;
             OrderData.OrderPlaceStatus ok = Triplet.placeOrder(account, order, ordState, iData);
             log("   place order = " + ok);
             if (ok == OrderData.OrderPlaceStatus.OK) {
@@ -103,7 +109,6 @@ if((rate < 0.7) || (1.3 < rate)) {
                 available = 0; // not available funds - do not place the order
             } else {
                 log(" fine - released enough funds to place MKT(" + num + "): available=" + available + "; needed=" + amount);
-//                tops = iData.loadTops(); // re-request tops since time passed - mktPrice can run out
             }
         }
         return available;
@@ -130,8 +135,14 @@ if((rate < 0.7) || (1.3 < rate)) {
         String mktPriceStr = Exchange.BTCE.roundPriceStr(mktPrice, pair);
 
         double ratio1 = m_order.ratio(account); // commission is applied to ratio
-        double ratio2 = (num == 1) ? m_peg.mktRatio2(tops, account) : m_mktOrders[0].ratio(account); // commission is applied to ratio
-        double ratio3 = m_peg.mktRatio3(tops, account); // commission is applied to ratio
+        double ratio2 = (num == 1)
+                ? m_doMktOffset
+                    ? m_peg.mktRatio2(tops, account, Triplet.MINUS_MKT_OFFSET)
+                    : m_peg.mktRatio2(tops, account)
+                : m_mktOrders[0].ratio(account); // commission is applied to ratio
+        double ratio3 = m_doMktOffset
+            ? m_peg.mktRatio3(tops, account, Triplet.MINUS_MKT_OFFSET )
+            : m_peg.mktRatio3(tops, account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
         log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio + ";  mktPrice=" + mktPriceStr);
         if (ratio < 1) {
@@ -280,10 +291,10 @@ if((rate < 0.7) || (1.3 < rate)) {
     public TriTradeData forkPeg() {
         log("   forking peg..");
         OrderData remainedOrder = fork(m_order, "peg");
-        log("   remainedOrder="+remainedOrder);
+        log("   remainedOrder=" + remainedOrder);
         setState(TriTradeState.PEG_FILLED);
-        TriTradeData triTradeData = new TriTradeData(m_startTime, m_id, remainedOrder, m_peg);
-        log("   created new triTradeData="+triTradeData);
+        TriTradeData triTradeData = new TriTradeData(m_startTime, m_id, remainedOrder, m_peg, m_doMktOffset);
+        log("   created new triTradeData=" + triTradeData);
         return triTradeData;
     }
 
@@ -295,14 +306,14 @@ if((rate < 0.7) || (1.3 < rate)) {
         log("  MKT" + num + " order forked at ratio " + ratio + ": " + mktFork);
         OrderData pegOrder = splitOrder(m_order, ratio);
         if (num == 1) {
-            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg);
+            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg, m_doMktOffset);
             ret.setMktOrder(mktFork, 0);
             setState(TriTradeState.MKT1_EXECUTED);
             log("  created fork: " + ret);
             return ret;
         } else { // 2
             OrderData mkt1 = splitOrder(m_mktOrders[0], ratio);
-            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg);
+            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg, m_doMktOffset);
             ret.setMktOrder(mkt1, 0);
             ret.setMktOrder(mktFork, 1);
             setState(TriTradeState.MKT2_EXECUTED);

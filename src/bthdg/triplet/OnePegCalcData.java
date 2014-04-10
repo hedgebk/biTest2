@@ -1,7 +1,6 @@
 package bthdg.triplet;
 
 import bthdg.*;
-import bthdg.exch.Btce;
 import bthdg.exch.TopData;
 
 import java.util.Map;
@@ -9,24 +8,30 @@ import java.util.Map;
 public class OnePegCalcData {
     public int m_indx;
     public double m_max;
+    public double m_max10;
     public TriangleRotationCalcData m_parent;
     public double m_price1;
     public double m_price2;
-    protected double m_price3;
+    public double m_price2minus;
+    public double m_price3;
+    public double m_price3minus;
     public PairDirection m_pair1;
     public PairDirection m_pair2;
     public PairDirection m_pair3;
     public double m_need;
 
-    public OnePegCalcData(int indx, double max,
+    public OnePegCalcData(int indx, double max, double max10,
                           PairDirection pair1, double price1,
-                          PairDirection pair2, double price2,
-                          PairDirection pair3, double price3) {
+                          PairDirection pair2, double price2, double price2minus,
+                          PairDirection pair3, double price3, double price3minus) {
         m_indx = indx;
         m_max = max;
+        m_max10 = max10;
         m_price1 = price1;
         m_price2 = price2;
+        m_price2minus = price2minus;
         m_price3 = price3;
+        m_price3minus = price3minus;
         m_pair1 = pair1;
         m_pair2 = pair2;
         m_pair3 = pair3;
@@ -70,6 +75,13 @@ public class OnePegCalcData {
         return "        ";
     }
 
+    public String str2() {
+        if (m_max10 > Triplet.s_level) {
+            return m_indx + ":" + Triplet.formatAndPad(m_max10);
+        }
+        return "        ";
+    }
+
     @Override public boolean equals(Object obj) {
         if (obj == this) { return true; }
         if (obj instanceof OnePegCalcData) {
@@ -82,29 +94,58 @@ public class OnePegCalcData {
     }
 
     public double calcPegPrice(Map<Pair, TopData> tops) {
-        Pair pair = m_pair1.m_pair;
-        double minPriceStep = Btce.minPriceStep(pair);
-        OrderSide side = m_pair1.m_forward ? OrderSide.BUY : OrderSide.SELL;
-        return side.pegPrice(tops.get(pair), minPriceStep);
+        TopData top = tops.get(m_pair1.m_pair);
+        double price = Triangle.pegPrice(top, m_pair1);
+        return price;
     }
 
     public double calcMktPrice(Map<Pair, TopData> tops, int indx) {
         PairDirection pd = (indx == 0) ? m_pair2 : m_pair3;
-        OrderSide side = pd.m_forward ? OrderSide.BUY : OrderSide.SELL;
-        return side.mktPrice(tops.get(pd.m_pair));
+        return calcMktPrice(tops, pd);
+    }
+
+    private double calcMktPrice(Map<Pair, TopData> tops, PairDirection pd) {
+        TopData top = tops.get(pd.m_pair);
+        double price = Triangle.mktPrice(top, pd);
+        return price;
+    }
+
+    public double calcMktPrice(Map<Pair, TopData> tops, int indx, double offset) {
+        PairDirection pd = (indx == 0) ? m_pair2 : m_pair3;
+        return calcMktPrice(tops, pd, offset);
+    }
+
+    private double calcMktPrice(Map<Pair, TopData> tops, PairDirection pd, double offset) {
+        TopData top = tops.get(pd.m_pair);
+        double price = Triangle.mktPrice(top, pd, offset);
+        return price;
     }
 
     public double mktRatio2(Map<Pair, TopData> tops, AccountData account) {
         return mktRatio(tops, account, m_pair2);
     }
 
+    public double mktRatio2(Map<Pair, TopData> tops, AccountData account, double offset) {
+        return mktRatio(tops, account, m_pair2, offset);
+    }
+
     public double mktRatio3(Map<Pair, TopData> tops, AccountData account) {
         return mktRatio(tops, account, m_pair3);
     }
 
+    public double mktRatio3(Map<Pair, TopData> tops, AccountData account, double offset) {
+        return mktRatio(tops, account, m_pair3, offset);
+    }
+
     private double mktRatio(Map<Pair, TopData> tops, AccountData account, PairDirection pd) {
-        OrderSide side = pd.m_forward ? OrderSide.BUY : OrderSide.SELL;
-        double mktPrice = side.mktPrice(tops.get(pd.m_pair));
+        double mktPrice = calcMktPrice(tops, pd);
+        OrderSide side = pd.getSide();
+        return (side.isBuy() ? 1 / mktPrice : mktPrice) * (1 - account.m_fee); // deduct commissions
+    }
+
+    private double mktRatio(Map<Pair, TopData> tops, AccountData account, PairDirection pd, double offset) {
+        double mktPrice = calcMktPrice(tops, pd, offset);
+        OrderSide side = pd.getSide();
         return (side.isBuy() ? 1 / mktPrice : mktPrice) * (1 - account.m_fee); // deduct commissions
     }
 }

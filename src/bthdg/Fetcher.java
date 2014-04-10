@@ -355,7 +355,8 @@ public class Fetcher {
             con.setRequestProperty("User-Agent", USER_AGENT);
             //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
 
-            if (command.needSsl() || (con instanceof HttpsURLConnection)) {
+            boolean isHttps = con instanceof HttpsURLConnection;
+            if (command.needSsl() || isHttps) {
                 BaseExch.initSsl();
             }
 

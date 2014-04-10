@@ -51,4 +51,8 @@ public class PairDirection {
         }
         throw new RuntimeException("not supported pair: " + fromCurrency + "->" + toCurrency);
     }
+
+    public OrderSide getSide() {
+        return m_forward ? OrderSide.BUY : OrderSide.SELL;
+    }
 }

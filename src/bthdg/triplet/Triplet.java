@@ -73,20 +73,28 @@ import java.util.*;
  * account: AccountData{name='btce' funds={BTC=0.03728, USD=21.29369, LTC=2.91970, EUR=11.45314}; allocated={} , fee=0.002}  evaluateEur: 64.61165 evaluateUsd: 88.22558
  * account: AccountData{name='btce' funds={EUR=11.45314, LTC=3.25309, USD=21.29369, BTC=0.02877}; allocated={} , fee=0.002}  evaluateEur: 64.30440 evaluateUsd: 86.68882
  * account: AccountData{name='btce' funds={BTC=0.03777, LTC=2.93381, USD=20.90069, EUR=11.45314}; allocated={} , fee=0.002}  evaluateEur: 64.27578 evaluateUsd: 86.55528
+ * account: AccountData{name='btce' funds={BTC=0.06956, USD=7.65018, LTC=2.86976, EUR=11.46445}; allocated={} , fee=0.002}   evaluateEur: 63.86114 evaluateUsd: 85.19992
+ * account: AccountData{name='btce' funds={BTC=0.03756, USD=20.65875, LTC=2.96956, EUR=11.46445}; allocated={} , fee=0.002}  evaluateEur: 63.91006 evaluateUsd: 86.11504
+ * account: AccountData{name='btce' funds={LTC=2.97341, USD=20.77583, BTC=0.03767, EUR=11.51558}; allocated={} , fee=0.002}  evaluateEur: 64.28155 evaluateUsd: 85.96322
+ * account: AccountData{name='btce' funds={BTC=0.04019, LTC=2.97341, USD=20.75292, EUR=11.24278}; allocated={} , fee=0.002}  evaluateEur: 62.66591 evaluateUsd: 82.81530
+ * account: AccountData{name='btce' funds={EUR=10.97564, LTC=3.09816, BTC=0.03879, USD=19.75331}; allocated={} , fee=0.002}  evaluateEur: 60.75445 evaluateUsd: 81.99110
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
     public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
+    public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.75; // min target level
-    public static final double USE_ACCOUNT_FUNDS = 0.93;
+    public static final double LVL2 = 100.69; // min target level
+    public static final double USE_ACCOUNT_FUNDS = 0.94;
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final int ITERATIONS_SLEEP_TIME = 3000; // sleep between iterations
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
+    public static final boolean TRY_WITH_MKT_OFFSET = true;
+    public static final double MINUS_MKT_OFFSET = 0.10; // mkt - 10%
 
     public static double s_totalRatio = 1;
     public static int s_counter = 0;
@@ -104,7 +112,7 @@ public class Triplet {
     public static double s_startEur;
     public static double s_startUsd;
     static boolean s_stopRequested;
-    private static int s_notEnoughFundsCounter;
+    static int s_notEnoughFundsCounter;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -157,8 +165,15 @@ public class Triplet {
                             System.out.println("stopRequested; nothing to process - exit");
                             break;
                         }
-                        td.m_account = syncAccountIfNeeded(account);
+                        td.m_account = syncAccountIfNeeded(td.m_account);
                         sleep += sleep/2;
+
+                        if (s_level > LVL2) {
+                            double level = s_level;
+                            s_level = (s_level - LVL) * 0.99 + LVL;
+                            s_level = Math.max(s_level, LVL2);
+                            log(" LEVEL decreased (-1%) from " + Utils.X_YYYYYYYY.format(level) + " to " + Utils.X_YYYYYYYY.format(Triplet.s_level));
+                        }
                     } else if (td.m_triTrades.size() > 1) {
                         sleep /= 2;
                     }
@@ -207,7 +222,7 @@ public class Triplet {
 
     // todo: to move this to OrderData as NON-static method
     public static OrderData.OrderPlaceStatus placeOrder(AccountData account, OrderData orderData, OrderState state, IterationData iData) throws Exception {
-        log("placeOrder(): " + orderData.toString(Exchange.BTCE));
+        log("placeOrder() " + iData.millisFromStart() + "ms: " + orderData.toString(Exchange.BTCE));
 
         OrderData.OrderPlaceStatus ret;
         if (account.allocateOrder(orderData)) {
@@ -270,7 +285,7 @@ public class Triplet {
                 } else if (error.contains("It is not enough")) { // It is not enough BTC in the account for sale
                     s_notEnoughFundsCounter++;
                     ret = OrderData.OrderPlaceStatus.ERROR;
-                    log("  EnoughFunds detected - increased account sync counter" );
+                    log("  NotEnoughFunds detected - increased account sync counter to " + s_notEnoughFundsCounter );
                 } else if (error.contains("must be greater than")) { // Value BTC must be greater than 0.01 BTC.
                     ret = OrderData.OrderPlaceStatus.ERROR; // too small order - can not continue
                     orderData.m_status = OrderStatus.REJECTED;
@@ -292,10 +307,6 @@ public class Triplet {
 
     private static String format(double number) {
         return Utils.PLUS_YYY.format(number);
-    }
-
-    public static String format4(double number) {
-        return Utils.X_YYYY.format(number);
     }
 
     public static String format5(double number) {

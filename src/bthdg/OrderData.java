@@ -378,10 +378,11 @@ public class OrderData {
     }
 
     public double[] logOrderEnds(AccountData account, int i, double expectedPrice) {
-        log(" order" + i + "; " + Utils.padLeft(m_side.toString(), 4) +
+        double delta = m_side.isBuy() ? expectedPrice - m_price : m_price - expectedPrice;
+        log(" order" + i + ": " + Utils.padLeft(m_side.toString(), 4) +
             " " + Utils.padLeft(format8(expectedPrice), 13) +
             " -> " + Utils.padLeft(format8(m_price), 13) +
-            "; delta=" + format8(expectedPrice - m_price) + " on " + this);
+            "; delta=" + format8(delta) + " on " + this);
         double startAmount = startAmount();
         double endAmount = endAmount(account);
         return new double[] {startAmount, endAmount};

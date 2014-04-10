@@ -11,6 +11,8 @@ public class TriangleRotationCalcData {
     public boolean m_forward;
     private double m_mid;
     private double m_mkt;
+    private double m_mktMinus10;  // mkt-10
+    private double m_mktMinus20; // mkt-20
     private OnePegCalcData[] m_pegs;
     private OnePegCalcData m_peg;
 
@@ -25,11 +27,13 @@ public class TriangleRotationCalcData {
         return false;
     }
 
-    public TriangleRotationCalcData(Triangle triangle, boolean forward, double mid, double mkt, OnePegCalcData[] pegs) {
+    public TriangleRotationCalcData(Triangle triangle, boolean forward, double mid, double mkt, double mktMinus10, double mktMinus20, OnePegCalcData[] pegs) {
         m_triangle = triangle;
         m_forward = forward;
         m_mid = mid;
         m_mkt = mkt;
+        m_mktMinus10 = mktMinus10;
+        m_mktMinus20 = mktMinus20;
         m_pegs = pegs;
         m_peg = findBestPeg();
         pegs[0].m_parent = this;
@@ -50,11 +54,21 @@ public class TriangleRotationCalcData {
         return new TriangleRotationCalcData(triangle, forward,
                                             triangle.calcMid(tops, forward),
                                             triangle.calcMkt(tops, forward),
+                                            triangle.calcMkt(tops, forward, 0.1d),
+                                            triangle.calcMkt(tops, forward, 0.2d),
                                             triangle.calcPegs(tops, forward));
     }
 
     public String str() {
         return Triplet.formatAndPad(m_mid) + " " + Triplet.formatAndPad(m_mkt) + " " + m_peg.str();
+    }
+
+    public String str2() {
+        return Triplet.formatAndPad(m_mktMinus10) + " " + Triplet.formatAndPad(m_mktMinus20) + " " + m_peg.str2()
+                + ((m_mktMinus10 > Triplet.LVL)
+                      ? "$"
+                      : (m_mktMinus20 > Triplet.LVL) ? "*" : " "
+                  );
     }
 
     public boolean midCrossLvl() {

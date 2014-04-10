@@ -17,15 +17,20 @@ public class IterationData implements IIterationContext {
     public NewTradesAggregator m_newTrades = new NewTradesAggregator();
     private boolean m_acceptPriceSimulated;
     public TradesAggregator m_tradesAgg;
+    private long m_startMillis;
+    private long m_topsLoadTime;
 
     public IterationData(TradesAggregator tAgg) {
-         m_tradesAgg = tAgg;
+        m_tradesAgg = tAgg;
+        m_startMillis = System.currentTimeMillis();
     }
 
     @Override public boolean acceptPriceSimulated() { return m_acceptPriceSimulated; }
     @Override public void acceptPriceSimulated(boolean b) { m_acceptPriceSimulated = b; }
     @Override public Map<Pair, TradesData> fetchTrades(Exchange exchange) throws Exception { return getTrades(); }
     @Override public TopData getTop(Exchange exchange, Pair pair) throws Exception { return getTops().get(pair); }
+    public long millisFromStart() { return System.currentTimeMillis() - m_startMillis; }
+    public long millisFromTopsLoad() { return System.currentTimeMillis() - m_topsLoadTime; }
 
     public TopsData getTops() throws Exception {
         if (m_tops == null) {
@@ -36,8 +41,14 @@ public class IterationData implements IIterationContext {
 
     public TopsData loadTops() throws Exception {
         m_tops = Fetcher.fetchTops(Exchange.BTCE, Triplet.PAIRS);
-        log(" loaded tops: " + m_tops.toString(Exchange.BTCE));
+        log(" loaded tops " + millisFromStart() + "ms: " + m_tops.toString(Exchange.BTCE));
+        m_topsLoadTime = System.currentTimeMillis();
         return m_tops;
+    }
+
+    public void resetTops() {
+        log("  resetTops");
+        m_tops = null;
     }
 
     public Map<Pair, TradesData> getTrades() throws Exception {
@@ -50,13 +61,13 @@ public class IterationData implements IIterationContext {
     public OrdersData getLiveOrders(Exchange exchange) throws Exception {
         if (m_liveOrders == null) {
             m_liveOrders = Fetcher.fetchOrders(exchange, null);
-            log("liveOrders loaded: " + m_liveOrders);
+            log(" liveOrders loaded " + millisFromStart() + "ms: " + m_liveOrders);
         }
         return m_liveOrders;
     }
 
     public void resetLiveOrders() {
-//        log("  resetLiveOrders");
+        log("  resetLiveOrders");
         m_liveOrders = null;
     }
 

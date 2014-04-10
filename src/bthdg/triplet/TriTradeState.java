@@ -64,22 +64,20 @@ public enum TriTradeState {
 
     private static void allExecuted(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
         OnePegCalcData peg = triTradeData.m_peg;
-//        TriangleRotationCalcData rotationData = peg.m_parent;
-//        Triangle triangle = rotationData.m_triangle;
-//            String name = triangle.name();
+        boolean doMktOffset = triTradeData.m_doMktOffset;
         int startIndx = peg.m_indx;
-//        boolean rotationDirection = rotationData.m_forward;
-//            log(" " + name + "; start=" + startIndx + "; direction=" + rotationDirection);
 
         AccountData account = triangleData.m_account;
 
         OrderData order1 = triTradeData.m_order;
         OrderData order2 = triTradeData.m_mktOrders[0];
         OrderData order3 = triTradeData.m_mktOrders[1];
+        double price2 = doMktOffset ? peg.m_price2minus : peg.m_price2;
+        double price3 = doMktOffset ? peg.m_price3minus : peg.m_price3;
 
         double[] ends1 = order1.logOrderEnds(account, 1, peg.m_price1);
-        double[] ends2 = order2.logOrderEnds(account, 2, peg.m_price2);
-        double[] ends3 = order3.logOrderEnds(account, 3, peg.m_price3);
+        double[] ends2 = order2.logOrderEnds(account, 2, price2);
+        double[] ends3 = order3.logOrderEnds(account, 3, price3);
         Currency currency = order1.startCurrency();
         Currency endCurrency = order3.endCurrency();
         double amount1 = order1.startAmount();
@@ -114,33 +112,40 @@ public enum TriTradeState {
 
         double midMul = account.midMul(Triplet.s_startAccount);
 
-        triTradeData.log(" @@@@@@   ratio1=" + Utils.X_YYYYY.format(ratio1) + ";  ratio2=" + Utils.X_YYYYY.format(ratio2) +
-                ";  ratio3=" + Utils.X_YYYYY.format(ratio3) + ";    ratio=" + Utils.X_YYYYY.format(ratio) +
+        triTradeData.log(" @@@@@@   ratio1=" + format5(ratio1) + ";  ratio2=" + format5(ratio2) +
+                ";  ratio3=" + format5(ratio3) + ";    ratio=" + format5(ratio) +
                 "; executed in " + Utils.millisToDHMSStr(System.currentTimeMillis() - triTradeData.m_startTime));
-        triTradeData.log(" @@@@@@   in=" + Utils.X_YYYYY.format(in) + ";  out=" + Utils.X_YYYYY.format(out) +
-                "; out-in=" + Utils.X_YYYYY.format(out - in) + " " + currency + ";  gain=" + Utils.X_YYYYY.format(gain) +
-                "; level=" + Triplet.s_level + ";  totalRatio=" + Utils.X_YYYYY.format(Triplet.s_totalRatio) +
-                "; millis=" + System.currentTimeMillis() + "; valuateUsd=" + Utils.X_YYYYY.format(usdRate) +
-                "; valuateEur=" + Utils.X_YYYYY.format(eurRate) + "; midMul=" + Utils.X_YYYYY.format(midMul) +
+        triTradeData.log(" @@@@@@   in=" + format5(in) + ";  out=" + format5(out) +
+                "; out-in=" + format5(out - in) + " " + currency + ";  gain=" + format5(gain) +
+                "; level=" + Triplet.s_level + ";  totalRatio=" + format5(Triplet.s_totalRatio) +
+                "; millis=" + System.currentTimeMillis() + "; valuateUsd=" + format5(usdRate) +
+                "; valuateEur=" + format5(eurRate) + "; midMul=" + format5(midMul) +
                 "; count=" + Triplet.s_counter);
-        triTradeData.log(" @@@@@@    peg: max=" + peg.m_max + "; startIndx=" + startIndx + "; need=" + peg.m_need +
-                "; price1=" + peg.m_price1 + "; p1=" + peg.m_pair1 +
-                "; price2=" + peg.m_price2 + "; p2=" + peg.m_pair2 +
-                "; price3=" + peg.m_price3 + "; p3=" + peg.m_pair3);
+        triTradeData.log(" @@@@@@    peg: max=" + format5(peg.m_max) +
+                "; max10=" + format5(peg.m_max10) + "; startIndx=" + startIndx +
+                "; need=" + format5(peg.m_need) +
+                "; price1=" + Exchange.BTCE.roundPrice(peg.m_price1, peg.m_pair1.m_pair) + "; p1=" + peg.m_pair1 +
+                "; price2=" + Exchange.BTCE.roundPrice(price2, peg.m_pair2.m_pair) + "; p2=" + peg.m_pair2 +
+                "; price3=" + Exchange.BTCE.roundPrice(price3, peg.m_pair3.m_pair) + "; p3=" + peg.m_pair3
+        );
 
         if (gain > 1) {
             if (Triplet.s_level > Triplet.LVL2) {
                 double level = Triplet.s_level;
                 Triplet.s_level = (Triplet.s_level - Triplet.LVL) / 1.2 + Triplet.LVL;
                 Triplet.s_level = Math.max(Triplet.s_level, Triplet.LVL2);
-                triTradeData.log(" LEVEL decreased from " + Utils.X_YYYYY.format(level) + " to " + Utils.X_YYYYY.format(Triplet.s_level));
+                triTradeData.log(" LEVEL decreased from " + format5(level) + " to " + format5(Triplet.s_level));
             }
         } else {
             double level = Triplet.s_level;
             Triplet.s_level = (Triplet.s_level - Triplet.LVL) * 1.3 + Triplet.LVL;
-            triTradeData.log(" LEVEL increased from " + Utils.X_YYYYY.format(level) + " to " + Utils.X_YYYYY.format(Triplet.s_level));
+            triTradeData.log(" LEVEL increased from " + format5(level) + " to " + format5(Triplet.s_level));
         }
         triTradeData.setState(DONE);
+    }
+
+    private static String format5(double ratio1) {
+        return Utils.X_YYYYY.format(ratio1);
     }
 
     private static void checkMktPlaced(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
@@ -148,14 +153,15 @@ public enum TriTradeState {
         int indx = num - 1;
         OrderData order = triTradeData.m_mktOrders[indx];
         String orderStr = (order != null) ? order.toString(Exchange.BTCE) : null;
-        triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + triTradeData.m_peg.name() + ") - check order " + orderStr + " ...");
+        String name = triTradeData.m_peg.name();
+        triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + name + ") - check order " + orderStr + " ...");
         if (order == null) { // move mkt order can be unsuccessful - cancel fine, but placing failed - just start mkt again
             triTradeData.log(" no MKT order " + num + " - placing new " + (isFirst ? "1st" : "2nd") + " MKT order...");
             triTradeData.startMktOrder(iData, triangleData, num, stateForFilled);
         } else {
             order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
             triangleData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, stateForFilled);
-            if(!order.isFilled()) {
+            if (!order.isFilled()) {
                 orderStr = order.toString(Exchange.BTCE);
                 Pair pair = order.m_pair;
                 TopData top = iData.getTop(Exchange.BTCE, pair);
@@ -164,11 +170,13 @@ public enum TriTradeState {
                 double orderPrice = order.m_price;
                 double absPriceDif = Math.abs(orderPrice - mktPrice);
                 double minPriceStep = Exchange.BTCE.minPriceStep(pair);
-                if(absPriceDif > minPriceStep) {
-                    triTradeData.log("MKT order " + num + " run out of market: " + orderStr + ";  top=" + topStr);
+                if (absPriceDif > minPriceStep) {
+                    String bidPriceStr = Exchange.BTCE.roundPriceStr(top.m_bid, pair);
+                    String askPriceStr = Exchange.BTCE.roundPriceStr(top.m_ask, pair);
+                    triTradeData.log("MKT order " + num + " run out of market: [" + bidPriceStr + "; " + orderStr + "; " + askPriceStr + "]: " + orderStr);
                     if (triangleData.cancelOrder(order, iData)) {
                         triTradeData.m_mktOrders[indx] = null;
-                        triTradeData.log("placing new " + (isFirst ? "1st" : "1nd") + " MKT order...");
+                        triTradeData.log("placing new " + (isFirst ? "1st" : "2nd") + " MKT order...");
                         triTradeData.startMktOrder(iData, triangleData, num, stateForFilled);
                     } else {
                         triTradeData.log("cancel order failed: " + orderStr);
@@ -178,7 +186,7 @@ public enum TriTradeState {
                 }
             }
         }
-        triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + triTradeData.m_peg.name() + ") END");
+        triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + name + ") END");
     }
 
     public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {}
