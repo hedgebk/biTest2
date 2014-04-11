@@ -33,8 +33,19 @@ public class TrianglesCalcData extends ArrayList<TriangleCalcData> {
             sb.append("\t******************************");
         }
         sb.append("\n");
+        boolean mktCrossLvl2 = false;
+        boolean mktCrossLvl3 = false;
         for (TriangleCalcData t : this) {
             sb.append(t.str2());
+            mktCrossLvl2 |= t.mktCrossLvl2();
+            mktCrossLvl3 |= t.mktCrossLvl3();
+        }
+        if (mktCrossLvl2) {
+            sb.append("\t::::::::::::::::::::::::::::::");
+        } else {
+            if (mktCrossLvl3) {
+                sb.append("\t..............................");
+            }
         }
         return sb.toString();
     }
@@ -45,5 +56,11 @@ public class TrianglesCalcData extends ArrayList<TriangleCalcData> {
             triangle.findBestMap(ret);
         }
         return ret;
+    }
+
+    public void checkMkt() {
+        for (TriangleCalcData triangle : this) {
+            triangle.checkMkt();
+        }
     }
 }

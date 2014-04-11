@@ -35,27 +35,30 @@ public class Btce extends BaseExch {
     private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
     private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
     private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
     private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
-    static {                      // minPriceStep           minAmountStep   minOrderToCreate
-        put(Pair.LTC_USD, "0.0000",  0.0001,  "0.0#######", 0.00000001,     0.1);
-        put(Pair.LTC_BTC, "0.00000", 0.00001, "0.0#######", 0.00000001,     0.1);
-        put(Pair.BTC_USD, "0.000",   0.001,   "0.0#######", 0.00000001,     0.01);
-        put(Pair.LTC_EUR, "0.000",   0.001,   "0.0#######", 0.00000001,     0.1);
-        put(Pair.BTC_EUR, "0.00000", 0.00005, "0.0#######", 0.00000001,     0.01);
-        put(Pair.EUR_USD, "0.0000",  0.0001,  "0.0#######", 0.00000001,     1);
+    static {                       // minExchPriceStep  minOurPriceStep                 minAmountStep   minOrderToCreate
+        put(Pair.LTC_USD, "0.000000", 0.000001,         0.000005,        "0.0#######",  0.00000001,     0.1);
+        put(Pair.LTC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
+        put(Pair.BTC_USD, "0.000",    0.001,            0.001,           "0.0#######",  0.00000001,     0.01);
+        put(Pair.LTC_EUR, "0.000",    0.001,            0.001,           "0.0#######",  0.00000001,     0.1);
+        put(Pair.BTC_EUR, "0.00000",  0.00001,          0.00005,         "0.0#######",  0.00000001,     0.01);
+        put(Pair.EUR_USD, "0.00000",  0.00001,          0.00005,         "0.0#######",  0.00000001,     1);
     }
 
-    private static void put(Pair pair, String format, double minPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
+    private static void put(Pair pair, String format, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
         s_amountFormatMap.put(pair, mkFormat(amountFormat));
         s_minAmountStepMap.put(pair, minAmountStep);
         s_priceFormatMap.put(pair, mkFormat(format));
-        s_minPriceStepMap.put(pair, minPriceStep);
+        s_minExchPriceStepMap.put(pair, minExchPriceStep);
+        s_minOurPriceStepMap.put(pair, minOurPriceStep);
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
     }
 
-    public static double minPriceStep(Pair pair) { return s_minPriceStepMap.get(pair); }
+    public static double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
+    public static double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
     public static double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
     public static double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
 

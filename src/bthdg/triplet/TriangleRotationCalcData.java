@@ -79,6 +79,14 @@ public class TriangleRotationCalcData {
         return (m_mkt > Triplet.LVL);
     }
 
+    public boolean mktCrossLvl2() {
+        return (m_mktMinus10 > Triplet.LVL);
+    }
+
+    public boolean mktCrossLvl3() {
+        return (m_mktMinus20 > Triplet.LVL);
+    }
+
     public void findBestMap(TreeMap<Double, OnePegCalcData> ret) {
         findBestMap(ret, 0);
         findBestMap(ret, 1);
@@ -89,5 +97,9 @@ public class TriangleRotationCalcData {
         OnePegCalcData peg = m_pegs[indx];
         double key = peg.m_max;
         ret.put(1 / key, peg); // 1/key - to make items appears from high to low
+    }
+
+    public void checkMkt() {
+        //
     }
 }

@@ -1,6 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
+import bthdg.exch.Btce;
 import bthdg.exch.TopData;
 import bthdg.exch.TopsData;
 
@@ -72,10 +73,12 @@ public enum TriTradeState {
         OrderData order1 = triTradeData.m_order;
         OrderData order2 = triTradeData.m_mktOrders[0];
         OrderData order3 = triTradeData.m_mktOrders[1];
+
+        double price1 = peg.m_price1;
         double price2 = doMktOffset ? peg.m_price2minus : peg.m_price2;
         double price3 = doMktOffset ? peg.m_price3minus : peg.m_price3;
 
-        double[] ends1 = order1.logOrderEnds(account, 1, peg.m_price1);
+        double[] ends1 = order1.logOrderEnds(account, 1, price1);
         double[] ends2 = order2.logOrderEnds(account, 2, price2);
         double[] ends3 = order3.logOrderEnds(account, 3, price3);
         Currency currency = order1.startCurrency();
@@ -121,10 +124,10 @@ public enum TriTradeState {
                 "; millis=" + System.currentTimeMillis() + "; valuateUsd=" + format5(usdRate) +
                 "; valuateEur=" + format5(eurRate) + "; midMul=" + format5(midMul) +
                 "; count=" + Triplet.s_counter);
-        triTradeData.log(" @@@@@@    peg: max=" + format5(peg.m_max) +
-                "; max10=" + format5(peg.m_max10) + "; startIndx=" + startIndx +
+        triTradeData.log(" @@@@@@    peg: max"+(doMktOffset?"":"*")+"=" + format5(peg.m_max) +
+                "; max10"+(doMktOffset?"*":"")+"=" + format5(peg.m_max10) + "; startIndx=" + startIndx +
                 "; need=" + format5(peg.m_need) +
-                "; price1=" + Exchange.BTCE.roundPrice(peg.m_price1, peg.m_pair1.m_pair) + "; p1=" + peg.m_pair1 +
+                "; price1=" + Exchange.BTCE.roundPrice(price1, peg.m_pair1.m_pair) + "; p1=" + peg.m_pair1 +
                 "; price2=" + Exchange.BTCE.roundPrice(price2, peg.m_pair2.m_pair) + "; p2=" + peg.m_pair2 +
                 "; price3=" + Exchange.BTCE.roundPrice(price3, peg.m_pair3.m_pair) + "; p3=" + peg.m_pair3
         );
@@ -138,7 +141,7 @@ public enum TriTradeState {
             }
         } else {
             double level = Triplet.s_level;
-            Triplet.s_level = (Triplet.s_level - Triplet.LVL) * 1.3 + Triplet.LVL;
+            Triplet.s_level = (Triplet.s_level - Triplet.LVL) * 1.4 + Triplet.LVL;
             triTradeData.log(" LEVEL increased from " + format5(level) + " to " + format5(Triplet.s_level));
         }
         triTradeData.setState(DONE);
@@ -168,12 +171,13 @@ public enum TriTradeState {
                 String topStr = top.toString(Exchange.BTCE, pair);
                 double mktPrice = order.m_side.mktPrice(top);
                 double orderPrice = order.m_price;
+                String orderPriceStr = Exchange.BTCE.roundPriceStr(orderPrice, pair);
+                String bidPriceStr = Exchange.BTCE.roundPriceStr(top.m_bid, pair);
+                String askPriceStr = Exchange.BTCE.roundPriceStr(top.m_ask, pair);
                 double absPriceDif = Math.abs(orderPrice - mktPrice);
-                double minPriceStep = Exchange.BTCE.minPriceStep(pair);
+                double minPriceStep = Btce.minExchPriceStep(pair);
                 if (absPriceDif > minPriceStep) {
-                    String bidPriceStr = Exchange.BTCE.roundPriceStr(top.m_bid, pair);
-                    String askPriceStr = Exchange.BTCE.roundPriceStr(top.m_ask, pair);
-                    triTradeData.log("MKT order " + num + " run out of market: [" + bidPriceStr + "; " + orderStr + "; " + askPriceStr + "]: " + orderStr);
+                    triTradeData.log("MKT order " + num + " run out of market: [" + bidPriceStr + "; " + orderPriceStr + "; " + askPriceStr + "]: " + orderStr);
                     if (triangleData.cancelOrder(order, iData)) {
                         triTradeData.m_mktOrders[indx] = null;
                         triTradeData.log("placing new " + (isFirst ? "1st" : "2nd") + " MKT order...");
@@ -182,7 +186,8 @@ public enum TriTradeState {
                         triTradeData.log("cancel order failed: " + orderStr);
                     }
                 } else {
-                    triTradeData.log("MKT order " + num + " is on market bound - wait some more: " + orderStr + ";  top=" + topStr);
+                    triTradeData.log("MKT order " + num + " is on market bound: [" + bidPriceStr + "; " + orderPriceStr + "; " + askPriceStr + "]: " +
+                            "absPriceDif=" + Utils.X_YYYYYYYY.format(absPriceDif) + "; " + orderStr + ";  top=" + topStr);
                 }
             }
         }

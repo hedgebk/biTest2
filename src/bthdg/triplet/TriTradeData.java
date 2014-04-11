@@ -47,9 +47,13 @@ if((rate < 0.7) || (1.3 < rate)) {
         boolean forward = pd.m_forward;
         TopData topData = tops.get(pair);
         OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
-        double tryPrice = m_doMktOffset
+        double tryPrice = m_doMktOffset && (m_waitMktOrderStep < Triplet.WAIT_MKT_ORDER_STEPS)
                 ? Triangle.mktPrice(topData, pd, Triplet.MINUS_MKT_OFFSET)
                 : Triangle.mktPrice(topData, pd);
+
+        if(m_doMktOffset && (m_waitMktOrderStep >= Triplet.WAIT_MKT_ORDER_STEPS)) {
+            log("   no more sreps to do MKT offset - will use mkt price = " + tryPrice);
+        }
 
         // evaluate current mkt prices
         Double limitPrice = calcLimitPrice(num, account, tops, pair, forward, topData, side, tryPrice);
@@ -157,7 +161,8 @@ if((rate < 0.7) || (1.3 < rate)) {
                     "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Exchange.BTCE, pair) +
                     "; mid=" + midStr);
 
-            if (m_waitMktOrderStep++ < Triplet.WAIT_MKT_ORDER_STEPS) {
+            int attempt = m_waitMktOrderStep++;
+            if ( attempt < Triplet.WAIT_MKT_ORDER_STEPS) {
                 if ((topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
                     boolean betweenMidMkt = side.isBuy()
                             ? ((mid > zeroProfitPrice) && (zeroProfitPrice > mktPrice))
@@ -170,24 +175,21 @@ if((rate < 0.7) || (1.3 < rate)) {
                     }
                 } else {
                     log("    ! zero_Profit_Price is outside of mkt edges");
-                    double priceAdd = (mktPrice - mid) * (m_waitMktOrderStep - 1) / Triplet.WAIT_MKT_ORDER_STEPS;
+                    double priceAdd = (mktPrice - mid) * attempt / Triplet.WAIT_MKT_ORDER_STEPS;
                     limitPrice = mid + priceAdd;
                     String priceAddStr = Exchange.BTCE.roundPriceStr(priceAdd, pair);
                     log("     wait some time - try with mid->mkt orders first: mkt=" + mktPrice + "; mid=" + midStr +
-                            "; step=" + m_waitMktOrderStep + "; priceAdd=" + priceAddStr + ", lmtPrice=" + mktPriceStr);
+                            "; step=" + attempt + "; priceAdd=" + priceAddStr + ", lmtPrice=" + mktPriceStr);
                     if ((mktPrice > topData.m_ask) || (topData.m_bid > mktPrice)) {
                         log("     ! calculated price is out of mkt bounds : use mid: " + mid);
                         limitPrice = mid;
                     }
                 }
             } else {
-                log("   we run out of waitMktOrder attempts. placing MKT(" + num + ") @ mkt price " + mktPriceStr);
-// todo: nothing to do - place non mkt order, but still profitable / zero / loss decreased
-                m_waitMktOrderStep = 0;
+                log("   we run out of waitMktOrder attempts (" + attempt + "). placing MKT" + num + " @ mkt price " + mktPriceStr);
             }
-        } else {
+        } else { // all fine - ratio is profitable
             // todo - try e.g. mkt-10 first  to get better profit
-            m_waitMktOrderStep = 0;
         }
         return mktPrice;
     }

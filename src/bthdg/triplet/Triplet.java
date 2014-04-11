@@ -7,8 +7,12 @@ import java.util.*;
 
 /**
  * - try place brackets for non-profitable pairs / sorted by trades num
- * - try to place inner mkt order before mkt
  * - try adjust account if no profitables found
+ * - drop very long running MKT orders - should be filled in 1-2 steps
+ * - try to fix disbalance on account sync - at lest place mkt from bigger to lower
+ * - drop when on MKT and BIG LOSS @ totalRatio ~=0.99
+ * - check orders an cancel on STOP
+ * -  do not start new peg orders if we have running non-peg - they need to be executed quickly
  *
  * - stats:                                                              ratio       btc
  *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
@@ -78,23 +82,34 @@ import java.util.*;
  * account: AccountData{name='btce' funds={LTC=2.97341, USD=20.77583, BTC=0.03767, EUR=11.51558}; allocated={} , fee=0.002}  evaluateEur: 64.28155 evaluateUsd: 85.96322
  * account: AccountData{name='btce' funds={BTC=0.04019, LTC=2.97341, USD=20.75292, EUR=11.24278}; allocated={} , fee=0.002}  evaluateEur: 62.66591 evaluateUsd: 82.81530
  * account: AccountData{name='btce' funds={EUR=10.97564, LTC=3.09816, BTC=0.03879, USD=19.75331}; allocated={} , fee=0.002}  evaluateEur: 60.75445 evaluateUsd: 81.99110
+ * account: AccountData{name='btce' funds={BTC=0.03826, LTC=3.10910, EUR=10.77592, USD=19.38016}; allocated={} , fee=0.002}  evaluateEur: 58.46791 evaluateUsd: 79.14658
+ * account: AccountData{name='btce' funds={EUR=10.85752, USD=19.55631, BTC=0.04219, LTC=3.59753}; allocated={} , fee=0.002}  evaluateEur: 60.17619 evaluateUsd: 80.96285
+ * account: AccountData{name='btce' funds={LTC=3.61514, EUR=10.31013, USD=18.71340, BTC=0.04729}; allocated={} , fee=0.002}  evaluateEur: 60.10606 evaluateUsd: 81.39723
+ * account: AccountData{name='btce' funds={LTC=12.15273, EUR=33.79188, USD=61.99164, BTC=0.14316}; allocated={} , fee=0.002} evaluateEur: 187.22232 evaluateUsd: 255.17610
+ * account: AccountData{name='btce' funds={BTC=0.14293, LTC=11.36785, USD=71.99854, EUR=39.60616}; allocated={} , fee=0.002} evaluateEur: 223.86317 evaluateUsd: 307.83647
+ * account: AccountData{name='btce' funds={LTC=11.57169, USD=72.10936, BTC=0.14402, EUR=39.60617}; allocated={} , fee=0.002} evaluateEur: 225.69962 evaluateUsd: 308.03827
+ * account: AccountData{name='btce' funds={BTC=0.14229, USD=72.09173, LTC=11.45220, EUR=40.80059}; allocated={} , fee=0.002} evaluateEur: 226.73370 evaluateUsd: 309.29524
+ * account: AccountData{name='btce' funds={EUR=40.80059, USD=72.05188, BTC=0.14229, LTC=11.50326}; allocated={} , fee=0.002} evaluateEur: 225.27491 evaluateUsd: 304.56961
+ * account: AccountData{name='btce' funds={EUR=40.80059, USD=72.05188, BTC=0.14229, LTC=11.50326}; allocated={} , fee=0.002} evaluateEur: 227.08010 evaluateUsd: 308.48368
+ * account: AccountData{name='btce' funds={EUR=40.75439, USD=72.05188, BTC=0.14229, LTC=11.50836}; allocated={} , fee=0.002} evaluateEur: 226.81183 evaluateUsd: 307.42652
+ * account: AccountData{name='btce' funds={BTC=0.14355, EUR=43.12330, USD=70.45480, LTC=11.31590}; allocated={} , fee=0.002} evaluateEur: 227.41484 evaluateUsd: 310.18520
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
-    public static final boolean ONLY_ONE_ACTIVE_TRIANGLE = false;
+    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 4;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.69; // min target level
+    public static final double LVL2 = 100.68; // min target level
     public static final double USE_ACCOUNT_FUNDS = 0.94;
-    public static final int WAIT_MKT_ORDER_STEPS = 0;
+    public static final int WAIT_MKT_ORDER_STEPS = 1;
     public static final int ITERATIONS_SLEEP_TIME = 3000; // sleep between iterations
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
     public static final boolean TRY_WITH_MKT_OFFSET = true;
-    public static final double MINUS_MKT_OFFSET = 0.10; // mkt - 10%
+    public static final double MINUS_MKT_OFFSET = 0.13; // mkt - 10%
 
     public static double s_totalRatio = 1;
     public static int s_counter = 0;
@@ -116,6 +131,7 @@ public class Triplet {
 
     public static void main(String[] args) {
         System.out.println("Started");
+
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
         Btce.LOG_PARSE = false;
@@ -125,24 +141,15 @@ public class Triplet {
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.99;
         Btce.BTCE_TRADES_IN_REQUEST = LOAD_TRADES_NUM;
 
+        if (TRY_WITH_MKT_OFFSET && WAIT_MKT_ORDER_STEPS < 1) {
+            System.out.println("WARNING: TRY_WITH_MKT_OFFSET used but WAIT_MKT_ORDER_STEPS=" + WAIT_MKT_ORDER_STEPS);
+        }
+
         try {
             TradesAggregator tAgg = new TradesAggregator();
             tAgg.load();
 
-            Console.ConsoleReader consoleReader = new Console.ConsoleReader() {
-                @Override protected void beforeLine() {}
-
-                @Override protected boolean processLine(String line) throws Exception {
-                    if (line.equals("stop")) {
-                        System.out.println("~~~~~~~~~~~ stopRequested ~~~~~~~~~~~");
-                        s_stopRequested = true;
-                        return true;
-                    } else {
-                        System.out.println("~~~~~~~~~~~ command ignored: " + line);
-                    }
-                    return false;
-                }
-            };
+            Console.ConsoleReader consoleReader = new IntConsoleReader();
             consoleReader.start();
 
             try {
@@ -160,13 +167,13 @@ public class Triplet {
                     td.checkState(iData); // <<---------------------------------------------------------------------<<
 
                     int sleep = ITERATIONS_SLEEP_TIME;
-                    if(td.m_triTrades.isEmpty()) {
-                        if( s_stopRequested ) {
+                    if (td.m_triTrades.isEmpty()) {
+                        if (s_stopRequested) {
                             System.out.println("stopRequested; nothing to process - exit");
                             break;
                         }
                         td.m_account = syncAccountIfNeeded(td.m_account);
-                        sleep += sleep/2;
+                        sleep += sleep / 2;
 
                         if (s_level > LVL2) {
                             double level = s_level;
@@ -320,5 +327,20 @@ public class Triplet {
 
     private static void log(String s) {
         Log.log(s);
+    }
+
+    private static class IntConsoleReader extends Console.ConsoleReader {
+        @Override protected void beforeLine() {}
+
+        @Override protected boolean processLine(String line) throws Exception {
+            if (line.equals("stop")) {
+                System.out.println("~~~~~~~~~~~ stopRequested ~~~~~~~~~~~");
+                s_stopRequested = true;
+                return true;
+            } else {
+                System.out.println("~~~~~~~~~~~ command ignored: " + line);
+            }
+            return false;
+        }
     }
 }

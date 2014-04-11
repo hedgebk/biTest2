@@ -104,7 +104,7 @@ public class Console {
 
                 for (Currency currencyIn : Currency.values()) {
                     double inValue = account.getAllValue(currencyIn);
-                    String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn;
+                    String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn + " ";
                     Double rate = s_distributeRatio.get(currencyIn);
                     for (Currency currencyOut : Currency.values()) {
                         double converted = (currencyIn == currencyOut)
@@ -212,7 +212,7 @@ public class Console {
                     } else if (priceStr.equals("peg")) { // place peg
                         TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
                         TopData top = tops.get(pair);
-                        double step = Exchange.BTCE.minPriceStep(pair);
+                        double step = Btce.minOurPriceStep(pair);
                         limitPrice = side.pegPrice(top, step);
                     } else if (priceStr.equals("mid")) { // place mid
                         TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);

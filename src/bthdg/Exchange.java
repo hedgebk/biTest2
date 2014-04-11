@@ -52,7 +52,7 @@ public enum Exchange {
         @Override public boolean retryFetch(Object obj) { return Btce.retryFetch(obj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, options); }
-        @Override public double minPriceStep(Pair pair) { return Btce.minPriceStep(pair); }
+        @Override public double minPriceStep(Pair pair) { return Btce.minExchPriceStep(pair); }
         @Override public double minAmountStep(Pair pair) { return Btce.minAmountStep(pair); }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD

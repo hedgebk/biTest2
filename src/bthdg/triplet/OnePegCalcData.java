@@ -7,14 +7,14 @@ import java.util.Map;
 
 public class OnePegCalcData {
     public int m_indx;
-    public double m_max;
-    public double m_max10;
+    public double m_max; // peg -> mkt -> mkt
+    public double m_max10; // peg -> mkt-10 -> mkt-10
     public TriangleRotationCalcData m_parent;
     public double m_price1;
     public double m_price2;
-    public double m_price2minus;
+    public double m_price2minus; // mkt-10
     public double m_price3;
-    public double m_price3minus;
+    public double m_price3minus; // mkt-10
     public PairDirection m_pair1;
     public PairDirection m_pair2;
     public PairDirection m_pair3;

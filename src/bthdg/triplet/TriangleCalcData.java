@@ -34,8 +34,21 @@ public class TriangleCalcData {
         return m_forward.mktCrossLvl() || m_backward.mktCrossLvl();
     }
 
+    public boolean mktCrossLvl2() {
+        return m_forward.mktCrossLvl2() || m_backward.mktCrossLvl2();
+    }
+
+    public boolean mktCrossLvl3() {
+        return m_forward.mktCrossLvl3() || m_backward.mktCrossLvl3();
+    }
+
     public void findBestMap(TreeMap<Double, OnePegCalcData> ret) {
         m_forward.findBestMap(ret);
         m_backward.findBestMap(ret);
+    }
+
+    public void checkMkt() {
+        m_forward.checkMkt();
+        m_backward.checkMkt();
     }
 }
