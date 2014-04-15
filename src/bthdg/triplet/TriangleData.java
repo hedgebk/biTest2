@@ -22,36 +22,39 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
     public void checkState(IterationData iData) throws Exception {
         checkOrdersState(iData, this);
 
-        for (int i = 0; i < 5; i++) { // try only 5 times
-            long millis = iData.millisFromTopsLoad();
-            if (millis > 900) { // much time passed from tops loading to consider new triangles
-                iData.resetTops(); // recalculate top/best data
-                System.out.println(" !! much time passed from tops loading (" + millis + "ms) - recalculate top/best data");
-            }
-
-            TopsData tops = iData.getTops();
-            TrianglesCalcData trianglesCalc = TrianglesCalcData.calc(tops);
-            log(trianglesCalc.str());
-
-            TreeMap<Double, OnePegCalcData> bestMap = trianglesCalc.findBestMap();
-            checkOrdersToLive(bestMap, tops, iData);
-
-            if (Triplet.s_stopRequested) {
-                System.out.println("stopRequested: do not check for NEW - process only existing");
-            } else if (Triplet.s_notEnoughFundsCounter > 5) {
-                System.out.println("warning: notEnoughFundsCounter=" + Triplet.s_notEnoughFundsCounter + " - need account sync: do not check for NEW - process only existing");
-            } else {
-                millis = iData.millisFromTopsLoad();
-                if (millis > 1000) { // much time passed from last Tops loading to consider new triangles
-                    continue;
-                }
-//                checkMkt(iData, trianglesCalc, tops);
-                checkNew(iData, bestMap, tops);
-            }
-            break;
+        long millis = iData.millisFromTopsLoad();
+        if (millis > 900) { // much time passed from tops loading to consider new triangles
+            iData.resetTops(); // recalculate top/best data
+            System.out.println(" !! much time passed from tops loading (" + millis + "ms) - recalculate top/best data");
         }
 
+        TopsData tops = iData.getTops();
+        TrianglesCalcData trianglesCalc = TrianglesCalcData.calc(tops);
+        log(trianglesCalc.str());
+
+        TreeMap<Double, OnePegCalcData> bestMap = trianglesCalc.findBestMap();
+        checkOrdersToLive(bestMap, tops, iData);
+
+        if (Triplet.s_stopRequested) {
+            System.out.println("stopRequested: do not check for NEW - process only existing");
+        } else if (Triplet.s_notEnoughFundsCounter > 5) {
+            System.out.println("warning: notEnoughFundsCounter=" + Triplet.s_notEnoughFundsCounter + " - need account sync: do not check for NEW - process only existing");
+        } else {
+            millis = iData.millisFromTopsLoad();
+            if (millis > 1000) { // much time passed from last Tops loading to consider new triangles
+                iData.resetTops(); // recalculate top/best data
+                System.out.println(" !! much time passed from tops loading (" + millis + "ms) - recalculate top/best data");
+
+                tops = iData.getTops();
+                trianglesCalc = TrianglesCalcData.calc(tops);
+                log(trianglesCalc.str());
+
+                bestMap = trianglesCalc.findBestMap();
+            }
+//                checkMkt(iData, trianglesCalc, tops);
+            checkNew(iData, bestMap, tops);
 //            checkBrackets(iData, bestMap, tops, m_account);
+        }
     }
 
     private void checkMkt(IterationData iData, TrianglesCalcData calc, TopsData tops) {
@@ -350,7 +353,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 level -= 0.02; // reduce level for pairs with higher liquidity
             }
 
-            if(maxPeg > 100.3) {
+            if(maxPeg > 100.4) {
                 log("BEST: max" + (doMktOffset ? "" : "*") + "=" + peg.m_max +
                         ", max10" + (doMktOffset ? "*" : "") + "=" + peg.m_max10 +
                         "; level=" + level + "; need=" + peg.m_need + ": " + peg.name());

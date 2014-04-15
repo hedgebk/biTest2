@@ -15,12 +15,13 @@ import java.util.*;
  * - drop when on MKT and BIG LOSS @ totalRatio <0.99
  * - for 'stop' command - cancel all active orders
  * - do not start new peg orders if we have running non-peg - they need to be executed quickly
- * - if no connectivity - increase delays between attempts - do not fail - there are ddos attacks
  * - calculate pegs over average top data using current and previous tick - do not eat 1 tick peaks
  * - give penalti on triangle+rotation base
  * - parallel trinagles processing - need logging upgrade (print prefix everywhere)
  *   - need int funds lock - other triangles cant use needed funds
  *   - then can run > 2 triangles at once/ no delays
+ * - blind mkt orders - after just filled peg
+ * - when MKT order is nonprofitable, but zeroProfit is close to mkt - try zero profit and without delay run mkt
  *
  * - stats:                                                              ratio       btc
  *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
@@ -128,21 +129,28 @@ import java.util.*;
  * account: AccountData{name='btce' funds={USD=76.12873, EUR=40.92109, BTC=0.13228, LTC=10.50140}; allocated={} , fee=0.002} evaluateEur: 230.01065 evaluateUsd: 313.65255
  * account: AccountData{name='btce' funds={LTC=10.50720, EUR=40.92109, BTC=0.13198, USD=76.12873}; allocated={} , fee=0.002} evaluateEur: 229.41584 evaluateUsd: 313.36692
  * account: AccountData{name='btce' funds={USD=76.12873, EUR=38.97734, LTC=10.73916, BTC=0.13198}; allocated={} , fee=0.002} evaluateEur: 228.76814 evaluateUsd: 311.96886
+ * account: AccountData{name='btce' funds={BTC=0.13194, USD=70.66981, EUR=41.20981, LTC=10.93878}; allocated={} , fee=0.002} evaluateEur: 230.57973 evaluateUsd: 314.73061
+ * account: AccountData{name='btce' funds={BTC=0.11195, LTC=10.04169, USD=80.31374, EUR=48.10936}; allocated={} , fee=0.002} evaluateEur: 244.71770 evaluateUsd: 334.77162
+ * account: AccountData{name='btce' funds={USD=81.06053, EUR=41.86075, BTC=0.11410, LTC=10.63675}; allocated={} , fee=0.002} evaluateEur: 242.27257 evaluateUsd: 327.84699
+ * account: AccountData{name='btce' funds={BTC=0.14920, USD=91.78109, EUR=42.79427, LTC=8.07585}; allocated={} , fee=0.002}  evaluateEur: 238.70857 evaluateUsd: 323.50813
+ * account: AccountData{name='btce' funds={USD=78.46747, EUR=42.91475, BTC=0.12655, LTC=9.92483}; allocated={} , fee=0.002}  evaluateEur: 238.57563 evaluateUsd: 324.58841
+ * account: AccountData{name='btce' funds={USD=77.20723, EUR=42.91475, LTC=9.92483, BTC=0.12887}; allocated={} , fee=0.002}  evaluateEur: 238.96654 evaluateUsd: 326.25728
+ * account: AccountData{name='btce' funds={EUR=42.91475, LTC=9.89044, USD=77.20723, BTC=0.12920}; allocated={} , fee=0.002}  evaluateEur: 240.68700 evaluateUsd: 328.22765
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
-    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 2;
+    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 4;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.70; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 0;
-    public static final boolean TRY_WITH_MKT_OFFSET = false;
-    public static final double MINUS_MKT_OFFSET = 0.10; // mkt - 10%
-    public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
+    public static final double LVL2 = 100.68; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 2;
+    public static final boolean TRY_WITH_MKT_OFFSET = true;
+    public static final double MINUS_MKT_OFFSET = 0.05; // mkt - 10%
+    public static final int ITERATIONS_SLEEP_TIME = 1500; // sleep between iterations
 
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
-    public static final double USE_ACCOUNT_FUNDS = 0.95;
+    public static final double USE_ACCOUNT_FUNDS = 0.94;
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
