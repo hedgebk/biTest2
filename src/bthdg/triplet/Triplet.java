@@ -7,12 +7,20 @@ import java.util.*;
 
 /**
  * - try place brackets for non-profitable pairs / sorted by trades num
- * - try adjust account if no profitables found
- * - drop very long running MKT orders - should be filled in 1-2 steps
- * - try to fix disbalance on account sync - at lest place mkt from bigger to lower
- * - drop when on MKT and BIG LOSS @ totalRatio ~=0.99
- * - check orders an cancel on STOP
- * -  do not start new peg orders if we have running non-peg - they need to be executed quickly
+ * - try adjust account
+ *   - better to place pegs on void iterations
+ *   - try to fix disbalance on account sync - at least place mkt from bigger to lower
+ *   - leave some amount on low funds nodes (while processing MKT prices)
+ * - drop very long running MKT orders - should be filled in 1-3 steps
+ * - drop when on MKT and BIG LOSS @ totalRatio <0.99
+ * - for 'stop' command - cancel all active orders
+ * - do not start new peg orders if we have running non-peg - they need to be executed quickly
+ * - if no connectivity - increase delays between attempts - do not fail - there are ddos attacks
+ * - calculate pegs over average top data using current and previous tick - do not eat 1 tick peaks
+ * - give penalti on triangle+rotation base
+ * - parallel trinagles processing - need logging upgrade (print prefix everywhere)
+ *   - need int funds lock - other triangles cant use needed funds
+ *   - then can run > 2 triangles at once/ no delays
  *
  * - stats:                                                              ratio       btc
  *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
@@ -93,23 +101,51 @@ import java.util.*;
  * account: AccountData{name='btce' funds={EUR=40.80059, USD=72.05188, BTC=0.14229, LTC=11.50326}; allocated={} , fee=0.002} evaluateEur: 227.08010 evaluateUsd: 308.48368
  * account: AccountData{name='btce' funds={EUR=40.75439, USD=72.05188, BTC=0.14229, LTC=11.50836}; allocated={} , fee=0.002} evaluateEur: 226.81183 evaluateUsd: 307.42652
  * account: AccountData{name='btce' funds={BTC=0.14355, EUR=43.12330, USD=70.45480, LTC=11.31590}; allocated={} , fee=0.002} evaluateEur: 227.41484 evaluateUsd: 310.18520
+ * account: AccountData{name='btce' funds={LTC=11.13956, USD=74.60065, BTC=0.14169, EUR=41.74470}; allocated={} , fee=0.002} evaluateEur: 227.43251 evaluateUsd: 307.35967
+ * account: AccountData{name='btce' funds={BTC=0.13627, EUR=41.38254, LTC=11.03225, USD=77.10954}; allocated={} , fee=0.002} evaluateEur: 227.79516 evaluateUsd: 306.51334
+ * account: AccountData{name='btce' funds={BTC=0.14003, EUR=40.18754, USD=77.23637, LTC=11.07166}; allocated={} , fee=0.002} evaluateEur: 226.78828 evaluateUsd: 304.66485
+ * account: AccountData{name='btce' funds={USD=75.85451, LTC=11.21973, EUR=40.18754, BTC=0.13984}; allocated={} , fee=0.002} evaluateEur: 226.04917 evaluateUsd: 306.88534
+ * account: AccountData{name='btce' funds={USD=70.83242, EUR=40.18754, LTC=10.94649, BTC=0.14858}; allocated={} , fee=0.002} evaluateEur: 224.46079 evaluateUsd: 304.53489
+ * account: AccountData{name='btce' funds={USD=70.83242, BTC=0.14858, EUR=40.18754, LTC=10.71017}; allocated={} , fee=0.002} evaluateEur: 223.64223 evaluateUsd: 304.65268
+ * account: AccountData{name='btce' funds={BTC=0.14858, LTC=10.71017, USD=70.83242, EUR=40.18754}; allocated={} , fee=0.002} evaluateEur: 223.78147 evaluateUsd: 303.55591
+ * account: AccountData{name='btce' funds={BTC=0.14828, EUR=40.18754, USD=71.34032, LTC=10.44436}; allocated={} , fee=0.002} evaluateEur: 227.40522 evaluateUsd: 310.73877
+ * account: AccountData{name='btce' funds={LTC=10.42665, USD=75.70075, BTC=0.13800, EUR=40.22284}; allocated={} , fee=0.002} evaluateEur: 227.94654 evaluateUsd: 306.94649
+ * account: AccountData{name='btce' funds={LTC=10.34465, USD=75.76040, BTC=0.13800, EUR=40.22284}; allocated={} , fee=0.002} evaluateEur: 228.78097 evaluateUsd: 308.77125
+ * account: AccountData{name='btce' funds={BTC=0.14436, USD=76.14425, EUR=39.93247, LTC=10.19092}; allocated={} , fee=0.002} evaluateEur: 224.94338 evaluateUsd: 304.10089
+ * account: AccountData{name='btce' funds={USD=73.51231, EUR=40.15367, LTC=11.01263, BTC=0.14008}; allocated={} , fee=0.002} evaluateEur: 223.43266 evaluateUsd: 303.64127
+ * account: AccountData{name='btce' funds={LTC=11.15112, BTC=0.14034, EUR=38.92147, USD=73.51231}; allocated={} , fee=0.002} evaluateEur: 223.38719 evaluateUsd: 303.72223
+ * account: AccountData{name='btce' funds={LTC=11.62885, USD=70.31816, BTC=0.14385, EUR=38.13283}; allocated={} , fee=0.002} evaluateEur: 216.63639 evaluateUsd: 292.77171
+ * account: AccountData{name='btce' funds={BTC=0.14285, LTC=0.69773, USD=180.58583, EUR=38.13283}; allocated={} , fee=0.002} evaluateEur: 219.72764 evaluateUsd: 297.63049
+ * account: AccountData{name='btce' funds={LTC=11.43449, USD=71.12999, BTC=0.14285, EUR=38.14984}; allocated={} , fee=0.002} evaluateEur: 218.17511 evaluateUsd: 294.21111
+ * account: AccountData{name='btce' funds={EUR=39.62539, USD=72.67060, BTC=0.14252, LTC=10.87314}; allocated={} , fee=0.002} evaluateEur: 216.39233 evaluateUsd: 291.69602
+ * account: AccountData{name='btce' funds={LTC=0.65239, USD=72.51008, BTC=0.14157, EUR=115.57691}; allocated={} , fee=0.002} evaluateEur: 216.61190 evaluateUsd: 293.02641
+ * account: AccountData{name='btce' funds={BTC=0.13358, LTC=10.68740, EUR=37.41949, USD=76.54978}; allocated={} , fee=0.002} evaluateEur: 222.60919 evaluateUsd: 304.45624
+ * account: AccountData{name='btce' funds={LTC=10.62200, USD=76.54990, BTC=0.13284, EUR=37.41949}; allocated={} , fee=0.002} evaluateEur: 224.84136 evaluateUsd: 306.57886
+ * account: AccountData{name='btce' funds={LTC=10.71570, USD=75.48420, BTC=0.12982, EUR=37.41948}; allocated={} , fee=0.002} evaluateEur: 226.79691 evaluateUsd: 310.10622
+ * account: AccountData{name='btce' funds={BTC=0.13330, USD=74.47495, LTC=10.51983, EUR=40.12152}; allocated={} , fee=0.002} evaluateEur: 227.35024 evaluateUsd: 308.61603
+ * account: AccountData{name='btce' funds={EUR=40.12152, USD=77.25663, BTC=0.11311, LTC=11.09390}; allocated={} , fee=0.002} evaluateEur: 224.89306 evaluateUsd: 305.41613
+ * account: AccountData{name='btce' funds={BTC=0.13163, LTC=10.54027, USD=74.98176, EUR=40.92109}; allocated={} , fee=0.002} evaluateEur: 228.59803 evaluateUsd: 311.67522
+ * account: AccountData{name='btce' funds={USD=76.12873, EUR=40.92109, BTC=0.13228, LTC=10.50140}; allocated={} , fee=0.002} evaluateEur: 230.01065 evaluateUsd: 313.65255
+ * account: AccountData{name='btce' funds={LTC=10.50720, EUR=40.92109, BTC=0.13198, USD=76.12873}; allocated={} , fee=0.002} evaluateEur: 229.41584 evaluateUsd: 313.36692
+ * account: AccountData{name='btce' funds={USD=76.12873, EUR=38.97734, LTC=10.73916, BTC=0.13198}; allocated={} , fee=0.002} evaluateEur: 228.76814 evaluateUsd: 311.96886
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
-    public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
-    public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
-    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 4;
+    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 2;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.68; // min target level
-    public static final double USE_ACCOUNT_FUNDS = 0.94;
-    public static final int WAIT_MKT_ORDER_STEPS = 1;
-    public static final int ITERATIONS_SLEEP_TIME = 3000; // sleep between iterations
+    public static final double LVL2 = 100.70; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 0;
+    public static final boolean TRY_WITH_MKT_OFFSET = false;
+    public static final double MINUS_MKT_OFFSET = 0.10; // mkt - 10%
+    public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
+
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
+    public static final double USE_ACCOUNT_FUNDS = 0.95;
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
-    public static final boolean TRY_WITH_MKT_OFFSET = true;
-    public static final double MINUS_MKT_OFFSET = 0.13; // mkt - 10%
+    public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
+    public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
 
     public static double s_totalRatio = 1;
     public static int s_counter = 0;
@@ -196,8 +232,9 @@ public class Triplet {
     }
 
     private static AccountData syncAccountIfNeeded(AccountData account) throws Exception {
-        if (s_notEnoughFundsCounter > 3) {
-            System.out.println("!!!!!----- account is out of sync: " + account);
+        boolean gotFundDiff = account.m_gotFundDiff;
+        if ((s_notEnoughFundsCounter > 0) || gotFundDiff) {
+            System.out.println("!!!!!----- account is out of sync (notEnoughFundsCounter=" + s_notEnoughFundsCounter + ", gotFundDiff=" + gotFundDiff + "): " + account);
             AccountData newAccount = getAccount();
             if (newAccount != null) {
                 System.out.println(" synced with new Account: " + newAccount);

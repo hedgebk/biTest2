@@ -30,7 +30,9 @@ public class IterationData implements IIterationContext {
     @Override public Map<Pair, TradesData> fetchTrades(Exchange exchange) throws Exception { return getTrades(); }
     @Override public TopData getTop(Exchange exchange, Pair pair) throws Exception { return getTops().get(pair); }
     public long millisFromStart() { return System.currentTimeMillis() - m_startMillis; }
-    public long millisFromTopsLoad() { return System.currentTimeMillis() - m_topsLoadTime; }
+    public long millisFromTopsLoad() {
+        return (m_topsLoadTime == 0) ? 0 : System.currentTimeMillis() - m_topsLoadTime;
+    }
 
     public TopsData getTops() throws Exception {
         if (m_tops == null) {
@@ -49,6 +51,7 @@ public class IterationData implements IIterationContext {
     public void resetTops() {
         log("  resetTops");
         m_tops = null;
+        m_topsLoadTime = 0;
     }
 
     public Map<Pair, TradesData> getTrades() throws Exception {

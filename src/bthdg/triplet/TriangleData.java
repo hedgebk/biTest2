@@ -23,6 +23,12 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
         checkOrdersState(iData, this);
 
         for (int i = 0; i < 5; i++) { // try only 5 times
+            long millis = iData.millisFromTopsLoad();
+            if (millis > 900) { // much time passed from tops loading to consider new triangles
+                iData.resetTops(); // recalculate top/best data
+                System.out.println(" !! much time passed from tops loading (" + millis + "ms) - recalculate top/best data");
+            }
+
             TopsData tops = iData.getTops();
             TrianglesCalcData trianglesCalc = TrianglesCalcData.calc(tops);
             log(trianglesCalc.str());
@@ -35,10 +41,8 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
             } else if (Triplet.s_notEnoughFundsCounter > 5) {
                 System.out.println("warning: notEnoughFundsCounter=" + Triplet.s_notEnoughFundsCounter + " - need account sync: do not check for NEW - process only existing");
             } else {
-                long millis = iData.millisFromTopsLoad();
-                if (millis > 2000) { // much time passed from tops loading to consider new triangles
-                    iData.resetTops(); // recalculate top/best data
-                    System.out.println(" !! much time passed from tops loading (" + millis + "ms) - recalculate top/best data");
+                millis = iData.millisFromTopsLoad();
+                if (millis > 1000) { // much time passed from last Tops loading to consider new triangles
                     continue;
                 }
 //                checkMkt(iData, trianglesCalc, tops);
@@ -184,14 +188,28 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             if (peg1.equals(tradePeg)) {
                 double pegMax = doMktOffset ? peg1.m_max10 : peg1.m_max;
                 if (pegMax > Triplet.s_level) {
+
                     double pegPrice = peg1.calcPegPrice(tops);
                     OrderData order = triTrade.m_order;
                     double orderPrice = order.m_price;
+
+                    double ratio1 = tradePeg.pegRatio1(tops, m_account); // commission is applied to ratio
+                    double ratio2 = doMktOffset
+                                ? tradePeg.mktRatio2(tops, m_account, Triplet.MINUS_MKT_OFFSET)
+                                : tradePeg.mktRatio2(tops, m_account);
+                    double ratio3 = doMktOffset
+                        ? tradePeg.mktRatio3(tops, m_account, Triplet.MINUS_MKT_OFFSET )
+                        : tradePeg.mktRatio3(tops, m_account); // commission is applied to ratio
+                    double ratio = ratio1 * ratio2 * ratio3;
+                    triTrade.log("checkPegToLive() ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio);
 
                     double priceDif = Math.abs(pegPrice - orderPrice); // like 16.220010999999998 and 16.22001
                     double minOurPriceStep = Btce.minOurPriceStep(tradePeg.m_pair1.m_pair); // like 0.00001
                     double minExchPriceStep = Btce.minExchPriceStep(tradePeg.m_pair1.m_pair); // like 0.00001
                     if (priceDif < minOurPriceStep + minExchPriceStep) { // check if peg order needs to be moved - do not jump over itself - do not move if price change is too small
+                        if (ratio < 1) {
+                            log("warning: ratio < 1" + ratio);
+                        }
                         toLive = true;
                         triTrade.log("  peg to live (" + tradePeg.name() + "): pegMax=" + pegMax + "; tradePegMax=" + tradePeg.m_max +
                                 "; priceDif=" + order.roundPriceStr(Exchange.BTCE, priceDif) + ", pegPrice=" + pegPrice + "; order=" + order);
@@ -257,54 +275,95 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             List<TriTradeData> triTrades = new ArrayList<TriTradeData>(m_triTrades); // iterate over the copy - avoid concurrent modifications
             for (TriTradeData triTrade : triTrades) {
                 triTrade.checkState(iData, triangleData); // <---------------------------------
+                triTrade.m_iterationsNum++;
             }
         }
     }
 
     public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
         if (m_triTrades.size() >= Triplet.NUMBER_OF_ACTIVE_TRIANGLES) {
-            log("do not create new order - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
+            log("do not create new orders - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
             return; // do not create new order - NUMBER_OF_ACTIVE_TRIANGLES reached
         }
 //        boolean oneStarted = checkNew(iData, bestMap, tops, false);
 //        if (Triplet.TRY_WITH_MKT_OFFSET && !oneStarted) {  // no max trades started - try max10
 //            checkNew(iData, bestMap, tops, true);
 //        }
+
+        // resort by max10 with preferred
+        TreeMap<Double, OnePegCalcData> best10Map = new TreeMap<Double, OnePegCalcData>();
+        for (OnePegCalcData opcd : bestMap.values()) {
+            double key = 1 / opcd.m_max10;
+            Pair pair = opcd.m_pair1.m_pair;
+            if((pair == Pair.BTC_USD) || (pair == Pair.LTC_USD)) {
+                key /= 2; // prefer pairs with good liquidity
+            }
+            if(opcd.m_max10 - opcd.m_max > 0.1) {
+                key /= 1.5; // prefer pairs big max-max10 diff
+            }
+            best10Map.put(key, opcd);
+        }
+
+        // resort by max with preferred
+        TreeMap<Double, OnePegCalcData> bestMapPref = new TreeMap<Double, OnePegCalcData>();
+        for (OnePegCalcData opcd : bestMap.values()) {
+            double key = 1 / opcd.m_max;
+            Pair pair = opcd.m_pair1.m_pair;
+            if((pair == Pair.BTC_USD) || (pair == Pair.LTC_USD)) {
+                key /= 1.5; // prefer pairs with good liquidity
+            }
+            if(pair == Pair.LTC_BTC) {
+                key /= 1.25; // prefer pairs with good liquidity
+            }
+            bestMapPref.put(key, opcd);
+        }
+
         boolean oneStarted = false;
         if (Triplet.TRY_WITH_MKT_OFFSET ) {
-            oneStarted = checkNew(iData, bestMap, tops, true, true); // try max10 first with peg10>peg by 0.1
+            oneStarted = checkNew(iData, best10Map, tops, true); // try max10 with prefer sort
         }
         if (!oneStarted) {
-            oneStarted = checkNew(iData, bestMap, tops, false, false); // then try regular peg>level
+            oneStarted = checkNew(iData,
+                    bestMapPref,
+//                    bestMap,
+                    tops, false); // then try regular peg>level
             if (Triplet.TRY_WITH_MKT_OFFSET && !oneStarted) {
-                checkNew(iData, bestMap, tops, true, false); // then try the rest max10
+                checkNew(iData, bestMap, tops, true); // then try the rest max10
             }
         }
     }
 
     private boolean checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops,
-                             boolean doMktOffset, boolean onlyHighMax10) throws Exception {
+                             boolean doMktOffset) throws Exception {
         boolean oneStarted = false;
         for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
+            long millis = iData.millisFromTopsLoad();
+            if (millis > 1500) { // much time passed from tops loading to consider new triangles
+                System.out.println(" !! much time passed from tops loading (" + millis + "ms) - no more new");
+                break;
+            }
             OnePegCalcData peg = entry.getValue();
             double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
             double level = Triplet.s_level;
             Pair startPair = peg.m_pair1.m_pair;
             if ((startPair == Pair.LTC_BTC) || (startPair == Pair.BTC_USD) || (startPair == Pair.LTC_USD)) {
-                level -= 0.02; // lower level for pairs with higher liquidity
+                level -= 0.02; // reduce level for pairs with higher liquidity
             }
-            if ((maxPeg > level) && (!onlyHighMax10 || (peg.m_max10 - peg.m_max > 0.1)) ) {
+
+            if(maxPeg > 100.3) {
                 log("BEST: max" + (doMktOffset ? "" : "*") + "=" + peg.m_max +
-                        ", max10" + (doMktOffset ? "*" : "") + (onlyHighMax10 ? "*" : "") + "=" + peg.m_max10 +
+                        ", max10" + (doMktOffset ? "*" : "") + "=" + peg.m_max10 +
                         "; level=" + level + "; need=" + peg.m_need + ": " + peg.name());
+            }
+            if (maxPeg > level) {
                 if (m_triTrades.size() >= Triplet.NUMBER_OF_ACTIVE_TRIANGLES) {
                     log("do not create new order - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
-                    break; // do not create more orders
+                    continue; // do not create more orders
                 }
                 if (oneStarted) {
                     if (Triplet.START_ONE_TRIANGLE_PER_ITERATION) {
                         log("do not create more orders - START_ONE_TRIANGLE_PER_ITERATION");
-                        break; // do not start multiple trades in one iteration
+                        continue; // do not start multiple trades in one iteration
                     }
                 }
                 TriTradeData newTriTrade = createNewOne(iData, tops, peg, doMktOffset);

@@ -39,7 +39,7 @@ public class Fetcher {
     public static final PriceAlgo PRICE_ALGO = PriceAlgo.MARKET;
     private static final boolean DO_DB_DROP = true;
 
-    private static final int MAX_READ_ATTEMPTS = 100; // 5;
+    private static final int MAX_READ_ATTEMPTS = 500;
     public static final int START_REPEAT_DELAY = 200;
     public static final int REPEAT_DELAY_INCREMENT = 200;
 
@@ -317,7 +317,7 @@ public class Fetcher {
                 return obj;
             } catch (Exception e) {
                 if (!MUTE_SOCKET_TIMEOUTS || !(e instanceof SocketTimeoutException)) {
-                    log(" loading error (attempt " + attempt + "): " + e);
+                    log(" loading error (attempt " + attempt + ", currentDelay=" + delay + "ms): " + e);
                     e.printStackTrace();
                 }
             }

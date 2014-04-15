@@ -17,6 +17,7 @@ public class TriTradeData {
     public TriTradeState m_state = TriTradeState.PEG_PLACED;
     public int m_waitMktOrderStep;
     public boolean m_doMktOffset;
+    public int m_iterationsNum;
 
     public TriTradeData(OrderData order, OnePegCalcData peg, boolean doMktOffset) {
         this(System.currentTimeMillis(), null, order, peg, doMktOffset);
@@ -25,13 +26,6 @@ public class TriTradeData {
         m_startTime = startTime;
         m_id = generateId(parentId);
         m_doMktOffset = doMktOffset;
-
-double price = order.m_price;
-double priceFromPeg = peg.m_price1;
-double rate = price/priceFromPeg;
-if((rate < 0.7) || (1.3 < rate)) {
-    log("error: got: rate=" + rate);
-}
         m_order = order;
         m_peg = peg;
     }
@@ -47,17 +41,25 @@ if((rate < 0.7) || (1.3 < rate)) {
         boolean forward = pd.m_forward;
         TopData topData = tops.get(pair);
         OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
-        double tryPrice = m_doMktOffset && (m_waitMktOrderStep < Triplet.WAIT_MKT_ORDER_STEPS)
+        boolean withMktOffset = m_doMktOffset && (m_waitMktOrderStep < Triplet.WAIT_MKT_ORDER_STEPS);
+        double tryPrice = withMktOffset
                 ? Triangle.mktPrice(topData, pd, Triplet.MINUS_MKT_OFFSET)
                 : Triangle.mktPrice(topData, pd);
+        log("  calculated tryPrice" + (withMktOffset ? "*" : "") + "=" + tryPrice + "; side=" + side + "; top=" + topData.toString(Exchange.BTCE, pair));
 
-        if(m_doMktOffset && (m_waitMktOrderStep >= Triplet.WAIT_MKT_ORDER_STEPS)) {
-            log("   no more sreps to do MKT offset - will use mkt price = " + tryPrice);
+        if (m_doMktOffset && (m_waitMktOrderStep >= Triplet.WAIT_MKT_ORDER_STEPS)) {
+            log("   no more steps to do MKT offset - will use mkt price = " + tryPrice);
         }
 
         // evaluate current mkt prices
         Double limitPrice = calcLimitPrice(num, account, tops, pair, forward, topData, side, tryPrice);
-        if(limitPrice != null) {
+        if (limitPrice != null) {
+            if(limitPrice == Double.MAX_VALUE) {
+                log("!!!!!!!!!!!!!!!!    error. do not place MKT order");
+                setState(TriTradeState.ERROR);
+                return;
+            }
+            log("  replacing with limitPrice=" + limitPrice);
             tryPrice = limitPrice;
         }
 
@@ -149,7 +151,13 @@ if((rate < 0.7) || (1.3 < rate)) {
             : m_peg.mktRatio3(tops, account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
         log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio + ";  mktPrice=" + mktPriceStr);
+        int attempt = m_waitMktOrderStep++;
         if (ratio < 1) {
+            if (ratio < 0.99) {
+                log("!!!!!  MKT conditions gives too big loss. ratio=" + ratio + "; pair=" + pair + "; forward=" + forward +
+                        "; side=" + side + "; top=" + topData.toString(Exchange.BTCE, pair));
+                return Double.MAX_VALUE;
+            }
             double zeroProfitRatio = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
             double zeroProfitPrice = zeroProfitRatio / (1 - account.m_fee); // add commission
             if (side.isBuy()) {
@@ -161,7 +169,6 @@ if((rate < 0.7) || (1.3 < rate)) {
                     "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Exchange.BTCE, pair) +
                     "; mid=" + midStr);
 
-            int attempt = m_waitMktOrderStep++;
             if ( attempt < Triplet.WAIT_MKT_ORDER_STEPS) {
                 if ((topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
                     boolean betweenMidMkt = side.isBuy()

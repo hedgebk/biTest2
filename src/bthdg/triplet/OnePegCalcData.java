@@ -121,6 +121,12 @@ public class OnePegCalcData {
         return price;
     }
 
+    public double pegRatio1(Map<Pair, TopData> tops, AccountData account) {
+        double pegPrice = calcPegPrice(tops);
+        OrderSide side = m_pair1.getSide();
+        return (side.isBuy() ? 1 / pegPrice : pegPrice) * (1 - account.m_fee); // deduct commissions
+    }
+
     public double mktRatio2(Map<Pair, TopData> tops, AccountData account) {
         return mktRatio(tops, account, m_pair2);
     }

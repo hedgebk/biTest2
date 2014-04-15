@@ -8,11 +8,13 @@ import java.util.Iterator;
 import java.util.Map;
 
 public class AccountData {
+    public static final double FUND_DIFF_RATIO = 0.01;
     public final String m_name;
     public double m_fee;
                              // todo: serialize
     private final HashMap<Currency, Double> m_funds = new HashMap<Currency,Double>();
     private final HashMap<Currency, Double> m_allocatedFunds = new HashMap<Currency,Double>();
+    public boolean m_gotFundDiff;
 
     private static void log(String s) { Log.log(s); }
 
@@ -259,9 +261,10 @@ public class AccountData {
                     double diffAbs = Math.abs(value - other);
                     double maxAbs = Math.max(Math.abs(value), Math.abs(other));
                     double ratio = diffAbs / maxAbs;
-                    if( ratio > 0.01 ) { // log if more that 1%
+                    if( ratio > FUND_DIFF_RATIO) { // log if more that 1%
                         s += " fund diff: " + curr + " " + value + " " + other + ", diffAbs=" + diffAbs +
                                 ", maxAbs=" + maxAbs + ", ratio=" + ratio + ";";
+                        m_gotFundDiff = true;
                     }
                 }
             }

@@ -69,7 +69,7 @@ public enum OrderState {
 
     private static void checkOrderExecuted(IIterationContext iContext, Exchange exchange, OrderData orderData, AccountData account) throws Exception {
         OrdersData liveOrders = iContext.getLiveOrders(exchange);
-        if (liveOrders != null) {
+        if ((liveOrders != null) && (liveOrders.m_erorr == null)) {
             String orderId = orderData.m_orderId;
             OrdersData.OrdData ordData = liveOrders.getOrderData(orderId);
             Pair pair = orderData.m_pair;
@@ -113,6 +113,7 @@ public enum OrderState {
                 log("    order at result: " + orderData);
             }
         } else {
+            // sometimes we having here  'invalid nonce parameter; on key:1397515806, you sent:1397515020'
             log("  error loading liveOrder: " + liveOrders);
         }
     }

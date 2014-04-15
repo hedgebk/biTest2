@@ -117,7 +117,8 @@ public enum TriTradeState {
 
         triTradeData.log(" @@@@@@   ratio1=" + format5(ratio1) + ";  ratio2=" + format5(ratio2) +
                 ";  ratio3=" + format5(ratio3) + ";    ratio=" + format5(ratio) +
-                "; executed in " + Utils.millisToDHMSStr(System.currentTimeMillis() - triTradeData.m_startTime));
+                "; executed in " + Utils.millisToDHMSStr(System.currentTimeMillis() - triTradeData.m_startTime) +
+                "; iterations=" + triTradeData.m_iterationsNum );
         triTradeData.log(" @@@@@@   in=" + format5(in) + ";  out=" + format5(out) +
                 "; out-in=" + format5(out - in) + " " + currency + ";  gain=" + format5(gain) +
                 "; level=" + Triplet.s_level + ";  totalRatio=" + format5(Triplet.s_totalRatio) +
@@ -174,9 +175,9 @@ public enum TriTradeState {
                 String orderPriceStr = Exchange.BTCE.roundPriceStr(orderPrice, pair);
                 String bidPriceStr = Exchange.BTCE.roundPriceStr(top.m_bid, pair);
                 String askPriceStr = Exchange.BTCE.roundPriceStr(top.m_ask, pair);
-                double absPriceDif = Math.abs(orderPrice - mktPrice);
+                double absPriceDif = Exchange.BTCE.roundPrice(Math.abs(orderPrice - mktPrice), pair);
                 double minPriceStep = Btce.minExchPriceStep(pair);
-                if (absPriceDif > minPriceStep) {
+                if (absPriceDif >= minPriceStep) {
                     triTradeData.log("MKT order " + num + " run out of market: [" + bidPriceStr + "; " + orderPriceStr + "; " + askPriceStr + "]: " + orderStr);
                     if (triangleData.cancelOrder(order, iData)) {
                         triTradeData.m_mktOrders[indx] = null;

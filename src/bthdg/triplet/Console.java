@@ -1,5 +1,6 @@
-package bthdg;
+package bthdg.triplet;
 
+import bthdg.*;
 import bthdg.exch.*;
 
 import java.io.BufferedReader;
@@ -77,16 +78,6 @@ public class Console {
         }
     }
 
-
-
-    private static final Map<Currency,Double> s_distributeRatio = new HashMap<Currency, Double>();
-    static{
-        s_distributeRatio.put(Currency.LTC, 0.386206896);
-        s_distributeRatio.put(Currency.USD, 0.241379310);
-        s_distributeRatio.put(Currency.BTC, 0.193103448);
-        s_distributeRatio.put(Currency.EUR, 0.179310344);
-    }
-
     private static void doAccount(String line) throws Exception {
         AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
         if (account != null) {
@@ -105,7 +96,7 @@ public class Console {
                 for (Currency currencyIn : Currency.values()) {
                     double inValue = account.getAllValue(currencyIn);
                     String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn + " ";
-                    Double rate = s_distributeRatio.get(currencyIn);
+                    Double rate = FundMap.s_distributeRatio.get(currencyIn);
                     for (Currency currencyOut : Currency.values()) {
                         double converted = (currencyIn == currencyOut)
                                 ? inValue :
@@ -128,6 +119,7 @@ public class Console {
                     s +=  Utils.padRight(Utils.padLeft(Utils.X_YYYYY.format(valuate), 9), 29) + " | ";
                 }
                 System.out.println(s);
+                FundMap.test(account, tops);
             } else {
                 double valuateEur = account.evaluateEur(tops);
                 double valuateUsd = account.evaluateUsd(tops);
