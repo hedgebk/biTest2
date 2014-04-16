@@ -1,6 +1,7 @@
 package bthdg;
 
 import bthdg.exch.TopData;
+import bthdg.exch.TopsData;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -189,15 +190,15 @@ public class AccountData {
         return ret;
     }
 
-    public double evaluateEur(Map<Pair, TopData> tops) {
+    public double evaluateEur(TopsData tops) {
         return evaluate(tops, Currency.EUR);
     }
 
-    public double evaluateUsd(Map<Pair, TopData> tops) {
+    public double evaluateUsd(TopsData tops) {
         return evaluate(tops, Currency.USD);
     }
 
-    public double evaluate(Map<Pair, TopData> tops, Currency curr) {
+    public double evaluate(TopsData tops, Currency curr) {
         double allValue = 0;
         for (Map.Entry<Currency, Double> entry : m_funds.entrySet()) {
             Currency currency = entry.getKey();

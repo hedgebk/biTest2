@@ -269,6 +269,12 @@ public class Fetcher {
         return deepData;
     }
 
+    public static DeepsData fetchDeeps(Exchange exchange, Pair... pairs) throws Exception {
+        Object jObj = fetch(exchange, FetchCommand.DEEP, new PairsFetchOptions(pairs));
+        DeepsData deepsData = exchange.parseDeeps(jObj, pairs);
+        return deepsData;
+    }
+
     static TopData fetchTop(Exchange exchange) throws Exception {
         return fetchTopOnce(exchange, Pair.BTC_USD);
     }
@@ -444,7 +450,7 @@ public class Fetcher {
         },
         DEEP {
             @Override public String getTestStr(Exchange exchange) { return exchange.deepTestStr(); }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_apiDeepEndpoint; }
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.apiDeepEndpoint(options); }
             @Override public boolean useTestStr() { return USE_DEEP_TEST_STR; }
         },
         TRADES {

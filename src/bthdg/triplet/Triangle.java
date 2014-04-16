@@ -3,6 +3,7 @@ package bthdg.triplet;
 import bthdg.*;
 import bthdg.exch.Btce;
 import bthdg.exch.TopData;
+import bthdg.exch.TopsData;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -14,33 +15,33 @@ public class Triangle extends ArrayList<PairDirection> {
         add(new PairDirection(pair3, forward3));
     }
 
-    public double calcMkt(Map<Pair, TopData> tops, boolean forward) {
+    public double calcMkt(TopsData tops, boolean forward) {
         return forward
                 ? calcMkt(tops, get(0).get(forward), get(1).get(forward), get(2).get(forward))
                 : calcMkt(tops, get(2).get(forward), get(1).get(forward), get(0).get(forward));
     }
 
-    public double calcMkt(Map<Pair, TopData> tops, boolean forward, double offset) {
+    public double calcMkt(TopsData tops, boolean forward, double offset) {
         return forward
                 ? calcMkt(tops, get(0).get(forward), get(1).get(forward), get(2).get(forward), offset)
                 : calcMkt(tops, get(2).get(forward), get(1).get(forward), get(0).get(forward), offset);
     }
 
-    private static double calcMkt(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
+    private static double calcMkt(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
         return mulMkt(mulMkt(mulMkt((double) 100, tops.get(pair1.m_pair), pair1), tops.get(pair2.m_pair), pair2), tops.get(pair3.m_pair), pair3);
     }
 
-    private static double calcMkt(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3, double offset) {
+    private static double calcMkt(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3, double offset) {
         return mulMkt(mulMkt(mulMkt((double) 100, tops.get(pair1.m_pair), pair1, offset), tops.get(pair2.m_pair), pair2, offset), tops.get(pair3.m_pair), pair3, offset);
     }
 
-    public double calcMid(Map<Pair, TopData> tops, boolean forward) {
+    public double calcMid(TopsData tops, boolean forward) {
         return forward
                 ? calcMid(tops, get(0).get(forward), get(1).get(forward), get(2).get(forward))
                 : calcMid(tops, get(2).get(forward), get(1).get(forward), get(0).get(forward));
     }
 
-    private static double calcMid(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
+    private static double calcMid(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
         return mulMid(mulMid(mulMid((double) 100, tops.get(pair1.m_pair), pair1), tops.get(pair2.m_pair), pair2), tops.get(pair3.m_pair), pair3);
     }
 
@@ -54,14 +55,14 @@ public class Triangle extends ArrayList<PairDirection> {
         return sb.toString();
     }
 
-    public OnePegCalcData[] calcPegs(Map<Pair, TopData> tops, boolean forward) {
+    public OnePegCalcData[] calcPegs(TopsData tops, boolean forward) {
         PairDirection pd0 = get(0).get(forward);
         PairDirection pd1 = get(1).get(forward);
         PairDirection pd2 = get(2).get(forward);
         return forward ? calcPegs(tops, pd0, pd1, pd2) : calcPegs(tops, pd2, pd1, pd0);
     }
 
-    private static OnePegCalcData[] calcPegs(Map<Pair, TopData> tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
+    private static OnePegCalcData[] calcPegs(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
         TopData top1 = tops.get(pair1.m_pair);
         TopData top2 = tops.get(pair2.m_pair);
         TopData top3 = tops.get(pair3.m_pair);

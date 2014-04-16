@@ -19,7 +19,7 @@ public enum TriTradeState {
         @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("PEG_JUST_FILLED(" + triTradeData.m_peg.name() + ") - run 1st MKT order...");
             triTradeData.setState(PEG_FILLED);
-            triTradeData.startMktOrder(iData, triangleData, 1, MKT1_EXECUTED, true); // try to place mkt without requesting tops - blind trade
+            triTradeData.startMktOrder(iData, triangleData, 1, MKT1_EXECUTED, true); // try to place mkt without re-questing tops - blind trade
             triTradeData.log("PEG_JUST_FILLED(" + triTradeData.m_peg.name() + ") END");
         }
     },

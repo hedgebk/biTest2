@@ -25,6 +25,7 @@ import static bthdg.Fetcher.*;
 public class Btce extends BaseExch {
     public static final String CRYPTO_ALGO = "HmacSHA512";
     public static int BTCE_TRADES_IN_REQUEST = 50;
+    public static int BTCE_DEEP_ORDERS_IN_REQUEST = 20;
     private static String SECRET;
     private static String KEY;
     private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
@@ -119,6 +120,10 @@ public class Btce extends BaseExch {
 
     public static String apiTradesEndpoint() {
         return "https://btc-e.com/api/3/trades/XXXX?limit=" + BTCE_TRADES_IN_REQUEST; // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
+    }
+
+    public static String apiDeepEndpoint() {
+        return "https://btc-e.com/api/3/depth/XXXX?limit=" + BTCE_DEEP_ORDERS_IN_REQUEST; // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much orders to return def_value = 150; max_value=2000
     }
 
     public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, FetchCommand command, FetchOptions options) {
@@ -240,17 +245,33 @@ public class Btce extends BaseExch {
         return ret;
     }
 
+    public static DeepsData parseDeeps(Object obj, Pair ... pairs) {
+        if (LOG_PARSE) {
+            log("BTCE.parseDeeps() " + obj);
+        }
+        DeepsData ret = new DeepsData();
+        for(Pair pair: pairs) {
+            DeepData deep = parseDeepInt(obj, pair);
+            ret.put(pair, deep);
+        }
+        return ret;
+    }
+
     public static DeepData parseDeep(Object obj) {
+        return parseDeepInt(obj, Pair.BTC_USD);
+    }
+
+    private static DeepData parseDeepInt(Object obj, Pair pair) {
         JSONObject jObj  = (JSONObject) obj;
         if (LOG_PARSE) {
             log("BTCE.parseDeep() " + jObj);
         }
-        JSONObject btc_usd = (JSONObject) jObj.get("btc_usd");
-        log(" class="+btc_usd.getClass()+", btc_usd=" + btc_usd);
+        JSONObject btc_usd = (JSONObject) jObj.get(getPairParam(pair));
+//        log(" class="+btc_usd.getClass()+", btc_usd=" + btc_usd);
         JSONArray bids = (JSONArray) btc_usd.get("bids");
-        log(" class="+bids.getClass()+", bids=" + bids);
+//        log(" class="+bids.getClass()+", bids=" + bids);
         JSONArray asks = (JSONArray) btc_usd.get("asks");
-        log(" class="+asks.getClass()+", asks=" + asks);
+//        log(" class="+asks.getClass()+", asks=" + asks);
 
         return DeepData.create(bids, asks);
     }

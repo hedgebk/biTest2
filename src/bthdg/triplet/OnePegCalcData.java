@@ -2,6 +2,7 @@ package bthdg.triplet;
 
 import bthdg.*;
 import bthdg.exch.TopData;
+import bthdg.exch.TopsData;
 
 import java.util.Map;
 
@@ -93,63 +94,63 @@ public class OnePegCalcData {
         return false;
     }
 
-    public double calcPegPrice(Map<Pair, TopData> tops) {
+    public double calcPegPrice(TopsData tops) {
         TopData top = tops.get(m_pair1.m_pair);
         double price = Triangle.pegPrice(top, m_pair1);
         return price;
     }
 
-    public double calcMktPrice(Map<Pair, TopData> tops, int indx) {
+    public double calcMktPrice(TopsData tops, int indx) {
         PairDirection pd = (indx == 0) ? m_pair2 : m_pair3;
         return calcMktPrice(tops, pd);
     }
 
-    private double calcMktPrice(Map<Pair, TopData> tops, PairDirection pd) {
+    private double calcMktPrice(TopsData tops, PairDirection pd) {
         TopData top = tops.get(pd.m_pair);
         double price = Triangle.mktPrice(top, pd);
         return price;
     }
 
-    public double calcMktPrice(Map<Pair, TopData> tops, int indx, double offset) {
+    public double calcMktPrice(TopsData tops, int indx, double offset) {
         PairDirection pd = (indx == 0) ? m_pair2 : m_pair3;
         return calcMktPrice(tops, pd, offset);
     }
 
-    private double calcMktPrice(Map<Pair, TopData> tops, PairDirection pd, double offset) {
+    private double calcMktPrice(TopsData tops, PairDirection pd, double offset) {
         TopData top = tops.get(pd.m_pair);
         double price = Triangle.mktPrice(top, pd, offset);
         return price;
     }
 
-    public double pegRatio1(Map<Pair, TopData> tops, AccountData account) {
+    public double pegRatio1(TopsData tops, AccountData account) {
         double pegPrice = calcPegPrice(tops);
         OrderSide side = m_pair1.getSide();
         return (side.isBuy() ? 1 / pegPrice : pegPrice) * (1 - account.m_fee); // deduct commissions
     }
 
-    public double mktRatio2(Map<Pair, TopData> tops, AccountData account) {
+    public double mktRatio2(TopsData tops, AccountData account) {
         return mktRatio(tops, account, m_pair2);
     }
 
-    public double mktRatio2(Map<Pair, TopData> tops, AccountData account, double offset) {
+    public double mktRatio2(TopsData tops, AccountData account, double offset) {
         return mktRatio(tops, account, m_pair2, offset);
     }
 
-    public double mktRatio3(Map<Pair, TopData> tops, AccountData account) {
+    public double mktRatio3(TopsData tops, AccountData account) {
         return mktRatio(tops, account, m_pair3);
     }
 
-    public double mktRatio3(Map<Pair, TopData> tops, AccountData account, double offset) {
+    public double mktRatio3(TopsData tops, AccountData account, double offset) {
         return mktRatio(tops, account, m_pair3, offset);
     }
 
-    private double mktRatio(Map<Pair, TopData> tops, AccountData account, PairDirection pd) {
+    private double mktRatio(TopsData tops, AccountData account, PairDirection pd) {
         double mktPrice = calcMktPrice(tops, pd);
         OrderSide side = pd.getSide();
         return (side.isBuy() ? 1 / mktPrice : mktPrice) * (1 - account.m_fee); // deduct commissions
     }
 
-    private double mktRatio(Map<Pair, TopData> tops, AccountData account, PairDirection pd, double offset) {
+    private double mktRatio(TopsData tops, AccountData account, PairDirection pd, double offset) {
         double mktPrice = calcMktPrice(tops, pd, offset);
         OrderSide side = pd.getSide();
         return (side.isBuy() ? 1 / mktPrice : mktPrice) * (1 - account.m_fee); // deduct commissions

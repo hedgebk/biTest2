@@ -1,16 +1,16 @@
 package bthdg.triplet;
 
 import bthdg.*;
-import bthdg.exch.OrdersData;
-import bthdg.exch.TopData;
-import bthdg.exch.TopsData;
-import bthdg.exch.TradesData;
+import bthdg.exch.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class IterationData implements IIterationContext {
+    static long s_topLoadTakes; // time takes all Tops loading
+    static int s_topLoadCount;  // tops loading count
+
     TopsData m_tops;
     private Map<Pair, TradesData> m_trades;
     private OrdersData m_liveOrders;
@@ -20,6 +20,7 @@ public class IterationData implements IIterationContext {
     private long m_startMillis;
     private long m_topsLoadTime;
     private TopsData m_prevTops;
+    private DeepsData m_deeps;
 
     public IterationData(TradesAggregator tAgg, TopsData tops) {
         m_tradesAgg = tAgg;
@@ -56,8 +57,19 @@ public class IterationData implements IIterationContext {
     }
 
     public TopsData loadTops() throws Exception {
-        m_tops = Fetcher.fetchTops(Exchange.BTCE, Triplet.PAIRS);
-        log(" loaded tops " + millisFromStart() + "ms: " + m_tops.toString(Exchange.BTCE));
+        long start = System.currentTimeMillis();
+        if (Triplet.USE_DEEP) {
+            m_deeps = Fetcher.fetchDeeps(Exchange.BTCE, Triplet.PAIRS);
+            m_tops = m_deeps.getTopsDataAdapter();
+        } else {
+            m_tops = Fetcher.fetchTops(Exchange.BTCE, Triplet.PAIRS);
+        }
+        long end = System.currentTimeMillis();
+        long takes = end - start;
+        s_topLoadTakes += takes;
+        s_topLoadCount++;
+        long average = s_topLoadTakes/s_topLoadCount;
+        log(" loaded tops" + (Triplet.USE_DEEP ? "*" : "") + " " + millisFromStart() + "ms; take " + takes + "ms; avg " + average + "ms: " + m_tops.toString(Exchange.BTCE));
         m_topsLoadTime = System.currentTimeMillis();
         return m_tops;
     }

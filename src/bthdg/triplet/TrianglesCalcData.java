@@ -2,6 +2,7 @@ package bthdg.triplet;
 
 import bthdg.Pair;
 import bthdg.exch.TopData;
+import bthdg.exch.TopsData;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -12,7 +13,7 @@ public class TrianglesCalcData extends ArrayList<TriangleCalcData> {
         super(length);
     }
 
-    static TrianglesCalcData calc(Map<Pair, TopData> tops) {
+    static TrianglesCalcData calc(TopsData tops) {
         TrianglesCalcData ret = new TrianglesCalcData(Triplet.TRIANGLES.length);
         for (Triangle tr : Triplet.TRIANGLES) {
 //                log("Triangle: " + tr.name());

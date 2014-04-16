@@ -8,8 +8,15 @@ import bthdg.PairDirection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
-public class TopsData extends HashMap<Pair,TopData> {
+public class TopsData {
+    private HashMap<Pair,TopData> m_map = new HashMap<Pair,TopData>();
+
+    public TopData get(Pair pair) { return m_map.get(pair); }
+    public void put(Pair pair, TopData top) { m_map.put(pair, top); }
+    public Set<Map.Entry<Pair, TopData>> entrySet() { return m_map.entrySet(); }
+
     public double convert(Currency inCurrency, Currency outCurrency, double all) {
         PairDirection pd = PairDirection.get(inCurrency, outCurrency);
         Pair pair = pd.m_pair;
@@ -46,5 +53,4 @@ public class TopsData extends HashMap<Pair,TopData> {
             }
         }
     }
-
 }

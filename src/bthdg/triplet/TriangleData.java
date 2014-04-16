@@ -144,7 +144,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         return bestPeg;
     }
 
-    private void checkOrdersToLive(TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops, IterationData iData) throws Exception {
+    private void checkOrdersToLive(TreeMap<Double, OnePegCalcData> bestMap, TopsData tops, IterationData iData) throws Exception {
         if (!m_triTrades.isEmpty()) {
             List<TriTradeData> triTradesToLive = new ArrayList<TriTradeData>();
             List<TriTradeData> triTradesToDie = new ArrayList<TriTradeData>();
@@ -183,7 +183,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         }
     }
 
-    private boolean checkPegToLive(TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops, TriTradeData triTrade, boolean toLive) {
+    private boolean checkPegToLive(TreeMap<Double, OnePegCalcData> bestMap, TopsData tops, TriTradeData triTrade, boolean toLive) {
         OnePegCalcData tradePeg = triTrade.m_peg;
         boolean doMktOffset = triTrade.m_doMktOffset;
         for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
@@ -282,7 +282,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         }
     }
 
-    public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops) throws Exception {
+    public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, TopsData tops) throws Exception {
         if (m_triTrades.size() >= Triplet.NUMBER_OF_ACTIVE_TRIANGLES) {
             log("do not create new orders - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
             return; // do not create new order - NUMBER_OF_ACTIVE_TRIANGLES reached
@@ -334,7 +334,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         }
     }
 
-    private boolean checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops,
+    private boolean checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, TopsData tops,
                              boolean doMktOffset) throws Exception {
         boolean oneStarted = false;
         for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
@@ -378,7 +378,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         return oneStarted;
     }
 
-    private TriTradeData createNewOne(IterationData iData, Map<Pair, TopData> tops,
+    private TriTradeData createNewOne(IterationData iData, TopsData tops,
                                       OnePegCalcData peg, boolean doMktOffset) throws Exception {
         double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
         String name = peg.name();

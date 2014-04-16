@@ -139,6 +139,12 @@ import java.util.*;
  * account: AccountData{name='btce' funds={LTC=7.84122, EUR=53.41834, BTC=0.13217, USD=87.74147}; allocated={} , fee=0.002}  evaluateEur: 251.12482 evaluateUsd: 340.78786
  * account: AccountData{name='btce' funds={USD=79.27247, EUR=52.40784, LTC=7.94102, BTC=0.14639}; allocated={} , fee=0.002}  evaluateEur: 249.96798 evaluateUsd: 340.71100
  * account: AccountData{name='btce' funds={USD=72.23466, EUR=60.44327, LTC=8.90779, BTC=0.12000}; allocated={} , fee=0.002}  evaluateEur: 247.33253 evaluateUsd: 333.40623
+ * account: AccountData{name='btce' funds={LTC=7.28947, EUR=47.47389, BTC=0.17953, USD=82.85590}; allocated={} , fee=0.002}  evaluateEur: 242.93579 evaluateUsd: 328.51065
+ * account: AccountData{name='btce' funds={LTC=9.66328, EUR=47.47389, BTC=0.13194, USD=76.40188}; allocated={} , fee=0.002}  evaluateEur: 244.13588 evaluateUsd: 332.22036
+ * account: AccountData{name='btce' funds={BTC=0.13456, USD=88.76101, EUR=46.49972, LTC=8.48901}; allocated={} , fee=0.002}  evaluateEur: 245.55995 evaluateUsd: 335.75524
+ * account: AccountData{name='btce' funds={EUR=46.49972, BTC=0.13961, LTC=8.48901, USD=86.14181}; allocated={} , fee=0.002}  evaluateEur: 244.59412 evaluateUsd: 334.61073
+ * account: AccountData{name='btce' funds={LTC=8.44392, EUR=46.49972, USD=86.14181, BTC=0.13961}; allocated={} , fee=0.002}  evaluateEur: 242.97606 evaluateUsd: 333.09885
+ * account: AccountData{name='btce' funds={BTC=0.13961, LTC=8.44392, EUR=46.49972, USD=86.14181}; allocated={} , fee=0.002}  evaluateEur: 243.71975 evaluateUsd: 333.98025
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
@@ -146,14 +152,16 @@ public class Triplet {
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.71; // min target level
+    public static final double LVL2 = 100.73; // min target level
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final boolean TRY_WITH_MKT_OFFSET = false;
     public static final double MINUS_MKT_OFFSET = 0.05; // mkt - 10%
-    public static final int ITERATIONS_SLEEP_TIME = 1500; // sleep between iterations
+    public static final int ITERATIONS_SLEEP_TIME = 1800; // sleep between iterations
     public static final boolean PREFER_LIQUID_PAIRS = true;
 
+    public static final boolean USE_DEEP = true;
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
+    public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
     public static final double USE_ACCOUNT_FUNDS = 0.94;
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
     public static final double TOO_BIG_LOSS_LEVEL = 0.99; // stop current trade if mkt conditions will give big loss
@@ -189,6 +197,7 @@ public class Triplet {
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE = false;
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.99;
         Btce.BTCE_TRADES_IN_REQUEST = LOAD_TRADES_NUM;
+        Btce.BTCE_DEEP_ORDERS_IN_REQUEST = LOAD_ORDERS_NUM;
 
         if (TRY_WITH_MKT_OFFSET && WAIT_MKT_ORDER_STEPS < 1) {
             System.out.println("WARNING: TRY_WITH_MKT_OFFSET used but WAIT_MKT_ORDER_STEPS=" + WAIT_MKT_ORDER_STEPS);

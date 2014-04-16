@@ -2,6 +2,7 @@ package bthdg.triplet;
 
 import bthdg.Pair;
 import bthdg.exch.TopData;
+import bthdg.exch.TopsData;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -15,7 +16,7 @@ public class TriangleCalcData {
         m_backward = backward;
     }
 
-    static TriangleCalcData calc(Map<Pair, TopData> tops, Triangle triangle) {
+    static TriangleCalcData calc(TopsData tops, Triangle triangle) {
         return new TriangleCalcData(TriangleRotationCalcData.calc(tops, triangle, true),
                                     TriangleRotationCalcData.calc(tops, triangle, false));
     }

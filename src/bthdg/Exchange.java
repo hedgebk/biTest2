@@ -33,7 +33,7 @@ public enum Exchange {
     },
     BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true, 3,
           Btce.topTestStr(), "https://btc-e.com/api/3/ticker/XXXX", // XXXX like "btc_usd-ltc_btc" // old? : "https://btc-e.com/api/2/btc_usd/ticker"
-          Btce.deepTestStr(), "https://btc-e.com/api/3/depth/btc_usd", // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
+          Btce.deepTestStr(), Btce.apiDeepEndpoint(), // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.tradesTestStr(), Btce.apiTradesEndpoint(), // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.accountTestStr(), new UrlDef("https://btc-e.com/tapi", "method", "getInfo"),
           new UrlDef("https://btc-e.com/tapi", "method", "Trade"),
@@ -43,6 +43,7 @@ public enum Exchange {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btce.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Btce.parseDeep(jObj); }
+        @Override public DeepsData parseDeeps(Object jObj, Pair[] pairs) { return Btce.parseDeeps(jObj, pairs); }
         @Override public TradesData parseTrades(Object jObj, Pair pair) { return Btce.parseTrades(jObj, pair); }
         @Override public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return Btce.parseTrades(jObj, pairs); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
@@ -50,6 +51,7 @@ public enum Exchange {
         @Override public OrdersData parseOrders(Object jObj) { return Btce.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btce.parseCancelOrders(jObj); }
         @Override public boolean retryFetch(Object obj) { return Btce.retryFetch(obj); }
+        @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, options); }
         @Override public double minPriceStep(Pair pair) { return Btce.minExchPriceStep(pair); }
@@ -128,6 +130,7 @@ public enum Exchange {
     public TopData parseTop(Object jObj, Pair pair) { return null; }
     public TopsData parseTops(Object jObj, Pair[] pairs) { return null; }
     public DeepData parseDeep(Object jObj) { return null; }
+    public DeepsData parseDeeps(Object jObj, Pair[] pairs) { return null; }
     public TradesData parseTrades(Object jObj, Pair pair) { return null; }
     public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return null; }
     public AccountData parseAccount(Object jObj) { return null; }
@@ -136,6 +139,7 @@ public enum Exchange {
     public CancelOrderData parseCancelOrder(Object jObj) { return null; }
     public boolean retryFetch(Object obj) { return false; }
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
+    public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return m_apiDeepEndpoint; }
     public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return m_apiTradesEndpoint; }
     public double minPriceStep(Pair pair) { return 0.01; }
     public double minAmountStep(Pair pair) { return 0.0001; }

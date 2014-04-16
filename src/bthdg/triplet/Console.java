@@ -135,8 +135,16 @@ public class Console {
     }
 
     private static void doTops() throws Exception {
-        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-        for(Map.Entry<Pair, TopData> entry:tops.entrySet()) {
+        DeepsData deeps = Fetcher.fetchDeeps(Exchange.BTCE, PAIRS);
+        TopsData tops = deeps.getTopsDataAdapter();
+        printTops(tops);
+
+        tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+        printTops(tops);
+    }
+
+    private static void printTops(TopsData tops) {
+        for (Map.Entry<Pair, TopData> entry : tops.entrySet()) {
             Pair pair = entry.getKey();
             TopData top = entry.getValue();
             System.out.println(" " + pair + " : " + top);
@@ -221,7 +229,7 @@ public class Console {
                     OrderData orderData = new OrderData(pair, side, limitPrice, amount);
                     System.out.println("confirm orderData=" + orderData);
                     if(confirm()) {
-                        Map<Pair, TopData> tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
                         TopData top = tops.get(pair);
                         if (confirmLmtPrice(limitPrice, top)) {
                             PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);

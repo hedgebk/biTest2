@@ -28,6 +28,18 @@ public class DeepData {
         return new DeepData(bids_, asks_);
     }
 
+    public TopDataAdapter getTopDataAdapter() {
+        return new TopDataAdapter();
+    }
+
+    private Deep getAsk() {
+        return m_asks.get(0);
+    }
+
+    private Deep getBid() {
+        return m_bids.get(0);
+    }
+
     public static class Deep {
         public final double m_price;
         public final double m_size;
@@ -55,6 +67,12 @@ public class DeepData {
                     "price=" + m_price +
                     ", size=" + m_size +
                     '}';
+        }
+    }
+
+    public class TopDataAdapter extends TopData {
+        public TopDataAdapter() {
+            super(getBid().m_price, getAsk().m_price, 0);
         }
     }
 }
