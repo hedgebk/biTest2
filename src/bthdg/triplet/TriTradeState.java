@@ -15,6 +15,14 @@ public enum TriTradeState {
             triTradeData.log("PEG_PLACED(" + triTradeData.m_peg.name() + ") END");
         }
     },
+    PEG_JUST_FILLED {
+        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+            triTradeData.log("PEG_JUST_FILLED(" + triTradeData.m_peg.name() + ") - run 1st MKT order...");
+            triTradeData.setState(PEG_FILLED);
+            triTradeData.startMktOrder(iData, triangleData, 1, MKT1_EXECUTED, true); // try to place mkt without requesting tops - blind trade
+            triTradeData.log("PEG_JUST_FILLED(" + triTradeData.m_peg.name() + ") END");
+        }
+    },
     PEG_FILLED {
         @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("PEG_FILLED(" + triTradeData.m_peg.name() + ") - run 1st MKT order...");

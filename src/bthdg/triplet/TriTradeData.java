@@ -31,10 +31,14 @@ public class TriTradeData {
     }
 
     public void startMktOrder(IterationData iData, TriangleData triangleData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
+        startMktOrder(iData, triangleData, num, stateForFilled, false);
+    }
+
+    public void startMktOrder(IterationData iData, TriangleData triangleData, int num/*1 or 2*/, TriTradeState stateForFilled, boolean blind) throws Exception {
         log("startMktOrder(" + num + ") waitStep=" + m_waitMktOrderStep);
 
         AccountData account = triangleData.m_account;
-        TopsData tops = iData.getTops();
+        TopsData tops = blind ? iData.getAnyTops() : iData.getTops();
 
         PairDirection pd = (num == 1) ? m_peg.m_pair2 : m_peg.m_pair3;
         Pair pair = pd.m_pair;
@@ -153,8 +157,8 @@ public class TriTradeData {
         log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio + ";  mktPrice=" + mktPriceStr);
         int attempt = m_waitMktOrderStep++;
         if (ratio < 1) {
-            if (ratio < 0.99) {
-                log("!!!!!  MKT conditions gives too big loss. ratio=" + ratio + "; pair=" + pair + "; forward=" + forward +
+            if (ratio < Triplet.TOO_BIG_LOSS_LEVEL) {
+                log("!!!!!  MKT conditions gives TOO BIG LOSS - stop trade. ratio=" + ratio + "; pair=" + pair + "; forward=" + forward +
                         "; side=" + side + "; top=" + topData.toString(Exchange.BTCE, pair));
                 return Double.MAX_VALUE;
             }
@@ -169,7 +173,7 @@ public class TriTradeData {
                     "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Exchange.BTCE, pair) +
                     "; mid=" + midStr);
 
-            if ( attempt < Triplet.WAIT_MKT_ORDER_STEPS) {
+            if (attempt < Triplet.WAIT_MKT_ORDER_STEPS) {
                 if ((topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
                     boolean betweenMidMkt = side.isBuy()
                             ? ((mid > zeroProfitPrice) && (zeroProfitPrice > mktPrice))

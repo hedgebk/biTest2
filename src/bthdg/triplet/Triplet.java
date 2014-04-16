@@ -6,13 +6,13 @@ import bthdg.exch.*;
 import java.util.*;
 
 /**
+ * - calc total ratio more correct for partials
  * - try place brackets for non-profitable pairs / sorted by trades num
  * - try adjust account
  *   - better to place pegs on void iterations
- *   - try to fix disbalance on account sync - at least place mkt from bigger to lower
+ *   - try to fix dis-balance on account sync - at least place mkt from bigger to lower
  *   - leave some amount on low funds nodes (while processing MKT prices)
  * - drop very long running MKT orders - should be filled in 1-3 steps
- * - drop when on MKT and BIG LOSS @ totalRatio <0.99
  * - for 'stop' command - cancel all active orders
  * - do not start new peg orders if we have running non-peg - they need to be executed quickly
  * - calculate pegs over average top data using current and previous tick - do not eat 1 tick peaks
@@ -20,8 +20,7 @@ import java.util.*;
  * - parallel trinagles processing - need logging upgrade (print prefix everywhere)
  *   - need int funds lock - other triangles cant use needed funds
  *   - then can run > 2 triangles at once/ no delays
- * - blind mkt orders - after just filled peg
- * - when MKT order is nonprofitable, but zeroProfit is close to mkt - try zero profit and without delay run mkt
+ * - when MKT order is non-profitable, but zeroProfit is close to mkt - try zero profit and without delay run mkt
  *
  * - stats:                                                              ratio       btc
  *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
@@ -136,22 +135,28 @@ import java.util.*;
  * account: AccountData{name='btce' funds={USD=78.46747, EUR=42.91475, BTC=0.12655, LTC=9.92483}; allocated={} , fee=0.002}  evaluateEur: 238.57563 evaluateUsd: 324.58841
  * account: AccountData{name='btce' funds={USD=77.20723, EUR=42.91475, LTC=9.92483, BTC=0.12887}; allocated={} , fee=0.002}  evaluateEur: 238.96654 evaluateUsd: 326.25728
  * account: AccountData{name='btce' funds={EUR=42.91475, LTC=9.89044, USD=77.20723, BTC=0.12920}; allocated={} , fee=0.002}  evaluateEur: 240.68700 evaluateUsd: 328.22765
+ * account: AccountData{name='btce' funds={BTC=0.12106, LTC=8.88360, USD=90.56309, EUR=47.88739}; allocated={} , fee=0.002}  evaluateEur: 247.83867 evaluateUsd: 338.70192
+ * account: AccountData{name='btce' funds={LTC=7.84122, EUR=53.41834, BTC=0.13217, USD=87.74147}; allocated={} , fee=0.002}  evaluateEur: 251.12482 evaluateUsd: 340.78786
+ * account: AccountData{name='btce' funds={USD=79.27247, EUR=52.40784, LTC=7.94102, BTC=0.14639}; allocated={} , fee=0.002}  evaluateEur: 249.96798 evaluateUsd: 340.71100
+ * account: AccountData{name='btce' funds={USD=72.23466, EUR=60.44327, LTC=8.90779, BTC=0.12000}; allocated={} , fee=0.002}  evaluateEur: 247.33253 evaluateUsd: 333.40623
  */
 public class Triplet {
     public static final boolean SIMULATE = false;
-    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 4;
+    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 2;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.68; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 2;
-    public static final boolean TRY_WITH_MKT_OFFSET = true;
+    public static final double LVL2 = 100.71; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 0;
+    public static final boolean TRY_WITH_MKT_OFFSET = false;
     public static final double MINUS_MKT_OFFSET = 0.05; // mkt - 10%
     public static final int ITERATIONS_SLEEP_TIME = 1500; // sleep between iterations
+    public static final boolean PREFER_LIQUID_PAIRS = true;
 
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     public static final double USE_ACCOUNT_FUNDS = 0.94;
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
+    public static final double TOO_BIG_LOSS_LEVEL = 0.99; // stop current trade if mkt conditions will give big loss
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
 
@@ -197,6 +202,7 @@ public class Triplet {
             consoleReader.start();
 
             try {
+                TopsData tops = null;
                 AccountData account = init(tAgg);
 
                 long start = System.currentTimeMillis();
@@ -207,7 +213,7 @@ public class Triplet {
                             "; active " + td.m_triTrades.size() +
                             "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - start) +
                             "; date=" + new Date() );
-                    IterationData iData = new IterationData(tAgg);
+                    IterationData iData = new IterationData(tAgg, tops);
                     td.checkState(iData); // <<---------------------------------------------------------------------<<
 
                     int sleep = ITERATIONS_SLEEP_TIME;
@@ -229,6 +235,9 @@ public class Triplet {
                         sleep /= 2;
                     }
                     Thread.sleep(sleep);
+                    if(iData.m_tops != null) {
+                        tops = iData.m_tops;
+                    }
                 }
             } finally {
                 consoleReader.interrupt();
@@ -264,7 +273,7 @@ public class Triplet {
 
         s_startAccount = account.copy();
 
-        IterationData iData = new IterationData(tAgg);
+        IterationData iData = new IterationData(tAgg, null);
         TopsData tops = iData.getTops();
         s_startEur = s_startAccount.evaluateEur(tops);
         s_startUsd = s_startAccount.evaluateUsd(tops);
@@ -292,7 +301,7 @@ public class Triplet {
             log("ERROR: account allocateOrder unsuccessful: " + orderData + ", account: " + account);
             ret = OrderData.OrderPlaceStatus.ERROR;
         }
-        log("placeOrder() END: " + orderData.toString(Exchange.BTCE));
+        //log("placeOrder() END: " + orderData.toString(Exchange.BTCE));
         return ret;
     }
 

@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class IterationData implements IIterationContext {
-    private TopsData m_tops;
+    TopsData m_tops;
     private Map<Pair, TradesData> m_trades;
     private OrdersData m_liveOrders;
     public NewTradesAggregator m_newTrades = new NewTradesAggregator();
@@ -19,10 +19,12 @@ public class IterationData implements IIterationContext {
     public TradesAggregator m_tradesAgg;
     private long m_startMillis;
     private long m_topsLoadTime;
+    private TopsData m_prevTops;
 
-    public IterationData(TradesAggregator tAgg) {
+    public IterationData(TradesAggregator tAgg, TopsData tops) {
         m_tradesAgg = tAgg;
         m_startMillis = System.currentTimeMillis();
+        m_prevTops = tops;
     }
 
     @Override public boolean acceptPriceSimulated() { return m_acceptPriceSimulated; }
@@ -32,6 +34,18 @@ public class IterationData implements IIterationContext {
     public long millisFromStart() { return System.currentTimeMillis() - m_startMillis; }
     public long millisFromTopsLoad() {
         return (m_topsLoadTime == 0) ? 0 : System.currentTimeMillis() - m_topsLoadTime;
+    }
+
+    public TopsData getAnyTops() throws Exception {
+        if (m_tops != null) {
+            log(" USING CURRENT ITERATION tops (do not load fresh) " + millisFromStart() + "ms: " + m_tops.toString(Exchange.BTCE));
+            return m_tops;
+        }
+        if(m_prevTops != null) {
+            log(" USING PREV ITERATION tops (blind trade) " + millisFromStart() + "ms: " + m_tops.toString(Exchange.BTCE));
+            return m_prevTops;
+        }
+        return getTops();
     }
 
     public TopsData getTops() throws Exception {

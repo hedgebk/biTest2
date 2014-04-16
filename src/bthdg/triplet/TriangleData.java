@@ -191,7 +191,6 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             if (peg1.equals(tradePeg)) {
                 double pegMax = doMktOffset ? peg1.m_max10 : peg1.m_max;
                 if (pegMax > Triplet.s_level) {
-
                     double pegPrice = peg1.calcPegPrice(tops);
                     OrderData order = triTrade.m_order;
                     double orderPrice = order.m_price;
@@ -327,8 +326,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         }
         if (!oneStarted) {
             oneStarted = checkNew(iData,
-                    bestMapPref,
-//                    bestMap,
+                    Triplet.PREFER_LIQUID_PAIRS ? bestMapPref : bestMap,
                     tops, false); // then try regular peg>level
             if (Triplet.TRY_WITH_MKT_OFFSET && !oneStarted) {
                 checkNew(iData, bestMap, tops, true); // then try the rest max10
@@ -373,7 +371,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 if (newTriTrade != null) { // order placed
                     oneStarted = true;
                     m_triTrades.add(newTriTrade);
-                    forkAndCheckFilledIfNeeded(iData, newTriTrade, newTriTrade.m_order, TriTradeState.PEG_FILLED);
+                    forkAndCheckFilledIfNeeded(iData, newTriTrade, newTriTrade.m_order, TriTradeState.PEG_JUST_FILLED);
                 }
             }
         }
