@@ -145,6 +145,7 @@ import java.util.*;
  * account: AccountData{name='btce' funds={EUR=46.49972, BTC=0.13961, LTC=8.48901, USD=86.14181}; allocated={} , fee=0.002}  evaluateEur: 244.59412 evaluateUsd: 334.61073
  * account: AccountData{name='btce' funds={LTC=8.44392, EUR=46.49972, USD=86.14181, BTC=0.13961}; allocated={} , fee=0.002}  evaluateEur: 242.97606 evaluateUsd: 333.09885
  * account: AccountData{name='btce' funds={BTC=0.13961, LTC=8.44392, EUR=46.49972, USD=86.14181}; allocated={} , fee=0.002}  evaluateEur: 243.71975 evaluateUsd: 333.98025
+ * account: AccountData{name='btce' funds={EUR=46.59331, BTC=0.13961, LTC=8.45374, USD=86.14181}; allocated={} , fee=0.002}  evaluateEur: 245.74419 evaluateUsd: 338.24268
  */
 public class Triplet {
     public static final boolean SIMULATE = false;

@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class IterationData implements IIterationContext {
-    static long s_topLoadTakes; // time takes all Tops loading
-    static int s_topLoadCount;  // tops loading count
+    static long s_topLoadTakes; // time takes all Tops loading  | deep avg 1088ms    top avg 991ms
+    static int s_topLoadCount;  // tops loading count           |      count 464         count 842
 
     TopsData m_tops;
     private Map<Pair, TradesData> m_trades;
