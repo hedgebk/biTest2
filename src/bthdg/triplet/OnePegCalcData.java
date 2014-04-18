@@ -105,7 +105,7 @@ public class OnePegCalcData {
         return calcMktPrice(tops, pd);
     }
 
-    private double calcMktPrice(TopsData tops, PairDirection pd) {
+    public double calcMktPrice(TopsData tops, PairDirection pd) {
         TopData top = tops.get(pd.m_pair);
         double price = Triangle.mktPrice(top, pd);
         return price;
@@ -116,7 +116,7 @@ public class OnePegCalcData {
         return calcMktPrice(tops, pd, offset);
     }
 
-    private double calcMktPrice(TopsData tops, PairDirection pd, double offset) {
+    public double calcMktPrice(TopsData tops, PairDirection pd, double offset) {
         TopData top = tops.get(pd.m_pair);
         double price = Triangle.mktPrice(top, pd, offset);
         return price;

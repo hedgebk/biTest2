@@ -5,6 +5,7 @@ public class PairDirection {
     public final boolean m_forward;
 
     public Currency currencyFrom() { return m_pair.currencyFrom(m_forward); }
+    public Currency currencyTo() { return m_pair.currencyFrom(!m_forward); }
 
     public PairDirection(Pair pair, boolean forward) {
         m_pair = pair;

@@ -344,6 +344,11 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 break;
             }
             OnePegCalcData peg = entry.getValue();
+            TriTradeData ttd = findTriTradeData(peg);
+            if(ttd != null) {
+                continue; // do not start multiple tritrades
+            }
+
             double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
             double level = Triplet.s_level;
             Pair startPair = peg.m_pair1.m_pair;
@@ -378,6 +383,15 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         return oneStarted;
     }
 
+    private TriTradeData findTriTradeData(OnePegCalcData peg) {
+        for (TriTradeData ttd : m_triTrades) {
+            if (ttd.m_peg.equals(peg)) {
+                return ttd;
+            }
+        }
+        return null;
+    }
+
     private TriTradeData createNewOne(IterationData iData, TopsData tops,
                                       OnePegCalcData peg, boolean doMktOffset) throws Exception {
         double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
@@ -388,19 +402,34 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
         PairDirection pd1 = peg.m_pair1;
         Pair pair1 = pd1.m_pair;
+        PairDirection pd2 = peg.m_pair2;
+        Pair pair2 = pd2.m_pair;
+        PairDirection pd3 = peg.m_pair3;
+        Pair pair3 = pd3.m_pair;
+
         boolean direction = pd1.m_forward;
         OrderSide side = pd1.getSide();
         TopData top = tops.get(pair1);
-        TopData top2 = tops.get(peg.m_pair2.m_pair);
-        TopData top3 = tops.get(peg.m_pair3.m_pair);
+        TopData top2 = tops.get(pair2);
+        TopData top3 = tops.get(pair3);
 
-        Currency fromCurrency = pair1.currencyFrom(direction);
+        Currency fromCurrency = pd1.currencyFrom();
         double available = getAvailable(fromCurrency);
         String availableStr = Exchange.BTCE.roundAmountStr(available, pair1);
         double amount = side.isBuy() ? available / pegPrice : available;
 
         pegPrice = Exchange.BTCE.roundPrice(pegPrice, pair1);
         String pegPriceStr = Exchange.BTCE.roundPriceStr(pegPrice, pair1);
+
+        if (Triplet.USE_DEEP) { // adjust amount to pairs mkt availability
+            double ratio = adjustAmountToMkt(tops, peg, doMktOffset, available);
+            if (ratio != 1) {
+                double amountIn = amount;
+                amount = amountIn * ratio;
+                log("due to MKT orders availability in the book. PEG amount reduced from " + amountIn + " to " + amount + " " + fromCurrency);
+            }
+        }
+
         amount = Exchange.BTCE.roundAmount(amount, pair1);
         String amountStr = Exchange.BTCE.roundAmountStr(amount, pair1);
         double needPeg = peg.m_need;
@@ -414,9 +443,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
         double minOrderToCreate = Btce.minOrderToCreate(pair1);
         if (amount >= minOrderToCreate) {
-            Pair pair2 = peg.m_pair2.m_pair;
             String mkt1PriceStr = Exchange.BTCE.roundPriceStr(mkt1Price, pair2);
-            Pair pair3 = peg.m_pair3.m_pair;
             String mkt2PriceStr = Exchange.BTCE.roundPriceStr(mkt2Price, pair3);
 
             // todo: try price between peg and need, but not for all pairs
@@ -455,6 +482,98 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             // todo: if we have other non started TriTradeData with lower maxPeg holding required currency - cancel it
         }
         return null;
+    }
+
+    private double adjustAmountToMkt(TopsData tops, OnePegCalcData peg, boolean doMktOffset, double amount) {
+        double ret = 1;
+        PairDirection pd1 = peg.m_pair1;
+        Pair pair1 = pd1.m_pair;
+        PairDirection pd2 = peg.m_pair2;
+        Pair pair2 = pd2.m_pair;
+        PairDirection pd3 = peg.m_pair3;
+        Pair pair3 = pd3.m_pair;
+// EUR->LTC;LTC->USD;USD->EUR
+        Currency pd1to = pd1.currencyTo();
+        log("adjustAmountToMkt("+peg.name()+")");
+log(" we have input amount=" + amount + " " + pd1.currencyFrom());
+        double ratio1 = peg.pegRatio1(tops, m_account); // commission is applied to ratio
+log(" PEG(" + pd1.getName() + ") has ratio1="+ratio1);
+        double amount2 = amount * ratio1;
+log("  after PEG we will have amount=" + amount2 + " " + pd1to);
+        amount2 = Exchange.BTCE.roundAmount(amount2, pair1);
+log("   round=" + amount2);
+
+        DeepsData.TopsDataAdapter adapter = (DeepsData.TopsDataAdapter) tops;
+        DeepsData deeps = adapter.getDeeps();
+log(" deeps="+deeps);
+
+        OrderSide side2 = pd2.getSide();
+log(" MKT1(" + pd2.getName() + ") pair=" + pair2 + "; side=" + side2);
+        DeepData deepData2 = deeps.get(pair2);
+log("  deep=" + deepData2);
+        double mktAmount2 = deeps.getMktAmount(pd2);
+        double mktPrice2 = doMktOffset
+                ? peg.calcMktPrice(tops, pd2, Triplet.MINUS_MKT_OFFSET)
+                : peg.calcMktPrice(tops, pd2);
+        double ratio2 = doMktOffset
+                ? peg.mktRatio2(tops, m_account, Triplet.MINUS_MKT_OFFSET)
+                : peg.mktRatio2(tops, m_account);
+log("   mktAmount2=" + mktAmount2 + " " + pair2.m_to + "; mktPrice2="+mktPrice2+"; ratio2="+ratio2);
+        double mktAmount2in, mktAmount2out;
+        if( side2.isBuy() ) {
+            // LTC_USD, buy: USD->LTC: mktPrice2=12.691896; mktAmount2=0.1002004 LTC
+            mktAmount2in = mktAmount2 * mktPrice2; //~ 1.2 usd
+            mktAmount2out = mktAmount2; // 0.1002004 LTC
+        } else {
+            // LTC_USD, sell: LTC->USD: mktPrice2=12.691896; mktAmount2=0.1002004 LTC
+            mktAmount2in = mktAmount2; // 0.1002004 LTC
+            mktAmount2out = mktAmount2 * mktPrice2; //~ 1.2 usd
+        }
+log("    mktAmount2in=" + mktAmount2in + " " + pd2.currencyFrom() + "; mktAmount2out=" + mktAmount2out + " " + pd2.currencyTo());
+        double amount3;
+        if (mktAmount2in < amount2) {
+            ret = mktAmount2in / amount2;
+            log("MKT1 " + pd2.getName() + "; pair=" + pair2 + "; side=" + side2 + ". book has only qty=" + mktAmount2in + " " + pd2.currencyFrom()+
+                    ", need=" + amount2 + ": reducing amount at ratio="+ret);
+            amount3 = mktAmount2out;
+log("     adjustRatio=" + ret);
+        } else {
+            amount3 = amount2*ratio2;
+        }
+        log("  after MKT1 we may have amount=" + amount3 + " " + pd2.currencyTo());
+        amount3 = Exchange.BTCE.roundAmount(amount3, pair2);
+        log("   round=" + amount3);
+
+        OrderSide side3 = pd3.getSide();
+log(" MKT2(" + pd3.getName() + ") pair=" + pair3 + "; side=" + side3);
+        DeepData deepData3 = deeps.get(pair3);
+log("  deep=" + deepData3);
+        double mktAmount3 = deeps.getMktAmount(pd3);
+        double mktPrice3 = doMktOffset
+                ? peg.calcMktPrice(tops, pd3, Triplet.MINUS_MKT_OFFSET)
+                : peg.calcMktPrice(tops, pd3);
+log("   mktAmount3=" + mktAmount3 + " " + pair3.m_to + "; mktPrice3="+mktPrice3);
+        double mktAmount3in, mktAmount3out;
+        if( side3.isBuy() ) {
+            // LTC_USD, buy: USD->LTC: mktPrice2=12.691896; mktAmount2=0.1002004 LTC
+            mktAmount3in = mktAmount3 * mktPrice3; //~ 1.2 usd
+            mktAmount3out = mktAmount3; // 0.1002004 LTC
+        } else {
+            // LTC_USD, sell: LTC->USD: mktPrice2=12.691896; mktAmount2=0.1002004 LTC
+            mktAmount3in = mktAmount3; // 0.1002004 LTC
+            mktAmount3out = mktAmount3 * mktPrice3; //~ 1.2 usd
+        }
+log("    mktAmount3in=" + mktAmount3in + " " + pd3.currencyFrom() + "; mktAmount3out=" + mktAmount3out + " " + pd3.currencyTo());
+        if(mktAmount3in < amount3) {
+            double ratio = mktAmount3in / amount3;
+            ret *= ratio;
+            log("MKT2 " + pd3.getName() + "; pair=" + pair3 + "; side=" + side3 + ". book has only qty=" + mktAmount3in + " " + pd3.currencyFrom()+
+                    ", need=" + amount3 + ": reducing amount at ratio=" + ret );
+log("     adjustRatio=" + ret);
+        }
+
+        log(" exit ratio=" + ret);
+        return ret;
     }
 
     private double getAvailable(Currency currency) {

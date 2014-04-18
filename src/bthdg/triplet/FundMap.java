@@ -86,7 +86,7 @@ public class FundMap {
             if (toNeed > 0) {
                 double amount = Math.min(fromExtraConverted, toNeed);
                 System.out.println("amount(min)=" + amount + " " + to);
-                if (amount > toExpected / 4) { // do not move very small amounts
+                if (amount > toExpected / 8) { // do not move very small amounts
                     amount *= 0.9;
                     System.out.println(" amount*0.9=" + amount + " " + to);
 

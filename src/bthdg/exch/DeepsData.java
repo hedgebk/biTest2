@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.Pair;
+import bthdg.PairDirection;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +15,17 @@ public class DeepsData extends HashMap<Pair,DeepData> {
             m_topsAdapter = new TopsDataAdapter();
         }
         return m_topsAdapter;
+    }
+
+    public double getMktAmount(PairDirection pd) {
+        DeepData.Deep deep = getMktDeep(pd);
+        return deep.m_size;
+    }
+
+    public DeepData.Deep getMktDeep(PairDirection pd) {
+        Pair pair = pd.m_pair;
+        DeepData deepData = get(pair);
+        return pd.m_forward ? deepData.getAsk() : deepData.getBid();
     }
 
     public class TopsDataAdapter extends TopsData {
@@ -37,6 +49,10 @@ public class DeepsData extends HashMap<Pair,DeepData> {
                 m_synced = true;
             }
             return super.entrySet();
+        }
+
+        public DeepsData getDeeps() {
+            return DeepsData.this;
         }
     }
 }

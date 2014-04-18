@@ -89,14 +89,14 @@ public enum TriTradeState {
         double[] ends1 = order1.logOrderEnds(account, 1, price1);
         double[] ends2 = order2.logOrderEnds(account, 2, price2);
         double[] ends3 = order3.logOrderEnds(account, 3, price3);
-        Currency currency = order1.startCurrency();
+        Currency startCurrency = order1.startCurrency();
         Currency endCurrency = order3.endCurrency();
         double amount1 = order1.startAmount();
         double amount3 = order3.endAmount(account);
         triTradeData.log(
-                "  START " + Utils.X_YYYYYYYY.format(amount1) + " " + currency +
+                "  START " + Utils.X_YYYYYYYY.format(amount1) + " " + startCurrency +
                         " -> END " + Utils.X_YYYYYYYY.format(amount3) + " " + endCurrency +
-                        "  |||  start " + Utils.X_YYYYYYYY.format(amount1) + " " + currency +
+                        "  |||  start " + Utils.X_YYYYYYYY.format(amount1) + " " + startCurrency +
                         "  end " + Utils.X_YYYYYYYY.format(order1.endAmount(account)) + " " + order1.endCurrency() +
                         " | start " + Utils.X_YYYYYYYY.format(order2.startAmount()) + " " + order2.startCurrency() +
                         "  end " + Utils.X_YYYYYYYY.format(order2.endAmount(account)) + " " + order2.endCurrency() +
@@ -106,8 +106,13 @@ public enum TriTradeState {
 
         double in = ends1[0];
         double out = ends3[1];
+        double plus = out - in;
         double gain = out / in;
-        Triplet.s_totalRatio *= ((gain - 1) / 4 + 1);
+
+        TopsData tops = iData.getTops();
+        double acctEval = account.evaluate(tops, startCurrency);
+
+        Triplet.s_totalRatio *= (1+plus/acctEval);
         Triplet.s_counter++;
 
         double ratio1 = ends1[1]/ends1[0];
@@ -115,7 +120,6 @@ public enum TriTradeState {
         double ratio3 = ends3[1]/ends3[0];
         double ratio = ratio1 * ratio2 * ratio3;
 
-        TopsData tops = iData.getTops();
         double valuateEur = account.evaluateEur(tops);
         double eurRate = valuateEur / Triplet.s_startEur;
         double valuateUsd = account.evaluateUsd(tops);
@@ -128,7 +132,7 @@ public enum TriTradeState {
                 "; executed in " + Utils.millisToDHMSStr(System.currentTimeMillis() - triTradeData.m_startTime) +
                 "; iterations=" + triTradeData.m_iterationsNum );
         triTradeData.log(" @@@@@@   in=" + format5(in) + ";  out=" + format5(out) +
-                "; out-in=" + format5(out - in) + " " + currency + ";  gain=" + format5(gain) +
+                "; out-in=" + format5(plus) + " " + startCurrency + ";  gain=" + format5(gain) +
                 "; level=" + Triplet.s_level + ";  totalRatio=" + format5(Triplet.s_totalRatio) +
                 "; millis=" + System.currentTimeMillis() + "; valuateUsd=" + format5(usdRate) +
                 "; valuateEur=" + format5(eurRate) + "; midMul=" + format5(midMul) +

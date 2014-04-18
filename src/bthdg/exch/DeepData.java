@@ -32,11 +32,11 @@ public class DeepData {
         return new TopDataAdapter();
     }
 
-    private Deep getAsk() {
+    public Deep getAsk() {
         return m_asks.get(0);
     }
 
-    private Deep getBid() {
+    public Deep getBid() {
         return m_bids.get(0);
     }
 

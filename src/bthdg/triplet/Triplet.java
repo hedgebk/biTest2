@@ -8,19 +8,19 @@ import java.util.*;
 /**
  * - calc total ratio more correct for partials
  * - try place brackets for non-profitable pairs / sorted by trades num
+ * - do not start new peg orders if we have running non-peg - they need to be executed quickly
  * - try adjust account
  *   - better to place pegs on void iterations
  *   - try to fix dis-balance on account sync - at least place mkt from bigger to lower
  *   - leave some amount on low funds nodes (while processing MKT prices)
  * - drop very long running MKT orders - should be filled in 1-3 steps
- * - for 'stop' command - cancel all active orders
- * - do not start new peg orders if we have running non-peg - they need to be executed quickly
+ * - when MKT order is non-profitable, but zeroProfit is close to mkt - try zero profit and without delay run mkt
+ * - monitor and run quickly 3*mkt-10 triplet
  * - calculate pegs over average top data using current and previous tick - do not eat 1 tick peaks
- * - give penalti on triangle+rotation base
- * - parallel trinagles processing - need logging upgrade (print prefix everywhere)
+ * - give penalty on triangle+rotation base
+ * - parallel triangles processing - need logging upgrade (print prefix everywhere)
  *   - need int funds lock - other triangles cant use needed funds
  *   - then can run > 2 triangles at once/ no delays
- * - when MKT order is non-profitable, but zeroProfit is close to mkt - try zero profit and without delay run mkt
  *
  * - stats:                                                              ratio       btc
  *  LTC->USD;USD->EUR;EUR->LTC	29		LTC->BTC;BTC->EUR;EUR->LTC	56 = 0.386206896 0.076121379
@@ -146,26 +146,34 @@ import java.util.*;
  * account: AccountData{name='btce' funds={LTC=8.44392, EUR=46.49972, USD=86.14181, BTC=0.13961}; allocated={} , fee=0.002}  evaluateEur: 242.97606 evaluateUsd: 333.09885
  * account: AccountData{name='btce' funds={BTC=0.13961, LTC=8.44392, EUR=46.49972, USD=86.14181}; allocated={} , fee=0.002}  evaluateEur: 243.71975 evaluateUsd: 333.98025
  * account: AccountData{name='btce' funds={EUR=46.59331, BTC=0.13961, LTC=8.45374, USD=86.14181}; allocated={} , fee=0.002}  evaluateEur: 245.74419 evaluateUsd: 338.24268
+ * account: AccountData{name='btce' funds={EUR=46.69311, USD=91.41318, BTC=0.12404, LTC=8.79601}; allocated={} , fee=0.002}  evaluateEur: 249.54805 evaluateUsd: 341.79073
+ * account: AccountData{name='btce' funds={EUR=52.48431, USD=74.83421, BTC=0.13239, LTC=8.98348}; allocated={} , fee=0.002}  evaluateEur: 244.69759 evaluateUsd: 331.45086
+ * account: AccountData{name='btce' funds={EUR=46.33423, BTC=0.12135, LTC=9.65797, USD=92.94051}; allocated={} , fee=0.002}  evaluateEur: 249.48304 evaluateUsd: 334.22945
+ * account: AccountData{name='btce' funds={LTC=9.65803, USD=90.30235, EUR=42.11297, BTC=0.13701}; allocated={} , fee=0.002}  evaluateEur: 247.90468 evaluateUsd: 332.09378
+ * account: AccountData{name='btce' funds={BTC=0.14300, LTC=9.65803, USD=85.70124, EUR=43.65036}; allocated={} , fee=0.002}  evaluateEur: 247.70408 evaluateUsd: 334.60124
+ * account: AccountData{name='btce' funds={EUR=43.65036, BTC=0.22582, LTC=7.71917, USD=69.36836}; allocated={} , fee=0.002}  evaluateEur: 248.06091 evaluateUsd: 333.56557
+ * account: AccountData{name='btce' funds={LTC=10.07713, USD=79.66049, EUR=43.66121, BTC=0.14411}; allocated={} , fee=0.002} evaluateEur: 248.54438 evaluateUsd: 335.07191
+ * account: AccountData{name='btce' funds={BTC=0.14411, LTC=10.07713, EUR=43.66121, USD=79.66049}; allocated={} , fee=0.002} evaluateEur: 246.75298 evaluateUsd: 332.70164
  */
 public class Triplet {
-    public static final boolean SIMULATE = false;
     public static final int NUMBER_OF_ACTIVE_TRIANGLES = 2;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.73; // min target level
+    public static final double LVL2 = 100.69; // min target level
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final boolean TRY_WITH_MKT_OFFSET = false;
-    public static final double MINUS_MKT_OFFSET = 0.05; // mkt - 10%
-    public static final int ITERATIONS_SLEEP_TIME = 1800; // sleep between iterations
+    public static final double MINUS_MKT_OFFSET = 0.10; // mkt - 10%
+    public static final int ITERATIONS_SLEEP_TIME = 1900; // sleep between iterations
     public static final boolean PREFER_LIQUID_PAIRS = true;
 
     public static final boolean USE_DEEP = true;
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
-    public static final double USE_ACCOUNT_FUNDS = 0.94;
+    public static final double USE_ACCOUNT_FUNDS = 0.95;
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
     public static final double TOO_BIG_LOSS_LEVEL = 0.99; // stop current trade if mkt conditions will give big loss
+    public static final boolean SIMULATE = false;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
 
