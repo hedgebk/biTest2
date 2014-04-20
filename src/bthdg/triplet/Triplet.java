@@ -1,6 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
+import bthdg.Currency;
 import bthdg.exch.*;
 
 import java.util.*;
@@ -154,20 +155,28 @@ import java.util.*;
  * account: AccountData{name='btce' funds={EUR=43.65036, BTC=0.22582, LTC=7.71917, USD=69.36836}; allocated={} , fee=0.002}  evaluateEur: 248.06091 evaluateUsd: 333.56557
  * account: AccountData{name='btce' funds={LTC=10.07713, USD=79.66049, EUR=43.66121, BTC=0.14411}; allocated={} , fee=0.002} evaluateEur: 248.54438 evaluateUsd: 335.07191
  * account: AccountData{name='btce' funds={BTC=0.14411, LTC=10.07713, EUR=43.66121, USD=79.66049}; allocated={} , fee=0.002} evaluateEur: 246.75298 evaluateUsd: 332.70164
+ * account: AccountData{name='btce' funds={BTC=0.16841, LTC=6.95672, EUR=63.66752, USD=83.14819}; allocated={} , fee=0.002}  evaluateEur: 247.97794 evaluateUsd: 331.21396
+ * account: AccountData{name='btce' funds={BTC=0.12490, LTC=8.39044, USD=45.99591, EUR=93.78454}; allocated={} , fee=0.002}  evaluateEur: 248.28417 evaluateUsd: 332.13187
+ * account: AccountData{name='btce' funds={LTC=8.39044, USD=45.99591, BTC=0.12490, EUR=95.57980}; allocated={} , fee=0.002}  evaluateEur: 250.60737 evaluateUsd: 338.66394
+ * account: AccountData{name='btce' funds={EUR=96.10802, USD=43.71127, BTC=0.13617, LTC=8.18962}; allocated={} , fee=0.002}  evaluateEur: 255.69189 evaluateUsd: 344.52483
+ * account: AccountData{name='btce' funds={BTC=0.13854, LTC=8.45209, USD=40.57572, EUR=96.15131}; allocated={} , fee=0.002}  evaluateEur: 257.07721 evaluateUsd: 347.41633
+ * account: AccountData{name='btce' funds={LTC=8.31249, EUR=93.52338, USD=43.52722, BTC=0.13694}; allocated={} , fee=0.002}  evaluateEur: 251.92002 evaluateUsd: 338.36977
  */
 public class Triplet {
-    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 2;
+    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 3;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.69; // min target level
+    public static final double LVL2 = 100.72; // min target level
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final boolean TRY_WITH_MKT_OFFSET = false;
     public static final double MINUS_MKT_OFFSET = 0.10; // mkt - 10%
     public static final int ITERATIONS_SLEEP_TIME = 1900; // sleep between iterations
-    public static final boolean PREFER_LIQUID_PAIRS = true;
+    public static final boolean PREFER_LIQUID_PAIRS = false;
+    public static final boolean PREFER_EUR_CRYPT_PAIRS = true;
 
     public static final boolean USE_DEEP = true;
+    public static final boolean ADJUST_AMOUNT_TO_MKT_AVAILABLE = true;
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
     public static final double USE_ACCOUNT_FUNDS = 0.95;
@@ -183,10 +192,10 @@ public class Triplet {
 
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
 
-    public static final Triangle T1 = new Triangle(Pair.LTC_USD, true,  Pair.LTC_BTC, false, Pair.BTC_USD, false); // usd -> ltc -> btc -> usd
-    public static final Triangle T2 = new Triangle(Pair.LTC_EUR, true,  Pair.LTC_BTC, false, Pair.BTC_EUR, false); // eur -> ltc -> btc -> eur
-    public static final Triangle T3 = new Triangle(Pair.LTC_USD, true,  Pair.LTC_EUR, false, Pair.EUR_USD, false); // usd -> ltc -> eur -> usd
-    public static final Triangle T4 = new Triangle(Pair.EUR_USD, false, Pair.BTC_USD, true,  Pair.BTC_EUR, false); // eur -> usd -> btc -> eur
+    public static final Triangle T1 = new Triangle(Currency.USD, Currency.LTC, Currency.BTC); // usd -> ltc -> btc -> usd
+    public static final Triangle T2 = new Triangle(Currency.EUR, Currency.LTC, Currency.BTC); // eur -> ltc -> btc -> eur
+    public static final Triangle T3 = new Triangle(Currency.USD, Currency.LTC, Currency.EUR); // usd -> ltc -> eur -> usd
+    public static final Triangle T4 = new Triangle(Currency.EUR, Currency.USD, Currency.BTC); // eur -> usd -> btc -> eur
     public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4};
 
     static AccountData s_startAccount;

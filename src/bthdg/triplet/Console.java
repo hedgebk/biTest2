@@ -184,7 +184,7 @@ public class Console {
                 PairDirection pd = PairDirection.get(fromCurrency, toCurrency);
                 Pair pair = pd.m_pair;
 
-                boolean forward = pd.m_forward;
+                boolean forward = pd.isForward();
                 if(!forward) {
                     side = side.opposite();
                 }

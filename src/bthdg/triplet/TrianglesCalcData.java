@@ -16,7 +16,6 @@ public class TrianglesCalcData extends ArrayList<TriangleCalcData> {
     static TrianglesCalcData calc(TopsData tops) {
         TrianglesCalcData ret = new TrianglesCalcData(Triplet.TRIANGLES.length);
         for (Triangle tr : Triplet.TRIANGLES) {
-//                log("Triangle: " + tr.name());
             TriangleCalcData calc = TriangleCalcData.calc(tops, tr);
             ret.add(calc);
         }

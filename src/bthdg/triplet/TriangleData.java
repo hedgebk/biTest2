@@ -86,13 +86,13 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
         for (Map.Entry<Pair, Integer> x : list) {
             log(" checkBrackets:" + x);
             Pair pair = x.getKey(); // pairs sorted by trades frequency
-            checkBrackets(iData, bestMap, tops, account, pair, true);
-            checkBrackets(iData, bestMap, tops, account, pair, false);
+            checkBrackets(iData, bestMap, tops, account, pair, Direction.FORWARD);
+            checkBrackets(iData, bestMap, tops, account, pair, Direction.BACKWARD);
         }
     }
 
-    private void checkBrackets(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops, AccountData account, Pair pair, boolean forward) throws Exception {
-        PairDirection pd1 = new PairDirection(pair, forward);
+    private void checkBrackets(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops, AccountData account, Pair pair, Direction direction) throws Exception {
+        PairDirection pd1 = new PairDirection(pair, direction);
         Currency fromCurrency = pd1.currencyFrom();
         double available = getAvailable(fromCurrency);
         double allocated = account.allocated(fromCurrency);
@@ -102,7 +102,7 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
             log("    bestPeg=" + bestPeg);
             double bracketPrice = bestPeg.m_need;
             TopData top = tops.get(pair);
-            OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
+            OrderSide side = (direction == Direction.FORWARD) ? OrderSide.BUY : OrderSide.SELL;
             double amount = side.isBuy() ? available / bracketPrice : available;
             log("    bracketPrice:" + bracketPrice + "; side=" + side + "; amount=" + amount + "; top=" + top);
 
@@ -320,13 +320,30 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             bestMapPref.put(key, opcd);
         }
 
+        // resort by max with EurCrypt preferred
+        TreeMap<Double, OnePegCalcData> bestMapEurCrypt = new TreeMap<Double, OnePegCalcData>();
+        for (OnePegCalcData opcd : bestMap.values()) {
+            double key = 1 / opcd.m_max;
+            Pair pair = opcd.m_pair1.m_pair;
+            if((pair == Pair.BTC_EUR) || (pair == Pair.LTC_EUR)) {
+                key /= 1.5; // prefer pairs with EurCrypt
+            }
+            bestMapEurCrypt.put(key, opcd);
+        }
+
         boolean oneStarted = false;
         if (Triplet.TRY_WITH_MKT_OFFSET ) {
             oneStarted = checkNew(iData, best10Map, tops, true); // try max10 with prefer sort
         }
         if (!oneStarted) {
+            TreeMap<Double, OnePegCalcData> map =
+                    Triplet.PREFER_LIQUID_PAIRS
+                            ? bestMapPref
+                            : Triplet.PREFER_EUR_CRYPT_PAIRS
+                                ? bestMapEurCrypt
+                                : bestMap;
             oneStarted = checkNew(iData,
-                    Triplet.PREFER_LIQUID_PAIRS ? bestMapPref : bestMap,
+                    map,
                     tops, false); // then try regular peg>level
             if (Triplet.TRY_WITH_MKT_OFFSET && !oneStarted) {
                 checkNew(iData, bestMap, tops, true); // then try the rest max10
@@ -407,7 +424,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         PairDirection pd3 = peg.m_pair3;
         Pair pair3 = pd3.m_pair;
 
-        boolean direction = pd1.m_forward;
+        boolean direction = pd1.isForward();
         OrderSide side = pd1.getSide();
         TopData top = tops.get(pair1);
         TopData top2 = tops.get(pair2);
@@ -422,11 +439,13 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         String pegPriceStr = Exchange.BTCE.roundPriceStr(pegPrice, pair1);
 
         if (Triplet.USE_DEEP) { // adjust amount to pairs mkt availability
-            double ratio = adjustAmountToMkt(tops, peg, doMktOffset, available);
-            if (ratio != 1) {
-                double amountIn = amount;
-                amount = amountIn * ratio;
-                log("due to MKT orders availability in the book. PEG amount reduced from " + amountIn + " to " + amount + " " + fromCurrency);
+            if( Triplet.ADJUST_AMOUNT_TO_MKT_AVAILABLE) {
+                double ratio = adjustAmountToMkt(tops, peg, doMktOffset, available);
+                if (ratio != 1) {
+                    double amountIn = amount;
+                    amount = amountIn * ratio;
+                    log("due to MKT orders availability in the book. PEG amount reduced from " + amountIn + " to " + amount + " " + fromCurrency);
+                }
             }
         }
 

@@ -17,8 +17,8 @@ public class TriangleCalcData {
     }
 
     static TriangleCalcData calc(TopsData tops, Triangle triangle) {
-        return new TriangleCalcData(TriangleRotationCalcData.calc(tops, triangle, true),
-                                    TriangleRotationCalcData.calc(tops, triangle, false));
+        return new TriangleCalcData(TriangleRotationCalcData.calc(tops, triangle, Direction.FORWARD),
+                                    TriangleRotationCalcData.calc(tops, triangle, Direction.BACKWARD));
     }
 
     public String str() {

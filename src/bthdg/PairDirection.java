@@ -1,32 +1,35 @@
 package bthdg;
 
+import bthdg.triplet.Direction;
+
 public class PairDirection {
     public final Pair m_pair;
-    public final boolean m_forward;
+    public final Direction m_direction;
 
-    public Currency currencyFrom() { return m_pair.currencyFrom(m_forward); }
-    public Currency currencyTo() { return m_pair.currencyFrom(!m_forward); }
+    public Currency currencyFrom() { return m_pair.currencyFrom(m_direction); }
+    public Currency currencyTo() { return m_pair.currencyFrom(m_direction.reverse()); }
+    public boolean isForward() { return m_direction.m_forward; }
 
-    public PairDirection(Pair pair, boolean forward) {
+    public PairDirection(Pair pair, Direction direction) {
         m_pair = pair;
-        m_forward = forward;
+        m_direction = direction;
     }
 
-    public PairDirection get(boolean forward) {
-        if (forward) {
+    public PairDirection get(Direction direction) {
+        if (direction == Direction.FORWARD) {
             return this;
         }
-        return new PairDirection(m_pair, !m_forward);
+        return new PairDirection(m_pair, m_direction.reverse());
     }
 
     public String getName() {
-        return m_pair.getName(m_forward);
+        return m_pair.getName(m_direction);
     }
 
     @Override public String toString() {
         return "PairDirection{" +
                 "pair=" + m_pair +
-                ", " + (m_forward ? "forward" : "backward")+
+                ", " + ((m_direction== Direction.FORWARD) ? "forward" : "backward")+
                 '}';
     }
 
@@ -34,7 +37,7 @@ public class PairDirection {
         if (obj == this) { return true; }
         if (obj instanceof PairDirection) {
             PairDirection other = (PairDirection) obj;
-            if (m_forward == other.m_forward) {
+            if (m_direction == other.m_direction) {
                 return m_pair == other.m_pair;
             }
         }
@@ -44,16 +47,16 @@ public class PairDirection {
     public static PairDirection get(Currency fromCurrency, Currency toCurrency) {
         for( Pair pair: Pair.values() ) {
             if((pair.m_from == fromCurrency) && (pair.m_to == toCurrency)) {
-                return new PairDirection(pair, true);
+                return new PairDirection(pair, Direction.FORWARD);
             }
             if((pair.m_to == fromCurrency) && (pair.m_from == toCurrency)) {
-                return new PairDirection(pair, false);
+                return new PairDirection(pair, Direction.BACKWARD);
             }
         }
         throw new RuntimeException("not supported pair: " + fromCurrency + "->" + toCurrency);
     }
 
     public OrderSide getSide() {
-        return m_forward ? OrderSide.BUY : OrderSide.SELL;
+        return (m_direction == Direction.FORWARD) ? OrderSide.BUY : OrderSide.SELL;
     }
 }

@@ -42,7 +42,7 @@ public class TriTradeData {
 
         PairDirection pd = (num == 1) ? m_peg.m_pair2 : m_peg.m_pair3;
         Pair pair = pd.m_pair;
-        boolean forward = pd.m_forward;
+        boolean forward = pd.isForward();
         TopData topData = tops.get(pair);
         OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
         boolean withMktOffset = m_doMktOffset && (m_waitMktOrderStep < Triplet.WAIT_MKT_ORDER_STEPS);

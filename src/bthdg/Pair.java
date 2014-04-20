@@ -1,5 +1,7 @@
 package bthdg;
 
+import bthdg.triplet.Direction;
+
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
@@ -23,11 +25,15 @@ public enum Pair {
         m_freq = freq;
     }
 
-    public String getName(boolean forward) {
-        return forward ? m_from + "->" + m_to : m_to + "->" + m_from;
+    public String getName(Direction direction) {
+        return (direction == Direction.FORWARD) ? m_from + "->" + m_to : m_to + "->" + m_from;
     }
 
     public Currency currencyFrom(boolean from) {
         return from ? m_from : m_to;
+    }
+
+    public Currency currencyFrom(Direction direction) {
+        return (direction == Direction.FORWARD) ? m_from : m_to;
     }
 }

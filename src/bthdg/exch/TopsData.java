@@ -22,7 +22,7 @@ public class TopsData {
         Pair pair = pd.m_pair;
         TopData top = get(pair);
         double mid = top.getMid();
-        if (!pd.m_forward) {
+        if (!pd.isForward()) {
             mid = 1 / mid;
         }
         double converted = all / mid;

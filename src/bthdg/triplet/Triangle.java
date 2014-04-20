@@ -9,22 +9,22 @@ import java.util.ArrayList;
 import java.util.Map;
 
 public class Triangle extends ArrayList<PairDirection> {
-    public Triangle(Pair pair1, boolean forward1, Pair pair2, boolean forward2, Pair pair3, boolean forward3) {
-        add(new PairDirection(pair1, forward1));
-        add(new PairDirection(pair2, forward2));
-        add(new PairDirection(pair3, forward3));
+    public Triangle(Currency currency1, Currency currency2, Currency currency3) {
+        add(PairDirection.get(currency1, currency2));
+        add(PairDirection.get(currency2, currency3));
+        add(PairDirection.get(currency3, currency1));
     }
 
-    public double calcMkt(TopsData tops, boolean forward) {
-        return forward
-                ? calcMkt(tops, get(0).get(forward), get(1).get(forward), get(2).get(forward))
-                : calcMkt(tops, get(2).get(forward), get(1).get(forward), get(0).get(forward));
+    public double calcMkt(TopsData tops, Direction direction) {
+        return direction.m_forward
+                ? calcMkt(tops, get(0).get(direction), get(1).get(direction), get(2).get(direction))
+                : calcMkt(tops, get(2).get(direction), get(1).get(direction), get(0).get(direction));
     }
 
-    public double calcMkt(TopsData tops, boolean forward, double offset) {
-        return forward
-                ? calcMkt(tops, get(0).get(forward), get(1).get(forward), get(2).get(forward), offset)
-                : calcMkt(tops, get(2).get(forward), get(1).get(forward), get(0).get(forward), offset);
+    public double calcMkt(TopsData tops, Direction direction, double offset) {
+        return direction.m_forward
+                ? calcMkt(tops, get(0).get(direction), get(1).get(direction), get(2).get(direction), offset)
+                : calcMkt(tops, get(2).get(direction), get(1).get(direction), get(0).get(direction), offset);
     }
 
     private static double calcMkt(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
@@ -35,10 +35,10 @@ public class Triangle extends ArrayList<PairDirection> {
         return mulMkt(mulMkt(mulMkt((double) 100, tops.get(pair1.m_pair), pair1, offset), tops.get(pair2.m_pair), pair2, offset), tops.get(pair3.m_pair), pair3, offset);
     }
 
-    public double calcMid(TopsData tops, boolean forward) {
-        return forward
-                ? calcMid(tops, get(0).get(forward), get(1).get(forward), get(2).get(forward))
-                : calcMid(tops, get(2).get(forward), get(1).get(forward), get(0).get(forward));
+    public double calcMid(TopsData tops, Direction direction) {
+        return direction.m_forward
+                ? calcMid(tops, get(0).get(direction), get(1).get(direction), get(2).get(direction))
+                : calcMid(tops, get(2).get(direction), get(1).get(direction), get(0).get(direction));
     }
 
     private static double calcMid(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
@@ -55,11 +55,11 @@ public class Triangle extends ArrayList<PairDirection> {
         return sb.toString();
     }
 
-    public OnePegCalcData[] calcPegs(TopsData tops, boolean forward) {
-        PairDirection pd0 = get(0).get(forward);
-        PairDirection pd1 = get(1).get(forward);
-        PairDirection pd2 = get(2).get(forward);
-        return forward ? calcPegs(tops, pd0, pd1, pd2) : calcPegs(tops, pd2, pd1, pd0);
+    public OnePegCalcData[] calcPegs(TopsData tops, Direction direction) {
+        PairDirection pd0 = get(0).get(direction);
+        PairDirection pd1 = get(1).get(direction);
+        PairDirection pd2 = get(2).get(direction);
+        return (direction == Direction.FORWARD) ? calcPegs(tops, pd0, pd1, pd2) : calcPegs(tops, pd2, pd1, pd0);
     }
 
     private static OnePegCalcData[] calcPegs(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
@@ -92,7 +92,7 @@ public class Triangle extends ArrayList<PairDirection> {
 
     public static double mulMid(double in, TopData top, PairDirection pd) {
         double mid = midPrice(top, pd);
-        double ret = pd.m_forward ? in / mid : in * mid;
+        double ret = pd.isForward() ? in / mid : in * mid;
         return ret;
     }
 
@@ -105,7 +105,7 @@ public class Triangle extends ArrayList<PairDirection> {
 
     public static double mulMkt(double in, TopData top, PairDirection pd) {
         double mkt = mktPrice(top, pd);
-        double ret = pd.m_forward ? in / mkt : in * mkt; // ASK > BID
+        double ret = pd.isForward() ? in / mkt : in * mkt; // ASK > BID
         return ret;
     }
     public static double mktPrice(TopData top, PairDirection pd) {
@@ -115,7 +115,7 @@ public class Triangle extends ArrayList<PairDirection> {
 
     public static double mulMkt(double in, TopData top, PairDirection pd, double offset) {
         double mktPrice = mktPrice(top, pd, offset);
-        double ret = pd.m_forward ? in / mktPrice : in * mktPrice; // ASK > BID
+        double ret = pd.isForward() ? in / mktPrice : in * mktPrice; // ASK > BID
         return ret;
     }
 
@@ -123,7 +123,7 @@ public class Triangle extends ArrayList<PairDirection> {
         double delta = (top.m_ask - top.m_bid) * offset;
         OrderSide side = pd.getSide();
         double mktPrice = side.mktPrice(top);
-        double price = pd.m_forward ? mktPrice - delta : mktPrice + delta; // ASK > BID
+        double price = pd.isForward() ? mktPrice - delta : mktPrice + delta; // ASK > BID
         // the price is changed from quoted by exchange - need to be rounded
         double ret = Exchange.BTCE.roundPrice(price, pd.m_pair);
         return ret;
@@ -131,7 +131,7 @@ public class Triangle extends ArrayList<PairDirection> {
 
     public static double mulPeg(double in, TopData top, PairDirection pd) {
         double pegPrice = pegPrice(top, pd);
-        double ret = pd.m_forward ? in / pegPrice : in * pegPrice; // ASK > BID
+        double ret = pd.isForward() ? in / pegPrice : in * pegPrice; // ASK > BID
         return ret;
     }
 

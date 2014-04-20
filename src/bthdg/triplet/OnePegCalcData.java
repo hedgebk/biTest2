@@ -37,13 +37,13 @@ public class OnePegCalcData {
         m_pair2 = pair2;
         m_pair3 = pair3;
         m_need = (Triplet.s_level / 100) / price2() / price3();
-        if (m_pair1.m_forward) {
+        if (m_pair1.isForward()) {
             m_need = 1 / m_need;
         }
     }
 
-    private double price2() { return m_pair2.m_forward ? 1/m_price2 : m_price2; }
-    private double price3() { return m_pair3.m_forward ? 1/m_price3 : m_price3; }
+    private double price2() { return m_pair2.isForward() ? 1/m_price2 : m_price2; }
+    private double price3() { return m_pair3.isForward() ? 1/m_price3 : m_price3; }
 
     public String name() {
         StringBuilder sb = new StringBuilder();

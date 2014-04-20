@@ -25,7 +25,7 @@ public class DeepsData extends HashMap<Pair,DeepData> {
     public DeepData.Deep getMktDeep(PairDirection pd) {
         Pair pair = pd.m_pair;
         DeepData deepData = get(pair);
-        return pd.m_forward ? deepData.getAsk() : deepData.getBid();
+        return pd.isForward() ? deepData.getAsk() : deepData.getBid();
     }
 
     public class TopsDataAdapter extends TopsData {

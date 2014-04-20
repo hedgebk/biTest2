@@ -9,7 +9,7 @@ import java.util.TreeMap;
 
 public class TriangleRotationCalcData {
     public Triangle m_triangle;
-    public boolean m_forward;
+    public Direction m_direction;
     private double m_mid;
     private double m_mkt;
     private double m_mktMinus10;  // mkt-10
@@ -21,16 +21,16 @@ public class TriangleRotationCalcData {
         if(obj == this) { return true; }
         if(obj instanceof TriangleRotationCalcData) {
             TriangleRotationCalcData other = (TriangleRotationCalcData) obj;
-            if(m_forward == other.m_forward) {
+            if(m_direction == other.m_direction) {
                 return m_triangle.equals(other.m_triangle);
             }
         }
         return false;
     }
 
-    public TriangleRotationCalcData(Triangle triangle, boolean forward, double mid, double mkt, double mktMinus10, double mktMinus20, OnePegCalcData[] pegs) {
+    public TriangleRotationCalcData(Triangle triangle, Direction direction, double mid, double mkt, double mktMinus10, double mktMinus20, OnePegCalcData[] pegs) {
         m_triangle = triangle;
-        m_forward = forward;
+        m_direction = direction;
         m_mid = mid;
         m_mkt = mkt;
         m_mktMinus10 = mktMinus10;
@@ -50,14 +50,14 @@ public class TriangleRotationCalcData {
         return m_pegs[indx];
     }
 
-    static TriangleRotationCalcData calc(TopsData tops, Triangle triangle, boolean forward) {
+    static TriangleRotationCalcData calc(TopsData tops, Triangle triangle, Direction direction) {
 //            log(" rotate forward=" + forward + " on Triangle: " + triangle.name());
-        return new TriangleRotationCalcData(triangle, forward,
-                                            triangle.calcMid(tops, forward),
-                                            triangle.calcMkt(tops, forward),
-                                            triangle.calcMkt(tops, forward, 0.1d),
-                                            triangle.calcMkt(tops, forward, 0.2d),
-                                            triangle.calcPegs(tops, forward));
+        return new TriangleRotationCalcData(triangle, direction,
+                                            triangle.calcMid(tops, direction),
+                                            triangle.calcMkt(tops, direction),
+                                            triangle.calcMkt(tops, direction, 0.1d),
+                                            triangle.calcMkt(tops, direction, 0.2d),
+                                            triangle.calcPegs(tops, direction));
     }
 
     public String str() {

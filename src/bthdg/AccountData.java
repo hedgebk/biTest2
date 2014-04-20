@@ -212,7 +212,7 @@ public class AccountData {
                     Pair pair = pd.m_pair;
                     TopData top = tops.get(pair);
                     rate = top.getMid();
-                    if (!pd.m_forward) {
+                    if (!pd.isForward()) {
                         rate = 1 / rate;
                     }
                 }
