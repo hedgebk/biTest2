@@ -12,10 +12,10 @@ import java.util.TreeMap;
 public class FundMap {
     static final Map<Currency,Double> s_distributeRatio = new HashMap<Currency, Double>();
     static{
-        s_distributeRatio.put(Currency.LTC, 0.29);
-        s_distributeRatio.put(Currency.USD, 0.13);
-        s_distributeRatio.put(Currency.BTC, 0.18);
-        s_distributeRatio.put(Currency.EUR, 0.40);
+        s_distributeRatio.put(Currency.LTC, 0.40);
+        s_distributeRatio.put(Currency.EUR, 0.30);
+        s_distributeRatio.put(Currency.BTC, 0.20);
+        s_distributeRatio.put(Currency.USD, 0.10);
     }
 
     public static void test(AccountData account, TopsData tops) {

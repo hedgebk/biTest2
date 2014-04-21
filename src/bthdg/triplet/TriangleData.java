@@ -53,7 +53,9 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
             }
 //                checkMkt(iData, trianglesCalc, tops);
             checkNew(iData, bestMap, tops);
-//            checkBrackets(iData, bestMap, tops, m_account);
+            if (Triplet.USE_BRACKETS) {
+                checkBrackets(iData, bestMap, tops, m_account);
+            }
         }
     }
 
@@ -76,19 +78,65 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
         }
     }
 
-    private void checkBrackets(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops, AccountData account) throws Exception {
-        List<Map.Entry<Pair, Integer>> list = new ArrayList<Map.Entry<Pair, Integer>>(iData.m_tradesAgg.m_tradesMap.entrySet());
-        Collections.sort(list, new Comparator<Map.Entry<Pair, Integer>>() {  // sort by frequency
-            @Override public int compare(Map.Entry<Pair, Integer> o1, Map.Entry<Pair, Integer> o2) {
-                return o2.getValue().compareTo(o1.getValue());
+    private void checkBrackets(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, final TopsData tops, AccountData account) throws Exception {
+        List<OnePegCalcData> calcDatas = new ArrayList<OnePegCalcData>(bestMap.values());
+        Collections.sort(calcDatas, new Comparator<OnePegCalcData>() {
+            @Override public int compare(OnePegCalcData o1, OnePegCalcData o2) {
+                double distance1 = o1.getBracketDistance(tops);
+                double distance2 = o2.getBracketDistance(tops);
+                return (distance1 > distance2)
+                            ? 1
+                            : (distance1 == distance2) ? 0 : -1;
             }
         });
-        for (Map.Entry<Pair, Integer> x : list) {
-            log(" checkBrackets:" + x);
-            Pair pair = x.getKey(); // pairs sorted by trades frequency
-            checkBrackets(iData, bestMap, tops, account, pair, Direction.FORWARD);
-            checkBrackets(iData, bestMap, tops, account, pair, Direction.BACKWARD);
+        for (OnePegCalcData calcData : calcDatas) {
+            double distance = calcData.getBracketDistance(tops);
+            if (distance < 2) {
+                TopData topData = tops.get(calcData.m_pair1.m_pair);
+                double bidAskDiff = topData.getBidAskDiff();
+
+                double bracketPrice = calcData.m_bracketPrice;
+                log(" " + calcData.name() + " distance=" + Utils.X_YYYYY.format(distance) +
+                        "; bidAskDiff=" + Utils.X_YYYYY.format(bidAskDiff) +
+                        "; bid=" + Utils.X_YYYYY.format(topData.m_bid) +
+                        "; mid=" + Utils.X_YYYYY.format(topData.getMid()) +
+                        "; ask=" + Utils.X_YYYYY.format(topData.m_ask) +
+                        "; bracket=" + Utils.X_YYYYY.format(bracketPrice));
+
+
+                TopData top2 = tops.get(calcData.m_pair2.m_pair);
+                double mkt2 = calcData.calcMktPrice(tops, calcData.m_pair2);
+
+                TopData top3 = tops.get(calcData.m_pair3.m_pair);
+                double mkt3 = calcData.calcMktPrice(tops, calcData.m_pair3);
+
+                double ratio1 = calcData.pegRatio1(account, bracketPrice);
+                double ratio2 = calcData.mktRatio2(tops, account);
+                double ratio3 = calcData.mktRatio3(tops, account);
+                double ratio = ratio1 * ratio2 * ratio3;
+
+                log("  MKT2" +
+                        ": bid=" + Utils.X_YYYYY.format(top2.m_bid) +
+                        "; mkt=" + Utils.X_YYYYY.format(mkt2) +
+                        "; ask=" + Utils.X_YYYYY.format(top2.m_ask) +
+                        "   MKT3" +
+                        ": bid=" + Utils.X_YYYYY.format(top3.m_bid) +
+                        "; mkt=" + Utils.X_YYYYY.format(mkt3) +
+                        "; ask=" + Utils.X_YYYYY.format(top3.m_ask) +
+                        ": |  ratio1=" + Utils.X_YYYYY.format(ratio1) +
+                        "; ratio2=" + Utils.X_YYYYY.format(ratio2) +
+                        "; ratio3=" + Utils.X_YYYYY.format(ratio3) +
+                        ": ratio=" + Utils.X_YYYYY.format(ratio)
+                );
+            }
         }
+
+//        for (Map.Entry<Pair, Integer> x : list) {
+//            log(" checkBrackets:" + x);
+//            Pair pair = x.getKey(); // pairs sorted by trades frequency
+//            checkBrackets(iData, bestMap, tops, account, pair, Direction.FORWARD);
+//            checkBrackets(iData, bestMap, tops, account, pair, Direction.BACKWARD);
+//        }
     }
 
     private void checkBrackets(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, Map<Pair, TopData> tops, AccountData account, Pair pair, Direction direction) throws Exception {
@@ -197,10 +245,10 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
                     double ratio1 = tradePeg.pegRatio1(tops, m_account); // commission is applied to ratio
                     double ratio2 = doMktOffset
-                                ? tradePeg.mktRatio2(tops, m_account, Triplet.MINUS_MKT_OFFSET)
+                                ? tradePeg.mktRatio2(tops, m_account, Triplet.MKT_OFFSET_PRICE_MINUS)
                                 : tradePeg.mktRatio2(tops, m_account);
                     double ratio3 = doMktOffset
-                        ? tradePeg.mktRatio3(tops, m_account, Triplet.MINUS_MKT_OFFSET )
+                        ? tradePeg.mktRatio3(tops, m_account, Triplet.MKT_OFFSET_PRICE_MINUS)
                         : tradePeg.mktRatio3(tops, m_account); // commission is applied to ratio
                     double ratio = ratio1 * ratio2 * ratio3;
                     triTrade.log("checkPegToLive() ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio);
@@ -292,7 +340,25 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 //            checkNew(iData, bestMap, tops, true);
 //        }
 
-        // resort by max10 with preferred
+        boolean oneStarted = false;
+        if (Triplet.TRY_WITH_MKT_OFFSET ) {
+            oneStarted = checkNew(iData, mapWithBest10(bestMap), tops, true); // try max10 with prefer sort
+        }
+        if (!oneStarted) {
+            TreeMap<Double, OnePegCalcData> map =
+                    Triplet.PREFER_LIQUID_PAIRS
+                            ? mapWithPref(bestMap) // resort by max with preferred
+                            : Triplet.PREFER_EUR_CRYPT_PAIRS
+                                ? mapWithEurCrypt(bestMap)
+                                : bestMap;
+            oneStarted = checkNew(iData, map, tops, false); // then try regular peg>level
+            if (Triplet.TRY_WITH_MKT_OFFSET && !oneStarted) {
+                checkNew(iData, bestMap, tops, true); // then try the rest max10
+            }
+        }
+    }
+
+    private TreeMap<Double, OnePegCalcData> mapWithBest10(TreeMap<Double, OnePegCalcData> bestMap) {
         TreeMap<Double, OnePegCalcData> best10Map = new TreeMap<Double, OnePegCalcData>();
         for (OnePegCalcData opcd : bestMap.values()) {
             double key = 1 / opcd.m_max10;
@@ -305,8 +371,24 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             }
             best10Map.put(key, opcd);
         }
+        return best10Map;
+    }
 
-        // resort by max with preferred
+    private TreeMap<Double, OnePegCalcData> mapWithEurCrypt(TreeMap<Double, OnePegCalcData> bestMap) {
+        // resort by max with EurCrypt preferred
+        TreeMap<Double, OnePegCalcData> bestMapEurCrypt = new TreeMap<Double, OnePegCalcData>();
+        for (OnePegCalcData opcd : bestMap.values()) {
+            double key = 1 / opcd.m_max;
+            Pair pair = opcd.m_pair1.m_pair;
+            if((pair == Pair.BTC_EUR) || (pair == Pair.LTC_EUR)) {
+                key /= 1.5; // prefer pairs with EurCrypt
+            }
+            bestMapEurCrypt.put(key, opcd);
+        }
+        return bestMapEurCrypt;
+    }
+
+    private TreeMap<Double, OnePegCalcData> mapWithPref(TreeMap<Double, OnePegCalcData> bestMap) {
         TreeMap<Double, OnePegCalcData> bestMapPref = new TreeMap<Double, OnePegCalcData>();
         for (OnePegCalcData opcd : bestMap.values()) {
             double key = 1 / opcd.m_max;
@@ -319,36 +401,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             }
             bestMapPref.put(key, opcd);
         }
-
-        // resort by max with EurCrypt preferred
-        TreeMap<Double, OnePegCalcData> bestMapEurCrypt = new TreeMap<Double, OnePegCalcData>();
-        for (OnePegCalcData opcd : bestMap.values()) {
-            double key = 1 / opcd.m_max;
-            Pair pair = opcd.m_pair1.m_pair;
-            if((pair == Pair.BTC_EUR) || (pair == Pair.LTC_EUR)) {
-                key /= 1.5; // prefer pairs with EurCrypt
-            }
-            bestMapEurCrypt.put(key, opcd);
-        }
-
-        boolean oneStarted = false;
-        if (Triplet.TRY_WITH_MKT_OFFSET ) {
-            oneStarted = checkNew(iData, best10Map, tops, true); // try max10 with prefer sort
-        }
-        if (!oneStarted) {
-            TreeMap<Double, OnePegCalcData> map =
-                    Triplet.PREFER_LIQUID_PAIRS
-                            ? bestMapPref
-                            : Triplet.PREFER_EUR_CRYPT_PAIRS
-                                ? bestMapEurCrypt
-                                : bestMap;
-            oneStarted = checkNew(iData,
-                    map,
-                    tops, false); // then try regular peg>level
-            if (Triplet.TRY_WITH_MKT_OFFSET && !oneStarted) {
-                checkNew(iData, bestMap, tops, true); // then try the rest max10
-            }
-        }
+        return bestMapPref;
     }
 
     private boolean checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, TopsData tops,
@@ -369,11 +422,17 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
             double level = Triplet.s_level;
             Pair startPair = peg.m_pair1.m_pair;
-            if ((startPair == Pair.LTC_BTC) || (startPair == Pair.BTC_USD) || (startPair == Pair.LTC_USD)) {
-                level -= 0.02; // reduce level for pairs with higher liquidity
+            if (Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS) {
+                if ((startPair == Pair.LTC_BTC) || (startPair == Pair.BTC_USD) || (startPair == Pair.LTC_USD)) {
+                    level -= Triplet.LIQUIDITY_PAIRS_LEVEL_DELTA; // reduce level for pairs with higher liquidity
+                }
             }
 
-            if(maxPeg > 100.4) {
+            if (doMktOffset) {
+                level += Triplet.MKT_OFFSET_LEVEL_DELTA; // increase level mkt offsets
+            }
+
+            if(maxPeg > 100.5) {
                 log("BEST: max" + (doMktOffset ? "" : "*") + "=" + peg.m_max +
                         ", max10" + (doMktOffset ? "*" : "") + "=" + peg.m_max10 +
                         "; level=" + level + "; need=" + peg.m_need + ": " + peg.name());
@@ -414,8 +473,8 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
         String name = peg.name();
         double pegPrice = peg.calcPegPrice(tops);
-        double mkt1Price = doMktOffset ? peg.calcMktPrice(tops, 0, Triplet.MINUS_MKT_OFFSET) : peg.calcMktPrice(tops, 0);
-        double mkt2Price = doMktOffset ? peg.calcMktPrice(tops, 1, Triplet.MINUS_MKT_OFFSET) : peg.calcMktPrice(tops, 1);
+        double mkt1Price = doMktOffset ? peg.calcMktPrice(tops, 0, Triplet.MKT_OFFSET_PRICE_MINUS) : peg.calcMktPrice(tops, 0);
+        double mkt2Price = doMktOffset ? peg.calcMktPrice(tops, 1, Triplet.MKT_OFFSET_PRICE_MINUS) : peg.calcMktPrice(tops, 1);
 
         PairDirection pd1 = peg.m_pair1;
         Pair pair1 = pd1.m_pair;
@@ -439,9 +498,12 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         String pegPriceStr = Exchange.BTCE.roundPriceStr(pegPrice, pair1);
 
         if (Triplet.USE_DEEP) { // adjust amount to pairs mkt availability
-            if( Triplet.ADJUST_AMOUNT_TO_MKT_AVAILABLE) {
+            if (Triplet.ADJUST_AMOUNT_TO_MKT_AVAILABLE) {
                 double ratio = adjustAmountToMkt(tops, peg, doMktOffset, available);
-                if (ratio != 1) {
+                if (ratio < 1) {
+                    ratio *= Triplet.PLACE_MORE_THAN_MKT_AVAILABLE;
+                }
+                if (ratio < 1) {
                     double amountIn = amount;
                     amount = amountIn * ratio;
                     log("due to MKT orders availability in the book. PEG amount reduced from " + amountIn + " to " + amount + " " + fromCurrency);
@@ -453,12 +515,14 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         String amountStr = Exchange.BTCE.roundAmountStr(amount, pair1);
         double needPeg = peg.m_need;
         String needPegStr = Exchange.BTCE.roundPriceStr(needPeg, pair1);
+        double bracketPrice = peg.m_bracketPrice;
+        String bracketStr = Exchange.BTCE.roundPriceStr(bracketPrice, pair1);
 
         log("#### " +
                 (doMktOffset ? "mkt-offset" : "best") +
                 ": " + Triplet.formatAndPad(maxPeg) + "; " + name + ", pair: " + pair1 + ", direction=" + direction +
                 ", from=" + fromCurrency + "; available=" + availableStr + "; amount=" + amountStr + "; side=" + side +
-                "; pegPrice=" + pegPriceStr + "; needPeg=" + needPegStr + "; top: " + top.toString(Exchange.BTCE, pair1));
+                "; peg=" + pegPriceStr + "; need=" + needPegStr + "; bracket=" + bracketStr + "; top: " + top.toString(Exchange.BTCE, pair1));
 
         double minOrderToCreate = Btce.minOrderToCreate(pair1);
         if (amount >= minOrderToCreate) {
@@ -513,31 +577,31 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         Pair pair3 = pd3.m_pair;
 // EUR->LTC;LTC->USD;USD->EUR
         Currency pd1to = pd1.currencyTo();
-        log("adjustAmountToMkt("+peg.name()+")");
-log(" we have input amount=" + amount + " " + pd1.currencyFrom());
+//log("adjustAmountToMkt("+peg.name()+")");
+//log(" we have input amount=" + amount + " " + pd1.currencyFrom());
         double ratio1 = peg.pegRatio1(tops, m_account); // commission is applied to ratio
-log(" PEG(" + pd1.getName() + ") has ratio1="+ratio1);
+//log(" PEG(" + pd1.getName() + ") has ratio1="+ratio1);
         double amount2 = amount * ratio1;
-log("  after PEG we will have amount=" + amount2 + " " + pd1to);
+//log("  after PEG we will have amount=" + amount2 + " " + pd1to);
         amount2 = Exchange.BTCE.roundAmount(amount2, pair1);
-log("   round=" + amount2);
+//log("   round=" + amount2);
 
         DeepsData.TopsDataAdapter adapter = (DeepsData.TopsDataAdapter) tops;
         DeepsData deeps = adapter.getDeeps();
-log(" deeps="+deeps);
+//log(" deeps="+deeps);
 
         OrderSide side2 = pd2.getSide();
-log(" MKT1(" + pd2.getName() + ") pair=" + pair2 + "; side=" + side2);
+//log(" MKT1(" + pd2.getName() + ") pair=" + pair2 + "; side=" + side2);
         DeepData deepData2 = deeps.get(pair2);
-log("  deep=" + deepData2);
+//log("  deep=" + deepData2);
         double mktAmount2 = deeps.getMktAmount(pd2);
         double mktPrice2 = doMktOffset
-                ? peg.calcMktPrice(tops, pd2, Triplet.MINUS_MKT_OFFSET)
+                ? peg.calcMktPrice(tops, pd2, Triplet.MKT_OFFSET_PRICE_MINUS)
                 : peg.calcMktPrice(tops, pd2);
         double ratio2 = doMktOffset
-                ? peg.mktRatio2(tops, m_account, Triplet.MINUS_MKT_OFFSET)
+                ? peg.mktRatio2(tops, m_account, Triplet.MKT_OFFSET_PRICE_MINUS)
                 : peg.mktRatio2(tops, m_account);
-log("   mktAmount2=" + mktAmount2 + " " + pair2.m_to + "; mktPrice2="+mktPrice2+"; ratio2="+ratio2);
+//log("   mktAmount2=" + mktAmount2 + " " + pair2.m_to + "; mktPrice2="+mktPrice2+"; ratio2="+ratio2);
         double mktAmount2in, mktAmount2out;
         if( side2.isBuy() ) {
             // LTC_USD, buy: USD->LTC: mktPrice2=12.691896; mktAmount2=0.1002004 LTC
@@ -548,30 +612,30 @@ log("   mktAmount2=" + mktAmount2 + " " + pair2.m_to + "; mktPrice2="+mktPrice2+
             mktAmount2in = mktAmount2; // 0.1002004 LTC
             mktAmount2out = mktAmount2 * mktPrice2; //~ 1.2 usd
         }
-log("    mktAmount2in=" + mktAmount2in + " " + pd2.currencyFrom() + "; mktAmount2out=" + mktAmount2out + " " + pd2.currencyTo());
+//log("    mktAmount2in=" + mktAmount2in + " " + pd2.currencyFrom() + "; mktAmount2out=" + mktAmount2out + " " + pd2.currencyTo());
         double amount3;
         if (mktAmount2in < amount2) {
             ret = mktAmount2in / amount2;
             log("MKT1 " + pd2.getName() + "; pair=" + pair2 + "; side=" + side2 + ". book has only qty=" + mktAmount2in + " " + pd2.currencyFrom()+
                     ", need=" + amount2 + ": reducing amount at ratio="+ret);
             amount3 = mktAmount2out;
-log("     adjustRatio=" + ret);
+//log("     adjustRatio=" + ret);
         } else {
             amount3 = amount2*ratio2;
         }
-        log("  after MKT1 we may have amount=" + amount3 + " " + pd2.currencyTo());
+//log("  after MKT1 we may have amount=" + amount3 + " " + pd2.currencyTo());
         amount3 = Exchange.BTCE.roundAmount(amount3, pair2);
-        log("   round=" + amount3);
+//log("   round=" + amount3);
 
         OrderSide side3 = pd3.getSide();
-log(" MKT2(" + pd3.getName() + ") pair=" + pair3 + "; side=" + side3);
+//log(" MKT2(" + pd3.getName() + ") pair=" + pair3 + "; side=" + side3);
         DeepData deepData3 = deeps.get(pair3);
-log("  deep=" + deepData3);
+//log("  deep=" + deepData3);
         double mktAmount3 = deeps.getMktAmount(pd3);
         double mktPrice3 = doMktOffset
-                ? peg.calcMktPrice(tops, pd3, Triplet.MINUS_MKT_OFFSET)
+                ? peg.calcMktPrice(tops, pd3, Triplet.MKT_OFFSET_PRICE_MINUS)
                 : peg.calcMktPrice(tops, pd3);
-log("   mktAmount3=" + mktAmount3 + " " + pair3.m_to + "; mktPrice3="+mktPrice3);
+//log("   mktAmount3=" + mktAmount3 + " " + pair3.m_to + "; mktPrice3="+mktPrice3);
         double mktAmount3in, mktAmount3out;
         if( side3.isBuy() ) {
             // LTC_USD, buy: USD->LTC: mktPrice2=12.691896; mktAmount2=0.1002004 LTC
@@ -582,16 +646,16 @@ log("   mktAmount3=" + mktAmount3 + " " + pair3.m_to + "; mktPrice3="+mktPrice3)
             mktAmount3in = mktAmount3; // 0.1002004 LTC
             mktAmount3out = mktAmount3 * mktPrice3; //~ 1.2 usd
         }
-log("    mktAmount3in=" + mktAmount3in + " " + pd3.currencyFrom() + "; mktAmount3out=" + mktAmount3out + " " + pd3.currencyTo());
+//log("    mktAmount3in=" + mktAmount3in + " " + pd3.currencyFrom() + "; mktAmount3out=" + mktAmount3out + " " + pd3.currencyTo());
         if(mktAmount3in < amount3) {
             double ratio = mktAmount3in / amount3;
             ret *= ratio;
             log("MKT2 " + pd3.getName() + "; pair=" + pair3 + "; side=" + side3 + ". book has only qty=" + mktAmount3in + " " + pd3.currencyFrom()+
                     ", need=" + amount3 + ": reducing amount at ratio=" + ret );
-log("     adjustRatio=" + ret);
+//log("     adjustRatio=" + ret);
         }
 
-        log(" exit ratio=" + ret);
+//        log(" exit ratio=" + ret);
         return ret;
     }
 

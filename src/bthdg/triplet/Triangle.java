@@ -6,7 +6,6 @@ import bthdg.exch.TopData;
 import bthdg.exch.TopsData;
 
 import java.util.ArrayList;
-import java.util.Map;
 
 public class Triangle extends ArrayList<PairDirection> {
     public Triangle(Currency currency1, Currency currency2, Currency currency3) {
@@ -66,7 +65,7 @@ public class Triangle extends ArrayList<PairDirection> {
         TopData top1 = tops.get(pair1.m_pair);
         TopData top2 = tops.get(pair2.m_pair);
         TopData top3 = tops.get(pair3.m_pair);
-        double offset = Triplet.MINUS_MKT_OFFSET;
+        double offset = Triplet.MKT_OFFSET_PRICE_MINUS;
 
         return new OnePegCalcData[] {
                 new OnePegCalcData(0,

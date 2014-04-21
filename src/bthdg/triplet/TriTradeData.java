@@ -47,7 +47,7 @@ public class TriTradeData {
         OrderSide side = forward ? OrderSide.BUY : OrderSide.SELL;
         boolean withMktOffset = m_doMktOffset && (m_waitMktOrderStep < Triplet.WAIT_MKT_ORDER_STEPS);
         double tryPrice = withMktOffset
-                ? Triangle.mktPrice(topData, pd, Triplet.MINUS_MKT_OFFSET)
+                ? Triangle.mktPrice(topData, pd, Triplet.MKT_OFFSET_PRICE_MINUS)
                 : Triangle.mktPrice(topData, pd);
         log("  calculated tryPrice" + (withMktOffset ? "*" : "") + "=" + tryPrice + "; side=" + side + "; top=" + topData.toString(Exchange.BTCE, pair));
 
@@ -147,11 +147,11 @@ public class TriTradeData {
         double ratio1 = m_order.ratio(account); // commission is applied to ratio
         double ratio2 = (num == 1)
                 ? m_doMktOffset
-                    ? m_peg.mktRatio2(tops, account, Triplet.MINUS_MKT_OFFSET)
+                    ? m_peg.mktRatio2(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
                     : m_peg.mktRatio2(tops, account)
                 : m_mktOrders[0].ratio(account); // commission is applied to ratio
         double ratio3 = m_doMktOffset
-            ? m_peg.mktRatio3(tops, account, Triplet.MINUS_MKT_OFFSET )
+            ? m_peg.mktRatio3(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
             : m_peg.mktRatio3(tops, account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
         log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio + ";  mktPrice=" + mktPriceStr);

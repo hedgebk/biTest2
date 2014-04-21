@@ -17,6 +17,7 @@ public class TopData {
     public String askStr() { return Utils.XX_YYYY.format(m_ask); }
     public String lastStr() { return Utils.XX_YYYY.format(m_last); }
     public double getMid() { return (m_ask + m_bid) / 2; }
+    public double getBidAskDiff() { return m_ask - m_bid; } // ASK > BID
 
     public void setObsolete() { m_live = true; }
 

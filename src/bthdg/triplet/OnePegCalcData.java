@@ -20,6 +20,7 @@ public class OnePegCalcData {
     public PairDirection m_pair2;
     public PairDirection m_pair3;
     public double m_need;
+    public double m_bracketPrice;
 
     public OnePegCalcData(int indx, double max, double max10,
                           PairDirection pair1, double price1,
@@ -37,8 +38,10 @@ public class OnePegCalcData {
         m_pair2 = pair2;
         m_pair3 = pair3;
         m_need = (Triplet.s_level / 100) / price2() / price3();
+        m_bracketPrice = ((Triplet.s_level + Triplet.BRACKET_LEVEL_EXTRA) / 100) / price2() / price3();
         if (m_pair1.isForward()) {
             m_need = 1 / m_need;
+            m_bracketPrice = 1 / m_bracketPrice;
         }
     }
 
@@ -60,6 +63,7 @@ public class OnePegCalcData {
                 "indx=" + m_indx +
                 ", max=" + m_max +
                 ", need=" + m_need +
+                ", bracket=" + m_bracketPrice +
                 ", price1=" + m_price1 +
                 ", pair1=" + m_pair1 +
                 ", price2=" + m_price2 +
@@ -124,8 +128,12 @@ public class OnePegCalcData {
 
     public double pegRatio1(TopsData tops, AccountData account) {
         double pegPrice = calcPegPrice(tops);
+        return pegRatio1(account, pegPrice);
+    }
+
+    public double pegRatio1(AccountData account, double pegPrice) {
         OrderSide side = m_pair1.getSide();
-        return (side.isBuy() ? 1 / pegPrice : pegPrice) * (1 - account.m_fee); // deduct commissions
+        return calcRatio(account, pegPrice, side);
     }
 
     public double mktRatio2(TopsData tops, AccountData account) {
@@ -147,12 +155,26 @@ public class OnePegCalcData {
     private double mktRatio(TopsData tops, AccountData account, PairDirection pd) {
         double mktPrice = calcMktPrice(tops, pd);
         OrderSide side = pd.getSide();
-        return (side.isBuy() ? 1 / mktPrice : mktPrice) * (1 - account.m_fee); // deduct commissions
+        return calcRatio(account, mktPrice, side);
+    }
+
+    public double calcRatio(AccountData account, double price, OrderSide side) {
+        return (side.isBuy() ? 1 / price : price) * (1 - account.m_fee); // deduct commissions
     }
 
     private double mktRatio(TopsData tops, AccountData account, PairDirection pd, double offset) {
         double mktPrice = calcMktPrice(tops, pd, offset);
         OrderSide side = pd.getSide();
-        return (side.isBuy() ? 1 / mktPrice : mktPrice) * (1 - account.m_fee); // deduct commissions
+        return calcRatio(account, mktPrice, side);
+    }
+
+    public double getBracketDistance(TopsData tops) {
+        TopData topData = tops.get(m_pair1.m_pair);
+        double mid = topData.getMid();
+        double bidAskDiff = topData.getBidAskDiff();
+        double distance = (bidAskDiff >= 0.00000001)
+                            ? Math.abs(m_bracketPrice - mid) / (bidAskDiff / 2)
+                            : 1; // BID == ASK;  todo: calc average bidAskDiffs
+        return distance;
     }
 }
