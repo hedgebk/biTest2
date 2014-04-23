@@ -1,8 +1,5 @@
 package bthdg.exch;
 
-import bthdg.Pair;
-import bthdg.PairDirection;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;

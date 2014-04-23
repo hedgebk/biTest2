@@ -1,10 +1,9 @@
 package bthdg.triplet;
 
 import bthdg.*;
+import bthdg.exch.PairDirection;
 import bthdg.exch.TopData;
 import bthdg.exch.TopsData;
-
-import java.util.Map;
 
 public class OnePegCalcData {
     public int m_indx;

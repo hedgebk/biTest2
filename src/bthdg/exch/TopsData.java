@@ -2,8 +2,6 @@ package bthdg.exch;
 
 import bthdg.Currency;
 import bthdg.Exchange;
-import bthdg.Pair;
-import bthdg.PairDirection;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -11,7 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class TopsData {
-    private HashMap<Pair,TopData> m_map = new HashMap<Pair,TopData>();
+    public HashMap<Pair,TopData> m_map = new HashMap<Pair,TopData>(Pair.values().length);
 
     public TopData get(Pair pair) { return m_map.get(pair); }
     public void put(Pair pair, TopData top) { m_map.put(pair, top); }

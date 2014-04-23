@@ -1,6 +1,6 @@
 package bthdg.triplet;
 
-import bthdg.Pair;
+import bthdg.exch.Pair;
 import bthdg.exch.TradesData;
 
 import java.io.File;

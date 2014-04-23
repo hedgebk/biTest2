@@ -182,7 +182,7 @@ public class PaintTrace extends BaseChartPaint {
         long maxTimestamp = timeCalc.m_maxValue;
 
         long timeDiff = maxTimestamp - minTimestamp;
-        System.out.println("min timestamp: " + minTimestamp + ", max timestamp: " + maxTimestamp + ", timestamp diff: " + timeDiff);
+        System.out.println("min timestamp: " + minTimestamp + ", max timestamp: " + maxTimestamp + ", timestamp diff: " + Utils.millisToDHMSStr(timeDiff));
         double priceDiff = maxPrice - minPrice;
         System.out.println("minPrice = " + minPrice + ", maxPrice = " + maxPrice + ", priceDiff = " + priceDiff);
         double priceDiffDiff = maxPriceDiff - minPriceDiff;
@@ -196,11 +196,7 @@ public class PaintTrace extends BaseChartPaint {
         int height = HEIGHT + diffY;
         BufferedImage image = new BufferedImage(WIDTH, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
-        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON );
-        g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY );
+        setupGraphics(g);
 
         // paint border
         g.setPaint(Color.black);
@@ -230,19 +226,7 @@ public class PaintTrace extends BaseChartPaint {
         paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, XFACTOR);
 
         g.dispose();
-
-        try {
-            long millis = System.currentTimeMillis();
-
-            File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
-            ImageIO.write(image, "png", output);
-
-            System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
-
-            Desktop.getDesktop().open(output);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        writeAndShowImage(image);
     }
 
     private static void paintPoints(List<TraceData> traces, List<TradeData> trades,

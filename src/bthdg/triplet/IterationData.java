@@ -71,7 +71,20 @@ public class IterationData implements IIterationContext {
         long average = s_topLoadTakes/s_topLoadCount;
         log(" loaded tops" + (Triplet.USE_DEEP ? "*" : "") + " " + millisFromStart() + "ms; take " + takes + "ms; avg " + average + "ms: " + m_tops.toString(Exchange.BTCE));
         m_topsLoadTime = System.currentTimeMillis();
+        checkLtcBtc();
         return m_tops;
+    }
+
+    private void checkLtcBtc() {
+        TopData b = m_tops.get(Pair.BTC_USD);
+        TopData l = m_tops.get(Pair.LTC_USD);
+        TopData lb = m_tops.get(Pair.LTC_BTC);
+        double midB = b.getMid();   // 475.100
+        double midL = l.getMid();   // 11.884000
+        double midLb = lb.getMid(); // 0.02514
+        double midLLb = midL/midLb;
+        double ratio = midB/midLLb;
+        log(" LLB ratio\t" + ratio + "\t" + System.currentTimeMillis());
     }
 
     public void resetTops() {

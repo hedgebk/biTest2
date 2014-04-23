@@ -1,5 +1,7 @@
-package bthdg;
+package bthdg.exch;
 
+import bthdg.Currency;
+import bthdg.OrderSide;
 import bthdg.triplet.Direction;
 
 public class PairDirection {

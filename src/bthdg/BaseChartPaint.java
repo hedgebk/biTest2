@@ -1,33 +1,52 @@
 package bthdg;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 
-public class BaseChartPaint extends DbReady{
-    static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
-                                    Graphics2D g, int priceStep, int priceStart, int width) {
-        g.setPaint(new Color(128, 128, 128, 128)); // Color.gray
+public class BaseChartPaint extends DbReady {
+    public static final Color SEMI_TRANSPARENT_GRAY = new Color(128, 128, 128, 128); // Color.gray
+
+    protected static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
+                                              Graphics2D g, double priceStep, double priceStart, int width) {
+        paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, width, null);
+    }
+
+    protected static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
+                                              Graphics2D g, double priceStep, double priceStart, int width, Double highlightY) {
         final float dash1[] = {10.0f};
         BasicStroke dashedStroke = new BasicStroke(1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, dash1, 0.0f);
         Stroke oldStroke = g.getStroke();
         g.setStroke(dashedStroke);
-        for (int price = priceStart; price < maxPrice; price += priceStep) {
+        for (double price = priceStart; price < maxPrice; price += priceStep) {
             if (price > minPrice) {
                 int y = priceAxe.getPointReverse(price);
+                boolean highlight = (highlightY != null) && (Math.abs(highlightY - price) < priceStep / 10);
+                g.setPaint(highlight ? Color.BLACK : SEMI_TRANSPARENT_GRAY);
                 g.drawLine(0, y, width - 1, y);
             }
         }
         g.setStroke(oldStroke);
     }
 
-    static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, int priceStep, int priceStart, float xFactor) {
+    protected static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, double priceStep, double priceStart, float xFactor) {
+        paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, xFactor, DecimalFormat.getIntegerInstance());
+    }
+
+    protected static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, double priceStep, double priceStart,
+                                             float xFactor, NumberFormat format) {
         g.setFont(g.getFont().deriveFont(20.0f * xFactor));
-        for (int price = priceStart; price < maxPrice; price += priceStep) {
+        for (double price = priceStart; price < maxPrice; price += priceStep) {
             if (price >= minPrice) {
                 int y = priceAxe.getPointReverse(price);
-                g.drawString(Integer.toString(price), 2, y - 1);
+                g.drawString(format.format(price), 2, y - 1);
             }
         }
     }
@@ -100,4 +119,28 @@ public class BaseChartPaint extends DbReady{
             }
         }
     }
+
+    protected static void writeAndShowImage(BufferedImage image) {
+        try {
+            long millis = System.currentTimeMillis();
+
+            File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
+            ImageIO.write(image, "png", output);
+
+            System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
+
+            Desktop.getDesktop().open(output);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected static void setupGraphics(Graphics2D g) {
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON );
+        g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY );
+    }
+
 }

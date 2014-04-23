@@ -51,10 +51,15 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
 
                 bestMap = trianglesCalc.findBestMap();
             }
+
+            if (m_triTrades.size() >= Triplet.NUMBER_OF_ACTIVE_TRIANGLES) {
+                log("do not create new orders - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
+            } else {
 //                checkMkt(iData, trianglesCalc, tops);
-            checkNew(iData, bestMap, tops);
-            if (Triplet.USE_BRACKETS) {
-                checkBrackets(iData, bestMap, tops, m_account);
+                checkNew(iData, bestMap, tops);
+                if (Triplet.USE_BRACKETS) {
+                    checkBrackets(iData, bestMap, tops, m_account);
+                }
             }
         }
     }
@@ -80,18 +85,11 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
 
     private void checkBrackets(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, final TopsData tops, AccountData account) throws Exception {
         List<OnePegCalcData> calcDatas = new ArrayList<OnePegCalcData>(bestMap.values());
-        Collections.sort(calcDatas, new Comparator<OnePegCalcData>() {
-            @Override public int compare(OnePegCalcData o1, OnePegCalcData o2) {
-                double distance1 = o1.getBracketDistance(tops);
-                double distance2 = o2.getBracketDistance(tops);
-                return (distance1 > distance2)
-                            ? 1
-                            : (distance1 == distance2) ? 0 : -1;
-            }
-        });
+        Collections.sort(calcDatas, new SortByBracketDistance(tops));
+
         for (OnePegCalcData calcData : calcDatas) {
             double distance = calcData.getBracketDistance(tops);
-            if (distance < 2) {
+            if (distance < Triplet.BRACKET_DISTANCE_MAX) {
                 TopData topData = tops.get(calcData.m_pair1.m_pair);
                 double bidAskDiff = topData.getBidAskDiff();
 
@@ -331,15 +329,6 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
     }
 
     public void checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, TopsData tops) throws Exception {
-        if (m_triTrades.size() >= Triplet.NUMBER_OF_ACTIVE_TRIANGLES) {
-            log("do not create new orders - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
-            return; // do not create new order - NUMBER_OF_ACTIVE_TRIANGLES reached
-        }
-//        boolean oneStarted = checkNew(iData, bestMap, tops, false);
-//        if (Triplet.TRY_WITH_MKT_OFFSET && !oneStarted) {  // no max trades started - try max10
-//            checkNew(iData, bestMap, tops, true);
-//        }
-
         boolean oneStarted = false;
         if (Triplet.TRY_WITH_MKT_OFFSET ) {
             oneStarted = checkNew(iData, mapWithBest10(bestMap), tops, true); // try max10 with prefer sort
@@ -665,5 +654,21 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
     private static void log(String s) {
         Log.log(s);
+    }
+
+    private static class SortByBracketDistance implements Comparator<OnePegCalcData> {
+        private final TopsData tops;
+
+        public SortByBracketDistance(TopsData tops) {
+            this.tops = tops;
+        }
+
+        @Override public int compare(OnePegCalcData o1, OnePegCalcData o2) {
+            double distance1 = o1.getBracketDistance(tops);
+            double distance2 = o2.getBracketDistance(tops);
+            return (distance1 > distance2)
+                    ? 1
+                    : (distance1 == distance2) ? 0 : -1;
+        }
     }
 }

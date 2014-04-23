@@ -28,7 +28,7 @@ public class DbReady {
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
     }
 
-    static long logTimeMemory() {
+    public static long logTimeMemory() {
         long millis = System.currentTimeMillis();
         System.out.println("timeMills: " + millis);
         long maxMemory = Runtime.getRuntime().maxMemory();

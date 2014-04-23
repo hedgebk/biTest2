@@ -169,29 +169,38 @@ import java.util.*;
  * account: AccountData{name='btce' funds={LTC=7.69006, USD=42.96804, BTC=0.15151, EUR=94.29459}; allocated={} , fee=0.002}  evaluateEur: 249.91172 evaluateUsd: 337.63074
  * account: AccountData{name='btce' funds={LTC=7.69006, USD=42.96804, BTC=0.15151, EUR=94.29459}; allocated={} , fee=0.002}  evaluateEur: 249.75692 evaluateUsd: 337.22251
  * account: AccountData{name='btce' funds={BTC=0.15191, USD=41.82918, LTC=10.65953, EUR=67.94968}; allocated={} , fee=0.002} evaluateEur: 250.28976 evaluateUsd: 337.64621
+ * account: AccountData{name='btce' funds={EUR=67.94968, BTC=0.15191, USD=43.31561, LTC=10.53881}; allocated={} , fee=0.002} evaluateEur: 249.10617 evaluateUsd: 336.79393
+ * account: AccountData{name='btce' funds={LTC=10.54012, USD=43.31762, BTC=0.15191, EUR=67.94968}; allocated={} , fee=0.002} evaluateEur: 249.89793 evaluateUsd: 337.96784
+ * account: AccountData{name='btce' funds={LTC=10.51818, USD=44.68995, BTC=0.15253, EUR=67.99612}; allocated={} , fee=0.002} evaluateEur: 249.92708 evaluateUsd: 338.99370
+ * account: AccountData{name='btce' funds={BTC=0.15548, USD=42.48025, LTC=10.30278, EUR=71.49326}; allocated={} , fee=0.002} evaluateEur: 250.07258 evaluateUsd: 339.03996
+ * account: AccountData{name='btce' funds={LTC=10.30278, USD=42.58243, BTC=0.15549, EUR=71.49327}; allocated={} , fee=0.002} evaluateEur: 248.86998 evaluateUsd: 336.36894
+ * account: AccountData{name='btce' funds={EUR=71.49327, USD=32.17802, LTC=11.50698, BTC=0.14922}; allocated={} , fee=0.002} evaluateEur: 248.25027 evaluateUsd: 337.50819
+ * account: AccountData{name='btce' funds={USD=32.17803, LTC=11.50885, BTC=0.14953, EUR=71.50956}; allocated={} , fee=0.002} evaluateEur: 248.82276 evaluateUsd: 338.44045
+ * account: AccountData{name='btce' funds={LTC=10.75037, EUR=71.50956, USD=46.06287, BTC=0.14806}; allocated={} , fee=0.002} evaluateEur: 252.63862 evaluateUsd: 344.00420
  */
 public class Triplet {
-    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 3;
+    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 2;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
     public static final double LVL2 = 100.68; // min target level
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final boolean TRY_WITH_MKT_OFFSET = false;
-    public static final double MKT_OFFSET_PRICE_MINUS = 0.10; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.07;
+    public static final double MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
+    public static final double MKT_OFFSET_LEVEL_DELTA = 0.08;
     public static final int ITERATIONS_SLEEP_TIME = 1900; // sleep between iterations
     public static final boolean PREFER_LIQUID_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD
     public static final boolean LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
     public static final double LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
-    public static final boolean PREFER_EUR_CRYPT_PAIRS = true; // BTC_EUR, LTC_EUR
+    public static final boolean PREFER_EUR_CRYPT_PAIRS = false; // BTC_EUR, LTC_EUR
 
-    public static final boolean USE_BRACKETS = true;
+    public static final boolean USE_BRACKETS = false;
     public static final double BRACKET_LEVEL_EXTRA = 0.25;
+    public static final int BRACKET_DISTANCE_MAX = 2;
 
     public static final boolean USE_DEEP = true;
     public static final boolean ADJUST_AMOUNT_TO_MKT_AVAILABLE = true;
-    public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.2;
+    public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.4;
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
     public static final double USE_ACCOUNT_FUNDS = 0.95;

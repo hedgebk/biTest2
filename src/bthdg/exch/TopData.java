@@ -2,7 +2,6 @@ package bthdg.exch;
 
 import bthdg.Deserializer;
 import bthdg.Exchange;
-import bthdg.Pair;
 import bthdg.Utils;
 
 import java.io.IOException;
@@ -22,6 +21,10 @@ public class TopData {
     public void setObsolete() { m_live = true; }
 
     public static boolean isLive(TopData top) { return (top != null) && top.m_live; }
+
+    public TopData(double bid, double ask) {
+        this(bid, ask, 0, true);
+    }
 
     public TopData(double bid, double ask, double last) {
         this(bid, ask, last, true);

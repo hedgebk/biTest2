@@ -59,7 +59,7 @@ public class UpdateFromWeb extends DbReady {
                         System.out.println("ticksInserted " + ticksInserted);
 
                         connection.commit();
-                        if (ticksInserted < 1000) {
+                        if (ticksInserted < 500) {
                             break;
                         }
                         iter++;

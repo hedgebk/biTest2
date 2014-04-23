@@ -1,9 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
-import bthdg.exch.Btce;
-import bthdg.exch.TopData;
-import bthdg.exch.TopsData;
+import bthdg.exch.*;
 
 import java.util.ArrayList;
 

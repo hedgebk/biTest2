@@ -1,10 +1,7 @@
 package bthdg.triplet;
 
-import bthdg.Pair;
-import bthdg.exch.TopData;
 import bthdg.exch.TopsData;
 
-import java.util.Map;
 import java.util.TreeMap;
 
 public class TriangleRotationCalcData {
