@@ -22,14 +22,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LogProcessor extends DbReady {
-    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.64.log"; // processed 65 - 108
+    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.109.log"; // processed 3 - 109
 
     private static Pattern DATE_PATTERN = Pattern.compile(".*iteration.*date=(.*)");
 
 //    loaded tops* 142ms; take 142ms; avg 260ms: {BTC_EUR=Top{bid=351.12001, ask=354.09999, last=0.00000}, EUR_USD=Top{bid=1.35702, ask=1.35714, last=0.00000}, LTC_BTC=Top{bid=0.02494, ask=0.02496, last=0.00000},
 //       LTC_USD=Top{bid=11.940100, ask=11.990000, last=0.000000}, BTC_USD=Top{bid=478.000, ask=478.500, last=0.000}, LTC_EUR=Top{bid=8.750, ask=8.780, last=0.000}}
 
-    private static Pattern LINE_PATTERN = Pattern.compile(".*?(..._...)=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*?(..._...)=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*?(..._...)=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*");
+    private static String ONE = ".*?(..._...)=Top\\{bid=(\\d+(\\.\\d+)?), ask=(\\d+(\\.\\d+)?)";
+    private static Pattern LINE_PATTERN =  Pattern.compile(ONE+ONE+ONE+".*");
+    private static Pattern LINE_PATTERN_OLD =  Pattern.compile(ONE+ONE+ONE+ONE+ONE+ONE+".*");
 
     public static final String CREATE_TOPS_SQL = "CREATE TABLE IF NOT EXISTS Tops ( " +
             " stamp BIGINT NOT NULL, " +
@@ -85,7 +87,7 @@ public class LogProcessor extends DbReady {
         long millis = start;
         int counter = 0;
         try {
-            System.out.println(" processing file "+LOG_FILE);
+            System.out.println(" processing file " + LOG_FILE);
             BufferedReader reader = new BufferedReader(new FileReader(LOG_FILE));
             try {
                 connection.setAutoCommit(false); // for fast inserts/updates
@@ -127,8 +129,8 @@ public class LogProcessor extends DbReady {
 
     private static void match(Matcher matcher, int indx, Data data) {
         String pairStr = matcher.group(indx);
-        String bidStr = matcher.group(indx+1);
-        String askStr = matcher.group(indx + 2);
+        String bidStr = matcher.group(indx + 1);
+        String askStr = matcher.group(indx + 3);
         double bid = Double.parseDouble(bidStr);
         double ask = Double.parseDouble(askStr);
         TopData top = new TopData(bid, ask);
@@ -185,16 +187,32 @@ public class LogProcessor extends DbReady {
             }
         },
         FIRST {
-            public State process(String line, Data data, PreparedStatement insertStatement, PreparedStatement deleteStatement) {
+            public State process(String line, Data data, PreparedStatement insertStatement, PreparedStatement deleteStatement) throws SQLException {
                 if (line.contains("loaded tops")) {
-                    Matcher matcher = LINE_PATTERN.matcher(line);
+                    Matcher matcher = LINE_PATTERN_OLD.matcher(line);
                     if (matcher.matches()) {
                         match(matcher, 1, data);
-                        match(matcher, 4, data);
-                        match(matcher, 7, data);
-                        return SECOND;
+                        match(matcher, 6, data);
+                        match(matcher, 11, data);
+                        match(matcher, 16, data);
+                        match(matcher, 21, data);
+                        match(matcher, 26, data);
+                        if (data.m_tops.m_map.size() == 6) {
+                            save(insertStatement, deleteStatement, data);
+                        } else {
+                            throw new RuntimeException("nor 6 exch topData loaded: " + line);
+                        }
+                        return START;
                     } else {
-                        throw new RuntimeException("loaded FIRST line not parsed: " + line);
+                        matcher = LINE_PATTERN.matcher(line);
+                        if (matcher.matches()) {
+                            match(matcher, 1, data);
+                            match(matcher, 6, data);
+                            match(matcher, 11, data);
+                            return SECOND;
+                        } else {
+                            throw new RuntimeException("loaded FIRST line not parsed: " + line);
+                        }
                     }
                 }
                 if (line.contains("==============================================")) {
@@ -209,8 +227,8 @@ public class LogProcessor extends DbReady {
                     Matcher matcher = LINE_PATTERN.matcher(line);
                     if (matcher.matches()) {
                         match(matcher, 1, data);
-                        match(matcher, 4, data);
-                        match(matcher, 7, data);
+                        match(matcher, 6, data);
+                        match(matcher, 11, data);
                         if (data.m_tops.m_map.size() == 6) {
                             save(insertStatement, deleteStatement, data);
                         } else {
