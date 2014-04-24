@@ -177,6 +177,8 @@ import java.util.*;
  * account: AccountData{name='btce' funds={EUR=71.49327, USD=32.17802, LTC=11.50698, BTC=0.14922}; allocated={} , fee=0.002} evaluateEur: 248.25027 evaluateUsd: 337.50819
  * account: AccountData{name='btce' funds={USD=32.17803, LTC=11.50885, BTC=0.14953, EUR=71.50956}; allocated={} , fee=0.002} evaluateEur: 248.82276 evaluateUsd: 338.44045
  * account: AccountData{name='btce' funds={LTC=10.75037, EUR=71.50956, USD=46.06287, BTC=0.14806}; allocated={} , fee=0.002} evaluateEur: 252.63862 evaluateUsd: 344.00420
+ * account: AccountData{name='btce' funds={EUR=74.66729, BTC=0.14806, USD=46.17033, LTC=10.74547}; allocated={} , fee=0.002} evaluateEur: 254.97208 evaluateUsd: 345.96656
+ * account: AccountData{name='btce' funds={EUR=74.66729, BTC=0.14806, USD=46.25057, LTC=10.76787}; allocated={} , fee=0.002} evaluateEur: 256.53535 evaluateUsd: 349.19338
  */
 public class Triplet {
     public static final int NUMBER_OF_ACTIVE_TRIANGLES = 2;

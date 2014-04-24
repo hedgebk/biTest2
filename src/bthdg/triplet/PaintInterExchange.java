@@ -19,8 +19,8 @@ import java.text.DecimalFormat;
 import java.util.*;
 
 public class PaintInterExchange extends BaseChartPaint {
-    private static final int XFACTOR = 1;
-    private static final int WIDTH = 1620 * XFACTOR * 2;
+    private static final int XFACTOR = 2;
+    private static final int WIDTH = 1620 * XFACTOR * 4;
     public static final int HEIGHT = 900 * XFACTOR;
     public static final DecimalFormat RATIO_FORMAT = new DecimalFormat("0.0000");
 
@@ -28,7 +28,7 @@ public class PaintInterExchange extends BaseChartPaint {
         System.out.println("Started");
         long millis = logTimeMemory();
 
-        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-40h");
+        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-120h");
         paint(fromMillis);
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -106,10 +106,13 @@ public class PaintInterExchange extends BaseChartPaint {
         Collection<TriData> triDatas = triDataMap.values();
 
         Utils.DoubleMinMaxCalculator<TriData> priceCalc = new Utils.DoubleMinMaxCalculator<TriData>() {
-            Double[] m_ar = new Double[1];
+            Double[] m_ar = new Double[Triada.values().length];
             public Double getValue(TriData trace) {return null;};
             @Override public Double[] getValues(TriData triData) {
-                m_ar[0] = triData.m_ratioMap.get(Triada.USD_BTC_LTC);
+                int indx = 0;
+                for(Triada triada: Triada.values()) {
+                    m_ar[indx++] = triData.m_ratioMap.get(triada);
+                }
                 return m_ar;
             }
         };
@@ -144,8 +147,20 @@ public class PaintInterExchange extends BaseChartPaint {
         double ratioStart = (((int)(minRatio / ratioStep))+1)* ratioStep;
         paintLeftAxeAndGrid(minRatio, maxRatio, ratioAxe, g, ratioStep, ratioStart, WIDTH, 1.0);
 
+        Stroke oldStroke = g.getStroke();
+        g.setStroke(DASHED_STROKE);
+        g.setPaint(Color.RED);
+
+        int y = ratioAxe.getPointReverse(1.0055);
+        g.drawLine(0, y, WIDTH - 1, y);
+        y = ratioAxe.getPointReverse(0.9945);
+        g.drawLine(0, y, WIDTH - 1, y);
+
+        g.setStroke(oldStroke);
+
         // paint points
         paintPoints(triDataMap, timeAxe, ratioAxe, g);
+        g.setPaint(Color.BLACK);
 
         // paint left axe labels
         paintLeftAxeLabels(minRatio, maxRatio, ratioAxe, g, ratioStep, ratioStart, XFACTOR, RATIO_FORMAT);
@@ -158,25 +173,29 @@ public class PaintInterExchange extends BaseChartPaint {
     }
 
     private static void paintPoints(TreeMap<Long, TriData> triDataMap, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe ratioAxe, Graphics2D g) {
+        Map<Triada,Integer> prevYmap = new HashMap<Triada, Integer>();
         int prevX = -1;
-        int prevY = -1;
         for (Map.Entry<Long, TriData> entry : triDataMap.entrySet()) {
             long millis = entry.getKey();
             TriData triData = entry.getValue();
-            double ratio = triData.m_ratioMap.get(Triada.USD_BTC_LTC);
+            Map<Triada, Double> ratioMap = triData.m_ratioMap;
 
             int x = timeAxe.getPoint(millis);
-            int y = ratioAxe.getPointReverse(ratio);
+            for(Triada triada: Triada.values()) {
+                double ratio = ratioMap.get(triada);
+                int y = ratioAxe.getPointReverse(ratio);
 
-            if ((prevX != -1) && (prevY != -1)) {
-                g.setPaint(Color.gray);
-                g.drawLine(prevX, prevY, x, y);
+                Integer prevY = prevYmap.get(triada);
+                if ((prevX != -1) && (prevY != null)) {
+                    g.setPaint(triada.m_lineColor);
+                    g.drawLine(prevX, prevY, x, y);
+                }
+                prevYmap.put(triada, y);
+
+//                g.setPaint(Color.red);
+//                g.drawRect(x - 1, y - 1, 2, 2);
             }
             prevX = x;
-            prevY = y;
-
-            g.setPaint(Color.red);
-            g.drawRect(x - 1, y - 1, 2, 2);
         }
     }
 
@@ -192,15 +211,37 @@ public class PaintInterExchange extends BaseChartPaint {
     }
 
     private static enum Triada {
-        USD_BTC_LTC(Currency.USD, Currency.BTC, Currency.LTC);
+        USD_BTC_LTC(Currency.USD, Currency.BTC, Currency.LTC, Color.gray),
+////        LTC_USD_BTC(Currency.LTC, Currency.USD, Currency.BTC, Color.gray),
+////        BTC_LTC_USD(Currency.BTC, Currency.LTC, Currency.USD, Color.gray),
+//
+//        USD_LTC_BTC(Currency.USD, Currency.LTC, Currency.BTC, Color.blue),
+////        BTC_USD_LTC(Currency.BTC, Currency.USD, Currency.LTC, Color.blue),
+////        LTC_BTC_USD(Currency.LTC, Currency.BTC, Currency.USD, Color.blue),
+//
+        EUR_BTC_LTC(Currency.EUR, Currency.BTC, Currency.LTC, Color.CYAN),
+////        LTC_EUR_BTC(Currency.LTC, Currency.EUR, Currency.BTC, Color.CYAN),
+////        BTC_LTC_EUR(Currency.BTC, Currency.LTC, Currency.EUR, Color.CYAN),
+//
+//        EUR_LTC_BTC(Currency.EUR, Currency.LTC, Currency.BTC, Color.magenta),
+////        BTC_EUR_LTC(Currency.BTC, Currency.EUR, Currency.LTC, Color.magenta),
+////        LTC_BTC_EUR(Currency.LTC, Currency.BTC, Currency.EUR, Color.magenta),
+//
+        EUR_USD_BTC(Currency.EUR, Currency.USD, Currency.BTC, Color.green),
+//
+        EUR_LTC_USD(Currency.EUR, Currency.LTC, Currency.USD, Color.orange),
+        ;
+
         private Currency m_start;
         private Currency m_end1;
         private Currency m_end2;
         private PairDirection m_pd1;
         private PairDirection m_pd2;
         private PairDirection m_pd;
+        private Color m_lineColor;
 
-        Triada(Currency start, Currency end1, Currency end2) {
+        Triada(Currency start, Currency end1, Currency end2, Color lineColor) {
+            m_lineColor = lineColor;
             m_start = start;
             m_end1 = end1;
             m_end2 = end2;

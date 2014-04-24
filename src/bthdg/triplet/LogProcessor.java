@@ -22,10 +22,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LogProcessor extends DbReady {
-    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.103.log";
+    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.64.log"; // processed 65 - 108
 
     private static Pattern DATE_PATTERN = Pattern.compile(".*iteration.*date=(.*)");
-    private static Pattern LINE_PATTERN = Pattern.compile(".*?=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*?=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*?=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*");
+
+//    loaded tops* 142ms; take 142ms; avg 260ms: {BTC_EUR=Top{bid=351.12001, ask=354.09999, last=0.00000}, EUR_USD=Top{bid=1.35702, ask=1.35714, last=0.00000}, LTC_BTC=Top{bid=0.02494, ask=0.02496, last=0.00000},
+//       LTC_USD=Top{bid=11.940100, ask=11.990000, last=0.000000}, BTC_USD=Top{bid=478.000, ask=478.500, last=0.000}, LTC_EUR=Top{bid=8.750, ask=8.780, last=0.000}}
+
+    private static Pattern LINE_PATTERN = Pattern.compile(".*?(..._...)=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*?(..._...)=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*?(..._...)=Top\\{bid=(\\d+\\.\\d+),\\sask=(\\d+\\.\\d+).*");
 
     public static final String CREATE_TOPS_SQL = "CREATE TABLE IF NOT EXISTS Tops ( " +
             " stamp BIGINT NOT NULL, " +
@@ -38,6 +42,8 @@ public class LogProcessor extends DbReady {
     public static final String CREATE_TOPS_INDEX_SQL = "CREATE INDEX srsttops on Tops (src, stamp)";
     private static final String INSERT_TOPS_SQL = "INSERT INTO Tops ( stamp, src, pair, bid, ask ) VALUES (?,?,?,?,?)";
     private static final String DELETE_TOPS_SQL = "DELETE FROM Tops WHERE src = ? AND stamp = ?";
+    private static final String DELETE_ALL_TOPS_SQL = "DELETE FROM Tops";
+    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE MMM d HH:mm:ss z yyyy");
 
     public static void main(String[] args) {
         System.out.println("LogProcessor Started.");
@@ -49,25 +55,26 @@ public class LogProcessor extends DbReady {
     }
 
     private static void updateFromLog() {
-//        updateFromLog(null);
-
         goWithDb(new DbReady.IDbRunnable() {
             public void run(Connection connection) throws SQLException {
-//                creaTetableIfNeeded(connection);
+                createTableIfNeeded(connection);
                 updateFromLog(connection);
             }
         });
     }
 
-    private static void creaTetableIfNeeded(Connection connection) throws SQLException {
+    private static void createTableIfNeeded(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         try {
             int ret;
-            ret = statement.executeUpdate(CREATE_TOPS_SQL);
-            System.out.println("--- CREATE TABLE Tops  returns " + ret);
-
-            ret = statement.executeUpdate(CREATE_TOPS_INDEX_SQL);
-            System.out.println("--- CREATE INDEX srsttops on Tops  returns " + ret);
+//            ret = statement.executeUpdate(CREATE_TOPS_SQL);
+//            System.out.println("--- CREATE TABLE Tops  returns " + ret);
+//
+//            ret = statement.executeUpdate(CREATE_TOPS_INDEX_SQL);
+//            System.out.println("--- CREATE INDEX srsttops on Tops  returns " + ret);
+//
+//            ret = statement.executeUpdate(DELETE_ALL_TOPS_SQL);
+//            System.out.println("--- DELETE ALL from Tops  returns " + ret);
         } finally {
             statement.close();
         }
@@ -78,6 +85,7 @@ public class LogProcessor extends DbReady {
         long millis = start;
         int counter = 0;
         try {
+            System.out.println(" processing file "+LOG_FILE);
             BufferedReader reader = new BufferedReader(new FileReader(LOG_FILE));
             try {
                 connection.setAutoCommit(false); // for fast inserts/updates
@@ -117,12 +125,15 @@ public class LogProcessor extends DbReady {
         System.out.println(" total saved " + counter + " Tops");
     }
 
-    private static TopData match(Matcher matcher, int indx) {
-        String bidStr = matcher.group(indx);
-        String askStr = matcher.group(indx + 1);
+    private static void match(Matcher matcher, int indx, Data data) {
+        String pairStr = matcher.group(indx);
+        String bidStr = matcher.group(indx+1);
+        String askStr = matcher.group(indx + 2);
         double bid = Double.parseDouble(bidStr);
         double ask = Double.parseDouble(askStr);
-        return new TopData(bid, ask);
+        TopData top = new TopData(bid, ask);
+        Pair pair = Pair.getByName(pairStr);
+        data.m_tops.put(pair, top);
     }
 
     private static void save(PreparedStatement insertStatement, PreparedStatement deleteStatement, Data data) throws SQLException {
@@ -161,15 +172,13 @@ public class LogProcessor extends DbReady {
                     Matcher matcher = DATE_PATTERN.matcher(line);
                     if (matcher.matches()) {
                         String dateStr = matcher.group(1); // Wed Apr 23 14:38:57 EEST 2014
-                        DateFormat df = new SimpleDateFormat("EEE MMM d HH:mm:ss z yyyy");
-                        Date date;
                         try {
-                            date = df.parse(dateStr);
+                            Date date = DATE_FORMAT.parse(dateStr);
+                            data.m_date = date;
+                            return FIRST;
                         } catch (ParseException e) {
                             throw new RuntimeException("parse error: " + e, e);
                         }
-                        data.m_date = date;
-                        return FIRST;
                     }
                 }
                 return START;
@@ -180,26 +189,40 @@ public class LogProcessor extends DbReady {
                 if (line.contains("loaded tops")) {
                     Matcher matcher = LINE_PATTERN.matcher(line);
                     if (matcher.matches()) {
-                        data.m_tops.put(Pair.BTC_EUR, match(matcher, 1));
-                        data.m_tops.put(Pair.EUR_USD, match(matcher, 3));
-                        data.m_tops.put(Pair.LTC_BTC, match(matcher, 5));
+                        match(matcher, 1, data);
+                        match(matcher, 4, data);
+                        match(matcher, 7, data);
                         return SECOND;
+                    } else {
+                        throw new RuntimeException("loaded FIRST line not parsed: " + line);
                     }
+                }
+                if (line.contains("==============================================")) {
+                    throw new RuntimeException("iteration start before first line matched: " + line);
                 }
                 return FIRST;
             }
         },
         SECOND {
             public State process(String line, Data data, PreparedStatement insertStatement, PreparedStatement deleteStatement) throws SQLException {
-                if (line.contains("LTC_USD=Top{bid=")) {
+                if (line.contains("=Top{bid=")) {
                     Matcher matcher = LINE_PATTERN.matcher(line);
                     if (matcher.matches()) {
-                        data.m_tops.put(Pair.LTC_USD, match(matcher, 1));
-                        data.m_tops.put(Pair.BTC_USD, match(matcher, 3));
-                        data.m_tops.put(Pair.LTC_EUR, match(matcher, 5));
-                        save(insertStatement, deleteStatement,  data);
+                        match(matcher, 1, data);
+                        match(matcher, 4, data);
+                        match(matcher, 7, data);
+                        if (data.m_tops.m_map.size() == 6) {
+                            save(insertStatement, deleteStatement, data);
+                        } else {
+                            throw new RuntimeException("nor 6 exch topData loaded: " + line);
+                        }
                         return START;
+                    } else {
+                        throw new RuntimeException("loaded SECOND line not parsed: " + line);
                     }
+                }
+                if (line.contains("==============================================")) {
+                    throw new RuntimeException("iteration start before second line matched: " + line);
                 }
                 throw new RuntimeException("error");
             }

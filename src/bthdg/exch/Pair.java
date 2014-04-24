@@ -45,4 +45,13 @@ public enum Pair {
         }
         throw new RuntimeException("no pair with id=" + pairId);
     }
+
+    public static Pair getByName(String name) {
+        for (Pair pair : values()) {
+            if (pair.name().equals(name)) {
+                return pair;
+            }
+        }
+        throw new RuntimeException("no pair with name=" + name);
+    }
 }
