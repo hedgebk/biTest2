@@ -19,7 +19,7 @@ import java.text.DecimalFormat;
 import java.util.*;
 
 public class PaintInterExchange extends BaseChartPaint {
-    private static final int XFACTOR = 4;
+    private static final int XFACTOR = 2;
     private static final int WIDTH = 1620 * XFACTOR * 8;
     public static final int HEIGHT = 900 * XFACTOR;
     public static final DecimalFormat RATIO_FORMAT = new DecimalFormat("0.0000");

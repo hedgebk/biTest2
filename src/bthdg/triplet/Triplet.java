@@ -180,30 +180,41 @@ import java.util.*;
  * account: AccountData{name='btce' funds={EUR=74.66729, BTC=0.14806, USD=46.17033, LTC=10.74547}; allocated={} , fee=0.002} evaluateEur: 254.97208 evaluateUsd: 345.96656
  * account: AccountData{name='btce' funds={EUR=74.66729, BTC=0.14806, USD=46.25057, LTC=10.76787}; allocated={} , fee=0.002} evaluateEur: 256.53535 evaluateUsd: 349.19338
  * account: AccountData{name='btce' funds={LTC=9.77267, USD=41.45660, EUR=89.42442, BTC=0.14845}; allocated={} , fee=0.002}  evaluateEur: 259.69329 evaluateUsd: 355.27258
+ * account: AccountData{name='btce' funds={BTC=0.16660, EUR=88.70469, LTC=11.93836, USD=31.53833}; allocated={} , fee=0.002} evaluateEur: 262.11461 evaluateUsd: 356.61805
+ * account: AccountData{name='btce' funds={LTC=13.09014, USD=35.40041, EUR=79.94200, BTC=0.16917}; allocated={} , fee=0.002} evaluateEur: 263.03701 evaluateUsd: 357.81689
+ * account: AccountData{name='btce' funds={EUR=84.63815, BTC=0.15017, USD=35.90795, LTC=13.55215}; allocated={} , fee=0.002} evaluateEur: 270.51127 evaluateUsd: 365.07882
+ * account: AccountData{name='btce' funds={LTC=13.54824, USD=36.11034, EUR=84.63815, BTC=0.15017}; allocated={} , fee=0.002} evaluateEur: 270.80515 evaluateUsd: 366.78624
+ * account: AccountData{name='btce' funds={EUR=84.63815, BTC=0.15017, USD=40.39385, LTC=13.15261}; allocated={} , fee=0.002} evaluateEur: 271.03101 evaluateUsd: 366.52935
+ * account: AccountData{name='btce' funds={LTC=13.15210, USD=40.35372, EUR=84.63815, BTC=0.15017}; allocated={} , fee=0.002} evaluateEur: 270.21101 evaluateUsd: 364.64322
+ * account: AccountData{name='btce' funds={EUR=76.06950, USD=51.04694, LTC=13.25556, BTC=0.15126}; allocated={} , fee=0.002} evaluateEur: 268.93047 evaluateUsd: 365.28546
+ * account: AccountData{name='btce' funds={LTC=13.26968, USD=32.42450, EUR=76.10465, BTC=0.19589}; allocated={} , fee=0.002} evaluateEur: 267.20469 evaluateUsd: 360.88309
+ * account: AccountData{name='btce' funds={BTC=0.17758, EUR=71.79580, LTC=13.62946, USD=48.08144}; allocated={} , fee=0.002} evaluateEur: 273.12787 evaluateUsd: 367.45531
+ * account: AccountData{name='btce' funds={LTC=13.02461, BTC=0.20702, EUR=76.23069, USD=41.03322}; allocated={} , fee=0.002} evaluateEur: 268.24303 evaluateUsd: 364.48465
+ * account: AccountData{name='btce' funds={LTC=14.41207, USD=32.77260, EUR=71.46607, BTC=0.21426}; allocated={} , fee=0.002} evaluateEur: 268.87082 evaluateUsd: 362.87239
  */
 public class Triplet {
     public static final int NUMBER_OF_ACTIVE_TRIANGLES = 2;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.68; // min target level
+    public static final double LVL2 = 100.69; // min target level
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final boolean TRY_WITH_MKT_OFFSET = false;
     public static final double MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.08;
+    public static final double MKT_OFFSET_LEVEL_DELTA = 0.1;
     public static final int ITERATIONS_SLEEP_TIME = 1900; // sleep between iterations
     public static final boolean PREFER_LIQUID_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD
     public static final boolean LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
     public static final double LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
     public static final boolean PREFER_EUR_CRYPT_PAIRS = false; // BTC_EUR, LTC_EUR
 
-    public static final boolean USE_BRACKETS = false;
+    public static final boolean USE_BRACKETS = true;
     public static final double BRACKET_LEVEL_EXTRA = 0.25;
     public static final int BRACKET_DISTANCE_MAX = 2;
 
     public static final boolean USE_DEEP = true;
     public static final boolean ADJUST_AMOUNT_TO_MKT_AVAILABLE = true;
-    public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.4;
+    public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.8;
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
     public static final double USE_ACCOUNT_FUNDS = 0.95;

@@ -23,7 +23,7 @@ public class DbReady {
 //        startAndInitDb();
 //        dropTicks(Exchange.BTCE,     "0", "-13d");
 //        dropTicks(Exchange.BITSTAMP, "0", "-13d");
-//        importFromFiles();
+        importFromFiles();
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
     }
@@ -217,11 +217,11 @@ public class DbReady {
     private static void importFromFiles(Connection connection) {
         try {
             connection.setAutoCommit(false); // for fast inserts/updates
-            importExchange(connection, Exchange.BITSTAMP);
-            importExchange(connection, Exchange.BTCE);
+//            importExchange(connection, Exchange.BITSTAMP);
+//            importExchange(connection, Exchange.BTCE);
 //            importExchange(connection, Exchange.MTGOX);
-//            importExchange(connection, Exchange.CAMPBX);
-            importExchange(connection, Exchange.BITFINEX);
+            importExchange(connection, Exchange.CAMPBX);
+//            importExchange(connection, Exchange.BITFINEX);
         } catch (Exception e) {
             System.out.println("error: " + e);
             e.printStackTrace();
