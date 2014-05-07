@@ -16,6 +16,15 @@ public enum TriTradeState {
             triTradeData.log("PEG_PLACED(" + triTradeData.m_peg.name() + ") END");
         }
     },
+    BRACKET_PLACED {
+        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+            OrderData order = triTradeData.m_order;
+            triTradeData.log("BRACKET_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
+            order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
+            triangleData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, PEG_FILLED);
+            triTradeData.log("BRACKET_PLACED(" + triTradeData.m_peg.name() + ") END");
+        }
+    },
     PEG_JUST_FILLED {
         @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("PEG_JUST_FILLED(" + triTradeData.m_peg.name() + ") - run 1st MKT order...");

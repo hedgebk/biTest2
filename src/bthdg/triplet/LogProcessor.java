@@ -13,7 +13,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -22,8 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LogProcessor extends DbReady {
-//    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.111.log"; // processed 3 - 111
-    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.log"; // processed 3 - 120
+    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.148.log"; // processed 3 - 148
 
     private static Pattern DATE_PATTERN = Pattern.compile(".*iteration.*date=(.*)");
 

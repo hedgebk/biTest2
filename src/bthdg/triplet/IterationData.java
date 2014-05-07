@@ -71,7 +71,9 @@ public class IterationData implements IIterationContext {
         long average = s_topLoadTakes/s_topLoadCount;
         log(" loaded tops" + (Triplet.USE_DEEP ? "*" : "") + " " + millisFromStart() + "ms; take " + takes + "ms; avg " + average + "ms: " + m_tops.toString(Exchange.BTCE));
         m_topsLoadTime = System.currentTimeMillis();
-        checkLtcBtc();
+        if(Triplet.USE_RALLY) {
+            checkLtcBtc();
+        }
         return m_tops;
     }
 

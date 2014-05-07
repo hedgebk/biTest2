@@ -23,12 +23,14 @@ public class PaintInterExchange extends BaseChartPaint {
     private static final int WIDTH = 1620 * XFACTOR * 8;
     public static final int HEIGHT = 900 * XFACTOR;
     public static final DecimalFormat RATIO_FORMAT = new DecimalFormat("0.0000");
+    public static final double ZERO_PROFIT = 0.0055;
+    public static final double EXPECTED_GAIN = 0.005;
 
     public static void main(String[] args) {
         System.out.println("Started");
         long millis = logTimeMemory();
 
-        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-24h");
+        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-8h");
         paint(fromMillis);
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -147,16 +149,7 @@ public class PaintInterExchange extends BaseChartPaint {
         double ratioStart = (((int)(minRatio / ratioStep))+1)* ratioStep;
         paintLeftAxeAndGrid(minRatio, maxRatio, ratioAxe, g, ratioStep, ratioStart, WIDTH, 1.0);
 
-        Stroke oldStroke = g.getStroke();
-        g.setStroke(DASHED_STROKE);
-        g.setPaint(Color.RED);
-
-        int y = ratioAxe.getPointReverse(1.0055);
-        g.drawLine(0, y, WIDTH - 1, y);
-        y = ratioAxe.getPointReverse(0.9945);
-        g.drawLine(0, y, WIDTH - 1, y);
-
-        g.setStroke(oldStroke);
+        paintLevels(ratioAxe, g);
 
         // paint points
         paintPoints(triDataMap, timeAxe, ratioAxe, g);
@@ -170,6 +163,25 @@ public class PaintInterExchange extends BaseChartPaint {
 
         g.dispose();
         writeAndShowImage(image);
+    }
+
+    private static void paintLevels(PaintChart.ChartAxe ratioAxe, Graphics2D g) {
+        Stroke oldStroke = g.getStroke();
+        g.setStroke(DASHED_STROKE);
+
+        g.setPaint(Color.RED);
+        int y = ratioAxe.getPointReverse(1 + ZERO_PROFIT);
+        g.drawLine(0, y, WIDTH - 1, y);
+        y = ratioAxe.getPointReverse(1 - ZERO_PROFIT);
+        g.drawLine(0, y, WIDTH - 1, y);
+
+        g.setPaint(Color.darkGray);
+        y = ratioAxe.getPointReverse(1 + ZERO_PROFIT + EXPECTED_GAIN);
+        g.drawLine(0, y, WIDTH - 1, y);
+        y = ratioAxe.getPointReverse(1 - ZERO_PROFIT - EXPECTED_GAIN);
+        g.drawLine(0, y, WIDTH - 1, y);
+
+        g.setStroke(oldStroke);
     }
 
     private static void paintPoints(TreeMap<Long, TriData> triDataMap, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe ratioAxe, Graphics2D g) {
@@ -240,6 +252,9 @@ public class PaintInterExchange extends BaseChartPaint {
         private PairDirection m_pd;
         private Color m_lineColor;
 
+        private static boolean s_gotUp;
+        private static boolean s_gotDown;
+
         Triada(Currency start, Currency end1, Currency end2, Color lineColor) {
             m_lineColor = lineColor;
             m_start = start;
@@ -269,7 +284,25 @@ public class PaintInterExchange extends BaseChartPaint {
 
             double midLLb = midL/midLb;
             double ratio = midB/midLLb;
-
+if(this == EUR_BTC_LTC){
+    if(ratio > 1.005) {
+        if(!s_gotUp) {
+            System.out.println("> " + ratio);
+            System.out.println(" " + m_pd1.m_pair + " " + b);
+            System.out.println(" " + m_pd2.m_pair + " " + l);
+            System.out.println(" " + m_pd.m_pair + " " + lb);
+            s_gotUp = true;
+        }
+    } else if(ratio < 0.995) {
+        if(!s_gotDown) {
+            System.out.println("< " + ratio);
+            System.out.println(" " + m_pd1.m_pair + " " + b);
+            System.out.println(" " + m_pd2.m_pair + " " + l);
+            System.out.println(" " + m_pd.m_pair + " " + lb);
+            s_gotDown = true;
+        }
+    }
+}
             return ratio;
         }
     }

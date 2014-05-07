@@ -21,15 +21,16 @@ public class TriTradeData {
     public boolean m_doMktOffset;
     public int m_iterationsNum;
 
-    public TriTradeData(OrderData order, OnePegCalcData peg, boolean doMktOffset) {
-        this(System.currentTimeMillis(), null, order, peg, doMktOffset);
+    public TriTradeData(OrderData order, OnePegCalcData peg, boolean doMktOffset, TriTradeState initState) {
+        this(System.currentTimeMillis(), null, order, peg, doMktOffset, initState);
     }
-    public TriTradeData(long startTime, String parentId, OrderData order, OnePegCalcData peg, boolean doMktOffset) {
+    public TriTradeData(long startTime, String parentId, OrderData order, OnePegCalcData peg, boolean doMktOffset, TriTradeState initState) {
         m_startTime = startTime;
         m_id = generateId(parentId);
         m_doMktOffset = doMktOffset;
         m_order = order;
         m_peg = peg;
+        m_state = initState;
     }
 
     public void startMktOrder(IterationData iData, TriangleData triangleData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
@@ -92,7 +93,9 @@ public class TriTradeData {
             OrderData.OrderPlaceStatus ok = Triplet.placeOrder(account, order, ordState, iData);
             log("   place order = " + ok);
             if (ok == OrderData.OrderPlaceStatus.OK) {
-                setMktOrder(order, num - 1);
+                int indx = num - 1;
+                setState((indx == 0) ? TriTradeState.MKT1_PLACED : TriTradeState.MKT2_PLACED);
+                setMktOrder(order, indx);
                 triangleData.forkAndCheckFilledIfNeeded(iData, this, order, stateForFilled);
             } else if (ok == OrderData.OrderPlaceStatus.CAN_REPEAT) {
                 log("    some problem, but we can repeat place order on next iteration");
@@ -251,8 +254,10 @@ public class TriTradeData {
     }
 
     public void setState(TriTradeState state) {
-        log("TriTradeData.setState() " + m_state + " -> " + state);
-        m_state = state;
+        if (m_state != state) {
+            log("TriTradeData.setState() " + m_state + " -> " + state);
+            m_state = state;
+        }
     }
 
     public void setMktOrder(OrderData order, int indx) {
@@ -260,7 +265,6 @@ public class TriTradeData {
             m_mktOrders = new OrderData[2];
         }
         m_mktOrders[indx] = order;
-        setState((indx == 0) ? TriTradeState.MKT1_PLACED : TriTradeState.MKT2_PLACED);
     }
 
     private OrderData fork(OrderData order, String name) {
@@ -303,12 +307,12 @@ public class TriTradeData {
         return remainedOrder;
     }
 
-    public TriTradeData forkPeg() {
-        log("   forking peg..");
-        OrderData remainedOrder = fork(m_order, "peg");
+    public TriTradeData forkPegOrBracket(String name, TriTradeState state) {
+        log("   forking "+name+"..");
+        OrderData remainedOrder = fork(m_order, name);
         log("   remainedOrder=" + remainedOrder);
         setState(TriTradeState.PEG_FILLED);
-        TriTradeData triTradeData = new TriTradeData(m_startTime, m_id, remainedOrder, m_peg, m_doMktOffset);
+        TriTradeData triTradeData = new TriTradeData(m_startTime, m_id, remainedOrder, m_peg, m_doMktOffset, state);
         log("   created new triTradeData=" + triTradeData);
         return triTradeData;
     }
@@ -321,14 +325,14 @@ public class TriTradeData {
         log("  MKT" + num + " order forked at ratio " + ratio + ": " + mktFork);
         OrderData pegOrder = splitOrder(m_order, ratio);
         if (num == 1) {
-            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg, m_doMktOffset);
+            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg, m_doMktOffset, TriTradeState.MKT1_PLACED);
             ret.setMktOrder(mktFork, 0);
             setState(TriTradeState.MKT1_EXECUTED);
             log("  created fork: " + ret);
             return ret;
         } else { // 2
             OrderData mkt1 = splitOrder(m_mktOrders[0], ratio);
-            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg, m_doMktOffset);
+            TriTradeData ret = new TriTradeData(m_startTime, m_id, pegOrder, m_peg, m_doMktOffset, TriTradeState.MKT2_PLACED);
             ret.setMktOrder(mkt1, 0);
             ret.setMktOrder(mktFork, 1);
             setState(TriTradeState.MKT2_EXECUTED);
@@ -369,24 +373,30 @@ public class TriTradeData {
     }
 
     public TriTradeData forkIfNeeded() {
-        TriTradeData forkRemainded = null;
+        TriTradeData forkRemained = null;
         switch (m_state) {
             case PEG_PLACED:
                 if(m_order.isPartiallyFilled(Exchange.BTCE)) {
                     log("PEG order is partially filled - splitting: " + m_order.toString(Exchange.BTCE));
-                    forkRemainded = forkPeg();
+                    forkRemained = forkPegOrBracket("peg", TriTradeState.PEG_PLACED);
+                }
+                break;
+            case BRACKET_PLACED:
+                if(m_order.isPartiallyFilled(Exchange.BTCE)) {
+                    log("BRACKET order is partially filled - splitting: " + m_order.toString(Exchange.BTCE));
+                    forkRemained = forkPegOrBracket("bracket", TriTradeState.BRACKET_PLACED);
                 }
                 break;
             case MKT1_PLACED:
                 if(isMktOrderPartiallyFilled(0)) {
                     log("MKT1 order is partially filled - splitting: " + getMktOrder(0).toString(Exchange.BTCE));
-                    forkRemainded = forkMkt(1);
+                    forkRemained = forkMkt(1);
                 }
                 break;
             case MKT2_PLACED:
                 if(isMktOrderPartiallyFilled(1)) {
                     log("MKT2 order is partially filled - splitting: " + getMktOrder(1).toString(Exchange.BTCE));
-                    forkRemainded = forkMkt(2);
+                    forkRemained = forkMkt(2);
                 }
                 break;
             default:
@@ -396,7 +406,7 @@ public class TriTradeData {
                     log("warning: unexpected state - some order is partially filled: " + toString(Exchange.BTCE));
                 }
         }
-        return forkRemainded;
+        return forkRemained;
     }
 
 
