@@ -1,7 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.BaseChartPaint;
-import bthdg.Currency;
+import bthdg.exch.Currency;
 import bthdg.PaintChart;
 import bthdg.Utils;
 import bthdg.exch.Pair;
@@ -30,7 +30,7 @@ public class PaintInterExchange extends BaseChartPaint {
         System.out.println("Started");
         long millis = logTimeMemory();
 
-        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-8h");
+        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-36h");
         paint(fromMillis);
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));

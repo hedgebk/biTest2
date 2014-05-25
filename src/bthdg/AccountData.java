@@ -1,9 +1,6 @@
 package bthdg;
 
-import bthdg.exch.Pair;
-import bthdg.exch.PairDirection;
-import bthdg.exch.TopData;
-import bthdg.exch.TopsData;
+import bthdg.exch.*;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -202,27 +199,37 @@ public class AccountData {
 
     public double evaluate(TopsData tops, Currency curr) {
         double allValue = 0;
-        for (Map.Entry<Currency, Double> entry : m_funds.entrySet()) {
-            Currency currency = entry.getKey();
+        for (Currency currency : m_funds.keySet()) {
             double value = getAllValue(currency);
             if (value > 0.000000001) {
                 double rate;
                 if (currency == curr) {
                     rate = 1;
                 } else {
-                    PairDirection pd = PairDirection.get(currency, curr);
-                    Pair pair = pd.m_pair;
-                    TopData top = tops.get(pair);
-                    rate = top.getMid();
-                    if (!pd.isForward()) {
-                        rate = 1 / rate;
+                    boolean support = PairDirection.support(currency, curr);
+                    if(support) {
+                        rate = rate(tops, currency, curr);
+                    } else {
+                        rate = rate(tops, currency, Currency.BTC) * rate(tops, Currency.BTC, curr);
                     }
                 }
                 value = value / rate;
                 allValue += value;
             }
+
         }
         return allValue;
+    }
+
+    private double rate(TopsData tops, Currency currencyFrom, Currency currencyTo) {
+        PairDirection pd = PairDirection.get(currencyFrom, currencyTo);
+        Pair pair = pd.m_pair;
+        TopData top = tops.get(pair);
+        double rate = top.getMid();
+        if (!pd.isForward()) {
+            rate = 1 / rate;
+        }
+        return rate;
     }
 
     public double getAllValue(Currency currency) {

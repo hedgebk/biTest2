@@ -12,7 +12,7 @@ import java.util.Properties;
 import java.util.StringTokenizer;
 
 public class Console {
-    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD, Pair.PPC_USD, Pair.PPC_BTC};
 
     public static void main(String[] args) {
         System.out.println("Started.");
@@ -52,6 +52,12 @@ public class Console {
             doOrder(line);
         } else if( line.startsWith("cancel ")) {
             doCancel(line);
+        } else if( line.equals("am")) {
+            AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
+            if (account != null) {
+                TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                doAccountMap(account, tops);
+            }
         } else if( line.equals("help")) {
             printHelp();
         } else {
@@ -83,43 +89,7 @@ public class Console {
         if (account != null) {
             TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
             if (line.equals("account map")) {
-                Map<Currency, Double> valuateMap = new HashMap<Currency, Double>();
-
-                String s = "          ";
-                for (Currency inCurrency : Currency.values()) {
-                    double valuate = account.evaluate(tops, inCurrency);
-                    valuateMap.put(inCurrency, valuate);
-                    s += Utils.padLeft(inCurrency.toString(), 32);
-                }
-                System.out.println(s);
-
-                for (Currency currencyIn : Currency.values()) {
-                    double inValue = account.getAllValue(currencyIn);
-                    String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn + " ";
-                    Double rate = FundMap.s_distributeRatio.get(currencyIn);
-                    for (Currency currencyOut : Currency.values()) {
-                        double converted = (currencyIn == currencyOut)
-                                ? inValue :
-                                tops.convert(currencyIn, currencyOut, inValue);
-                        str += Utils.padLeft(Utils.X_YYYYY.format(converted), 9) + " ";
-
-                        double valuate = valuateMap.get(currencyOut);
-                        double expected = rate * valuate;
-                        str += Utils.padLeft(Utils.X_YYYYY.format(expected), 9) + " ";
-
-                        double diff = converted - expected;
-                        str += Utils.padLeft(Utils.X_YYYYY.format(diff), 9) + " | ";
-                    }
-                    System.out.println(str);
-                }
-
-                s = "             ";
-                for (Currency outCurrency : Currency.values()) {
-                    double valuate = valuateMap.get(outCurrency);
-                    s +=  Utils.padRight(Utils.padLeft(Utils.X_YYYYY.format(valuate), 9), 29) + " | ";
-                }
-                System.out.println(s);
-                FundMap.test(account, tops);
+                doAccountMap(account, tops);
             } else {
                 double valuateEur = account.evaluateEur(tops);
                 double valuateUsd = account.evaluateUsd(tops);
@@ -128,6 +98,46 @@ public class Console {
         } else {
             System.err.println("account request error");
         }
+    }
+
+    private static void doAccountMap(AccountData account, TopsData tops) {
+        Map<Currency, Double> valuateMap = new HashMap<Currency, Double>();
+
+        String s = "          ";
+        for (Currency inCurrency : Currency.values()) {
+            double valuate = account.evaluate(tops, inCurrency);
+            valuateMap.put(inCurrency, valuate);
+            s += Utils.padLeft(inCurrency.toString(), 32);
+        }
+        System.out.println(s);
+
+        for (Currency currencyIn : Currency.values()) {
+            double inValue = account.getAllValue(currencyIn);
+            String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn + " ";
+            Double rate = FundMap.s_distributeRatio.get(currencyIn);
+            for (Currency currencyOut : Currency.values()) {
+                double converted = (currencyIn == currencyOut)
+                        ? inValue :
+                        tops.convert(currencyIn, currencyOut, inValue);
+                str += Utils.padLeft(Utils.X_YYYYY.format(converted), 9) + " ";
+
+                double valuate = valuateMap.get(currencyOut);
+                double expected = rate * valuate;
+                str += Utils.padLeft(Utils.X_YYYYY.format(expected), 9) + " ";
+
+                double diff = converted - expected;
+                str += Utils.padLeft(Utils.X_YYYYY.format(diff), 9) + " | ";
+            }
+            System.out.println(str);
+        }
+
+        s = "             ";
+        for (Currency outCurrency : Currency.values()) {
+            double valuate = valuateMap.get(outCurrency);
+            s +=  Utils.padRight(Utils.padLeft(Utils.X_YYYYY.format(valuate), 9), 29) + " | ";
+        }
+        System.out.println(s);
+        FundMap.test(account, tops);
     }
 
     private static void printHelp() {

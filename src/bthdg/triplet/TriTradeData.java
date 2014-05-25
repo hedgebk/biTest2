@@ -1,10 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
-import bthdg.exch.Pair;
-import bthdg.exch.PairDirection;
-import bthdg.exch.TopData;
-import bthdg.exch.TopsData;
+import bthdg.exch.*;
 
 import java.util.Random;
 

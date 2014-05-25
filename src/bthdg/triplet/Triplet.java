@@ -1,12 +1,15 @@
 package bthdg.triplet;
 
 import bthdg.*;
-import bthdg.Currency;
+import bthdg.exch.Currency;
 import bthdg.exch.*;
 
 import java.util.*;
 
 /**
+ * - do not wait between iterations if just placed
+ *   - if just placed and just executed - place blind mkt orders - will save time
+ * - join with nearest if best in the book has TOO small size
  * - track original orders size and log with forks at least % of original order
  * - do not place second order on the same triangle if we have one (bracket can be exception if allocated < available).
  * - place both MKT orders at the same time no wait for first execution - looks fork/split will be complex
@@ -30,15 +33,15 @@ import java.util.*;
  */
 public class Triplet {
     public static final int NUMBER_OF_ACTIVE_TRIANGLES = 3;
-    public static final boolean START_ONE_TRIANGLE_PER_ITERATION = false;
+    public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.68; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 0;
-    public static final boolean TRY_WITH_MKT_OFFSET = false;
-    public static final double MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.11;
-    public static final int ITERATIONS_SLEEP_TIME = 1900; // sleep between iterations
+    public static final double LVL2 = 100.71; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 1;
+    public static final boolean TRY_WITH_MKT_OFFSET = true;
+    public static final double MKT_OFFSET_PRICE_MINUS = 0.07; // mkt - 10%
+    public static final double MKT_OFFSET_LEVEL_DELTA = 0.07;
+    public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
 
     public static final boolean PREFER_EUR_CRYPT_PAIRS = false; // BTC_EUR, LTC_EUR
     public static final boolean PREFER_LIQUID_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD
@@ -51,10 +54,12 @@ public class Triplet {
 
     public static final boolean USE_DEEP = true;
     public static final boolean ADJUST_AMOUNT_TO_MKT_AVAILABLE = true;
-    public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.4;
+    public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.1;
+    public static final boolean ADJUST_TO_MIN_ORDER_SIZE = true;
 
     public static final boolean USE_NEW = true;
     public static final boolean USE_RALLY = false;
+    public static final boolean ALLOW_ONE_PRICE_STEP_CONCURRENT_PEG = false;
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
     public static final double USE_ACCOUNT_FUNDS = 0.95;
@@ -68,13 +73,14 @@ public class Triplet {
     public static int s_counter = 0;
     public static double s_level = LVL2;
 
-    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD};
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD, Pair.PPC_USD, Pair.PPC_BTC};
 
     public static final Triangle T1 = new Triangle(Currency.USD, Currency.LTC, Currency.BTC); // usd -> ltc -> btc -> usd
     public static final Triangle T2 = new Triangle(Currency.EUR, Currency.LTC, Currency.BTC); // eur -> ltc -> btc -> eur
     public static final Triangle T3 = new Triangle(Currency.USD, Currency.LTC, Currency.EUR); // usd -> ltc -> eur -> usd
     public static final Triangle T4 = new Triangle(Currency.EUR, Currency.USD, Currency.BTC); // eur -> usd -> btc -> eur
-    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4};
+    public static final Triangle T5 = new Triangle(Currency.USD, Currency.PPC, Currency.BTC); // usd -> ppc -> btc -> usd
+    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4, T5};
 
     static AccountData s_startAccount;
     public static double s_startEur;

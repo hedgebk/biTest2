@@ -1,10 +1,13 @@
-package bthdg;
+package bthdg.exch;
 
 public enum Currency {
     USD("usd"),
     BTC("btc"),
     LTC("ltc"),
-    EUR("eur");
+    EUR("eur"),
+    PPC("ppc"),
+//    NMC("nmc"),
+    ;
 
     public final String m_name;
 

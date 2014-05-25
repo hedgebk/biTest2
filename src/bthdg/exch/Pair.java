@@ -1,11 +1,6 @@
 package bthdg.exch;
 
-import bthdg.Currency;
 import bthdg.triplet.Direction;
-
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.util.Locale;
 
 public enum Pair {
     LTC_USD(1, Currency.LTC, Currency.USD),
@@ -13,7 +8,10 @@ public enum Pair {
     BTC_USD(3, Currency.BTC, Currency.USD),
     LTC_EUR(4, Currency.LTC, Currency.EUR),
     BTC_EUR(5, Currency.BTC, Currency.EUR),
-    EUR_USD(6, Currency.EUR, Currency.USD);
+    EUR_USD(6, Currency.EUR, Currency.USD),
+    PPC_USD(7, Currency.PPC, Currency.USD),
+    PPC_BTC(8, Currency.PPC, Currency.BTC),
+    ;
 
     public final int m_id;
     public final Currency m_from;

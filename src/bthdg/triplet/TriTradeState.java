@@ -1,10 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
-import bthdg.exch.Btce;
-import bthdg.exch.Pair;
-import bthdg.exch.TopData;
-import bthdg.exch.TopsData;
+import bthdg.exch.*;
 
 public enum TriTradeState {
     PEG_PLACED {

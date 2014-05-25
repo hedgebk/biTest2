@@ -13,9 +13,10 @@ import java.util.List;
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
 // - check fading moving average
 public class PaintChart extends BaseChartPaint {                            // 4d    7d    14d
-    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;   // 1.69  1.688   2.36
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;   // 1.69  1.688   2.36
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX; //       1.52
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;   // 2.12  1.62
+    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX;
 
     private static Vary VARY = Vary.NONE;
     public enum Vary {
@@ -23,7 +24,7 @@ public class PaintChart extends BaseChartPaint {                            // 4
     }
 
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 4; // the period width - days
+    public static final int PERIOD_LENGTH_DAYS = 5; // the period width - days
     private static final long MOVING_AVERAGE_MILLIS = PAIR.m_movingAverage;
     private static final double EXPECTED_GAIN = PAIR.m_expectedGain;
     private static final Exchange EXCH1 = PAIR.m_exch1;
@@ -714,9 +715,11 @@ public class PaintChart extends BaseChartPaint {                            // 4
 
     // BITSTAMP, BTCE, CAMPBX
     private static enum ExchangePair {
-        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,     60 * 60 + 18, 2.047,  0.14),
-        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX, 35 * 60 + 40, 3.675,  0.56),
-        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,     16 * 60 + 10, 1.405,  0.21);
+        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         37 * 60 + 0, 0.433,  0.954),
+        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,     35 * 60 + 40, 3.675,  0.56),
+        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,         28 * 60 + 54, 0.88,  1.68),
+        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 58 * 60 + 34, 0.73,  0.19),
+        ;
 
         public final Exchange m_exch1;
         public final Exchange m_exch2;

@@ -1,6 +1,5 @@
 package bthdg.exch;
 
-import bthdg.Currency;
 import bthdg.OrderSide;
 import bthdg.triplet.Direction;
 
@@ -56,6 +55,18 @@ public class PairDirection {
             }
         }
         throw new RuntimeException("not supported pair: " + fromCurrency + "->" + toCurrency);
+    }
+
+    public static boolean support(Currency fromCurrency, Currency toCurrency) {
+        for( Pair pair: Pair.values() ) {
+            if((pair.m_from == fromCurrency) && (pair.m_to == toCurrency)) {
+                return true;
+            }
+            if((pair.m_to == fromCurrency) && (pair.m_from == toCurrency)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public OrderSide getSide() {

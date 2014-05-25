@@ -10,10 +10,11 @@ import java.util.TreeMap;
 public class FundMap {
     static final Map<Currency,Double> s_distributeRatio = new HashMap<Currency, Double>();
     static{
-        s_distributeRatio.put(Currency.LTC, 0.40);
-        s_distributeRatio.put(Currency.EUR, 0.30);
-        s_distributeRatio.put(Currency.BTC, 0.20);
-        s_distributeRatio.put(Currency.USD, 0.10);
+        s_distributeRatio.put(Currency.LTC, 0.30);
+        s_distributeRatio.put(Currency.EUR, 0.27);
+        s_distributeRatio.put(Currency.BTC, 0.23);
+        s_distributeRatio.put(Currency.USD, 0.20);
+        s_distributeRatio.put(Currency.PPC, 0.0);
     }
 
     public static void test(AccountData account, TopsData tops) {
@@ -87,33 +88,36 @@ public class FundMap {
                 if (amount > toExpected / 8) { // do not move very small amounts
                     amount *= 0.9;
                     System.out.println(" amount*0.9=" + amount + " " + to);
+                    if (PairDirection.support(from, to)) {
+                        PairDirection pd = PairDirection.get(from, to);
+                        System.out.println("PairDirection=" + pd);
+                        Pair pair = pd.m_pair;
+                        System.out.println(" pair=" + pair);
+                        boolean forward = pd.isForward();
+                        System.out.println(" forward=" + forward);
+                        OrderSide side = pd.getSide();
+                        System.out.println("  side=" + side);
 
-                    PairDirection pd = PairDirection.get(from, to);
-                    System.out.println("PairDirection=" + pd);
-                    Pair pair = pd.m_pair;
-                    System.out.println(" pair=" + pair);
-                    boolean forward = pd.isForward();
-                    System.out.println(" forward=" + forward);
-                    OrderSide side = pd.getSide();
-                    System.out.println("  side=" + side);
+                        TopData top = tops.get(pair);
+                        System.out.println("top=" + top);
+                        double step = Btce.minOurPriceStep(pair);
+                        System.out.println("minOurPriceStep=" + step);
+                        double limitPrice = side.pegPrice(top, step);
+                        System.out.println("price(peg)=" + limitPrice);
+                        if (!forward) {
+                            amount = amount / limitPrice;
+                            System.out.println("amount corrected=" + amount);
+                        }
 
-                    TopData top = tops.get(pair);
-                    System.out.println("top=" + top);
-                    double step = Btce.minOurPriceStep(pair);
-                    System.out.println("minOurPriceStep=" + step);
-                    double limitPrice = side.pegPrice(top, step);
-                    System.out.println("price(peg)=" + limitPrice);
-                    if (!forward) {
-                        amount = amount / limitPrice;
-                        System.out.println("amount corrected=" + amount);
+                        double roundAmount = Exchange.BTCE.roundAmount(amount, pair);
+                        System.out.println("roundAmount=" + roundAmount);
+
+                        OrderData orderData = new OrderData(pair, side, limitPrice, roundAmount);
+                        System.out.println("confirm orderData=" + orderData);
+                        System.out.println("order " + side.m_name + " " + roundAmount + " " + pair.m_to + " for " + pair.m_from + " @ mkt");
+                    } else {
+                        System.out.println("not support direction " + from + " -> " + to);
                     }
-
-                    double roundAmount = Exchange.BTCE.roundAmount(amount, pair);
-                    System.out.println("roundAmount=" + roundAmount);
-
-                    OrderData orderData = new OrderData(pair, side, limitPrice, roundAmount);
-                    System.out.println("confirm orderData=" + orderData);
-                    System.out.println("order " + side.m_name + " " + roundAmount + " " + pair.m_to + " for " + pair.m_from + " @ mkt");
                 } else {
                     System.out.println("amount is small to move");
                 }

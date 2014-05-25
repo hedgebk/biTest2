@@ -1,6 +1,5 @@
 package bthdg.exch;
 
-import bthdg.Currency;
 import bthdg.Exchange;
 
 import java.util.HashMap;
@@ -16,15 +15,25 @@ public class TopsData {
     public Set<Map.Entry<Pair, TopData>> entrySet() { return m_map.entrySet(); }
 
     public double convert(Currency inCurrency, Currency outCurrency, double all) {
-        PairDirection pd = PairDirection.get(inCurrency, outCurrency);
+        double rate;
+        if(PairDirection.support(inCurrency, outCurrency)) {
+            rate = rate(inCurrency, outCurrency);
+        } else {
+            rate = rate(inCurrency, Currency.BTC) * rate(Currency.BTC, outCurrency);
+        }
+        double converted = all / rate;
+        return converted;
+    }
+
+    private double rate(Currency inCurrency, Currency outCurrency) {
+        double rate;PairDirection pd = PairDirection.get(inCurrency, outCurrency);
         Pair pair = pd.m_pair;
         TopData top = get(pair);
-        double mid = top.getMid();
+        rate = top.getMid();
         if (!pd.isForward()) {
-            mid = 1 / mid;
+            rate = 1 / rate;
         }
-        double converted = all / mid;
-        return converted;
+        return rate;
     }
 
     public String toString(Exchange exchange) {

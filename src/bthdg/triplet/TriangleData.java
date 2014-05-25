@@ -1,7 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.*;
-import bthdg.Currency;
+import bthdg.exch.Currency;
 import bthdg.exch.*;
 
 import java.util.*;
@@ -306,7 +306,11 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             Pair pair = tradePeg.m_pair1.m_pair;
             double minOurPriceStep = Btce.minOurPriceStep(pair); // like 0.00001
             double minExchPriceStep = Btce.minExchPriceStep(pair); // like 0.00001
-            if (priceDif < minOurPriceStep + minExchPriceStep) { // check if peg order needs to be moved - do not jump over itself - do not move if price change is too small
+            double allowPriceDiff = minOurPriceStep * 1.1; //  do not jump over itself
+            if (Triplet.ALLOW_ONE_PRICE_STEP_CONCURRENT_PEG) {
+                allowPriceDiff += minExchPriceStep;
+            }
+            if (priceDif < allowPriceDiff) { // check if peg order needs to be moved - do not move if price change is too small
                 double ratio = calcRatio(tops, tradePeg, triTrade, doMktOffset, "checkPegToLive");
                 if (ratio < 1) {
                     log("warning: ratio < 1" + ratio);
@@ -593,6 +597,13 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 amount = amountIn * ratio;
                 Currency pairCurrency = pd1.m_pair.m_to;
                 log("due to MKT orders availability in the book. PEG amount reduced from " + Utils.X_YYYYYYYY.format(amountIn) + " to " + Utils.X_YYYYYYYY.format(amount) + " " + pairCurrency);
+                if (Triplet.ADJUST_TO_MIN_ORDER_SIZE) {
+                    double minOrderToCreate = Btce.minOrderToCreate(pair1);
+                    if (amount < minOrderToCreate) {
+                        log(" amount increased to minOrderToCreate: from " + Utils.X_YYYYYYYY.format(amount) + " to " + Utils.X_YYYYYYYY.format(minOrderToCreate) + " " + pairCurrency);
+                        amount = minOrderToCreate;
+                    }
+                }
             }
         }
 

@@ -11,7 +11,6 @@ package bthdg.exch;
 // much code to inspire here: https://github.com/ReAzem/cryptocoin-tradelib/blob/master/modules/btc_e/src/de/andreas_rueckert/trade/site/btc_e/client/BtcEClient.java
 
 import bthdg.*;
-import bthdg.Currency;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -40,13 +39,15 @@ public class Btce extends BaseExch {
     private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
     private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
-    static {                       // minExchPriceStep  minOurPriceStep                 minAmountStep   minOrderToCreate
+    static {                       // minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.LTC_USD, "0.000000", 0.000001,         0.000005,        "0.0#######",  0.00000001,     0.1);
         put(Pair.LTC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
         put(Pair.BTC_USD, "0.000",    0.001,            0.001,           "0.0#######",  0.00000001,     0.01);
         put(Pair.LTC_EUR, "0.000",    0.001,            0.001,           "0.0#######",  0.00000001,     0.1);
-        put(Pair.BTC_EUR, "0.00000",  0.00001,          0.00005,         "0.0#######",  0.00000001,     0.01);
-        put(Pair.EUR_USD, "0.00000",  0.00001,          0.00005,         "0.0#######",  0.00000001,     1);
+        put(Pair.BTC_EUR, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.01);
+        put(Pair.EUR_USD, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
+        put(Pair.PPC_USD, "0.000",    0.001,            0.002,           "0.0#######",  0.00000001,     1);
+        put(Pair.PPC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
     }
 
     private static void put(Pair pair, String format, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
@@ -341,6 +342,8 @@ public class Btce extends BaseExch {
         accountData.setAvailable(Currency.LTC, ltc);
         double eur = Utils.getDouble(funds.get("eur"));
         accountData.setAvailable(Currency.EUR, eur);
+        double ppc = Utils.getDouble(funds.get("ppc"));
+        accountData.setAvailable(Currency.PPC, ppc);
         return accountData;
     }
 
@@ -499,6 +502,8 @@ public class Btce extends BaseExch {
             case BTC_EUR: return "btc_eur";
             case LTC_EUR: return "ltc_eur";
             case EUR_USD: return "eur_usd";
+            case PPC_USD: return "ppc_usd";
+            case PPC_BTC: return "ppc_btc";
             default: return "?";
         }
     }
@@ -510,6 +515,8 @@ public class Btce extends BaseExch {
         if (pair.equals("btc_eur")) { return Pair.BTC_EUR; }
         if (pair.equals("ltc_eur")) { return Pair.LTC_EUR; }
         if (pair.equals("eur_usd")) { return Pair.EUR_USD; }
+        if (pair.equals("ppc_usd")) { return Pair.PPC_USD; }
+        if (pair.equals("ppc_btc")) { return Pair.PPC_BTC; }
         return null;
     }
 
