@@ -36,9 +36,9 @@ public class Triplet {
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.71; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 1;
-    public static final boolean TRY_WITH_MKT_OFFSET = true;
+    public static final double LVL2 = 100.70; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 0;
+    public static final boolean TRY_WITH_MKT_OFFSET = false;
     public static final double MKT_OFFSET_PRICE_MINUS = 0.07; // mkt - 10%
     public static final double MKT_OFFSET_LEVEL_DELTA = 0.07;
     public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
@@ -53,6 +53,7 @@ public class Triplet {
     public static final int BRACKET_DISTANCE_MAX = 2;
 
     public static final boolean USE_DEEP = true;
+    public static final boolean JOIN_SMALL_QUOTES = true;
     public static final boolean ADJUST_AMOUNT_TO_MKT_AVAILABLE = true;
     public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.1;
     public static final boolean ADJUST_TO_MIN_ORDER_SIZE = true;
@@ -94,6 +95,7 @@ public class Triplet {
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
         Btce.LOG_PARSE = false;
+        Btce.JOIN_SMALL_QUOTES = JOIN_SMALL_QUOTES;
         Fetcher.USE_ACCOUNT_TEST_STR = USE_ACCOUNT_TEST_STR;
         Fetcher.SIMULATE_ORDER_EXECUTION = SIMULATE_ORDER_EXECUTION;
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE = false;

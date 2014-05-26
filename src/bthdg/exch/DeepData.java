@@ -1,12 +1,15 @@
 package bthdg.exch;
 
+import bthdg.Exchange;
 import bthdg.Utils;
 import org.json.simple.JSONArray;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/** Deep book data */
 public class DeepData {
+    public final double JOIN_SMALL_QUOTES_THRESHOLD = 0.8;
     public final List<Deep> m_bids;
     public final List<Deep> m_asks;
 
@@ -40,9 +43,30 @@ public class DeepData {
         return m_bids.get(0);
     }
 
+    public void joinSmallQuotes(Exchange exchange, Pair pair) {
+        double minOrderSize = exchange.minOrderSize(pair) * JOIN_SMALL_QUOTES_THRESHOLD;
+        joinSmallQuotes(minOrderSize, m_bids);
+        joinSmallQuotes(minOrderSize, m_asks);
+    }
+
+    private void joinSmallQuotes(double minOrderSize, List<Deep> deeps) {
+        for (int i = 1; i < deeps.size(); i++) {
+            Deep deep = deeps.get(0);
+            double size = deep.m_size;
+            if (size < minOrderSize) {
+                Deep deep2 = deeps.get(1);
+                deep2.m_size += size;
+                deeps.remove(0);
+                i--;
+            } else {
+                break;
+            }
+        }
+    }
+
     public static class Deep {
         public final double m_price;
-        public final double m_size;
+        public double m_size;
 
         public Deep(double price, double size) {
             m_price = price;

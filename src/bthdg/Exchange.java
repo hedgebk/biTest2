@@ -56,6 +56,7 @@ public enum Exchange {
         @Override public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, options); }
         @Override public double minPriceStep(Pair pair) { return Btce.minExchPriceStep(pair); }
         @Override public double minAmountStep(Pair pair) { return Btce.minAmountStep(pair); }
+        @Override public double minOrderSize(Pair pair) { return Btce.minOrderToCreate(pair); }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -143,6 +144,7 @@ public enum Exchange {
     public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return m_apiTradesEndpoint; }
     public double minPriceStep(Pair pair) { return 0.01; }
     public double minAmountStep(Pair pair) { return 0.0001; }
+    public double minOrderSize(Pair pair) { return 0.01; }
 
     private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
 

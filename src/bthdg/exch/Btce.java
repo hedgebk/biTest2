@@ -25,6 +25,7 @@ public class Btce extends BaseExch {
     public static final String CRYPTO_ALGO = "HmacSHA512";
     public static int BTCE_TRADES_IN_REQUEST = 50;
     public static int BTCE_DEEP_ORDERS_IN_REQUEST = 20;
+    public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
     private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
@@ -39,7 +40,7 @@ public class Btce extends BaseExch {
     private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
     private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
-    static {                       // minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
+    static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.LTC_USD, "0.000000", 0.000001,         0.000005,        "0.0#######",  0.00000001,     0.1);
         put(Pair.LTC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
         put(Pair.BTC_USD, "0.000",    0.001,            0.001,           "0.0#######",  0.00000001,     0.01);
@@ -50,10 +51,10 @@ public class Btce extends BaseExch {
         put(Pair.PPC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
     }
 
-    private static void put(Pair pair, String format, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
+    private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
         s_amountFormatMap.put(pair, mkFormat(amountFormat));
         s_minAmountStepMap.put(pair, minAmountStep);
-        s_priceFormatMap.put(pair, mkFormat(format));
+        s_priceFormatMap.put(pair, mkFormat(priceFormat));
         s_minExchPriceStepMap.put(pair, minExchPriceStep);
         s_minOurPriceStepMap.put(pair, minOurPriceStep);
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
@@ -253,6 +254,9 @@ public class Btce extends BaseExch {
         DeepsData ret = new DeepsData();
         for(Pair pair: pairs) {
             DeepData deep = parseDeepInt(obj, pair);
+            if(JOIN_SMALL_QUOTES) {
+                deep.joinSmallQuotes(Exchange.BTCE, pair);
+            }
             ret.put(pair, deep);
         }
         return ret;
@@ -550,41 +554,8 @@ public class Btce extends BaseExch {
 //                          "server_time":1391514768}}
 // https://btc-e.com/api/2/btc_eur/ticker
 // https://btc-e.com/api/2/btc_rub/ticker
-//
 // https://btc-e.com/api/2/btc_usd/depth
-//
-// https://btc-e.com/api/2/btc_usd/trades
-//  What does the is_your_order field mean in a btc-e response?
-//   http://bitcoin.stackexchange.com/questions/10683/what-does-the-is-your-order-field-mean-in-a-btc-e-response?rq=1
-//
-// place order
-//  You incorrectly entered one of fields.
-//   http://bitcoin.stackexchange.com/questions/8274/parameters-for-buy-order-on-btc-e?rq=1
 //
 // There is an API call to find the correct maximum number of places, as well as the minimum order for each currency pair.
 //  https://btc-e.com/api/3/info returns a list of currencies and information.
 //   https://btc-e.com/api/3/documentation#info
-//
-// https://btc-e.com/api/3/trades/btc_usd
-//{
-//	"btc_usd":[
-//		{
-//			"type":"ask",
-//			"price":103.6,
-//			"amount":0.101,
-//			"tid":4861261,
-//			"timestamp":1370818007
-//		},
-//		{
-//			"type":"bid",
-//			"price":103.989,
-//			"amount":1.51414,
-//			"tid":4861254,
-//			"timestamp":1370817960
-//		},
-//		...
-//	]
-//	...
-//}
-//
-//
