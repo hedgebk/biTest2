@@ -90,6 +90,7 @@ public class TriTradeData {
             OrderData.OrderPlaceStatus ok = Triplet.placeOrder(account, order, ordState, iData);
             log("   place order = " + ok);
             if (ok == OrderData.OrderPlaceStatus.OK) {
+                iData.noSleep();
                 int indx = num - 1;
                 setState((indx == 0) ? TriTradeState.MKT1_PLACED : TriTradeState.MKT2_PLACED);
                 setMktOrder(order, indx);

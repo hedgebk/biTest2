@@ -6,7 +6,7 @@ public enum Currency {
     LTC("ltc"),
     EUR("eur"),
     PPC("ppc"),
-//    NMC("nmc"),
+    NMC("nmc"),
     ;
 
     public final String m_name;

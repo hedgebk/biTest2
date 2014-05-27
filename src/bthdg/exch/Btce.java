@@ -49,6 +49,8 @@ public class Btce extends BaseExch {
         put(Pair.EUR_USD, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
         put(Pair.PPC_USD, "0.000",    0.001,            0.002,           "0.0#######",  0.00000001,     1);
         put(Pair.PPC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
+        put(Pair.NMC_USD, "0.000",    0.001,            0.002,           "0.0#######",  0.00000001,     1);
+        put(Pair.NMC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
     }
 
     private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
@@ -348,6 +350,8 @@ public class Btce extends BaseExch {
         accountData.setAvailable(Currency.EUR, eur);
         double ppc = Utils.getDouble(funds.get("ppc"));
         accountData.setAvailable(Currency.PPC, ppc);
+        double nmc = Utils.getDouble(funds.get("nmc"));
+        accountData.setAvailable(Currency.NMC, ppc);
         return accountData;
     }
 
@@ -508,6 +512,8 @@ public class Btce extends BaseExch {
             case EUR_USD: return "eur_usd";
             case PPC_USD: return "ppc_usd";
             case PPC_BTC: return "ppc_btc";
+            case NMC_USD: return "nmc_usd";
+            case NMC_BTC: return "nmc_btc";
             default: return "?";
         }
     }
@@ -521,6 +527,8 @@ public class Btce extends BaseExch {
         if (pair.equals("eur_usd")) { return Pair.EUR_USD; }
         if (pair.equals("ppc_usd")) { return Pair.PPC_USD; }
         if (pair.equals("ppc_btc")) { return Pair.PPC_BTC; }
+        if (pair.equals("nmc_usd")) { return Pair.NMC_USD; }
+        if (pair.equals("nmc_btc")) { return Pair.NMC_BTC; }
         return null;
     }
 

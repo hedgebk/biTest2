@@ -195,6 +195,7 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
                 OrderData.OrderPlaceStatus ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
                 log("   place order = " + ok + ":  " + order);
                 if (ok == OrderData.OrderPlaceStatus.OK) {
+                    iData.noSleep();
                     TriTradeData ttData = new TriTradeData(order, bestPeg, false, TriTradeState.BRACKET_PLACED);
                     m_triTrades.add(ttData);
                 }
@@ -654,6 +655,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             OrderData.OrderPlaceStatus ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
             ttData.log("START:  place order = " + ok + ":  " + order.toString(Exchange.BTCE));
             if (ok == OrderData.OrderPlaceStatus.OK) {
+                iData.noSleep();
                 return ttData;
             }
             ttData.log("   place order unsuccessful: " + order.toString(Exchange.BTCE)); // do nothing special here

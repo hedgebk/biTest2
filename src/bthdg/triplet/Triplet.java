@@ -7,9 +7,8 @@ import bthdg.exch.*;
 import java.util.*;
 
 /**
- * - do not wait between iterations if just placed
- *   - if just placed and just executed - place blind mkt orders - will save time
- * - join with nearest if best in the book has TOO small size
+ * - when we increase to min order size - we run out of funds - check first
+ * - if just placed and just executed - place blind mkt orders - will save time
  * - track original orders size and log with forks at least % of original order
  * - do not place second order on the same triangle if we have one (bracket can be exception if allocated < available).
  * - place both MKT orders at the same time no wait for first execution - looks fork/split will be complex
@@ -36,15 +35,15 @@ public class Triplet {
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.70; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 0;
-    public static final boolean TRY_WITH_MKT_OFFSET = false;
-    public static final double MKT_OFFSET_PRICE_MINUS = 0.07; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.07;
+    public static final double LVL2 = 100.65; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 1;
+    public static final boolean TRY_WITH_MKT_OFFSET = true;
+    public static final double MKT_OFFSET_PRICE_MINUS = 0.06; // mkt - 10%
+    public static final double MKT_OFFSET_LEVEL_DELTA = 0.06;
     public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
 
     public static final boolean PREFER_EUR_CRYPT_PAIRS = false; // BTC_EUR, LTC_EUR
-    public static final boolean PREFER_LIQUID_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD
+    public static final boolean PREFER_LIQUID_PAIRS = true; // prefer start from LTC_BTC, BTC_USD, LTC_USD
     public static final boolean LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
     public static final double LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
 
@@ -74,14 +73,15 @@ public class Triplet {
     public static int s_counter = 0;
     public static double s_level = LVL2;
 
-    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD, Pair.PPC_USD, Pair.PPC_BTC};
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD, Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC};
 
     public static final Triangle T1 = new Triangle(Currency.USD, Currency.LTC, Currency.BTC); // usd -> ltc -> btc -> usd
     public static final Triangle T2 = new Triangle(Currency.EUR, Currency.LTC, Currency.BTC); // eur -> ltc -> btc -> eur
     public static final Triangle T3 = new Triangle(Currency.USD, Currency.LTC, Currency.EUR); // usd -> ltc -> eur -> usd
     public static final Triangle T4 = new Triangle(Currency.EUR, Currency.USD, Currency.BTC); // eur -> usd -> btc -> eur
     public static final Triangle T5 = new Triangle(Currency.USD, Currency.PPC, Currency.BTC); // usd -> ppc -> btc -> usd
-    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4, T5};
+    public static final Triangle T6 = new Triangle(Currency.USD, Currency.NMC, Currency.BTC); // usd -> nmc -> btc -> usd
+    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4, T5, T6};
 
     static AccountData s_startAccount;
     public static double s_startEur;
@@ -129,14 +129,15 @@ public class Triplet {
                     IterationData iData = new IterationData(tAgg, tops);
                     td.checkState(iData); // <<---------------------------------------------------------------------<<
 
+                    int size = td.m_triTrades.size();
                     int sleep = ITERATIONS_SLEEP_TIME;
-                    if (td.m_triTrades.isEmpty()) {
+                    if (size == 0) {
                         if (s_stopRequested) {
                             System.out.println("stopRequested; nothing to process - exit");
                             break;
                         }
                         td.m_account = syncAccountIfNeeded(td.m_account);
-                        sleep += sleep / 2;
+                        sleep += sleep / 2; // no trades - sleep more
 
                         if (s_level > LVL2) {
                             double level = s_level;
@@ -144,10 +145,22 @@ public class Triplet {
                             s_level = Math.max(s_level, LVL2);
                             log(" LEVEL decreased (-1%) from " + Utils.X_YYYYYYYY.format(level) + " to " + Utils.X_YYYYYYYY.format(Triplet.s_level));
                         }
-                    } else if (td.m_triTrades.size() > 1) {
-                        sleep /= 2;
+                    } else {
+                        if (size > 1) {
+                            sleep /= 2;
+                            if (size > 2) {
+                                sleep /= 2;
+                                if (size > 3) {
+                                    sleep /= 2;
+                                }
+                            }
+                        }
                     }
-                    Thread.sleep(sleep);
+                    if(iData.isNoSleep()) {
+                        System.out.println(" @@ isNoSleep requested");
+                    } else {
+                        Thread.sleep(sleep);
+                    }
                     if(iData.m_tops != null) {
                         tops = iData.m_tops;
                     }

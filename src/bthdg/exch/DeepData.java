@@ -45,23 +45,33 @@ public class DeepData {
 
     public void joinSmallQuotes(Exchange exchange, Pair pair) {
         double minOrderSize = exchange.minOrderSize(pair) * JOIN_SMALL_QUOTES_THRESHOLD;
-        joinSmallQuotes(minOrderSize, m_bids);
-        joinSmallQuotes(minOrderSize, m_asks);
+        joinSmallQuotes(minOrderSize, m_bids, exchange, pair, "bid");
+        joinSmallQuotes(minOrderSize, m_asks, exchange, pair, "ask");
     }
 
-    private void joinSmallQuotes(double minOrderSize, List<Deep> deeps) {
+    private void joinSmallQuotes(double minOrderSize, List<Deep> deeps, Exchange exchange, Pair pair, String side) {
         for (int i = 1; i < deeps.size(); i++) {
-            Deep deep = deeps.get(0);
-            double size = deep.m_size;
-            if (size < minOrderSize) {
-                Deep deep2 = deeps.get(1);
-                deep2.m_size += size;
+            Deep deep0 = deeps.get(0);
+            double quote0size = deep0.m_size;
+            if (quote0size < minOrderSize) {
+                Deep deep1 = deeps.get(1);
+                double quote1size = deep1.m_size;
+                double quoteSize = quote0size + quote1size;
+                deep1.m_size = quoteSize;
+                System.out.println("joined small deep quote: " + side + " " + exchange + " " + pair +
+                        " min=" + format8(minOrderSize) + ": 0-size=" + format8(quote0size) + "@" + deep0.m_price +
+                        ", 1-size=" + format8(quote1size) + "@" + deep1.m_price +
+                        " => size=" + format8(quoteSize));
                 deeps.remove(0);
                 i--;
             } else {
                 break;
             }
         }
+    }
+
+    private String format8(double minOrderSize) {
+        return Utils.X_YYYYYYYY.format(minOrderSize);
     }
 
     public static class Deep {

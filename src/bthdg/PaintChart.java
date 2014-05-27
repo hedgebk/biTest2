@@ -12,11 +12,11 @@ import java.util.List;
 
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
 // - check fading moving average
-public class PaintChart extends BaseChartPaint {                            // 4d    7d    14d
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;   // 1.69  1.688   2.36
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX; //       1.52
-//    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;   // 2.12  1.62
-    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX;
+public class PaintChart extends BaseChartPaint {
+    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;
+//    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX;
 
     private static Vary VARY = Vary.NONE;
     public enum Vary {
@@ -715,10 +715,10 @@ public class PaintChart extends BaseChartPaint {                            // 4
 
     // BITSTAMP, BTCE, CAMPBX
     private static enum ExchangePair {
-        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         37 * 60 + 0, 0.433,  0.954),
-        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,     35 * 60 + 40, 3.675,  0.56),
-        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,         28 * 60 + 54, 0.88,  1.68),
-        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 58 * 60 + 34, 0.73,  0.19),
+        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,          4 * 60 + 17, 1.058,  0.804),
+        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,     51 * 60 + 0,  6.6,    0.955),
+        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,          7 * 60 + 31, 0.555,  1.61),
+        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX,100 * 60 + 9,  1.655,  -0.3),
         ;
 
         public final Exchange m_exch1;

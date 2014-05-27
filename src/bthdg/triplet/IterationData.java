@@ -21,6 +21,7 @@ public class IterationData implements IIterationContext {
     private long m_topsLoadTime;
     private TopsData m_prevTops;
     private DeepsData m_deeps;
+    private boolean m_noSleep;
 
     public IterationData(TradesAggregator tAgg, TopsData tops) {
         m_tradesAgg = tAgg;
@@ -32,6 +33,8 @@ public class IterationData implements IIterationContext {
     @Override public void acceptPriceSimulated(boolean b) { m_acceptPriceSimulated = b; }
     @Override public Map<Pair, TradesData> fetchTrades(Exchange exchange) throws Exception { return getTrades(); }
     @Override public TopData getTop(Exchange exchange, Pair pair) throws Exception { return getTops().get(pair); }
+    public void noSleep() { m_noSleep = true; }
+    public boolean isNoSleep() { return m_noSleep; }
     public long millisFromStart() { return System.currentTimeMillis() - m_startMillis; }
     public long millisFromTopsLoad() {
         return (m_topsLoadTime == 0) ? 0 : System.currentTimeMillis() - m_topsLoadTime;

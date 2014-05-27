@@ -11,6 +11,8 @@ public enum Pair {
     EUR_USD(6, Currency.EUR, Currency.USD),
     PPC_USD(7, Currency.PPC, Currency.USD),
     PPC_BTC(8, Currency.PPC, Currency.BTC),
+    NMC_USD(9,  Currency.NMC, Currency.USD),
+    NMC_BTC(10, Currency.NMC, Currency.BTC),
     ;
 
     public final int m_id;
