@@ -5,11 +5,11 @@ import bthdg.OrderSide;
 import java.util.Map;
 
 public class OrdersData {
-    public String m_erorr;
+    public String m_error;
     public Map<String,OrdersData.OrdData> m_ords;
 
     public OrdersData(String error) {
-        m_erorr = error;
+        m_error = error;
     }
 
     public OrdersData() {
@@ -21,8 +21,8 @@ public class OrdersData {
 
     @Override public String toString() {
         return "OrdersData{" +
-                (m_erorr != null
-                    ? "erorr='" + m_erorr
+                (m_error != null
+                    ? "error='" + m_error
                     : "ords=" + m_ords
                 ) +
                 '}';

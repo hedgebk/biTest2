@@ -31,16 +31,17 @@ import java.util.*;
  *   - then can run > 2 triangles at once/ no delays
  */
 public class Triplet {
-    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 3;
-    public static final boolean START_ONE_TRIANGLE_PER_ITERATION = true;
+    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 5;
+    public static final boolean START_ONE_TRIANGLE_PER_ITERATION = false;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.65; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 1;
-    public static final boolean TRY_WITH_MKT_OFFSET = true;
-    public static final double MKT_OFFSET_PRICE_MINUS = 0.06; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.06;
+    public static final double LVL2 = 100.675; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 0;
+    public static final boolean TRY_WITH_MKT_OFFSET = false;
+    public static final double MKT_OFFSET_PRICE_MINUS = 0.05; // mkt - 10%
+    public static final double MKT_OFFSET_LEVEL_DELTA = 0.05;
     public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
+    public static final int MIN_SLEEP_TIME = 250; // min sleep between iterations
 
     public static final boolean PREFER_EUR_CRYPT_PAIRS = false; // BTC_EUR, LTC_EUR
     public static final boolean PREFER_LIQUID_PAIRS = true; // prefer start from LTC_BTC, BTC_USD, LTC_USD
@@ -62,9 +63,9 @@ public class Triplet {
     public static final boolean ALLOW_ONE_PRICE_STEP_CONCURRENT_PEG = false;
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
-    public static final double USE_ACCOUNT_FUNDS = 0.95;
+    public static final double USE_ACCOUNT_FUNDS = 0.96;
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
-    public static final double TOO_BIG_LOSS_LEVEL = 0.994; // stop current trade if mkt conditions will give big loss
+    public static final double TOO_BIG_LOSS_LEVEL = 0.996; // stop current trade if mkt conditions will give big loss
     public static final boolean SIMULATE = false;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
@@ -73,15 +74,31 @@ public class Triplet {
     public static int s_counter = 0;
     public static double s_level = LVL2;
 
-    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD, Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC};
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
+                                 Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
+                                 Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
+                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD};
 
-    public static final Triangle T1 = new Triangle(Currency.USD, Currency.LTC, Currency.BTC); // usd -> ltc -> btc -> usd
-    public static final Triangle T2 = new Triangle(Currency.EUR, Currency.LTC, Currency.BTC); // eur -> ltc -> btc -> eur
-    public static final Triangle T3 = new Triangle(Currency.USD, Currency.LTC, Currency.EUR); // usd -> ltc -> eur -> usd
-    public static final Triangle T4 = new Triangle(Currency.EUR, Currency.USD, Currency.BTC); // eur -> usd -> btc -> eur
-    public static final Triangle T5 = new Triangle(Currency.USD, Currency.PPC, Currency.BTC); // usd -> ppc -> btc -> usd
-    public static final Triangle T6 = new Triangle(Currency.USD, Currency.NMC, Currency.BTC); // usd -> nmc -> btc -> usd
-    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4, T5, T6};
+    public static final Triangle T1  = new Triangle(Currency.USD, Currency.LTC, Currency.BTC); // usd -> ltc -> btc -> usd
+    public static final Triangle T2  = new Triangle(Currency.EUR, Currency.LTC, Currency.BTC); // eur -> ltc -> btc -> eur
+    public static final Triangle T3  = new Triangle(Currency.USD, Currency.LTC, Currency.EUR); // usd -> ltc -> eur -> usd
+    public static final Triangle T4  = new Triangle(Currency.EUR, Currency.USD, Currency.BTC); // eur -> usd -> btc -> eur
+    public static final Triangle T5  = new Triangle(Currency.USD, Currency.PPC, Currency.BTC); // usd -> ppc -> btc -> usd
+    public static final Triangle T6  = new Triangle(Currency.USD, Currency.NMC, Currency.BTC); // usd -> nmc -> btc -> usd
+    public static final Triangle T7  = new Triangle(Currency.USD, Currency.NVC, Currency.BTC); // usd -> nvc -> btc -> usd
+
+    public static final Triangle T8  = new Triangle(Currency.BTC, Currency.RUR, Currency.LTC); // btc -> rur -> ltc -> btc
+    public static final Triangle T9  = new Triangle(Currency.BTC, Currency.RUR, Currency.USD); // btc -> rur -> usd -> btc
+    public static final Triangle T10 = new Triangle(Currency.USD, Currency.RUR, Currency.LTC); // usd -> rur -> ltc -> usd
+    public static final Triangle T11 = new Triangle(Currency.BTC, Currency.RUR, Currency.EUR); // btc -> rur -> eur -> btc
+    public static final Triangle T12 = new Triangle(Currency.EUR, Currency.RUR, Currency.LTC); // eur -> rur -> ltc -> eur
+    public static final Triangle T13 = new Triangle(Currency.RUR, Currency.USD, Currency.EUR); // rur -> usd -> eur -> rur
+
+    public static final Triangle T14 = new Triangle(Currency.GBP, Currency.USD, Currency.BTC); // gbp -> usd -> btc -> gbp
+    public static final Triangle T15 = new Triangle(Currency.GBP, Currency.USD, Currency.LTC); // gbp -> usd -> ltc -> gbp
+    public static final Triangle T16 = new Triangle(Currency.GBP, Currency.LTC, Currency.BTC); // gbp -> ltc -> btc -> gbp
+
+    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16};
 
     static AccountData s_startAccount;
     public static double s_startEur;
@@ -158,9 +175,9 @@ public class Triplet {
                     }
                     if(iData.isNoSleep()) {
                         System.out.println(" @@ isNoSleep requested");
-                    } else {
-                        Thread.sleep(sleep);
+                        sleep = MIN_SLEEP_TIME;
                     }
+                    Thread.sleep(sleep);
                     if(iData.m_tops != null) {
                         tops = iData.m_tops;
                     }

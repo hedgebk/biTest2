@@ -28,7 +28,7 @@ public class Btce extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
-    private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
+    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 18136 + 16306 + 39440 + 35511;
     public static boolean LOG_PARSE = false;
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;
@@ -51,6 +51,17 @@ public class Btce extends BaseExch {
         put(Pair.PPC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
         put(Pair.NMC_USD, "0.000",    0.001,            0.002,           "0.0#######",  0.00000001,     1);
         put(Pair.NMC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
+        put(Pair.NVC_USD, "0.000",    0.001,            0.002,           "0.0#######",  0.00000001,     1);
+        put(Pair.NVC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
+
+        put(Pair.BTC_RUR, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.01);
+        put(Pair.LTC_RUR, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
+        put(Pair.USD_RUR, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
+        put(Pair.EUR_RUR, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
+
+        put(Pair.BTC_GBP, "0.0000",   0.0001,           0.0002,          "0.0#######",  0.00000001,     0.01);
+        put(Pair.LTC_GBP, "0.000",    0.001,            0.002,           "0.0#######",  0.00000001,     0.1);
+        put(Pair.GBP_USD, "0.0000",   0.0001,           0.0002,          "0.0#######",  0.00000001,     1);
     }
 
     private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
@@ -273,11 +284,11 @@ public class Btce extends BaseExch {
         if (LOG_PARSE) {
             log("BTCE.parseDeep() " + jObj);
         }
-        JSONObject btc_usd = (JSONObject) jObj.get(getPairParam(pair));
+        JSONObject pairData = (JSONObject) jObj.get(getPairParam(pair));
 //        log(" class="+btc_usd.getClass()+", btc_usd=" + btc_usd);
-        JSONArray bids = (JSONArray) btc_usd.get("bids");
+        JSONArray bids = (JSONArray) pairData.get("bids");
 //        log(" class="+bids.getClass()+", bids=" + bids);
-        JSONArray asks = (JSONArray) btc_usd.get("asks");
+        JSONArray asks = (JSONArray) pairData.get("asks");
 //        log(" class="+asks.getClass()+", asks=" + asks);
 
         return DeepData.create(bids, asks);
@@ -351,7 +362,13 @@ public class Btce extends BaseExch {
         double ppc = Utils.getDouble(funds.get("ppc"));
         accountData.setAvailable(Currency.PPC, ppc);
         double nmc = Utils.getDouble(funds.get("nmc"));
-        accountData.setAvailable(Currency.NMC, ppc);
+        accountData.setAvailable(Currency.NMC, nmc);
+        double nvc = Utils.getDouble(funds.get("nvc"));
+        accountData.setAvailable(Currency.NVC, nvc);
+        double rur = Utils.getDouble(funds.get("rur"));
+        accountData.setAvailable(Currency.RUR, rur);
+        double gbp = Utils.getDouble(funds.get("gbp"));
+        accountData.setAvailable(Currency.GBP, gbp);
         return accountData;
     }
 
@@ -514,6 +531,15 @@ public class Btce extends BaseExch {
             case PPC_BTC: return "ppc_btc";
             case NMC_USD: return "nmc_usd";
             case NMC_BTC: return "nmc_btc";
+            case NVC_USD: return "nvc_usd";
+            case NVC_BTC: return "nvc_btc";
+            case BTC_RUR: return "btc_rur";
+            case LTC_RUR: return "ltc_rur";
+            case USD_RUR: return "usd_rur";
+            case EUR_RUR: return "eur_rur";
+            case BTC_GBP: return "btc_gbp";
+            case LTC_GBP: return "ltc_gbp";
+            case GBP_USD: return "gbp_usd";
             default: return "?";
         }
     }
@@ -529,6 +555,15 @@ public class Btce extends BaseExch {
         if (pair.equals("ppc_btc")) { return Pair.PPC_BTC; }
         if (pair.equals("nmc_usd")) { return Pair.NMC_USD; }
         if (pair.equals("nmc_btc")) { return Pair.NMC_BTC; }
+        if (pair.equals("nvc_usd")) { return Pair.NVC_USD; }
+        if (pair.equals("nvc_btc")) { return Pair.NVC_BTC; }
+        if (pair.equals("btc_rur")) { return Pair.BTC_RUR; }
+        if (pair.equals("ltc_rur")) { return Pair.LTC_RUR; }
+        if (pair.equals("usd_rur")) { return Pair.USD_RUR; }
+        if (pair.equals("eur_rur")) { return Pair.EUR_RUR; }
+        if (pair.equals("btc_gbp")) { return Pair.BTC_GBP; }
+        if (pair.equals("ltc_gbp")) { return Pair.LTC_GBP; }
+        if (pair.equals("gbp_usd")) { return Pair.GBP_USD; }
         return null;
     }
 

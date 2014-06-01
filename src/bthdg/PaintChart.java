@@ -13,15 +13,21 @@ import java.util.List;
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
 // - check fading moving average
 public class PaintChart extends BaseChartPaint {
-    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX;
+
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_HITBTC;
+//    public static final ExchangePair PAIR = ExchangePair.BTCE_HITBTC;
+    public static final ExchangePair PAIR = ExchangePair.BITFINEX_HITBTC;
 
     private static Vary VARY = Vary.NONE;
     public enum Vary {
         NONE, MOVING_AVERAGE_LEN, EXPECTED_GAIN, DROP, MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN;
     }
+    public static final int STEP_RATIO = 1; // >1 to less accurate calc
+    public static final int DISTANCE_RATIO = 1; // >1 less distance calc
 
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
     public static final int PERIOD_LENGTH_DAYS = 5; // the period width - days
@@ -46,16 +52,16 @@ public class PaintChart extends BaseChartPaint {
     public static final boolean DROP_ONLY_IN_REVERSE_FROM_AVG = true;
 
     private static final boolean VARY_MOVING_AVERAGE_LEN = (VARY == Vary.MOVING_AVERAGE_LEN || VARY == Vary.MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN );
-    private static final int MOVING_AVERAGE_VARY_STEPS = 120;
-    private static final double MOVING_AVERAGE_VARY_STEPS_VALUE = 0.01;
+    private static final int MOVING_AVERAGE_VARY_STEPS = 120/DISTANCE_RATIO;
+    private static final double MOVING_AVERAGE_VARY_STEPS_VALUE = 0.01*STEP_RATIO;
 
     private static final boolean VARY_EXPECTED_GAIN = (VARY == Vary.EXPECTED_GAIN || VARY == Vary.MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN);
-    private static final int EXPECTED_GAIN_VARY_STEPS = 124;
-    private static final double EXPECTED_GAIN_VARY_STEPS_VALUE = 0.025;
+    private static final int EXPECTED_GAIN_VARY_STEPS = 124/DISTANCE_RATIO;
+    private static final double EXPECTED_GAIN_VARY_STEPS_VALUE = 0.025*STEP_RATIO;
 
     private static final boolean VARY_DROP = (VARY == Vary.DROP);
-    private static final int DROP_VARY_STEPS = 100;
-    private static final double DROP_VARY_STEPS_VALUE = 0.005;
+    private static final int DROP_VARY_STEPS = 100/DISTANCE_RATIO;
+    private static final double DROP_VARY_STEPS_VALUE = 0.005*STEP_RATIO;
 
     public static final int MIN_CONFIRMED_DIFFS = 2;
     public static final int MAX_NEXT_POINTS_TO_CHECK = 10; // look to next points for prices to confirm
@@ -715,10 +721,14 @@ public class PaintChart extends BaseChartPaint {
 
     // BITSTAMP, BTCE, CAMPBX
     private static enum ExchangePair {
-        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,          4 * 60 + 17, 1.058,  0.804),
-        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,     51 * 60 + 0,  6.6,    0.955),
-        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,          7 * 60 + 31, 0.555,  1.61),
-        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX,100 * 60 + 9,  1.655,  -0.3),
+        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         17 * 60 + 36, 1.033,  0.744),
+        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,    109 * 60 + 8,  4.2,    0.805),
+        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,          5 * 60 + 10, 1.83,   1.975),
+        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX,225 * 60 + 35, 0.88,  -0.495),
+
+        BITSTAMP_HITBTC(Exchange.BITSTAMP, Exchange.HITBTC,     32 * 60 + 12, 0.875,  0.62 ),
+        BTCE_HITBTC(Exchange.BTCE, Exchange.HITBTC,             51 * 60 + 10, 1.425,  0.13 ),
+        BITFINEX_HITBTC(Exchange.BITFINEX, Exchange.HITBTC,     31 * 60 + 13, 1.125,  0.79 ),
         ;
 
         public final Exchange m_exch1;

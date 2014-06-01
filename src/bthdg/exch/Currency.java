@@ -7,6 +7,9 @@ public enum Currency {
     EUR("eur"),
     PPC("ppc"),
     NMC("nmc"),
+    NVC("nvc"),
+    RUR("rur"),
+    GBP("gbp"),
     ;
 
     public final String m_name;

@@ -13,6 +13,17 @@ public enum Pair {
     PPC_BTC(8, Currency.PPC, Currency.BTC),
     NMC_USD(9,  Currency.NMC, Currency.USD),
     NMC_BTC(10, Currency.NMC, Currency.BTC),
+    NVC_USD(11, Currency.NVC, Currency.USD),
+    NVC_BTC(12, Currency.NVC, Currency.BTC),
+
+    BTC_RUR(13, Currency.BTC, Currency.RUR),
+    LTC_RUR(14, Currency.LTC, Currency.RUR),
+    USD_RUR(15, Currency.USD, Currency.RUR),
+    EUR_RUR(16, Currency.EUR, Currency.RUR),
+
+    BTC_GBP(17, Currency.BTC, Currency.GBP),
+    LTC_GBP(18, Currency.LTC, Currency.GBP),
+    GBP_USD(19, Currency.GBP, Currency.USD),
     ;
 
     public final int m_id;

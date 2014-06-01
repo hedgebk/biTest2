@@ -32,6 +32,9 @@ public class DeepsData extends HashMap<Pair,DeepData> {
             TopData topData = super.get(pair);
             if(topData == null) {
                 DeepData deepData = DeepsData.this.get(pair);
+                if(deepData == null) {
+                    throw new RuntimeException("no DeepsData for pait " + pair);
+                }
                 topData = deepData.getTopDataAdapter();
                 put(pair, topData);
             }

@@ -12,7 +12,10 @@ import java.util.Properties;
 import java.util.StringTokenizer;
 
 public class Console {
-    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD, Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC};
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
+                                 Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
+                                 Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
+                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD };
 
     public static void main(String[] args) {
         System.out.println("Started.");
@@ -70,7 +73,7 @@ public class Console {
     private static void doOrders() throws Exception {
         OrdersData od = Fetcher.fetchOrders(Exchange.BTCE, null);
         System.out.println("ordersData=" + od);
-        String error = od.m_erorr;
+        String error = od.m_error;
         if (error == null) {
             if (od.m_ords.isEmpty()) {
                 System.out.println(" no live order");

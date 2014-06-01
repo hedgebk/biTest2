@@ -70,7 +70,7 @@ public enum OrderState {
 
     private static void checkOrderExecuted(IIterationContext iContext, Exchange exchange, OrderData orderData, AccountData account) throws Exception {
         OrdersData liveOrders = iContext.getLiveOrders(exchange);
-        if ((liveOrders != null) && (liveOrders.m_erorr == null)) {
+        if ((liveOrders != null) && (liveOrders.m_error == null)) {
             String orderId = orderData.m_orderId;
             OrdersData.OrdData ordData = liveOrders.getOrderData(orderId);
             Pair pair = orderData.m_pair;

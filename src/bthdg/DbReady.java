@@ -43,8 +43,8 @@ public class DbReady {
                 Statement statement = connection.createStatement();
                 try {
                     int ret;
-//                    ret = statement.executeUpdate("DROP TABLE Ticks");
-//                    System.out.println("--- DROP TABLE Ticks  returns " + ret);
+                    ret = statement.executeUpdate("DROP TABLE Ticks");
+                    System.out.println("--- DROP TABLE Ticks  returns " + ret);
 
                     ret = statement.executeUpdate(
                             "CREATE TABLE IF NOT EXISTS Ticks ( " +
@@ -62,38 +62,38 @@ public class DbReady {
 //                    ret = statement.executeUpdate("DROP TABLE Trace");
 //                    System.out.println("--- DROP TABLE Trace  returns " + ret);
 
-                    ret = statement.executeUpdate(
-                            "CREATE TABLE IF NOT EXISTS Trace ( " +
-                            " stamp BIGINT NOT NULL, " +
-                            " bid1  DOUBLE, " +
-                            " ask1  DOUBLE, " +
-                            " bid2  DOUBLE, " +
-                            " ask2  DOUBLE, " +
-                            " fork  BIGINT NOT NULL, " +
-                            " buy1  DOUBLE, " +
-                            " sell1 DOUBLE, " +
-                            " buy2  DOUBLE, " +
-                            " sell2 DOUBLE" +
-                            ")");
-                    System.out.println("--- CREATE TABLE Trace  returns " + ret);
+//                    ret = statement.executeUpdate(
+//                            "CREATE TABLE IF NOT EXISTS Trace ( " +
+//                            " stamp BIGINT NOT NULL, " +
+//                            " bid1  DOUBLE, " +
+//                            " ask1  DOUBLE, " +
+//                            " bid2  DOUBLE, " +
+//                            " ask2  DOUBLE, " +
+//                            " fork  BIGINT NOT NULL, " +
+//                            " buy1  DOUBLE, " +
+//                            " sell1 DOUBLE, " +
+//                            " buy2  DOUBLE, " +
+//                            " sell2 DOUBLE" +
+//                            ")");
+//                    System.out.println("--- CREATE TABLE Trace  returns " + ret);
 
                     //------------------------------------------------------------------
 
 //                    ret = statement.executeUpdate("DROP TABLE TraceTrade");
 //                    System.out.println("--- DROP TABLE TraceTrade  returns " + ret);
 
-                    ret = statement.executeUpdate(
-                            "CREATE TABLE IF NOT EXISTS TraceTrade ( " +
-                            " stamp   BIGINT NOT NULL, " +
-                            " exch    INTEGER NOT NULL, " +
-                            " side    VARCHAR(4), " +
-                            " price   DOUBLE, " +
-                            " amount  DOUBLE, " +
-                            " crossId BIGINT, " +
-                            " forkId  BIGINT" +
-                            ")");
-
-                    System.out.println("--- CREATE TABLE TraceTrade  returns " + ret);
+//                    ret = statement.executeUpdate(
+//                            "CREATE TABLE IF NOT EXISTS TraceTrade ( " +
+//                            " stamp   BIGINT NOT NULL, " +
+//                            " exch    INTEGER NOT NULL, " +
+//                            " side    VARCHAR(4), " +
+//                            " price   DOUBLE, " +
+//                            " amount  DOUBLE, " +
+//                            " crossId BIGINT, " +
+//                            " forkId  BIGINT" +
+//                            ")");
+//
+//                    System.out.println("--- CREATE TABLE TraceTrade  returns " + ret);
 
                     // CREATE INDEX srst on sakila.Ticks (src, stamp);
                     // DROP INDEX srst ON sakila.Ticks;
@@ -203,7 +203,7 @@ public class DbReady {
         }
         PreparedStatement pStatement = connection.prepareStatement(DELETE_TICKS_BETWEEN_SQL);
         try {
-            System.out.println("deleting last ticks from '" + new java.util.Date(from) + "' to '" + new java.util.Date(to) + "'");
+            System.out.println("deleting last ticks from '" + new java.util.Date(from) + "' to '" + new java.util.Date(to) + "' on "+exchange);
             pStatement.setInt(1, exchange.m_databaseId); // src
             pStatement.setLong(2, from);
             pStatement.setLong(3, to);
@@ -217,11 +217,11 @@ public class DbReady {
     private static void importFromFiles(Connection connection) {
         try {
             connection.setAutoCommit(false); // for fast inserts/updates
+            importExchange(connection, Exchange.BTCE);
 //            importExchange(connection, Exchange.BITSTAMP);
-//            importExchange(connection, Exchange.BTCE);
-//            importExchange(connection, Exchange.MTGOX);
-            importExchange(connection, Exchange.CAMPBX);
 //            importExchange(connection, Exchange.BITFINEX);
+//            importExchange(connection, Exchange.CAMPBX);
+//            importExchange(connection, Exchange.HITBTC);
         } catch (Exception e) {
             System.out.println("error: " + e);
             e.printStackTrace();

@@ -21,7 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LogProcessor extends DbReady {
-    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.log"; // processed 3 - 186
+    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.199.log"; // processed 3 - 199
 
     private static Pattern DATE_PATTERN = Pattern.compile(".*iteration.*date=(.*)");
 
@@ -29,7 +29,9 @@ public class LogProcessor extends DbReady {
 //       LTC_USD=Top{bid=11.940100, ask=11.990000, last=0.000000}, BTC_USD=Top{bid=478.000, ask=478.500, last=0.000}, LTC_EUR=Top{bid=8.750, ask=8.780, last=0.000}}
 
     private static String ONE = ".*?(..._...)=Top\\{bid=(\\d+(\\.\\d+)?), ask=(\\d+(\\.\\d+)?)";
-    private static Pattern LINE_PATTERN =  Pattern.compile(ONE+ONE+ONE+".*");
+    private static Pattern LINE_3_PATTERN =  Pattern.compile(ONE+ONE+ONE+".*");
+    private static Pattern LINE_2_PATTERN =  Pattern.compile(ONE+ONE+".*");
+    private static Pattern LINE_1_PATTERN =  Pattern.compile(ONE+".*");
     private static Pattern LINE_PATTERN_OLD =  Pattern.compile(ONE+ONE+ONE+ONE+ONE+ONE+".*");
 
     public static final String CREATE_TOPS_SQL = "CREATE TABLE IF NOT EXISTS Tops ( " +
@@ -203,7 +205,7 @@ public class LogProcessor extends DbReady {
                         }
                         return START;
                     } else {
-                        matcher = LINE_PATTERN.matcher(line);
+                        matcher = LINE_3_PATTERN.matcher(line);
                         if (matcher.matches()) {
                             match(matcher, 1, data);
                             match(matcher, 6, data);
@@ -223,17 +225,12 @@ public class LogProcessor extends DbReady {
         SECOND {
             public State process(String line, Data data, PreparedStatement insertStatement, PreparedStatement deleteStatement) throws SQLException {
                 if (line.contains("=Top{bid=")) {
-                    Matcher matcher = LINE_PATTERN.matcher(line);
+                    Matcher matcher = LINE_3_PATTERN.matcher(line);
                     if (matcher.matches()) {
                         match(matcher, 1, data);
                         match(matcher, 6, data);
                         match(matcher, 11, data);
-                        if (data.m_tops.m_map.size() == 6) {
-                            save(insertStatement, deleteStatement, data);
-                        } else {
-                            throw new RuntimeException("nor 6 exch topData loaded: " + line);
-                        }
-                        return START;
+                        return THIRD;
                     } else {
                         throw new RuntimeException("loaded SECOND line not parsed: " + line);
                     }
@@ -243,7 +240,61 @@ public class LogProcessor extends DbReady {
                 }
                 throw new RuntimeException("error");
             }
-        };
+        },
+        THIRD {
+            public State process(String line, Data data, PreparedStatement insertStatement, PreparedStatement deleteStatement) throws SQLException {
+                if (line.contains("=Top{bid=")) {
+                    Matcher matcher = LINE_3_PATTERN.matcher(line);
+                    if (matcher.matches()) {
+                        match(matcher, 1, data);
+                        match(matcher, 6, data);
+                        match(matcher, 11, data);
+                        return FORTH;
+                    } else {
+                        matcher = LINE_2_PATTERN.matcher(line);
+                        if (matcher.matches()) {
+                            match(matcher, 1, data);
+                            match(matcher, 6, data);
+                            if (data.m_tops.m_map.size() == 8) {
+                                save(insertStatement, deleteStatement, data);
+                            } else {
+                                throw new RuntimeException("not 8 exch topData loaded: " + line);
+                            }
+                            return START;
+                        } else {
+                            throw new RuntimeException("loaded THIRD line not parsed: " + line);
+                        }
+                    }
+                }
+                if (line.contains("==============================================")) {
+                    throw new RuntimeException("iteration start before third line matched: " + line);
+                }
+                throw new RuntimeException("error");
+            }
+        },
+        FORTH {
+            public State process(String line, Data data, PreparedStatement insertStatement, PreparedStatement deleteStatement) throws SQLException {
+                if (line.contains("=Top{bid=")) {
+                    Matcher matcher = LINE_1_PATTERN.matcher(line);
+                    if (matcher.matches()) {
+                        match(matcher, 1, data);
+                        if (data.m_tops.m_map.size() == 10) {
+                            save(insertStatement, deleteStatement, data);
+                        } else {
+                            throw new RuntimeException("not 10 exch topData loaded: " + line);
+                        }
+                        return START;
+                    } else {
+                        throw new RuntimeException("loaded FORTH line not parsed: " + line);
+                    }
+                }
+                if (line.contains("==============================================")) {
+                    throw new RuntimeException("iteration start before forth line matched: " + line);
+                }
+                throw new RuntimeException("error");
+            }
+        }
+        ;
 
         public State process(String line, Data data, PreparedStatement insertStatement, PreparedStatement deleteStatement) throws SQLException { return null; }
     }

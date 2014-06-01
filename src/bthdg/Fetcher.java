@@ -90,7 +90,7 @@ public class Fetcher {
     private static void cancelLiveOrders() throws Exception {
         OrdersData od = fetchOrders(Exchange.BTCE, null);
         log("ordersData=" + od);
-        String error = od.m_erorr;
+        String error = od.m_error;
         if (error == null) {
             for (OrdersData.OrdData ord : od.m_ords.values()) {
                 String orderId = ord.m_orderId;

@@ -7,7 +7,6 @@ import java.util.Map;
 // to support others ?
 // https://www.kraken.com
 // https://vircurex.com
-// ? https://www.bitfinex.com/
 // ? www.itbit.com
 //    http://docs.itbit.apiary.io/
 //    https://www.itbit.com/api/feeds/ticker/XBTUSD
@@ -62,7 +61,10 @@ public enum Exchange {
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
            null, null, "", "", null, null, null, null, null),
-    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.002, true, 2,
+    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.0015, true, 2,
+           null, null,
+           null, null, "", "", null, null, null, null, null),
+    HITBTC("HitBtc", null, "hitbtcUSD", 6, 0.00085, true, 2,
            null, null,
            null, null, "", "", null, null, null, null, null);
 
