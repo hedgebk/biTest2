@@ -6,27 +6,30 @@ import java.util.ArrayList;
 import java.util.TreeMap;
 
 public class TrianglesCalcData extends ArrayList<TriangleCalcData> {
+    boolean m_mktCrossLvl; // cross 3-mkt level
+
     public TrianglesCalcData(int length) {
         super(length);
     }
 
     static TrianglesCalcData calc(TopsData tops) {
+        boolean mktCrossLvl = false;
         TrianglesCalcData ret = new TrianglesCalcData(Triplet.TRIANGLES.length);
         for (Triangle tr : Triplet.TRIANGLES) {
             TriangleCalcData calc = TriangleCalcData.calc(tops, tr);
             ret.add(calc);
+            mktCrossLvl |= calc.mktCrossLvl();
         }
+        ret.m_mktCrossLvl = mktCrossLvl;
         return ret;
     }
 
     public String str() {
         StringBuilder sb = new StringBuilder();
-        boolean mktCrossLvl = false;
         for (TriangleCalcData t : this) {
             sb.append(t.str());
-            mktCrossLvl |= t.mktCrossLvl();
         }
-        if (mktCrossLvl) {
+        if (m_mktCrossLvl) {
             sb.append("\t******************************");
         }
         sb.append("\n");

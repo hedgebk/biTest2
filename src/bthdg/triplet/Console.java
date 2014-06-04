@@ -297,6 +297,9 @@ public class Console {
                 while(!isInterrupted()) {
                     beforeLine();
                     String line = reader.readLine();
+                    if (line == null) {
+                        break;
+                    }
                     try {
                         boolean exit = processLine(line);
                         if(exit) {

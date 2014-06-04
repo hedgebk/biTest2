@@ -28,7 +28,7 @@ public class Btce extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
-    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 18136 + 16306 + 39440 + 35511;
+    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 107787 + 3519 + 22383 + 3320 + 5692 + 21539 + 2266 + 24670;
     public static boolean LOG_PARSE = false;
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;

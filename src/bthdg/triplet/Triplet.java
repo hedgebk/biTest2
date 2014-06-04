@@ -7,6 +7,9 @@ import bthdg.exch.*;
 import java.util.*;
 
 /**
+ * - catch all 3 @ mkt - just consequentially
+ *   - cancel possible pegs first
+ * - looks 'executed in X ms' calculated not properly
  * - when we increase to min order size - we run out of funds - check first
  * - if just placed and just executed - place blind mkt orders - will save time
  * - track original orders size and log with forks at least % of original order
@@ -31,11 +34,11 @@ import java.util.*;
  *   - then can run > 2 triangles at once/ no delays
  */
 public class Triplet {
-    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 5;
+    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 7;
     public static final boolean START_ONE_TRIANGLE_PER_ITERATION = false;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.675; // min target level
+    public static final double LVL2 = 100.70; // min target level
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final boolean TRY_WITH_MKT_OFFSET = false;
     public static final double MKT_OFFSET_PRICE_MINUS = 0.05; // mkt - 10%
@@ -58,6 +61,9 @@ public class Triplet {
     public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.1;
     public static final boolean ADJUST_TO_MIN_ORDER_SIZE = true;
 
+    public static final boolean USE_TRI_MKT = false;
+    public static final double TRI_MKT_LVL = 100.65; // min target level
+
     public static final boolean USE_NEW = true;
     public static final boolean USE_RALLY = false;
     public static final boolean ALLOW_ONE_PRICE_STEP_CONCURRENT_PEG = false;
@@ -65,7 +71,7 @@ public class Triplet {
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
     public static final double USE_ACCOUNT_FUNDS = 0.96;
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
-    public static final double TOO_BIG_LOSS_LEVEL = 0.996; // stop current trade if mkt conditions will give big loss
+    public static final double TOO_BIG_LOSS_LEVEL = 0.997; // stop current trade if mkt conditions will give big loss
     public static final boolean SIMULATE = false;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;

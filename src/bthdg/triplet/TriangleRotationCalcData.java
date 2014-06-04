@@ -8,7 +8,7 @@ public class TriangleRotationCalcData {
     public Triangle m_triangle;
     public Direction m_direction;
     private double m_mid;
-    private double m_mkt;
+    double m_mkt; // tri-mkt
     private double m_mktMinus10;  // mkt-10
     private double m_mktMinus20; // mkt-20
     private OnePegCalcData[] m_pegs;

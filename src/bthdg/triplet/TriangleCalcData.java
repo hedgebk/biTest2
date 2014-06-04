@@ -5,8 +5,8 @@ import bthdg.exch.TopsData;
 import java.util.TreeMap;
 
 public class TriangleCalcData {
-    private TriangleRotationCalcData m_forward;
-    private TriangleRotationCalcData m_backward;
+    TriangleRotationCalcData m_forward;
+    TriangleRotationCalcData m_backward;
 
     public TriangleCalcData(TriangleRotationCalcData forward, TriangleRotationCalcData backward) {
         m_forward = forward;

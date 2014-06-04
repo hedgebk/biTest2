@@ -13,24 +13,24 @@ import java.util.List;
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
 // - check fading moving average
 public class PaintChart extends BaseChartPaint {
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;
+    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX;
 
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_HITBTC;
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_HITBTC;
-    public static final ExchangePair PAIR = ExchangePair.BITFINEX_HITBTC;
+//    public static final ExchangePair PAIR = ExchangePair.BITFINEX_HITBTC;
 
     private static Vary VARY = Vary.NONE;
     public enum Vary {
         NONE, MOVING_AVERAGE_LEN, EXPECTED_GAIN, DROP, MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN;
     }
     public static final int STEP_RATIO = 1; // >1 to less accurate calc
-    public static final int DISTANCE_RATIO = 1; // >1 less distance calc
+    public static final int DISTANCE_RATIO = 5; // >1 less distance calc
 
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 5; // the period width - days
+    public static final int PERIOD_LENGTH_DAYS = 30; // the period width - days
     private static final long MOVING_AVERAGE_MILLIS = PAIR.m_movingAverage;
     private static final double EXPECTED_GAIN = PAIR.m_expectedGain;
     private static final Exchange EXCH1 = PAIR.m_exch1;
@@ -721,14 +721,14 @@ public class PaintChart extends BaseChartPaint {
 
     // BITSTAMP, BTCE, CAMPBX
     private static enum ExchangePair {
-        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         17 * 60 + 36, 1.033,  0.744),
+        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         14 * 60 + 34, 2.683,  0.504),
         BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,    109 * 60 + 8,  4.2,    0.805),
         BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,          5 * 60 + 10, 1.83,   1.975),
         BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX,225 * 60 + 35, 0.88,  -0.495),
 
         BITSTAMP_HITBTC(Exchange.BITSTAMP, Exchange.HITBTC,     32 * 60 + 12, 0.875,  0.62 ),
         BTCE_HITBTC(Exchange.BTCE, Exchange.HITBTC,             51 * 60 + 10, 1.425,  0.13 ),
-        BITFINEX_HITBTC(Exchange.BITFINEX, Exchange.HITBTC,     31 * 60 + 13, 1.125,  0.79 ),
+        BITFINEX_HITBTC(Exchange.BITFINEX, Exchange.HITBTC,     71 * 60 + 53, 0.882,  0.15 ),
         ;
 
         public final Exchange m_exch1;
