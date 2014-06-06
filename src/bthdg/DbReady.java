@@ -217,11 +217,15 @@ public class DbReady {
     private static void importFromFiles(Connection connection) {
         try {
             connection.setAutoCommit(false); // for fast inserts/updates
-            importExchange(connection, Exchange.BTCE);
+//            importExchange(connection, Exchange.BTCE);
 //            importExchange(connection, Exchange.BITSTAMP);
 //            importExchange(connection, Exchange.BITFINEX);
 //            importExchange(connection, Exchange.CAMPBX);
 //            importExchange(connection, Exchange.HITBTC);
+//            importExchange(connection, Exchange.LAKEBTC);
+//            importExchange(connection, Exchange.ITBIT);
+            importExchange(connection, Exchange.BTCN);
+            importExchange(connection, Exchange.OKCOIN);
         } catch (Exception e) {
             System.out.println("error: " + e);
             e.printStackTrace();

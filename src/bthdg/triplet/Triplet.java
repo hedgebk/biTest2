@@ -35,14 +35,14 @@ import java.util.*;
  */
 public class Triplet {
     public static final int NUMBER_OF_ACTIVE_TRIANGLES = 7;
-    public static final boolean START_ONE_TRIANGLE_PER_ITERATION = false;
+    public static final int START_TRIANGLES_PER_ITERATION = 4;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
     public static final double LVL2 = 100.70; // min target level
     public static final int WAIT_MKT_ORDER_STEPS = 0;
     public static final boolean TRY_WITH_MKT_OFFSET = false;
     public static final double MKT_OFFSET_PRICE_MINUS = 0.05; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.05;
+    public static final double MKT_OFFSET_LEVEL_DELTA = 0.07;
     public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
     public static final int MIN_SLEEP_TIME = 250; // min sleep between iterations
 
@@ -83,7 +83,8 @@ public class Triplet {
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
                                  Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
                                  Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
-                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD};
+                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD,
+                                 Pair.BTC_CNH, Pair.LTC_CNH, Pair.USD_CNH };
 
     public static final Triangle T1  = new Triangle(Currency.USD, Currency.LTC, Currency.BTC); // usd -> ltc -> btc -> usd
     public static final Triangle T2  = new Triangle(Currency.EUR, Currency.LTC, Currency.BTC); // eur -> ltc -> btc -> eur
@@ -104,7 +105,11 @@ public class Triplet {
     public static final Triangle T15 = new Triangle(Currency.GBP, Currency.USD, Currency.LTC); // gbp -> usd -> ltc -> gbp
     public static final Triangle T16 = new Triangle(Currency.GBP, Currency.LTC, Currency.BTC); // gbp -> ltc -> btc -> gbp
 
-    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16};
+    public static final Triangle T17 = new Triangle(Currency.CNH, Currency.USD, Currency.BTC); // cnh -> usd -> btc -> gbp
+    public static final Triangle T18 = new Triangle(Currency.CNH, Currency.USD, Currency.LTC); // cnh -> usd -> ltc -> gbp
+    public static final Triangle T19 = new Triangle(Currency.CNH, Currency.LTC, Currency.BTC); // cnh -> ltc -> btc -> gbp
+
+    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19};
 
     static AccountData s_startAccount;
     public static double s_startEur;

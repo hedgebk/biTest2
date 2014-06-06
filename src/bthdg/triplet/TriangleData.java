@@ -60,12 +60,13 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
                 log("do not create new orders - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
             } else {
 //                checkMkt(iData, trianglesCalc, tops);
-                boolean oneStarted = false;
                 if (Triplet.USE_NEW) {
-                    oneStarted = checkNew(iData, bestMap, tops);
+                    checkNew(iData, bestMap, tops);
                 }
-                if (Triplet.USE_BRACKETS && !(Triplet.START_ONE_TRIANGLE_PER_ITERATION && oneStarted)) {
-                    checkBrackets(iData, bestMap, tops, m_account);
+                if (iData.trianglesStarted() < Triplet.START_TRIANGLES_PER_ITERATION) {
+                    if (Triplet.USE_BRACKETS) {
+                        checkBrackets(iData, bestMap, tops, m_account);
+                    }
                 }
             }
         }
@@ -176,11 +177,9 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
                     log("do not create new brackets - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
                     break; // do not create more orders
                 }
-                if (oneStarted) {
-                    if (Triplet.START_ONE_TRIANGLE_PER_ITERATION) {
-                        log("do not create more brackets - START_ONE_TRIANGLE_PER_ITERATION");
-                        break; // do not start multiple trades in one iteration
-                    }
+                if (iData.trianglesStarted() >= Triplet.START_TRIANGLES_PER_ITERATION) {
+                    log("do not create much brackets in one iteration - reached " + Triplet.START_TRIANGLES_PER_ITERATION);
+                    break; // do not start many trades in one iteration
                 }
                 TriTradeData newTriTrade = createNewOne(iData, tops, calcData, bracketPrice, false, true);
                 if (newTriTrade != null) { // order placed
@@ -512,11 +511,9 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     log("do not create new order - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
                     break; // do not create more orders
                 }
-                if (oneStarted) {
-                    if (Triplet.START_ONE_TRIANGLE_PER_ITERATION) {
-                        log("do not create more orders - START_ONE_TRIANGLE_PER_ITERATION");
-                        break; // do not start multiple trades in one iteration
-                    }
+                if (iData.trianglesStarted() >= Triplet.START_TRIANGLES_PER_ITERATION) {
+                    log("do not create much brackets in one iteration - reached " + Triplet.START_TRIANGLES_PER_ITERATION);
+                    break; // do not start many trades in one iteration
                 }
                 // do not create multiple tri-trades for the pair-direction
                 TriTradeData ttd = findTriTradeData(peg.m_pair1);
@@ -533,6 +530,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 double pegPrice = peg.calcPegPrice(tops);
                 TriTradeData newTriTrade = createNewOne(iData, tops, peg, pegPrice, doMktOffset, false);
                 if (newTriTrade != null) { // order placed
+                    iData.oneMoreTriangleStarted();
                     oneStarted = true;
                     m_triTrades.add(newTriTrade);
                     forkAndCheckFilledIfNeeded(iData, newTriTrade, newTriTrade.m_order, TriTradeState.PEG_JUST_FILLED);

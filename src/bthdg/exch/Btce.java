@@ -28,7 +28,7 @@ public class Btce extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
-    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 107787 + 3519 + 22383 + 3320 + 5692 + 21539 + 2266 + 24670;
+    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 192500 + 16751 + 2770 + 54946 + 5863 + 61857;
     public static boolean LOG_PARSE = false;
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;
@@ -59,9 +59,13 @@ public class Btce extends BaseExch {
         put(Pair.USD_RUR, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
         put(Pair.EUR_RUR, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     1);
 
-        put(Pair.BTC_GBP, "0.0000",   0.0001,           0.0002,          "0.0#######",  0.00000001,     0.01);
+        put(Pair.BTC_GBP, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.01);
         put(Pair.LTC_GBP, "0.000",    0.001,            0.002,           "0.0#######",  0.00000001,     0.1);
         put(Pair.GBP_USD, "0.0000",   0.0001,           0.0002,          "0.0#######",  0.00000001,     1);
+
+        put(Pair.BTC_CNH, "0.00",     0.01,             0.02,            "0.0#######",  0.00000001,     0.01);
+        put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0#######",  0.00000001,     0.1);
+        put(Pair.USD_CNH, "0.0000",   0.0001,           0.0002,          "0.0#######",  0.00000001,     1);
     }
 
     private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
@@ -369,6 +373,8 @@ public class Btce extends BaseExch {
         accountData.setAvailable(Currency.RUR, rur);
         double gbp = Utils.getDouble(funds.get("gbp"));
         accountData.setAvailable(Currency.GBP, gbp);
+        double cnh = Utils.getDouble(funds.get("cnh"));
+        accountData.setAvailable(Currency.CNH, cnh);
         return accountData;
     }
 
@@ -540,6 +546,9 @@ public class Btce extends BaseExch {
             case BTC_GBP: return "btc_gbp";
             case LTC_GBP: return "ltc_gbp";
             case GBP_USD: return "gbp_usd";
+            case BTC_CNH: return "btc_cnh";
+            case LTC_CNH: return "ltc_cnh";
+            case USD_CNH: return "usd_cnh";
             default: return "?";
         }
     }
@@ -564,6 +573,9 @@ public class Btce extends BaseExch {
         if (pair.equals("btc_gbp")) { return Pair.BTC_GBP; }
         if (pair.equals("ltc_gbp")) { return Pair.LTC_GBP; }
         if (pair.equals("gbp_usd")) { return Pair.GBP_USD; }
+        if (pair.equals("btc_cnh")) { return Pair.BTC_CNH; }
+        if (pair.equals("ltc_cnh")) { return Pair.LTC_CNH; }
+        if (pair.equals("usd_cnh")) { return Pair.USD_CNH; }
         return null;
     }
 

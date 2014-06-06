@@ -22,6 +22,7 @@ public class IterationData implements IIterationContext {
     private TopsData m_prevTops;
     private DeepsData m_deeps;
     private boolean m_noSleep;
+    private int m_trianglesStarted;
 
     public IterationData(TradesAggregator tAgg, TopsData tops) {
         m_tradesAgg = tAgg;
@@ -39,6 +40,8 @@ public class IterationData implements IIterationContext {
     public long millisFromTopsLoad() {
         return (m_topsLoadTime == 0) ? 0 : System.currentTimeMillis() - m_topsLoadTime;
     }
+    public int trianglesStarted() { return m_trianglesStarted; }
+    public void oneMoreTriangleStarted() { m_trianglesStarted++; }
 
     public TopsData getAnyTops() throws Exception {
         if (m_tops != null) {

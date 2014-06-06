@@ -66,7 +66,20 @@ public enum Exchange {
            null, null, "", "", null, null, null, null, null),
     HITBTC("HitBtc", null, "hitbtcUSD", 6, 0.00085, true, 2,
            null, null,
-           null, null, "", "", null, null, null, null, null);
+           null, null, "", "", null, null, null, null, null),
+    LAKEBTC("LakeBtc", null, "lakeUSD", 7, 0.003, true, 2,
+           null, null,
+           null, null, "", "", null, null, null, null, null),
+    ITBIT("ItBit", null, "itbitUSD", 8, 0.0017, true, 2,
+           null, null,
+           null, null, "", "", null, null, null, null, null),
+    BTCN("BtcChina", null, "btcnCNY", 9, 0.0001, true, 2,
+           null, null,
+           null, null, "", "", null, null, null, null, null),
+    OKCOIN("OkCoin", null, "okcoinCNY", 10, 0.0001, true, 2,
+           null, null,
+           null, null, "", "", null, null, null, null, null),
+    ;
 
     public final String m_name;
     public BaseExch m_baseExch;

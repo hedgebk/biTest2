@@ -15,7 +15,8 @@ public class Console {
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
                                  Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
                                  Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
-                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD };
+                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD,
+                                 Pair.BTC_CNH, Pair.LTC_CNH, Pair.USD_CNH };
 
     public static void main(String[] args) {
         System.out.println("Started.");

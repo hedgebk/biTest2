@@ -24,6 +24,10 @@ public enum Pair {
     BTC_GBP(17, Currency.BTC, Currency.GBP),
     LTC_GBP(18, Currency.LTC, Currency.GBP),
     GBP_USD(19, Currency.GBP, Currency.USD),
+
+    BTC_CNH(20, Currency.BTC, Currency.CNH),
+    LTC_CNH(21, Currency.LTC, Currency.CNH),
+    USD_CNH(22, Currency.USD, Currency.CNH),
     ;
 
     public final int m_id;

@@ -10,6 +10,7 @@ public enum Currency {
     NVC("nvc"),
     RUR("rur"),
     GBP("gbp"),
+    CNH("cnh"),
     ;
 
     public final String m_name;
