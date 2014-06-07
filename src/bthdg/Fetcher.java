@@ -290,7 +290,8 @@ public class Fetcher {
     }
 
     public static TopsData fetchTops(Exchange exchange, Pair... pairs) throws Exception {
-        Object jObj = fetch(exchange, FetchCommand.TOP, new PairsFetchOptions(pairs));
+        PairsFetchOptions options = new PairsFetchOptions(pairs);
+        Object jObj = fetch(exchange, FetchCommand.TOP, options);
         TopsData topData = exchange.parseTops(jObj, pairs);
         return topData;
     }

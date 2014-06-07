@@ -36,6 +36,21 @@ public class TopsData {
         return rate;
     }
 
+    @Override public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("TopsData[");
+        for(Map.Entry<Pair, TopData> entry: m_map.entrySet()) {
+            Pair pair = entry.getKey();
+            TopData top = entry.getValue();
+            sb.append(pair);
+            sb.append("=");
+            sb.append(top);
+            sb.append("; ");
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
     public String toString(Exchange exchange) {
         Iterator<Map.Entry<Pair,TopData>> i = entrySet().iterator();
         if (!i.hasNext()){ return "{}"; }

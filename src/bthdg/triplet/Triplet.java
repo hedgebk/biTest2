@@ -38,10 +38,10 @@ public class Triplet {
     public static final int START_TRIANGLES_PER_ITERATION = 4;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.70; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 0;
-    public static final boolean TRY_WITH_MKT_OFFSET = false;
-    public static final double MKT_OFFSET_PRICE_MINUS = 0.05; // mkt - 10%
+    public static final double LVL2 = 100.71; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 2;
+    public static final boolean TRY_WITH_MKT_OFFSET = true;
+    public static final double MKT_OFFSET_PRICE_MINUS = 0.07; // mkt - 10%
     public static final double MKT_OFFSET_LEVEL_DELTA = 0.07;
     public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
     public static final int MIN_SLEEP_TIME = 250; // min sleep between iterations
@@ -114,6 +114,8 @@ public class Triplet {
     static AccountData s_startAccount;
     public static double s_startEur;
     public static double s_startUsd;
+    public static double s_startBtc;
+    public static double s_startLtc;
     static boolean s_stopRequested;
     static int s_notEnoughFundsCounter;
 
@@ -231,7 +233,10 @@ public class Triplet {
         TopsData tops = iData.getTops();
         s_startEur = s_startAccount.evaluateEur(tops);
         s_startUsd = s_startAccount.evaluateUsd(tops);
-        System.out.println(" evaluateEur: " + format5(s_startEur) + " evaluateUsd: " + format5(s_startUsd));
+        s_startBtc = s_startAccount.evaluate(tops, Currency.BTC);
+        s_startLtc = s_startAccount.evaluate(tops, Currency.LTC);
+        System.out.println(" evaluateEur: " + format5(s_startEur) + " evaluateUsd: " + format5(s_startUsd)
+                + " evaluateBtc: " + format5(s_startBtc) + " evaluateBtc: " + format5(s_startLtc));
         return account;
     }
 

@@ -73,9 +73,12 @@ public enum Exchange {
     ITBIT("ItBit", null, "itbitUSD", 8, 0.0017, true, 2,
            null, null,
            null, null, "", "", null, null, null, null, null),
-    BTCN("BtcChina", null, "btcnCNY", 9, 0.0001, true, 2,
-           null, null,
-           null, null, "", "", null, null, null, null, null),
+    BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.0001, true, 2,
+           null, "https://data.btcchina.com/data/ticker?market=XXXX", // XXXX like "btccny"
+           null, null, "", "", null, null, null, null, null) {
+        @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiTopEndpoint, options); }
+        @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btcn.parseTops(jObj, pairs); }
+    },
     OKCOIN("OkCoin", null, "okcoinCNY", 10, 0.0001, true, 2,
            null, null,
            null, null, "", "", null, null, null, null, null),
