@@ -11,6 +11,7 @@ import java.net.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -259,14 +260,16 @@ public class Fetcher {
         return null;
     }
 
-    private static DeepData fetchDeep(Exchange exchange) throws Exception {
-        Object jObj = fetch(exchange, FetchCommand.DEEP, new PairFetchOptions(Pair.BTC_USD));
+    public static DeepData fetchDeep(Exchange exchange) throws Exception {
+        return fetchDeep(exchange, Pair.BTC_USD);
+    }
+
+    public static DeepData fetchDeep(Exchange exchange, Pair pair) throws Exception {
+        Object jObj = fetch(exchange, FetchCommand.DEEP, new PairFetchOptions(pair));
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
         }
-        DeepData deepData = exchange.parseDeep(jObj);
-        log("deepData=" + deepData);
-        return deepData;
+        return exchange.parseDeep(jObj);
     }
 
     public static DeepsData fetchDeeps(Exchange exchange, Pair... pairs) throws Exception {
@@ -275,11 +278,11 @@ public class Fetcher {
         return deepsData;
     }
 
-    static TopData fetchTop(Exchange exchange) throws Exception {
+    public static TopData fetchTop(Exchange exchange) throws Exception {
         return fetchTopOnce(exchange, Pair.BTC_USD);
     }
 
-    static TopData fetchTop(Exchange exchange, Pair pair) throws Exception {
+    public static TopData fetchTop(Exchange exchange, Pair pair) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TOP, new PairFetchOptions(pair));
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
@@ -348,41 +351,44 @@ public class Fetcher {
             URL url = new URL(location);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
-            con.setDoOutput(true);
-
-            boolean doPost = command.doPost();
-            if (doPost) {
-                con.setRequestMethod("POST");
-                con.setDoOutput(true);
-                con.setRequestProperty("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
+            boolean isHttps = con instanceof HttpsURLConnection;
+            if (command.needSsl() || isHttps) {
+                BaseExch.initSsl();
             }
+
+//            con.setDoOutput(true);
+
             con.setUseCaches(false);
             con.setConnectTimeout(exchange.connectTimeout());
             con.setReadTimeout(exchange.readTimeout());
             con.setRequestProperty("User-Agent", USER_AGENT);
             //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
 
-            boolean isHttps = con instanceof HttpsURLConnection;
-            if (command.needSsl() || isHttps) {
-                BaseExch.initSsl();
-            }
-
-            BaseExch baseExch = exchange.m_baseExch;
-            String postData = null;
+            boolean doPost = command.doPost();
             if (doPost) {
-                String nonce = baseExch.getNextNonce();
-                Map<String, String> postParams = baseExch.getPostParams(nonce, apiEndpoint, command, options);
-                postData = BaseExch.buildQueryString(postParams);
+                con.setRequestMethod("POST");
+                con.setDoOutput(true);
 
-                Map<String, String> headerLines = baseExch.getHeaders(postData);
+                BaseExch baseExch = exchange.m_baseExch;
+                BaseExch.IPostData postData = baseExch.getPostData(apiEndpoint, command, options);
+
+//                String nonce = baseExch.getNextNonce();
+//                List<BaseExch.NameValue> postParams = baseExch.getPostParams(nonce, apiEndpoint, command, options);
+//                String postStr = BaseExch.buildPostQueryString(postParams);
+//                Map<String, String> headerLines = baseExch.getHeaders(postStr);
+
+                Map<String, String> headerLines = postData.headerLines();
                 if (headerLines != null) {
                     for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
                         con.setRequestProperty(headerLine.getKey(), headerLine.getValue());
                     }
                 }
+
+                String postStr = postData.postStr();
                 OutputStream os = con.getOutputStream();
                 try {
-                    os.write(postData.getBytes());
+                    os.write(postStr.getBytes());
+                    os.flush();
                 } finally {
                     os.close();
                 }

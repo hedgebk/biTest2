@@ -11,13 +11,15 @@ import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 public abstract class BaseExch {
     private static boolean s_sslInitialized;
     public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
-    private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
+    static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
     public static final int DEF_CONNECT_TIMEOUT = 6000;
     public static final int DE_READ_TIMEOUT = 7000;
 
@@ -33,8 +35,8 @@ public abstract class BaseExch {
     public int connectTimeout() { return DEF_CONNECT_TIMEOUT; };
     public int readTimeout() { return DE_READ_TIMEOUT; };
 
-    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {return null;};
-    public Map<String, String> getHeaders(String postData) throws Exception { return null; }
+    public List<NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {return null;};
+    public Map<String, String> getHeaders(String postData) throws Exception { return new HashMap<String, String>(); }
     private static void log(String s) { Log.log(s); }
 
     public static void initSsl() throws NoSuchAlgorithmException, KeyManagementException {
@@ -157,8 +159,6 @@ public abstract class BaseExch {
             con.setUseCaches(false);
             con.setDoOutput(true);
 
-            con.setRequestProperty("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
-            con.setRequestProperty("User-Agent",USER_AGENT) ;
             if( headerLines != null ) {
                 for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
                     con.setRequestProperty(headerLine.getKey(), headerLine.getValue());
@@ -168,6 +168,9 @@ public abstract class BaseExch {
             OutputStream os = con.getOutputStream();
             try {
                 os.write(postData.getBytes());
+                os.flush();
+                os.close(); // close early
+                os = null;
                 con.connect();
 
                 int responseCode = con.getResponseCode();
@@ -177,7 +180,9 @@ public abstract class BaseExch {
                     throw new Exception("ERROR: unexpected ResponseCode: " + responseCode);
                 }
             } finally {
-                os.close();
+                if(os != null) {
+                    os.close();
+                }
             }
         } finally {
             con.disconnect();
@@ -185,16 +190,45 @@ public abstract class BaseExch {
         return json;
     }
 
-    public static String buildQueryString(Map<String, String> postParams) {
+    public static String buildPostQueryString(List<NameValue> postParams) {
         StringBuilder buffer = new StringBuilder();
-        for (Map.Entry<String, String> argument : postParams.entrySet()) {
+        for (NameValue postParam : postParams) {
             if (buffer.length() > 0) {
                 buffer.append("&");
             }
-            buffer.append(argument.getKey());
+            buffer.append(postParam.m_name);
             buffer.append("=");
-            buffer.append(argument.getValue());
+            buffer.append(postParam.m_value);
         }
         return buffer.toString();
+    }
+
+    public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
+        String nonce = getNextNonce();
+        List<BaseExch.NameValue> postParams = getPostParams(nonce, apiEndpoint, command, options);
+        final String postStr = BaseExch.buildPostQueryString(postParams);
+        final Map<String, String> headerLines = getHeaders(postStr);
+        headerLines.put("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
+        return new IPostData() {
+            @Override public String postStr() { return postStr; }
+            @Override public Map<String, String> headerLines() { return headerLines; }
+        };
+    }
+
+    //*************************************************************************
+    public static class NameValue {
+        public String m_name;
+        public String m_value;
+
+        public NameValue (String name, String value) {
+            m_name = name;
+            m_value = value;
+        }
+    }
+
+    //*************************************************************************
+    public interface IPostData {
+        String postStr();
+        Map<String,String> headerLines();
     }
 }

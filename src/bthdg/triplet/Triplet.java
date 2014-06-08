@@ -236,7 +236,7 @@ public class Triplet {
         s_startBtc = s_startAccount.evaluate(tops, Currency.BTC);
         s_startLtc = s_startAccount.evaluate(tops, Currency.LTC);
         System.out.println(" evaluateEur: " + format5(s_startEur) + " evaluateUsd: " + format5(s_startUsd)
-                + " evaluateBtc: " + format5(s_startBtc) + " evaluateBtc: " + format5(s_startLtc));
+                + " evaluateBtc: " + format5(s_startBtc) + " evaluateLtc: " + format5(s_startLtc));
         return account;
     }
 

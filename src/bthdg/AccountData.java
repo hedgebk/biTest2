@@ -1,11 +1,10 @@
 package bthdg;
 
 import bthdg.exch.*;
+import bthdg.exch.Currency;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 public class AccountData {
     public static final double FUND_DIFF_RATIO = 0.01;
@@ -56,16 +55,16 @@ public class AccountData {
     }
 
     private String toString(HashMap<Currency, Double> funds) {
-        Iterator<Map.Entry<Currency, Double>> i = funds.entrySet().iterator();
-        if (!i.hasNext()) { return "{}"; }
+        if (funds.isEmpty()) { return "{}"; }
+        Set<Currency> entries = funds.keySet();
+        ArrayList<Currency> list = new ArrayList<Currency>(entries);
+        Collections.sort(list);
         StringBuilder sb = new StringBuilder();
         sb.append('{');
-        while (i.hasNext()) {
-            Map.Entry<Currency, Double> e = i.next();
-            Double value = e.getValue();
+        for (Currency currency : list) {
+            Double value = funds.get(currency);
             if (Math.abs(value) > 0.0000000001) {
-                Currency key = e.getKey();
-                sb.append(key);
+                sb.append(currency);
                 sb.append('=');
                 sb.append(Utils.X_YYYYY.format(value));
                 sb.append(',').append(' ');

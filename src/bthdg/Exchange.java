@@ -50,8 +50,8 @@ public enum Exchange {
         @Override public OrdersData parseOrders(Object jObj) { return Btce.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btce.parseCancelOrders(jObj); }
         @Override public boolean retryFetch(Object obj) { return Btce.retryFetch(obj); }
-        @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, options); }
+        @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, options); }
         @Override public double minPriceStep(Pair pair) { return Btce.minExchPriceStep(pair); }
         @Override public double minAmountStep(Pair pair) { return Btce.minAmountStep(pair); }
@@ -74,14 +74,29 @@ public enum Exchange {
            null, null,
            null, null, "", "", null, null, null, null, null),
     BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.0001, true, 2,
-           null, "https://data.btcchina.com/data/ticker?market=XXXX", // XXXX like "btccny"
-           null, null, "", "", null, null, null, null, null) {
-        @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiTopEndpoint, options); }
+         null, "https://data.btcchina.com/data/ticker?market=XXXX", // XXXX like "btccny"
+         null, "https://data.btcchina.com/data/orderbook?market=XXXX",
+         "", "",
+         null, new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
+         null, null, null) {
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btcn.parseTops(jObj, pairs); }
+        @Override public DeepData parseDeep(Object jObj) { return Btcn.parseDeep(jObj); }
+        @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiTopEndpoint, options); }
+        @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiDeepEndpoint, options); }
+        @Override public AccountData parseAccount(Object jObj) { return Btcn.parseAccount(jObj); }
     },
-    OKCOIN("OkCoin", null, "okcoinCNY", 10, 0.0001, true, 2,
+    OKCOIN("OkCoin", new OkCoin(), "okcoinCNY", 10, 0.0001, true, 2,
+           null, "https://www.okcoin.cn/api/ticker.do?symbol=XXXX", // XXXX like "ltc_cny"
+           null, "https://www.okcoin.cn/api/depth.do?symbol=XXXX", // XXXX like "ltc_cny"
+           "", "",
            null, null,
-           null, null, "", "", null, null, null, null, null),
+           null, null, null) {
+        @Override public TopData parseTop(Object jObj, Pair pair) { return OkCoin.parseTop(jObj, pair); }
+        @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return OkCoin.parseTops(jObj, pairs); }
+        @Override public DeepData parseDeep(Object jObj) { return OkCoin.parseDeep(jObj); }
+        @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiTopEndpoint, options); }
+        @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiDeepEndpoint, options); }
+    },
     ;
 
     public final String m_name;

@@ -1,14 +1,8 @@
 package bthdg.exch;
 
 // https://btc-e.com/api/documentation
-//
-// https://btc-e.com/api/2/btc_usd/depth
-//    {"asks":[[714,0.93506666],[714.104,0.0998],[714.111,0.01],[714.15,0.01],[714.314,0.14083594],[714.474,0.011],[714.665,2.465],[714.666,3.75571029],[714.68,0.073],[714.692,0.13972],[714.695,0.13972],[714.871,0.035],[715,0.52282746],[715.002,0.01],[7
-// https://btc-e.com/api/2/btc_usd/depth
-//    {"asks":[[712.348,0.63],[713.5,0.011],[713.712,0.01],[713.99,2],[714,0.93506666],[714.104,0.0998],[714.111,0.01],[714.15,0.01],[714.314,0.14083594],[714.474,0.011],[714.665,2.465],[714.666,3.75571029],[714.68,0.073],[714.692,0.13972],[7
-//
 
-// much code to inspire here: https://github.com/ReAzem/cryptocoin-tradelib/blob/master/modules/btc_e/src/de/andreas_rueckert/trade/site/btc_e/client/BtcEClient.java
+// code to inspire here: https://github.com/ReAzem/cryptocoin-tradelib/blob/master/modules/btc_e/src/de/andreas_rueckert/trade/site/btc_e/client/BtcEClient.java
 
 import bthdg.*;
 import org.json.simple.JSONArray;
@@ -28,7 +22,7 @@ public class Btce extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
-    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 192500 + 16751 + 2770 + 54946 + 5863 + 61857 + 18178;
+    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 333658;
     public static boolean LOG_PARSE = false;
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;
@@ -145,36 +139,36 @@ public class Btce extends BaseExch {
         return "https://btc-e.com/api/3/depth/XXXX?limit=" + BTCE_DEEP_ORDERS_IN_REQUEST; // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much orders to return def_value = 150; max_value=2000
     }
 
-    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, FetchCommand command, FetchOptions options) {
-        Map<String, String> postParams = new HashMap<String, String>();
-        postParams.put(apiEndpoint.m_paramName,   // "method",
-                       apiEndpoint.m_paramValue); // Add the method to the post data.
-        postParams.put("nonce", nonce);
+    public List<NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, FetchCommand command, FetchOptions options) {
+        List<NameValue> postParams = new ArrayList<NameValue>();
+        postParams.add(new NameValue(apiEndpoint.m_paramName,   // "method",
+                apiEndpoint.m_paramValue)); // Add the method to the post data.
+        postParams.add(new NameValue("nonce", nonce));
 
         switch (command) {
             case CANCEL: {
                 String orderId = options.getOrderId();
-                postParams.put("order_id", orderId);
+                postParams.add(new NameValue("order_id", orderId));
                 break;
             }
             case ORDERS: {
                 Pair pair = options.getPair();
                 if (pair != null) {
-                    postParams.put("pair", getPairParam(pair));
+                    postParams.add(new NameValue("pair", getPairParam(pair)));
                 }
                 break;
             }
             case ORDER: {
                 OrderData order = options.getOrderData();
                 Pair pair = order.m_pair;
-                postParams.put("pair", getPairParam(pair));
-                postParams.put("type", getOrderSideStr(order));
+                postParams.add(new NameValue("pair", getPairParam(pair)));
+                postParams.add(new NameValue("type", getOrderSideStr(order)));
 
                 String priceStr = roundPriceStr(order.m_price, pair);
-                postParams.put("rate", priceStr);
+                postParams.add(new NameValue("rate", priceStr));
 
                 String amountStr = roundAmountStr(order.m_amount, pair);
-                postParams.put("amount", amountStr);
+                postParams.add(new NameValue("amount", amountStr));
 
                 break;
             }
@@ -186,13 +180,15 @@ public class Btce extends BaseExch {
     private JSONObject run(String method ) throws Exception {
         String nonce = getNextNonce();
 
-        Map<String, String> postParams = new HashMap<String, String>();
-        postParams.put("method", method);  // Add the method to the post data.
-        postParams.put("nonce", nonce);
+        List<NameValue> postParams = new ArrayList<NameValue>();
+        postParams.add(new NameValue("method", method));  // Add the method to the post data.
+        postParams.add(new NameValue("nonce", nonce));
 
-        String postData = buildQueryString(postParams);
+        String postData = buildPostQueryString(postParams);
 
         Map<String, String> headerLines = getHeaders(postData);
+        headerLines.put("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
+        headerLines.put("User-Agent", USER_AGENT); // Add the key to the header lines.
 
         initSsl();
 

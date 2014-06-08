@@ -37,10 +37,10 @@ public class PaintChart extends BaseChartPaint {
         NONE, MOVING_AVERAGE_LEN, EXPECTED_GAIN, DROP, MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN;
     }
     public static final int STEP_RATIO = 1; // >1 to less accurate calc
-    public static final int DISTANCE_RATIO = 5; // >1 less distance calc
+    public static final int DISTANCE_RATIO = 4; // >1 less distance calc
 
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final int PERIOD_LENGTH_DAYS = 3; // the period width - days
+    public static final int PERIOD_LENGTH_DAYS = 2; // the period width - days
     private static final long MOVING_AVERAGE_MILLIS = PAIR.m_movingAverage;
     private static final double EXPECTED_GAIN = PAIR.m_expectedGain;
     private static final Exchange EXCH1 = PAIR.m_exch1;
@@ -751,7 +751,7 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      172 * 60 + 45, 6.55,  -0.055 ),
         BTCE_ITBIT(Exchange.BTCE, Exchange.ITBIT,              310 * 60 + 7,  3.825,  0.195 ),
 
-        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,            12 * 60 + 47,  2.75,   -0.76 ),
+        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,            20 * 60 + 33,  1.925,   -0.705 ),
         ;
 
         public final Exchange m_exch1;

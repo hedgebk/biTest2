@@ -55,14 +55,14 @@ public class Bitstamp extends BaseExch {
         }
     }
 
-    public Map<String,String> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
+    public List<NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
         String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
         String signature = encoded.toUpperCase();
 
-        Map<String, String> postParams = new HashMap<String, String>();
-        postParams.put("key", URLEncoder.encode(KEY));
-        postParams.put("nonce", URLEncoder.encode(nonce));
-        postParams.put("signature", URLEncoder.encode(signature));
+        List<NameValue> postParams = new ArrayList<NameValue>();
+        postParams.add(new NameValue("key", URLEncoder.encode(KEY)));
+        postParams.add(new NameValue("nonce", URLEncoder.encode(nonce)));
+        postParams.add(new NameValue("signature", URLEncoder.encode(signature)));
         return postParams;
     }
 
@@ -86,7 +86,11 @@ public class Bitstamp extends BaseExch {
 
         initSsl();
 
-        String json = loadJsonStr(null, query);
+        Map<String, String> headerLines = new HashMap<String, String>();  // Create a new map for the header lines.
+        headerLines.put("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
+        headerLines.put("User-Agent", USER_AGENT); // Add the key to the header lines.
+
+        String json = loadJsonStr(headerLines, query);
         log("Loaded json: " + json);
     }
 
