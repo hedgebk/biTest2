@@ -136,16 +136,17 @@ public class ChartSimulator {
         double gain = m_deltaSum - commissionsSumm;
         double perDay = gain / PaintChart.PERIOD_LENGTH_DAYS;
         double dayMult = 1 + perDay / avgPrice / 4;
+        String dayMultStr = PaintChart.XX_YYYYY.format(dayMult);
 
         double complex = Math.pow(dayMult, PaintChart.PERIOD_LENGTH_DAYS);
-        String complex_ = PaintChart.XX_YYYYY.format(complex);
+        String complexStr = PaintChart.XX_YYYYY.format(complex);
 
         double complex1m = Math.pow(dayMult, 30);
-        String complex1m_ = PaintChart.XX_YYYYY.format(complex1m);
+        String complex1mStr = PaintChart.XX_YYYYY.format(complex1m);
 
         System.out.println("--- got " + m_runs + " runs, " + m_drops + " drops, sum=" + m_deltaSum + ", commissions=" + commissionsSumm +
-                ", hedged=" + gain + ", a day=" + perDay + ", period " + PaintChart.PERIOD_LENGTH_DAYS +
-                ", complex=" + complex_ + ", complex1m=" + complex1m_);
+                ", hedged=" + gain + ", a day=" + perDay + ", dayMul=" + dayMultStr + ", period " + PaintChart.PERIOD_LENGTH_DAYS +
+                ", complex=" + complexStr + ", complex1m=" + complex1mStr);
         if (PaintChart.PAINT_DIFF) {
             g.setColor(Color.DARK_GRAY);
             g.setFont(g.getFont().deriveFont(15.0f * PaintChart.X_FACTOR));
@@ -154,9 +155,9 @@ public class ChartSimulator {
                     "drops=" + m_drops + ", " +
                     "period " + PaintChart.PERIOD_LENGTH_DAYS + "d, " +
                     "AVG=" + PaintChart.XX_YYYYY.format(perDay) + "/day, " +
-                    "dayMult=" + PaintChart.XX_YYYYY.format(dayMult) + ", " +
-                    "complex=" + complex_ + ", " +
-                    "complex1m=" + complex1m_;
+                    "dayMult=" + dayMultStr + ", " +
+                    "complex=" + complexStr + ", " +
+                    "complex1m=" + complex1mStr;
             g.drawString(str, 40, PaintChart.HEIGHT - 34);
         }
         return complex1m;

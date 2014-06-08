@@ -25,32 +25,13 @@ public class Btcn extends BaseExch {
     public static boolean LOG_PARSE = true;
 
     @Override public String getNextNonce() { return Long.toString(System.currentTimeMillis() * 1000); }
-
-    @Override protected String getCryproAlgo() {
-        return null;
-    }
-
-    @Override protected String getSecret() {
-        return null;
-    }
-
+    @Override protected String getCryproAlgo() { return null; }
+    @Override protected String getSecret() { return null; }
     @Override protected String getApiEndpoint() { return "https://api.btcchina.com/api_trade_v1.php"; }
-
-    @Override public double roundPrice(double price, Pair pair) {
-        return 0;
-    }
-
-    @Override public String roundPriceStr(double price, Pair pair) {
-        return null;
-    }
-
-    @Override public double roundAmount(double amount, Pair pair) {
-        return 0;
-    }
-
-    @Override public String roundAmountStr(double amount, Pair pair) {
-        return null;
-    }
+    @Override public double roundPrice(double price, Pair pair) { return 0; }
+    @Override public String roundPriceStr(double price, Pair pair) { return null; }
+    @Override public double roundAmount(double amount, Pair pair) { return 0; }
+    @Override public String roundAmountStr(double amount, Pair pair) { return null; }
 
     private static void log(String s) { Log.log(s); }
 
@@ -157,15 +138,14 @@ public class Btcn extends BaseExch {
         initSsl();
 
         String nonce = getNextNonce();
-        String params = "tonce="+nonce+
-                "&accesskey="+KEY+
+        String params = "tonce=" + nonce +
+                "&accesskey=" + KEY +
                 "&requestmethod=post" +
                 "&id=1" +
                 "&method=getAccountInfo" +
                 "&params=";
         String hash = getSignature(params, SECRET);
-        String url = "https://api.btcchina.com/api_trade_v1.php";
-        URL obj = new URL(url);
+        URL obj = new URL(getApiEndpoint());
         HttpsURLConnection con = (HttpsURLConnection) obj.openConnection();
         String userpass = KEY + ":" + hash;
         String basicAuth = "Basic " + DatatypeConverter.printBase64Binary(userpass.getBytes());
@@ -183,7 +163,7 @@ public class Btcn extends BaseExch {
         wr.close();
 
         int responseCode = con.getResponseCode();
-        System.out.println("\nSending 'POST' request to URL : " + url);
+        System.out.println("\nSending 'POST' request to URL : " + getApiEndpoint());
         System.out.println("Post parameters : " + postdata);
         System.out.println("Response Code : " + responseCode);
 
@@ -199,25 +179,6 @@ public class Btcn extends BaseExch {
         } finally {
             in.close();
         }
-
-        //------------
-
-//        List<NameValue> postParams = new ArrayList<NameValue>();
-//        postParams.add(new NameValue("method", method));  // Add the method to the post data.
-//        postParams.add(new NameValue("nonce", nonce));
-//
-//        String postData = buildPostQueryString(postParams);
-//
-//        Map<String, String> headerLines = getHeaders(postData);
-//
-////        initSsl();
-//
-//        Map<String, String> headerLines = new HashMap<String, String>();  // Create a new map for the header lines.
-//        headerLines.put("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
-//        headerLines.put("User-Agent", USER_AGENT); // Add the key to the header lines.
-//
-//        String json = loadJsonStr(headerLines, postData);
-//        log("Loaded json: " + json);
 
         return null;
     }
@@ -248,23 +209,14 @@ public class Btcn extends BaseExch {
         };
     }
 
-
-    public Map<String, String> getHeaders(String postData) throws Exception {
-        return null;
-    }
-
     public static String getSignature(String data, String key) throws Exception {
-
         // get an hmac_sha1 key from the raw key bytes
         SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), HMAC_SHA1_ALGORITHM);
-
         // get an hmac_sha1 Mac instance and initialize with the signing key
         Mac mac = Mac.getInstance(HMAC_SHA1_ALGORITHM);
         mac.init(signingKey);
-
         // compute the hmac on input data bytes
         byte[] rawHmac = mac.doFinal(data.getBytes());
-
         return bytArrayToHex(rawHmac);
     }
 
@@ -282,6 +234,11 @@ public class Btcn extends BaseExch {
             log("BTCN.parseAccount() " + jObj);
         }
 
+        JSONObject ret = (JSONObject) jObj.get("result");
+        JSONObject balance = (JSONObject) ret.get("balance");
+        AccountData accountData = parseFunds(balance);
+        return accountData;
+
 //        {"id":"1",
 //         "result":{
 //            "balance":{
@@ -293,12 +250,12 @@ public class Btcn extends BaseExch {
 //                "ltc":{"amount_integer":"0","amount":"0.00000000","symbol":"?","amount_decimal":8,"currency":"LTC"},
 //                "btc":{"amount_integer":"0","amount":"0.00000000","symbol":"?","amount_decimal":8,"currency":"BTC"}},
 //            "profile":{
-//                "btc_deposit_address":"1LweXyAKG6bqH2QC69CzfhtKchUCLc1Yws",
+//                "btc_deposit_address":"1234123412341234124312341234124",
 //                "trade_password_enabled":true,
 //                "username":"x@gmail.com",
 //                "trade_fee_btcltc":0,
 //                "ltc_withdrawal_address":"",
-//                "ltc_deposit_address":"Lc5BGqr9HbCVasSPUp6JxTrwKh3kX31vdB",
+//                "ltc_deposit_address":"12341234123412341234123412341243",
 //                "daily_btc_limit":10,
 //                "trade_fee":0,
 //                "btc_withdrawal_address":"",
@@ -306,17 +263,18 @@ public class Btcn extends BaseExch {
 //                "trade_fee_cnyltc":0,
 //                "api_key_permission":1,
 //                "daily_ltc_limit":400}}}
+    }
 
-//        String error = (String) jObj.get("error");
-//        if (error == null) {
-//            JSONObject ret = (JSONObject) jObj.get("return");
-//            JSONObject funds = (JSONObject) ret.get("funds");
-//            AccountData accountData = parseFunds(funds);
-//            return accountData;
-//        } else {
-//            log("account ERROR: " + error);
-//            return null;
-//        }
-        return null;
+    private static AccountData parseFunds(JSONObject balance) {
+        JSONObject btc = (JSONObject) balance.get("btc");
+        double btcVal = Utils.getDouble(btc.get("amount"));
+        AccountData accountData = new AccountData(Exchange.BTCE.m_name, 0, btcVal, Double.MAX_VALUE);
+        JSONObject ltc = (JSONObject) balance.get("ltc");
+        double ltcVal = Utils.getDouble(ltc.get("amount"));
+        accountData.setAvailable(Currency.LTC, ltcVal);
+        JSONObject cny = (JSONObject) balance.get("cny");
+        double cnyVal = Utils.getDouble(cny.get("amount"));
+        accountData.setAvailable(Currency.CNH, cnyVal);
+        return accountData;
     }
 }

@@ -12,7 +12,7 @@ import java.text.ParseException;
 public class DbReady {
 
     private static final String DELETE_TICKS_BETWEEN_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp > ? AND stamp < ?";
-    public static final int IMPORT_DAYS = 3 * 30;
+    public static final int IMPORT_DAYS = 1 * 30;
     private static final int LOG_IMPORT_STAT_DELAY = 15000; // log import stat each X ms
     private static final String INSERT_TICKS_SQL = "INSERT INTO Ticks ( src, stamp, price, volume ) VALUES (?,?,?,?)";
 
@@ -22,7 +22,7 @@ public class DbReady {
 
 //        startAndInitDb();
 //        dropTicks(Exchange.BTCE,     "0", "-13d");
-//        dropTicks(Exchange.BITSTAMP, "0", "-13d");
+//        dropTicks(Exchange.BITSTAMP, "0", "-100d");
         importFromFiles();
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -218,14 +218,14 @@ public class DbReady {
         try {
             connection.setAutoCommit(false); // for fast inserts/updates
 //            importExchange(connection, Exchange.BTCE);
-//            importExchange(connection, Exchange.BITSTAMP);
+            importExchange(connection, Exchange.BITSTAMP);
 //            importExchange(connection, Exchange.BITFINEX);
 //            importExchange(connection, Exchange.CAMPBX);
 //            importExchange(connection, Exchange.HITBTC);
 //            importExchange(connection, Exchange.LAKEBTC);
 //            importExchange(connection, Exchange.ITBIT);
-            importExchange(connection, Exchange.BTCN);
-            importExchange(connection, Exchange.OKCOIN);
+//            importExchange(connection, Exchange.BTCN);
+//            importExchange(connection, Exchange.OKCOIN);
         } catch (Exception e) {
             System.out.println("error: " + e);
             e.printStackTrace();

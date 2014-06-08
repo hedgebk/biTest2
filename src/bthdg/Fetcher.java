@@ -372,11 +372,6 @@ public class Fetcher {
                 BaseExch baseExch = exchange.m_baseExch;
                 BaseExch.IPostData postData = baseExch.getPostData(apiEndpoint, command, options);
 
-//                String nonce = baseExch.getNextNonce();
-//                List<BaseExch.NameValue> postParams = baseExch.getPostParams(nonce, apiEndpoint, command, options);
-//                String postStr = BaseExch.buildPostQueryString(postParams);
-//                Map<String, String> headerLines = baseExch.getHeaders(postStr);
-
                 Map<String, String> headerLines = postData.headerLines();
                 if (headerLines != null) {
                     for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
