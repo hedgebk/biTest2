@@ -108,8 +108,8 @@ public class OkCoin extends BaseExch {
         JSONObject jObj = (JSONObject) obj;
         JSONObject ticker = (JSONObject) jObj.get("ticker");
         double last = Utils.getDouble(ticker, "last");
-        double bid = Utils.getDouble(ticker, "sell");
-        double ask = Utils.getDouble(ticker, "buy");
+        double ask = Utils.getDouble(ticker, "sell");
+        double bid = Utils.getDouble(ticker, "buy");
         return new TopData(bid, ask, last);
     }
 

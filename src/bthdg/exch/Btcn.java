@@ -71,13 +71,13 @@ public class Btcn extends BaseExch {
 
     private void run() {
         try {
-//            TopsData topsData = Fetcher.fetchTops(Exchange.BTCN, Pair.BTC_CNH);
-//            log("topsData: " + topsData);
+            TopsData topsData = Fetcher.fetchTops(Exchange.BTCN, Pair.BTC_CNH);
+            log("topsData: " + topsData);
 //            DeepData deepData = Fetcher.fetchDeep(Exchange.BTCN, Pair.BTC_CNH);
 //            log("deepData: " + deepData);
 //            run("x");
-            AccountData account = Fetcher.fetchAccount(Exchange.BTCN);
-            log("account: " + account);
+//            AccountData account = Fetcher.fetchAccount(Exchange.BTCN);
+//            log("account: " + account);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -110,12 +110,16 @@ public class Btcn extends BaseExch {
         return ret;
     }
 
+    public static TopData parseTop(Object jObj, Pair pair) {
+        return parseTopInt(jObj, pair);
+    }
+
     private static TopData parseTopInt(Object obj, Pair pair) {
         JSONObject jObj = (JSONObject) obj;
         JSONObject ticker = (JSONObject) jObj.get("ticker");
         double last = Utils.getDouble(ticker, "last");
-        double bid = Utils.getDouble(ticker, "sell");
-        double ask = Utils.getDouble(ticker, "buy");
+        double ask = Utils.getDouble(ticker, "sell");
+        double bid = Utils.getDouble(ticker, "buy");
         return new TopData(bid, ask, last);
     }
 

@@ -38,13 +38,13 @@ public class Triplet {
     public static final int START_TRIANGLES_PER_ITERATION = 4;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.71; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 2;
+    public static final double LVL2 = 100.72; // min target level
+    public static final int WAIT_MKT_ORDER_STEPS = 1;
     public static final boolean TRY_WITH_MKT_OFFSET = true;
     public static final double MKT_OFFSET_PRICE_MINUS = 0.07; // mkt - 10%
     public static final double MKT_OFFSET_LEVEL_DELTA = 0.07;
     public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
-    public static final int MIN_SLEEP_TIME = 250; // min sleep between iterations
+    public static final int MIN_SLEEP_TIME = 300; // min sleep between iterations
 
     public static final boolean PREFER_EUR_CRYPT_PAIRS = false; // BTC_EUR, LTC_EUR
     public static final boolean PREFER_LIQUID_PAIRS = true; // prefer start from LTC_BTC, BTC_USD, LTC_USD

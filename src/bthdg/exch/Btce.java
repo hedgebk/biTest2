@@ -22,7 +22,7 @@ public class Btce extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
-    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 333658;
+    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 333658 + 114292 + 6539;
     public static boolean LOG_PARSE = false;
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;
@@ -217,18 +217,6 @@ public class Btce extends BaseExch {
     public static String topTestStr() {
         return "{\"btc_usd\":{\"vol\":7045936.02087,\"last\":542,\"updated\":1393596086,\"sell\":542,\"buy\":543,\"high\":572.5,\"avg\":552.75049,\"low\":533.00098,\"vol_cur\":12638.51909}}";
     }
-
-//    public static TopData parseTop(Object obj) {
-//        JSONObject jObj = (JSONObject) obj;
-//        log("BTCE.parseTop() " + jObj);
-//        JSONObject ticker = (JSONObject) jObj.get("ticker"); // ticker
-////        log(" class="+ticker.getClass()+", ticker=" + ticker);
-//        double last = Utils.getDouble(ticker, "last");
-//        double bid = Utils.getDouble(ticker, "sell");
-//        double ask = Utils.getDouble(ticker, "buy");
-//        //        log("bid=" + bid + ", ask=" + ask + ", last=" + last);
-//        return new TopData(bid, ask, last);
-//    }
 
     public static TopData parseTop(Object obj, Pair pair) {
         if (LOG_PARSE) {

@@ -79,6 +79,7 @@ public enum Exchange {
          "", "",
          null, new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
          null, null, null) {
+        @Override public TopData parseTop(Object jObj, Pair pair) { return Btcn.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btcn.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Btcn.parseDeep(jObj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiTopEndpoint, options); }
@@ -97,6 +98,19 @@ public enum Exchange {
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return OkCoin.parseAccount(jObj); }
+    },
+    HUOBI("Huobi", new Huobi(), "", 11, 0.00001, true, 2,
+           null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
+           null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
+           "", "",
+           null, new UrlDef("--"),
+           null, null, null) {
+        @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
+        @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
+        @Override public DeepData parseDeep(Object jObj) { return Huobi.parseDeep(jObj); }
+        @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiTopEndpoint, options); }
+        @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiDeepEndpoint, options); }
+//        @Override public AccountData parseAccount(Object jObj) { return Huobi.parseAccount(jObj); }
     },
     ;
 
