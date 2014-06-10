@@ -1,12 +1,11 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class Huobi extends BaseExch {

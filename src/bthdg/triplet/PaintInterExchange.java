@@ -3,7 +3,7 @@ package bthdg.triplet;
 import bthdg.BaseChartPaint;
 import bthdg.exch.Currency;
 import bthdg.PaintChart;
-import bthdg.Utils;
+import bthdg.util.Utils;
 import bthdg.exch.Pair;
 import bthdg.exch.PairDirection;
 import bthdg.exch.TopData;

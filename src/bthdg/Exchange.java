@@ -99,7 +99,7 @@ public enum Exchange {
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return OkCoin.parseAccount(jObj); }
     },
-    HUOBI("Huobi", new Huobi(), "", 11, 0.00001, true, 2,
+    HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false, 2,
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
            null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",

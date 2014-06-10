@@ -2,6 +2,7 @@ package bthdg;
 
 import bthdg.duplet.PairExchangeData;
 import bthdg.exch.*;
+import bthdg.util.Utils;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
@@ -11,7 +12,6 @@ import java.net.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 

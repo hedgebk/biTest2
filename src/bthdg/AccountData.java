@@ -2,6 +2,7 @@ package bthdg;
 
 import bthdg.exch.*;
 import bthdg.exch.Currency;
+import bthdg.util.Utils;
 
 import java.io.IOException;
 import java.util.*;

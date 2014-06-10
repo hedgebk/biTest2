@@ -2,6 +2,7 @@ package bthdg.triplet;
 
 import bthdg.*;
 import bthdg.exch.*;
+import bthdg.util.Utils;
 
 public enum TriTradeState {
     PEG_PLACED {

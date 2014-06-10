@@ -3,6 +3,7 @@ package bthdg.duplet;
 import bthdg.*;
 import bthdg.exch.Pair;
 import bthdg.exch.TopData;
+import bthdg.util.Utils;
 
 public class CrossData implements OrderState.IOrderExecListener {
     private static final long TIME_TO_WAIT_PARTIAL = 15000;

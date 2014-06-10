@@ -5,6 +5,7 @@ import bthdg.exch.OrdersData;
 import bthdg.exch.Pair;
 import bthdg.exch.TopData;
 import bthdg.exch.TradesData;
+import bthdg.util.Utils;
 
 import java.io.IOException;
 

@@ -1,5 +1,7 @@
 package bthdg;
 
+import bthdg.util.Utils;
+
 import java.io.BufferedInputStream;
 import java.io.InputStream;
 import java.net.URL;

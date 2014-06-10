@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 

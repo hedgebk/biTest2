@@ -3,6 +3,8 @@ package bthdg.triplet;
 import bthdg.*;
 import bthdg.exch.Currency;
 import bthdg.exch.*;
+import bthdg.util.ConsoleReader;
+import bthdg.util.Utils;
 
 import java.util.*;
 
@@ -39,10 +41,10 @@ public class Triplet {
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
     public static final double LVL2 = 100.72; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 1;
+    public static final int WAIT_MKT_ORDER_STEPS = 2;
     public static final boolean TRY_WITH_MKT_OFFSET = true;
-    public static final double MKT_OFFSET_PRICE_MINUS = 0.07; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.07;
+    public static final double MKT_OFFSET_PRICE_MINUS = 0.10; // mkt - 10%
+    public static final double MKT_OFFSET_LEVEL_DELTA = 0.10;
     public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
     public static final int MIN_SLEEP_TIME = 300; // min sleep between iterations
 
@@ -141,7 +143,7 @@ public class Triplet {
             TradesAggregator tAgg = new TradesAggregator();
             tAgg.load();
 
-            Console.ConsoleReader consoleReader = new IntConsoleReader();
+            ConsoleReader consoleReader = new IntConsoleReader();
             consoleReader.start();
 
             try {
@@ -342,7 +344,7 @@ public class Triplet {
         Log.log(s);
     }
 
-    private static class IntConsoleReader extends Console.ConsoleReader {
+    private static class IntConsoleReader extends ConsoleReader {
         @Override protected void beforeLine() {}
 
         @Override protected boolean processLine(String line) throws Exception {

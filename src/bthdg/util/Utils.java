@@ -1,5 +1,6 @@
-package bthdg;
+package bthdg.util;
 
+import bthdg.Deserializer;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
@@ -306,7 +307,7 @@ public class Utils {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class AverageCounter {
-        // probably better to have average counter which counts older ticks with lower ratio/weight
+        // probably better to have average counter which counts older ticks with lower ratio/weight - fading
         public final TreeMap<Long,Double> m_map; // sorted by time
         private final long m_limit;
 

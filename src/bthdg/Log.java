@@ -17,11 +17,13 @@ public class Log {
     }
 
     public static class StdLog implements ILog {
-        @Override public void log(String s) {
+        // synchronized -- do not mess 2 hreads outputs
+        @Override public synchronized void log(String s) {
             System.out.println(s);
         }
 
-        @Override public void err(String s, Exception err) {
+        // synchronized -- do not mess 2 hreads outputs
+        @Override public synchronized void err(String s, Exception err) {
             System.out.println(s);
             err.printStackTrace();
         }

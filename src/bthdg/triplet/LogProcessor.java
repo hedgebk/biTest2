@@ -2,7 +2,7 @@ package bthdg.triplet;
 
 import bthdg.DbReady;
 import bthdg.Exchange;
-import bthdg.Utils;
+import bthdg.util.Utils;
 import bthdg.exch.Pair;
 import bthdg.exch.TopData;
 import bthdg.exch.TopsData;

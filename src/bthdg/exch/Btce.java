@@ -5,6 +5,7 @@ package bthdg.exch;
 // code to inspire here: https://github.com/ReAzem/cryptocoin-tradelib/blob/master/modules/btc_e/src/de/andreas_rueckert/trade/site/btc_e/client/BtcEClient.java
 
 import bthdg.*;
+import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -22,7 +23,7 @@ public class Btce extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
-    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 333658 + 114292 + 6539;
+    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 333658 + 114292 + 6539 + 8933 + 33007 + 11343;
     public static boolean LOG_PARSE = false;
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;

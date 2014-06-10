@@ -2,7 +2,7 @@ package bthdg.exch;
 
 import bthdg.Deserializer;
 import bthdg.Exchange;
-import bthdg.Utils;
+import bthdg.util.Utils;
 
 import java.io.IOException;
 

@@ -1,7 +1,7 @@
 package bthdg.exch;
 
 import bthdg.Exchange;
-import bthdg.Utils;
+import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 
 import java.util.ArrayList;

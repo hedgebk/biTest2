@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.util.Utils;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
