@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.util.Post;
 import bthdg.util.Utils;
 
 import javax.crypto.Mac;
@@ -12,10 +13,9 @@ import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.*;
 
 public abstract class BaseExch {
     private static boolean s_sslInitialized;
@@ -28,15 +28,19 @@ public abstract class BaseExch {
     protected abstract String getCryproAlgo();
     protected abstract String getSecret();
     protected abstract String getApiEndpoint();
-    public abstract double roundPrice(double price, Pair pair);
-    public abstract String roundPriceStr(double price, Pair pair);
-    public abstract double roundAmount(double amount, Pair pair);
-    public abstract String roundAmountStr(double amount, Pair pair);
+
+    public double roundPrice(double price, Pair pair) { throw new RuntimeException("roundPrice not implemented on " + this ); }
+    public double roundAmount(double amount, Pair pair) { throw new RuntimeException("roundAmount not implemented on " + this ); }
+    public String roundPriceStr(double price, Pair pair) { throw new RuntimeException("roundPriceStr not implemented on " + this ); }
+    public String roundAmountStr(double amount, Pair pair) { throw new RuntimeException("roundAmountStr not implemented on " + this ); }
+
+    public abstract Pair[] supportedPairs();
+    public abstract double minOurPriceStep(Pair pair);
 
     public int connectTimeout() { return DEF_CONNECT_TIMEOUT; };
     public int readTimeout() { return DEF_READ_TIMEOUT; };
 
-    public List<NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {return null;};
+    public List<Post.NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {return null;};
     public Map<String, String> getHeaders(String postData) throws Exception { return new HashMap<String, String>(); }
     private static void log(String s) { Log.log(s); }
 
@@ -191,23 +195,10 @@ public abstract class BaseExch {
         return json;
     }
 
-    public static String buildPostQueryString(List<NameValue> postParams) {
-        StringBuilder buffer = new StringBuilder();
-        for (NameValue postParam : postParams) {
-            if (buffer.length() > 0) {
-                buffer.append("&");
-            }
-            buffer.append(postParam.m_name);
-            buffer.append("=");
-            buffer.append(postParam.m_value);
-        }
-        return buffer.toString();
-    }
-
     public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
         String nonce = getNextNonce();
-        List<BaseExch.NameValue> postParams = getPostParams(nonce, apiEndpoint, command, options);
-        final String postStr = BaseExch.buildPostQueryString(postParams);
+        List<Post.NameValue> postParams = getPostParams(nonce, apiEndpoint, command, options);
+        final String postStr = Post.buildPostQueryString(postParams);
         final Map<String, String> headerLines = getHeaders(postStr);
         headerLines.put("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
         return new IPostData() {
@@ -216,15 +207,24 @@ public abstract class BaseExch {
         };
     }
 
-    //*************************************************************************
-    public static class NameValue {
-        public String m_name;
-        public String m_value;
+    protected static String getOrderSideStr(OrderData order) {
+        return order.m_side.isBuy() ? "buy" : "sell";
+    }
 
-        public NameValue (String name, String value) {
-            m_name = name;
-            m_value = value;
-        }
+    protected static DecimalFormat mkFormat(String format) {
+        return new DecimalFormat(format, DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    }
+
+    protected double defRoundPrice(double price, Pair pair) {
+        String str = roundPriceStr(price, pair);
+        double ret = Double.parseDouble(str);
+        return ret;
+    }
+
+    protected double defRoundAmount(double amount, Pair pair) {
+        String str = roundAmountStr(amount, pair);
+        double ret = Double.parseDouble(str);
+        return ret;
     }
 
     //*************************************************************************

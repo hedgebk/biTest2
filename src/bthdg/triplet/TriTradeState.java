@@ -132,6 +132,8 @@ public enum TriTradeState {
         double eurRate = valuateEur / Triplet.s_startEur;
         double valuateUsd = account.evaluateUsd(tops);
         double usdRate = valuateUsd / Triplet.s_startUsd;
+        double valuateBtc = account.evaluate(tops, Currency.BTC);
+        double btcRate = valuateBtc / Triplet.s_startBtc;
 
         double midMul = account.midMul(Triplet.s_startAccount);
 
@@ -143,7 +145,7 @@ public enum TriTradeState {
                 "; out-in=" + format5(plus) + " " + startCurrency + ";  gain=" + format5(gain) +
                 "; level=" + Triplet.s_level + ";  totalRatio=" + format5(Triplet.s_totalRatio) +
                 "; millis=" + System.currentTimeMillis() + "; valuateUsd=" + format5(usdRate) +
-                "; valuateEur=" + format5(eurRate) + "; midMul=" + format5(midMul) +
+                "; valuateEur=" + format5(eurRate) + "; valuateBtc=" + format5(btcRate) + "; midMul=" + format5(midMul) +
                 "; count=" + Triplet.s_counter);
         triTradeData.log(" @@@@@@    peg: max"+(doMktOffset?"":"*")+"=" + format5(peg.m_max) +
                 "; max10"+(doMktOffset?"*":"")+"=" + format5(peg.m_max10) + "; startIndx=" + startIndx +

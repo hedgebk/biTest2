@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -20,28 +21,17 @@ public class Bitstamp extends BaseExch {
     private static String KEY;
     private static String CLIENT_ID;
 
+    // supported pairs
+    static final Pair[] PAIRS = {Pair.BTC_USD};
+
     private static String s_bitstampDeepTestStr = null;
 
     @Override public String getNextNonce() { return Long.toString(System.currentTimeMillis() / 100); }
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
     @Override protected String getSecret() { return SECRET; }
     @Override protected String getApiEndpoint() { return "https://www.bitstamp.net/api/balance/"; }
-
-    @Override public double roundPrice(double price, Pair pair) {
-        return price;  // todo: implement
-    }
-
-    @Override public String roundPriceStr(double price, Pair pair) {
-        return Double.toString(price);   // todo: implement
-    }
-
-    @Override public double roundAmount(double amount, Pair pair) {
-        return amount;  // todo: implement
-    }
-
-    @Override public String roundAmountStr(double amount, Pair pair) {
-        return Double.toString(amount);   // todo: implement
-    }
+    @Override public Pair[] supportedPairs() { return PAIRS; };
+    @Override public double minOurPriceStep(Pair pair) { return 0.01; }
 
     private static void log(String s) { Log.log(s); }
 
@@ -56,14 +46,14 @@ public class Bitstamp extends BaseExch {
         }
     }
 
-    public List<NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
+    public List<Post.NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
         String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
         String signature = encoded.toUpperCase();
 
-        List<NameValue> postParams = new ArrayList<NameValue>();
-        postParams.add(new NameValue("key", URLEncoder.encode(KEY)));
-        postParams.add(new NameValue("nonce", URLEncoder.encode(nonce)));
-        postParams.add(new NameValue("signature", URLEncoder.encode(signature)));
+        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
+        postParams.add(new Post.NameValue("key", URLEncoder.encode(KEY)));
+        postParams.add(new Post.NameValue("nonce", URLEncoder.encode(nonce)));
+        postParams.add(new Post.NameValue("signature", URLEncoder.encode(signature)));
         return postParams;
     }
 

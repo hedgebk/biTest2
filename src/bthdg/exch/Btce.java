@@ -5,6 +5,7 @@ package bthdg.exch;
 // code to inspire here: https://github.com/ReAzem/cryptocoin-tradelib/blob/master/modules/btc_e/src/de/andreas_rueckert/trade/site/btc_e/client/BtcEClient.java
 
 import bthdg.*;
+import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -13,6 +14,8 @@ import java.io.*;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static bthdg.Fetcher.*;
 
@@ -23,7 +26,7 @@ public class Btce extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
-    private static int s_nonce = (int) (System.currentTimeMillis() / 1000) + 333658 + 114292 + 6539 + 8933 + 33007 + 11343;
+    private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
     public static boolean LOG_PARSE = false;
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;
@@ -34,6 +37,13 @@ public class Btce extends BaseExch {
     private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
     private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
     private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
+
+    // supported pairs
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
+                                 Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
+                                 Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
+                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD,
+                                 Pair.BTC_CNH, Pair.LTC_CNH, Pair.USD_CNH };
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.LTC_USD, "0.000000", 0.000001,         0.000005,        "0.0#######",  0.00000001,     0.1);
@@ -72,8 +82,9 @@ public class Btce extends BaseExch {
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
     }
 
+    @Override public Pair[] supportedPairs() { return PAIRS; };
+    @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
     public static double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
-    public static double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
     public static double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
     public static double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
 
@@ -104,14 +115,11 @@ public class Btce extends BaseExch {
 //      run("TransHistory");
     }
 
-    private static DecimalFormat mkFormat(String format) {
-        return new DecimalFormat(format, DecimalFormatSymbols.getInstance(Locale.ENGLISH));
-    }
-
     public double roundPrice(double price, Pair pair){
-        String str = roundPriceStr(price, pair);
-        double ret = Double.parseDouble(str);
-        return ret;
+        return defRoundPrice(price, pair);
+    }
+    public double roundAmount(double amount, Pair pair){
+        return defRoundAmount(amount, pair);
     }
 
     public String roundPriceStr(double price, Pair pair) {
@@ -119,13 +127,6 @@ public class Btce extends BaseExch {
         String str = format.format(price);
         return str;
     }
-
-    public double roundAmount(double amount, Pair pair){
-        String str = roundAmountStr(amount, pair);
-        double ret = Double.parseDouble(str);
-        return ret;
-    }
-
     public String roundAmountStr(double amount, Pair pair) {
         DecimalFormat format = s_amountFormatMap.get(pair);
         String str = format.format(amount);
@@ -140,36 +141,36 @@ public class Btce extends BaseExch {
         return "https://btc-e.com/api/3/depth/XXXX?limit=" + BTCE_DEEP_ORDERS_IN_REQUEST; // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much orders to return def_value = 150; max_value=2000
     }
 
-    public List<NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, FetchCommand command, FetchOptions options) {
-        List<NameValue> postParams = new ArrayList<NameValue>();
-        postParams.add(new NameValue(apiEndpoint.m_paramName,   // "method",
+    public List<Post.NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, FetchCommand command, FetchOptions options) {
+        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
+        postParams.add(new Post.NameValue(apiEndpoint.m_paramName,   // "method",
                 apiEndpoint.m_paramValue)); // Add the method to the post data.
-        postParams.add(new NameValue("nonce", nonce));
+        postParams.add(new Post.NameValue("nonce", nonce));
 
         switch (command) {
             case CANCEL: {
                 String orderId = options.getOrderId();
-                postParams.add(new NameValue("order_id", orderId));
+                postParams.add(new Post.NameValue("order_id", orderId));
                 break;
             }
             case ORDERS: {
                 Pair pair = options.getPair();
                 if (pair != null) {
-                    postParams.add(new NameValue("pair", getPairParam(pair)));
+                    postParams.add(new Post.NameValue("pair", getPairParam(pair)));
                 }
                 break;
             }
             case ORDER: {
                 OrderData order = options.getOrderData();
                 Pair pair = order.m_pair;
-                postParams.add(new NameValue("pair", getPairParam(pair)));
-                postParams.add(new NameValue("type", getOrderSideStr(order)));
+                postParams.add(new Post.NameValue("pair", getPairParam(pair)));
+                postParams.add(new Post.NameValue("type", getOrderSideStr(order)));
 
                 String priceStr = roundPriceStr(order.m_price, pair);
-                postParams.add(new NameValue("rate", priceStr));
+                postParams.add(new Post.NameValue("rate", priceStr));
 
                 String amountStr = roundAmountStr(order.m_amount, pair);
-                postParams.add(new NameValue("amount", amountStr));
+                postParams.add(new Post.NameValue("amount", amountStr));
 
                 break;
             }
@@ -181,11 +182,11 @@ public class Btce extends BaseExch {
     private JSONObject run(String method ) throws Exception {
         String nonce = getNextNonce();
 
-        List<NameValue> postParams = new ArrayList<NameValue>();
-        postParams.add(new NameValue("method", method));  // Add the method to the post data.
-        postParams.add(new NameValue("nonce", nonce));
+        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
+        postParams.add(new Post.NameValue("method", method));  // Add the method to the post data.
+        postParams.add(new Post.NameValue("nonce", nonce));
 
-        String postData = buildPostQueryString(postParams);
+        String postData = Post.buildPostQueryString(postParams);
 
         Map<String, String> headerLines = getHeaders(postData);
         headerLines.put("Content-Type", APPLICATION_X_WWW_FORM_URLENCODED);
@@ -336,7 +337,23 @@ public class Btce extends BaseExch {
             return accountData;
         } else {
             log("account ERROR: " + error);
+            checkError(error);
             return null;
+        }
+    }
+
+    private static void checkError(String error) {
+        if (error.contains("invalid nonce parameter")) {
+            Pattern pattern = Pattern.compile(".*:(\\d+).*:(\\d+).*");
+            Matcher matcher = pattern.matcher(error);
+            if (matcher.matches()) {
+                String one = matcher.group(1);
+                String two = matcher.group(2);
+                long onKey = Long.parseLong(one);
+                long sent = Long.parseLong(two);
+                long diff = onKey - sent;
+                System.err.println("nonce delta: " + diff);
+            }
         }
     }
 
@@ -465,6 +482,7 @@ public class Btce extends BaseExch {
                 Map<String,OrdersData.OrdData> ords = new HashMap<String,OrdersData.OrdData>();
                 return new OrdersData(ords); // special case for 'no orders' - all executed
             }
+            checkError(error);
             return new OrdersData(error); // order is not placed
         }
 //        jObj={"return":{"184588659":{"amount":0.01,"timestamp_created":1395784667,"rate":800.0,"status":0,"pair":"btc_eur","type":"sell"}},"success":1}    }
@@ -488,6 +506,11 @@ public class Btce extends BaseExch {
         if(SECRET != null) {
             KEY = properties.getProperty("btce_key");
             if(KEY != null) {
+                String noncePlusStr = properties.getProperty("btce_nonce_plus");
+                if (noncePlusStr != null) {
+                    Long plus = Long.parseLong(noncePlusStr);
+                    s_nonce += plus;
+                }
                 return true;
             }
         }
@@ -562,10 +585,6 @@ public class Btce extends BaseExch {
         if (pair.equals("ltc_cnh")) { return Pair.LTC_CNH; }
         if (pair.equals("usd_cnh")) { return Pair.USD_CNH; }
         return null;
-    }
-
-    private static String getOrderSideStr(OrderData order) {
-        return order.m_side.isBuy() ? "buy" : "sell";
     }
 
     private static OrderSide getOrderSide(String side) {

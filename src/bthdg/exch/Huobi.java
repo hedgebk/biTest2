@@ -1,6 +1,8 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.util.Md5;
+import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -12,18 +14,19 @@ public class Huobi extends BaseExch {
     private static final int READ_TIMEOUT = 10000;
 
     private static String SECRET;
-    private static String PARTNER;
+    private static String KEY;
     public static boolean LOG_PARSE = false;
+
+    // supported pairs
+    static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
 
     @Override public int readTimeout() { return READ_TIMEOUT; };
     @Override public String getNextNonce() { return null; }
     @Override protected String getCryproAlgo() { return null; }
     @Override protected String getSecret() { return null; }
-    @Override protected String getApiEndpoint() { return null; }
-    @Override public double roundPrice(double price, Pair pair) { return 0; }
-    @Override public String roundPriceStr(double price, Pair pair) { return null; }
-    @Override public double roundAmount(double amount, Pair pair) { return 0; }
-    @Override public String roundAmountStr(double amount, Pair pair) { return null; }
+    @Override protected String getApiEndpoint() { return "https://api.huobi.com/api.php"; }
+    @Override public Pair[] supportedPairs() { return PAIRS; }
+    @Override public double minOurPriceStep(Pair pair) { return 0.01; }
 
     private static void log(String s) { Log.log(s); }
 
@@ -51,31 +54,23 @@ public class Huobi extends BaseExch {
     }
 
     public static boolean init(Properties properties) {
-//        SECRET = properties.getProperty("okcoin_secret");
-//        if(SECRET != null) {
-//            PARTNER = properties.getProperty("okcoin_partner");
-//            if(PARTNER != null) {
+        SECRET = properties.getProperty("huobi_secret");
+        if(SECRET != null) {
+            KEY = properties.getProperty("huobi_key");
+            if(KEY != null) {
                 return true;
-//            }
-//        }
-//        return false;
+            }
+        }
+        return false;
     }
 
     private void run() {
         try {
-            TopData topData = Fetcher.fetchTop(Exchange.HUOBI, Pair.BTC_CNH);
-            log("huobi:   " + topData);
-            topData = Fetcher.fetchTop(Exchange.OKCOIN, Pair.BTC_CNH);
-            log("OkCoin:  " + topData);
-            topData = Fetcher.fetchTop(Exchange.BTCN, Pair.BTC_CNH);
-            log("Btcn:    " + topData);
-            topData = Fetcher.fetchTop(Exchange.BTCE, Pair.BTC_CNH);
-            log("Btce:    " + topData);
-            topData = Fetcher.fetchTop(Exchange.BITSTAMP, Pair.BTC_USD);
-            log("Bitstamp:" + topData);
+//            TopData topData = Fetcher.fetchTop(Exchange.HUOBI, Pair.BTC_CNH);
+//            log("huobi:   " + topData);
 //            DeepData deepData = Fetcher.fetchDeep(Exchange.HUOBI, Pair.BTC_CNH);
 //            log("deepData: " + deepData);
-//            acct();
+            acct();
 //            AccountData account = Fetcher.fetchAccount(Exchange.HUOBI);
 //            log("account: " + account);
         } catch (Exception e) {
@@ -136,5 +131,73 @@ public class Huobi extends BaseExch {
         JSONArray asks = (JSONArray) pairData.get("asks");
 
         return DeepData.create(bids, asks);
+    }
+
+    private void acct() throws Exception {
+//        var time = parseInt((new Date()).getTime() / 1000);
+//        var data = {method: 'get_account_info',
+//                    access_key: config.access_key,
+//                    created: time};
+//        data.sign = md5('access_key=' + config.access_key + '&created='+ data.created +'&method='+ data.method +'&secret_key=' + config.secret_key + '');
+
+        String method = "get_account_info";
+
+        long time = System.currentTimeMillis() / 1000;
+        String created = Long.toString(time);
+
+        Map<String,String> sArray = new HashMap<String, String>();
+        sArray.put("method", method);
+        sArray.put("access_key", KEY);
+        sArray.put("created", created);
+      	sArray.put("secret_key", SECRET);
+        String str = Post.createHttpPostString(sArray, true);
+
+//        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
+//        postParams.add(new Post.NameValue("access_key", KEY));
+//        postParams.add(new Post.NameValue("created", created));
+//        postParams.add(new Post.NameValue("method", method));
+//        postParams.add(new Post.NameValue("secret_key", SECRET));
+//        String str = Post.buildPostQueryString(postParams);
+
+        //String str = "access_key=" + KEY + "&created=" + created + "&method=" + method + "&secret_key=" + SECRET;
+
+        String sign = Md5.getMD5String(str);
+        sign = sign.toLowerCase();
+
+        List<Post.NameValue>    postParams = new ArrayList<Post.NameValue>();
+        postParams.add(new Post.NameValue("method", method));
+        postParams.add(new Post.NameValue("access_key", KEY));
+        postParams.add(new Post.NameValue("created", created));
+        postParams.add(new Post.NameValue("sign", sign));
+        String postData = Post.buildPostQueryString(postParams);
+
+        initSsl();
+
+        String json = loadJsonStr(null, postData);
+        log("Loaded json: " + json);
+
+//  for now : json: {"code":66
+        // invalid access code
+
+    }
+
+    // https://github.com/peatio/bitbot-huobi/blob/master/spec/fixtures/vcr_cassettes/authorized/success/account.yml
+//    public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
+//        Map<String,String> sArray = new HashMap<String, String>();
+//      	sArray.put("partner", PARTNER);
+//        String sign = buildMysign(sArray, SECRET);
+//
+//        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
+//        postParams.add(new Post.NameValue("partner", PARTNER));
+//        postParams.add(new Post.NameValue("sign", sign));
+//        final String postData = Post.buildPostQueryString(postParams);
+//        return new IPostData() {
+//            @Override public String postStr() { return postData; }
+//            @Override public Map<String, String> headerLines() { return null; }
+//        };
+//    }
+
+    public static AccountData parseAccount(Object obj) {
+        return null;  //To change body of created methods use File | Settings | File Templates.
     }
 }

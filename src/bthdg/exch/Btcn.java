@@ -25,14 +25,16 @@ public class Btcn extends BaseExch {
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
     public static boolean LOG_PARSE = true;
 
+    // supported pairs
+    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH };
+
     @Override public String getNextNonce() { return Long.toString(System.currentTimeMillis() * 1000); }
     @Override protected String getCryproAlgo() { return null; }
     @Override protected String getSecret() { return null; }
     @Override protected String getApiEndpoint() { return "https://api.btcchina.com/api_trade_v1.php"; }
-    @Override public double roundPrice(double price, Pair pair) { return 0; }
-    @Override public String roundPriceStr(double price, Pair pair) { return null; }
-    @Override public double roundAmount(double amount, Pair pair) { return 0; }
-    @Override public String roundAmountStr(double amount, Pair pair) { return null; }
+
+    @Override public Pair[] supportedPairs() { return PAIRS; }
+    @Override public double minOurPriceStep(Pair pair) { return 0.01; }
 
     private static void log(String s) { Log.log(s); }
 
@@ -188,10 +190,10 @@ public class Btcn extends BaseExch {
         return null;
     }
 
-    public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
+    @Override public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
         String nonce = getNextNonce();
-        String params = "tonce="+nonce+
-                "&accesskey="+KEY+
+        String params = "tonce=" + nonce +
+                "&accesskey=" + KEY +
                 "&requestmethod=post" +
                 "&id=1" +
                 "&method=getAccountInfo" +
@@ -273,7 +275,7 @@ public class Btcn extends BaseExch {
     private static AccountData parseFunds(JSONObject balance) {
         JSONObject btc = (JSONObject) balance.get("btc");
         double btcVal = Utils.getDouble(btc.get("amount"));
-        AccountData accountData = new AccountData(Exchange.BTCE.m_name, 0, btcVal, Double.MAX_VALUE);
+        AccountData accountData = new AccountData(Exchange.BTCN.m_name, 0, btcVal, Double.MAX_VALUE);
         JSONObject ltc = (JSONObject) balance.get("ltc");
         double ltcVal = Utils.getDouble(ltc.get("amount"));
         accountData.setAvailable(Currency.LTC, ltcVal);
@@ -282,4 +284,13 @@ public class Btcn extends BaseExch {
         accountData.setAvailable(Currency.CNH, cnyVal);
         return accountData;
     }
+/*
+
+    String params = "tonce=" + tonce.toString() + "&accesskey="
+    					+ ACCESS_KEY
+    					+ "&requestmethod=post&id=1&method="+buyOrderOrSellOrder+"&params="+price+","+amount;
+
+    String postdata = "{\"method\": \""+buyOrderOrSellOrder+"\", \"params\": ["+price+","+amount+"], \"id\": 1}";
+
+*/
 }

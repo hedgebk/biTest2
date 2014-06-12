@@ -105,7 +105,7 @@ public class FundMap {
 
                         TopData top = tops.get(pair);
                         System.out.println("top=" + top);
-                        double step = Btce.minOurPriceStep(pair);
+                        double step = Exchange.BTCE.minOurPriceStep(pair);
                         System.out.println("minOurPriceStep=" + step);
                         double limitPrice = side.pegPrice(top, step);
                         System.out.println("price(peg)=" + limitPrice);

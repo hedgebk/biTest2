@@ -16,6 +16,10 @@ public class PlaceOrderData {
         m_accountData = accountData;
     }
 
+    public PlaceOrderData(long orderId) {
+        m_orderId = orderId;
+    }
+
     public PlaceOrderData(String error) {
         m_error = error;
     }

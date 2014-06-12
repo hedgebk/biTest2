@@ -37,14 +37,14 @@ import java.util.*;
  */
 public class Triplet {
     public static final int NUMBER_OF_ACTIVE_TRIANGLES = 7;
-    public static final int START_TRIANGLES_PER_ITERATION = 4;
+    public static final int START_TRIANGLES_PER_ITERATION = 3;
 
     public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.72; // min target level
+    public static final double LVL2 = 100.70; // min target level
     public static final int WAIT_MKT_ORDER_STEPS = 2;
     public static final boolean TRY_WITH_MKT_OFFSET = true;
-    public static final double MKT_OFFSET_PRICE_MINUS = 0.10; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.10;
+    public static final double MKT_OFFSET_PRICE_MINUS = 0.12; // mkt - 10%
+    public static final double MKT_OFFSET_LEVEL_DELTA = 0.12;
     public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
     public static final int MIN_SLEEP_TIME = 300; // min sleep between iterations
 

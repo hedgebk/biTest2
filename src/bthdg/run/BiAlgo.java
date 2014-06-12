@@ -13,8 +13,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 class BiAlgo implements Runner.IAlgo {
     private static final long MIN_ITERATION_TIME = 3000;
+    private static final long MOVING_AVERAGE = (9 * 60 + 28) * 1000;
 
-    private static Exchange[] s_exchanges = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN, Exchange.HUOBI};
+    private static Exchange[] s_exchanges = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN/*, Exchange.HUOBI*/};
     private static List<ExchangesPair> s_exchPairs = mkExchPairs();
     private static List<ExchangesPairData> s_exchPairsDatas = mkExchPairsDatas();
     private static MdStorage s_mdStorage = new MdStorage();
@@ -159,8 +160,6 @@ class BiAlgo implements Runner.IAlgo {
     }
 
     private static class ExchangesPairData {
-        private static final long MOVING_AVERAGE = 20 * 60 * 1000;
-
         public final ExchangesPair m_exchangesPair;
         private final Utils.AverageCounter m_diffAverageCounter;
         private final List<TimeDiff> m_timeDiffs = new ArrayList<TimeDiff>();
@@ -180,7 +179,15 @@ class BiAlgo implements Runner.IAlgo {
             double mid1 = td1.getMid();
             double mid2 = td2.getMid();
             double diff = mid1 - mid2;
-            log(name()+" diff="+diff);
+            double bidAskDiff1 = td1.getBidAskDiff();
+            double bidAskDiff2 = td2.getBidAskDiff();
+            double bidAskDiff = bidAskDiff1 + bidAskDiff2;
+            double avgDiff = m_diffAverageCounter.add(System.currentTimeMillis(), diff);
+            double diffDiff = diff - avgDiff;
+            log(name() + " diff=" + Utils.XX_YYYY.format(diff) +
+                    ", avgDiff="+ Utils.XX_YYYY.format(avgDiff) +
+                    ", diffDiff="+ Utils.XX_YYYY.format(diffDiff) +
+                    ", bidAskDiff="+ Utils.XX_YYYY.format(bidAskDiff));
             m_timeDiffs.add(new TimeDiff(System.currentTimeMillis(), diff));
         }
     }

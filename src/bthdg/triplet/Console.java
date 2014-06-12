@@ -2,23 +2,17 @@ package bthdg.triplet;
 
 import bthdg.*;
 import bthdg.exch.*;
+import bthdg.exch.Currency;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.StringTokenizer;
+import java.util.*;
 
 public class Console {
-    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
-                                 Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
-                                 Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
-                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD,
-                                 Pair.BTC_CNH, Pair.LTC_CNH, Pair.USD_CNH };
+    private static Exchange s_exchange = Exchange.BTCE;
 
     public static void main(String[] args) {
         System.out.println("Started.");
@@ -27,9 +21,12 @@ public class Console {
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
         Btce.LOG_PARSE = true;
 
+        System.out.println("Default exchange is " + s_exchange);
+
         try {
             Properties keys = BaseExch.loadKeys();
             Btce.init(keys);
+            OkCoin.init(keys);
 
             new ConsoleReader() {
                 @Override protected void beforeLine() {
@@ -54,16 +51,20 @@ public class Console {
             doOrders();
         } else if( line.equals("tops")) {
             doTops();
+        } else if( line.startsWith("top ")) {
+            doTop(line);
         } else if( line.startsWith("order ")) {
             doOrder(line);
         } else if( line.startsWith("cancel ")) {
             doCancel(line);
         } else if( line.equals("am")) {
-            AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
+            AccountData account = Fetcher.fetchAccount(s_exchange);
             if (account != null) {
-                TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
+                TopsData tops = fetchTops();
                 doAccountMap(account, tops);
             }
+        } else if( line.startsWith("e ")) {
+            switchExchange(line);
         } else if( line.equals("help")) {
             printHelp();
         } else {
@@ -73,8 +74,23 @@ public class Console {
         return false;
     }
 
+    private static void switchExchange(String line) {
+        String exchName = line.substring(2);
+        System.err.println("requested change to exchange "+exchName);
+        Exchange[] exchanges = Exchange.values();
+        for(Exchange exchange: exchanges) {
+            String name = exchange.name();
+            if( name.equalsIgnoreCase(exchName) ) {
+                s_exchange = exchange;
+                System.err.println(" current exchange is changed successfully to "+name);
+                return;
+            }
+        }
+        System.err.println("exchange '"+exchName+"' not found. supported: " + Arrays.asList(exchanges));
+    }
+
     private static void doOrders() throws Exception {
-        OrdersData od = Fetcher.fetchOrders(Exchange.BTCE, null);
+        OrdersData od = Fetcher.fetchOrders(s_exchange, null);
         System.out.println("ordersData=" + od);
         String error = od.m_error;
         if (error == null) {
@@ -91,19 +107,24 @@ public class Console {
     }
 
     private static void doAccount(String line) throws Exception {
-        AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
+        AccountData account = Fetcher.fetchAccount(s_exchange);
         if (account != null) {
-            TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
             if (line.equals("account map")) {
+                TopsData tops = fetchTops();
                 doAccountMap(account, tops);
             } else {
-                double valuateEur = account.evaluateEur(tops);
-                double valuateUsd = account.evaluateUsd(tops);
-                System.out.println("account=" + account + "; valuateEur=" + valuateEur + " EUR; valuateUsd=" + valuateUsd + " USD");
+                System.out.println("account=" + account);
+//                double valuateEur = account.evaluateEur(tops);
+//                double valuateUsd = account.evaluateUsd(tops);
+//                System.out.println("account=" + account + "; valuateEur=" + valuateEur + " EUR; valuateUsd=" + valuateUsd + " USD");
             }
         } else {
             System.err.println("account request error");
         }
+    }
+
+    private static TopsData fetchTops() throws Exception {
+        return Fetcher.fetchTops(s_exchange, s_exchange.supportedPairs());
     }
 
     private static void doAccountMap(AccountData account, TopsData tops) {
@@ -151,12 +172,29 @@ public class Console {
     }
 
     private static void doTops() throws Exception {
-        DeepsData deeps = Fetcher.fetchDeeps(Exchange.BTCE, PAIRS);
-        TopsData tops = deeps.getTopsDataAdapter();
-        printTops(tops);
+        if(s_exchange.supportsMultiplePairsRequest()) {
+            DeepsData deeps = Fetcher.fetchDeeps(s_exchange, s_exchange.supportedPairs());
+            TopsData tops = deeps.getTopsDataAdapter();
+            printTops(tops);
 
-        tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-        printTops(tops);
+            tops = Fetcher.fetchTops(s_exchange, s_exchange.supportedPairs());
+            printTops(tops);
+        } else {
+            System.out.println("MultiplePairsRequest not supported by " + s_exchange);
+        }
+    }
+
+    private static void doTop(String line) throws Exception {
+        String pairName = line.substring(4);
+        Pair[] pairs = s_exchange.supportedPairs();
+        for (Pair pair : pairs) {
+            if (pair.name().equalsIgnoreCase(pairName)) {
+                TopData top = Fetcher.fetchTop(s_exchange, pair);
+                System.out.println(" " + pair + " : " + top);
+                return;
+            }
+        }
+        System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(pairs));
     }
 
     private static void printTops(TopsData tops) {
@@ -174,7 +212,7 @@ public class Console {
         if (tokensNum == 2) {
             String t1 = tok.nextToken();
             String orderId = tok.nextToken();
-            CancelOrderData coData = Fetcher.calcelOrder(Exchange.BTCE, orderId);
+            CancelOrderData coData = Fetcher.calcelOrder(s_exchange, orderId);
             System.out.println("cancel order '" + orderId + "' result: " + coData);
             return;
         }
@@ -208,31 +246,24 @@ public class Console {
                 String sep2 = tok.nextToken();
                 if(sep2.equals("@") || sep2.equals("at")) {
                     String priceStr = tok.nextToken();
-
-//                    String mode = tok.nextToken();
-
                     System.out.println(" order: side=" + side + "; amount=" + amount + "; fromCurrency=" + fromCurrency +
                             "; toCurrency=" + toCurrency + "; priceStr=" + priceStr + "; pair=" + pd);
                     double limitPrice;
                     if (priceStr.equals("mkt")) { // place mkt
-                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-                        TopData top = tops.get(pair);
+                        TopData top = Fetcher.fetchTop(s_exchange, pair);
                         limitPrice = side.mktPrice(top);
                     } else if (priceStr.startsWith("mkt-")) { // place mkt  minus x%
                         double perc = Double.parseDouble(priceStr.substring(4));
-                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-                        TopData top = tops.get(pair);
+                        TopData top = Fetcher.fetchTop(s_exchange, pair);
                         double dif = top.m_ask - top.m_bid;
                         double offset = dif * perc/100;
                         limitPrice = side.isBuy() ? top.m_ask - offset : top.m_bid + offset;
                     } else if (priceStr.equals("peg")) { // place peg
-                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-                        TopData top = tops.get(pair);
-                        double step = Btce.minOurPriceStep(pair);
+                        TopData top = Fetcher.fetchTop(s_exchange, pair);
+                        double step = s_exchange.minOurPriceStep(pair);
                         limitPrice = side.pegPrice(top, step);
                     } else if (priceStr.equals("mid")) { // place mid
-                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-                        TopData top = tops.get(pair);
+                        TopData top = Fetcher.fetchTop(s_exchange, pair);
                         limitPrice = top.getMid();
                     } else {
                         limitPrice = Double.parseDouble(priceStr);
@@ -245,10 +276,9 @@ public class Console {
                     OrderData orderData = new OrderData(pair, side, limitPrice, amount);
                     System.out.println("confirm orderData=" + orderData);
                     if(confirm()) {
-                        TopsData tops = Fetcher.fetchTops(Exchange.BTCE, PAIRS);
-                        TopData top = tops.get(pair);
+                        TopData top = Fetcher.fetchTop(s_exchange, pair);
                         if (confirmLmtPrice(limitPrice, top)) {
-                            PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
+                            PlaceOrderData poData = Fetcher.placeOrder(orderData, s_exchange);
                             System.out.println("order place result: " + poData);
                         } else {
                             System.out.println(" limit price not confirmed");

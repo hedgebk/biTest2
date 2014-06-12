@@ -134,7 +134,7 @@ public class Triangle extends ArrayList<PairDirection> {
 
     public static double pegPrice(TopData top, PairDirection pd) {
         Pair pair = pd.m_pair;
-        double minPriceStep = Btce.minOurPriceStep(pair);
+        double minPriceStep = Exchange.BTCE.minOurPriceStep(pair);
         OrderSide side = pd.getSide(); // ASK > BID
         double price = side.pegPrice(top, minPriceStep);
         // the price is changed from quoted by exchange - need to be rounded

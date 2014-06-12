@@ -325,7 +325,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             double pegPrice = peg1.calcPegPrice(tops);
             double priceDif = Math.abs(pegPrice - orderPrice); // like 16.220010999999998 and 16.22001
             Pair pair = tradePeg.m_pair1.m_pair;
-            double minOurPriceStep = Btce.minOurPriceStep(pair); // like 0.00001
+            double minOurPriceStep = Exchange.BTCE.minOurPriceStep(pair); // like 0.00001
             double minExchPriceStep = Btce.minExchPriceStep(pair); // like 0.00001
             double allowPriceDiff = minOurPriceStep * 1.1; //  do not jump over itself
             if (Triplet.ALLOW_ONE_PRICE_STEP_CONCURRENT_PEG) {

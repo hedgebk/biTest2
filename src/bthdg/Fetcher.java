@@ -6,7 +6,9 @@ import bthdg.util.Utils;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSession;
 import java.io.*;
 import java.net.*;
 import java.sql.Connection;
@@ -120,13 +122,15 @@ public class Fetcher {
     public static PlaceOrderData placeOrder(OrderData order, Exchange exchange) throws Exception {
         PlaceOrderData poData = placeOrder(exchange, order);
         //log("placeOrder returns: " + poData);
-        String error = poData.m_error;
-        if (error == null) {
-            long orderId = poData.m_orderId;
-            //log("orderId: " + orderId);
-            order.m_orderId = Long.toString(orderId);
-        } else {
-            log("error: " + error);
+        if (poData != null) {
+            String error = poData.m_error;
+            if (error == null) {
+                long orderId = poData.m_orderId;
+                //log("orderId: " + orderId);
+                order.m_orderId = Long.toString(orderId);
+            } else {
+                log("error: " + error);
+            }
         }
         return poData;
     }
@@ -356,6 +360,11 @@ public class Fetcher {
                 BaseExch.initSsl();
             }
 
+            if(isHttps) {
+                HttpsURLConnection scon = (HttpsURLConnection)con;
+                scon.setHostnameVerifier(new NullHostNameVerifier());
+            }
+
 //            con.setDoOutput(true);
 
             con.setUseCaches(false);
@@ -509,4 +518,10 @@ public class Fetcher {
         @Override public Pair[] getPairs() { return pairs; }
     }
 
+    /* Host name verifier that does not perform nay checks. */
+    private static class NullHostNameVerifier implements HostnameVerifier {
+        @Override public boolean verify(String hostname, SSLSession session) {
+            return true;
+        }
+    }
 }

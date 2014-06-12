@@ -13,8 +13,7 @@ import java.util.Map;
 // ? bitcoin-central.net
 // crypto-trade.com ?
 // huobi ? https://github.com/xiaojay/huobi/blob/master/huobi.py
-//  http://www.huobi.com/help/index.php?a=api_help
-// btcchina ? https://vip.btcchina.com/?lang=en
+// check more exchnages examples here https://github.com/mobnetic/BitcoinChecker/tree/master/DataModule/src/com/mobnetic/coinguardian/model/market
 
 public enum Exchange {
     BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.002, true, 2,
@@ -91,26 +90,27 @@ public enum Exchange {
            null, "https://www.okcoin.cn/api/depth.do?symbol=XXXX", // XXXX like "ltc_cny"
            "", "",
            null, new UrlDef("https://www.okcoin.com/api/userinfo.do"),
-           null, null, null) {
+           new UrlDef("https://www.okcoin.com/api/trade.do"), null, null) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return OkCoin.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return OkCoin.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return OkCoin.parseDeep(jObj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return OkCoin.parseAccount(jObj); }
+        @Override public PlaceOrderData parseOrder(Object jObj) { return OkCoin.parseOrder(jObj); }
     },
     HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false, 2,
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
            null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",
-           null, new UrlDef("--"),
+           null, new UrlDef("https://api.huobi.com/api.php"),
            null, null, null) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Huobi.parseDeep(jObj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiDeepEndpoint, options); }
-//        @Override public AccountData parseAccount(Object jObj) { return Huobi.parseAccount(jObj); }
+        @Override public AccountData parseAccount(Object jObj) { return Huobi.parseAccount(jObj); }
     },
     ;
 
@@ -183,7 +183,7 @@ public enum Exchange {
     public TradesData parseTrades(Object jObj, Pair pair) { return null; }
     public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return null; }
     public AccountData parseAccount(Object jObj) { return null; }
-    public PlaceOrderData parseOrder(Object jObj) { return null; }
+    public PlaceOrderData parseOrder(Object jObj) { throw new RuntimeException("parseOrder not implemented on " + this ); }
     public OrdersData parseOrders(Object jObj) { return null; }
     public CancelOrderData parseCancelOrder(Object jObj) { return null; }
     public boolean retryFetch(Object obj) { return false; }
@@ -203,6 +203,9 @@ public enum Exchange {
 
     public int connectTimeout() { return m_baseExch.connectTimeout(); }
     public int readTimeout() { return m_baseExch.readTimeout(); }
+    public Pair[] supportedPairs() { return m_baseExch.supportedPairs(); }
+    public double minOurPriceStep(Pair pair) { return m_baseExch.minOurPriceStep(pair); }
+    public boolean supportsMultiplePairsRequest() { return false; }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class UrlDef {
