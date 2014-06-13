@@ -35,6 +35,7 @@ public abstract class BaseExch {
     public String roundAmountStr(double amount, Pair pair) { throw new RuntimeException("roundAmountStr not implemented on " + this ); }
 
     public abstract Pair[] supportedPairs();
+    public abstract Currency[] supportedCurrencies();
     public abstract double minOurPriceStep(Pair pair);
 
     public int connectTimeout() { return DEF_CONNECT_TIMEOUT; };
@@ -209,6 +210,14 @@ public abstract class BaseExch {
 
     protected static String getOrderSideStr(OrderData order) {
         return order.m_side.isBuy() ? "buy" : "sell";
+    }
+
+    protected static OrderSide getOrderSide(String side) {
+        return side.equals("buy")
+                ? OrderSide.BUY
+                : side.equals("sell")
+                    ? OrderSide.SELL
+                    : null;
     }
 
     protected static DecimalFormat mkFormat(String format) {

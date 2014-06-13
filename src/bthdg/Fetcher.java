@@ -14,6 +14,7 @@ import java.net.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -98,11 +99,11 @@ public class Fetcher {
             for (OrdersData.OrdData ord : od.m_ords.values()) {
                 String orderId = ord.m_orderId;
                 log(" next order to cancel: " + orderId);
-                CancelOrderData coData = calcelOrder(Exchange.BTCE, orderId);
+                CancelOrderData coData = calcelOrder(Exchange.BTCE, orderId, null);
                 log("  cancel order data: " + coData);
                 String error2 = coData.m_error;
                 if (error2 == null) {
-                    long orderId2 = coData.m_orderId;
+                    String orderId2 = coData.m_orderId;
                     log("   orderId: " + orderId2);
                 } else {
                     log("   error: " + error);
@@ -168,11 +169,31 @@ public class Fetcher {
         }
     }
 
+    public static OrdersData fetchOrders(Exchange exchange) throws Exception {
+        if (!exchange.queryOrdersBySymbol()) {
+            return fetchOrders(exchange, null);
+        }
+        // aggregate
+        Map<String,OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
+        log("fetching per-pair orders");
+        Pair[] pairs = exchange.supportedPairs();
+        for (Pair pair : pairs) {
+            OrdersData ordersData = fetchOrders(exchange, pair);
+            String error = ordersData.m_error;
+            if (error == null) {
+                for (OrdersData.OrdData ord : ordersData.m_ords.values()) {
+                    ords.put(ord.m_orderId, ord);
+                }
+            } else {
+                return new OrdersData("fetch orders for "+exchange+"/"+pair+" error: " + error);
+            }
+        }
+        return new OrdersData(ords);
+    }
+
     public static OrdersData fetchOrders(Exchange exchange, final Pair pair) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.ORDERS, new FetchOptions() {
-            @Override public Pair getPair() {
-                return pair;
-            }
+            @Override public Pair getPair() { return pair; }
         });
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
@@ -199,11 +220,10 @@ public class Fetcher {
         return poData;
     }
 
-    public static CancelOrderData calcelOrder(Exchange exchange, final String orderId) throws Exception {
+    public static CancelOrderData calcelOrder(Exchange exchange, final String orderId, final Pair pair) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.CANCEL, new FetchOptions() {
-            @Override public String getOrderId() {
-                return orderId;
-            }
+            @Override public String getOrderId() { return orderId; }
+            @Override public Pair getPair() { return pair; }
         });
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
@@ -297,10 +317,21 @@ public class Fetcher {
     }
 
     public static TopsData fetchTops(Exchange exchange, Pair... pairs) throws Exception {
-        PairsFetchOptions options = new PairsFetchOptions(pairs);
-        Object jObj = fetch(exchange, FetchCommand.TOP, options);
-        TopsData topData = exchange.parseTops(jObj, pairs);
-        return topData;
+        if(exchange.supportsMultiplePairsRequest()) {
+            PairsFetchOptions options = new PairsFetchOptions(pairs);
+            Object jObj = fetch(exchange, FetchCommand.TOP, options);
+            TopsData topData = exchange.parseTops(jObj, pairs);
+            return topData;
+        }
+        // aggregate
+        TopsData topsData = new TopsData();
+        Map<String,OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
+        log("fetching per-pair tops");
+        for (Pair pair : pairs) {
+            TopData topData = fetchTop(exchange, pair);
+            topsData.m_map.put(pair, topData);
+        }
+        return topsData;
     }
 
     public static TopData fetchTopOnce(Exchange exchange) {

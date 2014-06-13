@@ -20,12 +20,16 @@ public class Huobi extends BaseExch {
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
 
+    // supported currencies
+    private static final Currency[] CURRENCIES = { Currency.BTC, Currency.LTC, Currency.CNH };
+
     @Override public int readTimeout() { return READ_TIMEOUT; };
     @Override public String getNextNonce() { return null; }
     @Override protected String getCryproAlgo() { return null; }
     @Override protected String getSecret() { return null; }
     @Override protected String getApiEndpoint() { return "https://api.huobi.com/api.php"; }
     @Override public Pair[] supportedPairs() { return PAIRS; }
+    @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
     @Override public double minOurPriceStep(Pair pair) { return 0.01; }
 
     private static void log(String s) { Log.log(s); }

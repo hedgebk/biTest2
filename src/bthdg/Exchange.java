@@ -55,6 +55,7 @@ public enum Exchange {
         @Override public double minPriceStep(Pair pair) { return Btce.minExchPriceStep(pair); }
         @Override public double minAmountStep(Pair pair) { return Btce.minAmountStep(pair); }
         @Override public double minOrderSize(Pair pair) { return Btce.minOrderToCreate(pair); }
+        @Override public boolean queryOrdersBySymbol() { return false; }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -90,7 +91,9 @@ public enum Exchange {
            null, "https://www.okcoin.cn/api/depth.do?symbol=XXXX", // XXXX like "ltc_cny"
            "", "",
            null, new UrlDef("https://www.okcoin.com/api/userinfo.do"),
-           new UrlDef("https://www.okcoin.com/api/trade.do"), null, null) {
+           new UrlDef("https://www.okcoin.com/api/trade.do"),
+           new UrlDef("https://www.okcoin.com/api/getorder.do"),
+           new UrlDef("https://www.okcoin.com/api/cancelorder.do")) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return OkCoin.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return OkCoin.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return OkCoin.parseDeep(jObj); }
@@ -98,6 +101,8 @@ public enum Exchange {
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return OkCoin.parseAccount(jObj); }
         @Override public PlaceOrderData parseOrder(Object jObj) { return OkCoin.parseOrder(jObj); }
+        @Override public OrdersData parseOrders(Object jObj) { return OkCoin.parseOrders(jObj); }
+        @Override public CancelOrderData parseCancelOrder(Object jObj) { return OkCoin.parseCancelOrders(jObj); }
     },
     HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false, 2,
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
@@ -176,16 +181,16 @@ public enum Exchange {
         m_cancelEndpoint = cancelEndpoint;
     }
 
-    public TopData parseTop(Object jObj, Pair pair) { return null; }
-    public TopsData parseTops(Object jObj, Pair[] pairs) { return null; }
-    public DeepData parseDeep(Object jObj) { return null; }
-    public DeepsData parseDeeps(Object jObj, Pair[] pairs) { return null; }
-    public TradesData parseTrades(Object jObj, Pair pair) { return null; }
-    public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return null; }
-    public AccountData parseAccount(Object jObj) { return null; }
+    public TopData parseTop(Object jObj, Pair pair) { throw new RuntimeException("parseTop not implemented on " + this ); }
+    public TopsData parseTops(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTops not implemented on " + this ); }
+    public DeepData parseDeep(Object jObj) { throw new RuntimeException("parseDeep not implemented on " + this ); }
+    public DeepsData parseDeeps(Object jObj, Pair[] pairs) { throw new RuntimeException("parseDeeps not implemented on " + this ); }
+    public TradesData parseTrades(Object jObj, Pair pair) { throw new RuntimeException("parseTrades not implemented on " + this ); }
+    public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTrades not implemented on " + this ); }
+    public AccountData parseAccount(Object jObj) { throw new RuntimeException("parseAccount not implemented on " + this ); }
     public PlaceOrderData parseOrder(Object jObj) { throw new RuntimeException("parseOrder not implemented on " + this ); }
-    public OrdersData parseOrders(Object jObj) { return null; }
-    public CancelOrderData parseCancelOrder(Object jObj) { return null; }
+    public OrdersData parseOrders(Object jObj) { throw new RuntimeException("parseOrders not implemented on " + this ); }
+    public CancelOrderData parseCancelOrder(Object jObj) { throw new RuntimeException("parseCancelOrder not implemented on " + this ); }
     public boolean retryFetch(Object obj) { return false; }
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
     public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return m_apiDeepEndpoint; }
@@ -206,6 +211,8 @@ public enum Exchange {
     public Pair[] supportedPairs() { return m_baseExch.supportedPairs(); }
     public double minOurPriceStep(Pair pair) { return m_baseExch.minOurPriceStep(pair); }
     public boolean supportsMultiplePairsRequest() { return false; }
+    public boolean queryOrdersBySymbol() { return true; }
+    public Currency[] supportedCurrencies() { return m_baseExch.supportedCurrencies(); }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class UrlDef {

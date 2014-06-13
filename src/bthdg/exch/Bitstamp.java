@@ -23,6 +23,8 @@ public class Bitstamp extends BaseExch {
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_USD};
+    // supported currencies
+    private static final Currency[] CURRENCIES = { Currency.USD, Currency.BTC };
 
     private static String s_bitstampDeepTestStr = null;
 
@@ -31,6 +33,7 @@ public class Bitstamp extends BaseExch {
     @Override protected String getSecret() { return SECRET; }
     @Override protected String getApiEndpoint() { return "https://www.bitstamp.net/api/balance/"; }
     @Override public Pair[] supportedPairs() { return PAIRS; };
+    @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
     @Override public double minOurPriceStep(Pair pair) { return 0.01; }
 
     private static void log(String s) { Log.log(s); }

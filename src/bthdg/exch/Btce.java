@@ -12,7 +12,6 @@ import org.json.simple.JSONObject;
 
 import java.io.*;
 import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,6 +43,10 @@ public class Btce extends BaseExch {
                                  Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
                                  Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD,
                                  Pair.BTC_CNH, Pair.LTC_CNH, Pair.USD_CNH };
+    // supported currencies
+    private static final Currency[] CURRENCIES = {
+        Currency.USD, Currency.BTC, Currency.LTC, Currency.EUR, Currency.PPC, Currency.NMC, Currency.NVC, Currency.RUR, Currency.GBP, Currency.CNH,
+    };
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.LTC_USD, "0.000000", 0.000001,         0.000005,        "0.0#######",  0.00000001,     0.1);
@@ -83,6 +86,8 @@ public class Btce extends BaseExch {
     }
 
     @Override public Pair[] supportedPairs() { return PAIRS; };
+    @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
+    
     @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
     public static double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
     public static double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
@@ -413,7 +418,7 @@ public class Btce extends BaseExch {
         if( success == 1 ) {
             JSONObject ret = (JSONObject)  jObj.get("return");
             log(" ret=" + ret);
-            long orderId = Utils.getLong(ret.get("order_id"));
+            String orderId = Utils.getString(ret.get("order_id"));
             JSONObject funds = (JSONObject) ret.get("funds");
             AccountData accountData = parseFunds(funds);
             return new CancelOrderData(orderId, accountData);
@@ -471,7 +476,7 @@ public class Btce extends BaseExch {
                 long status = Utils.getLong(order.get("status"));
                 String pair = (String) order.get("pair");
                 String type = (String) order.get("type");
-                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, amount, rate, createTime, status, getPair(pair), getOrderSide(type));
+                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, 0, amount, rate, createTime, status, getPair(pair), getOrderSide(type));
                 ords.put(orderId, ord);
             }
             return new OrdersData(ords);
@@ -585,14 +590,6 @@ public class Btce extends BaseExch {
         if (pair.equals("ltc_cnh")) { return Pair.LTC_CNH; }
         if (pair.equals("usd_cnh")) { return Pair.USD_CNH; }
         return null;
-    }
-
-    private static OrderSide getOrderSide(String side) {
-        return side.equals("buy")
-                ? OrderSide.BUY
-                : side.equals("sell")
-                    ? OrderSide.SELL
-                    : null;
     }
 }
 

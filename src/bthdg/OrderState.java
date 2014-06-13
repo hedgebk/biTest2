@@ -80,7 +80,7 @@ public enum OrderState {
             if (ordData != null) {
                 log(" order still alive - liveOrder[" + orderId + "]=" + ordData);
                 double orderAmount = orderData.m_amount;
-                double liveAmount = ordData.m_amount;
+                double liveAmount = ordData.m_remainedAmount;
                 double absAmountDelta = Math.abs(orderAmount - liveAmount);
                 double minAmountStep = exchange.minAmountStep(pair);
                 String minAmountStepStr = orderData.roundAmountStr(exchange, minAmountStep);

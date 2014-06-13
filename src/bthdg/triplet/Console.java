@@ -75,9 +75,10 @@ public class Console {
     }
 
     private static void switchExchange(String line) {
-        String exchName = line.substring(2);
+        String exchName = line.substring(2).toUpperCase();
         System.err.println("requested change to exchange "+exchName);
         Exchange[] exchanges = Exchange.values();
+        List<Exchange> startsWith = new ArrayList<Exchange>();
         for(Exchange exchange: exchanges) {
             String name = exchange.name();
             if( name.equalsIgnoreCase(exchName) ) {
@@ -85,12 +86,24 @@ public class Console {
                 System.err.println(" current exchange is changed successfully to "+name);
                 return;
             }
+            if( name.startsWith(exchName) ) {
+                startsWith.add(exchange);
+            }
         }
-        System.err.println("exchange '"+exchName+"' not found. supported: " + Arrays.asList(exchanges));
+        if(startsWith.size() == 1) {
+            s_exchange = startsWith.get(0);
+            System.err.println(" current exchange is guessed and changed successfully to "+s_exchange.name());
+            return;
+        }
+        if(startsWith.size() > 1) {
+            System.err.println("multiple exchanges starts with '"+exchName+"' : " + startsWith);
+        } else {
+            System.err.println("exchange '"+exchName+"' not found. supported: " + Arrays.asList(exchanges));
+        }
     }
 
     private static void doOrders() throws Exception {
-        OrdersData od = Fetcher.fetchOrders(s_exchange, null);
+        OrdersData od = Fetcher.fetchOrders(s_exchange);
         System.out.println("ordersData=" + od);
         String error = od.m_error;
         if (error == null) {
@@ -130,19 +143,20 @@ public class Console {
     private static void doAccountMap(AccountData account, TopsData tops) {
         Map<Currency, Double> valuateMap = new HashMap<Currency, Double>();
 
+        Currency[] supportedCurrencies = s_exchange.supportedCurrencies();
         String s = "          ";
-        for (Currency inCurrency : Currency.values()) {
+        for (Currency inCurrency : supportedCurrencies) {
             double valuate = account.evaluate(tops, inCurrency);
             valuateMap.put(inCurrency, valuate);
             s += Utils.padLeft(inCurrency.toString(), 32);
         }
         System.out.println(s);
 
-        for (Currency currencyIn : Currency.values()) {
+        for (Currency currencyIn : supportedCurrencies) {
             double inValue = account.getAllValue(currencyIn);
             String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn + " ";
             Double rate = FundMap.s_distributeRatio.get(currencyIn);
-            for (Currency currencyOut : Currency.values()) {
+            for (Currency currencyOut : supportedCurrencies) {
                 double converted = (currencyIn == currencyOut)
                         ? inValue :
                         tops.convert(currencyIn, currencyOut, inValue);
@@ -159,7 +173,7 @@ public class Console {
         }
 
         s = "             ";
-        for (Currency outCurrency : Currency.values()) {
+        for (Currency outCurrency : supportedCurrencies) {
             double valuate = valuateMap.get(outCurrency);
             s +=  Utils.padRight(Utils.padLeft(Utils.X_YYYYY.format(valuate), 9), 29) + " | ";
         }
@@ -172,29 +186,34 @@ public class Console {
     }
 
     private static void doTops() throws Exception {
-        if(s_exchange.supportsMultiplePairsRequest()) {
-            DeepsData deeps = Fetcher.fetchDeeps(s_exchange, s_exchange.supportedPairs());
-            TopsData tops = deeps.getTopsDataAdapter();
-            printTops(tops);
+        TopsData tops;
+//            DeepsData deeps = Fetcher.fetchDeeps(s_exchange, s_exchange.supportedPairs());
+//            tops = deeps.getTopsDataAdapter();
+//            printTops(tops);
 
-            tops = Fetcher.fetchTops(s_exchange, s_exchange.supportedPairs());
-            printTops(tops);
-        } else {
-            System.out.println("MultiplePairsRequest not supported by " + s_exchange);
-        }
+        tops = Fetcher.fetchTops(s_exchange, s_exchange.supportedPairs());
+        printTops(tops);
     }
 
     private static void doTop(String line) throws Exception {
         String pairName = line.substring(4);
+        Pair pair = resolvePair(pairName);
+        if(pair == null) {
+            System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+        } else {
+            TopData top = Fetcher.fetchTop(s_exchange, pair);
+            System.out.println(" " + pair + " : " + top);
+        }
+    }
+
+    private static Pair resolvePair(String pairName) {
         Pair[] pairs = s_exchange.supportedPairs();
         for (Pair pair : pairs) {
             if (pair.name().equalsIgnoreCase(pairName)) {
-                TopData top = Fetcher.fetchTop(s_exchange, pair);
-                System.out.println(" " + pair + " : " + top);
-                return;
+                return pair;
             }
         }
-        System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(pairs));
+        return null;
     }
 
     private static void printTops(TopsData tops) {
@@ -209,14 +228,31 @@ public class Console {
         // cancel 12345
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
-        if (tokensNum == 2) {
-            String t1 = tok.nextToken();
-            String orderId = tok.nextToken();
-            CancelOrderData coData = Fetcher.calcelOrder(s_exchange, orderId);
-            System.out.println("cancel order '" + orderId + "' result: " + coData);
-            return;
+        if(s_exchange.queryOrdersBySymbol()) {
+            if (tokensNum == 3) {
+                tok.nextToken();
+                String orderId = tok.nextToken();
+                String pairName = tok.nextToken();
+                Pair pair = resolvePair(pairName);
+                if (pair == null) {
+                    System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                } else {
+                    CancelOrderData coData = Fetcher.calcelOrder(s_exchange, orderId, pair);
+                    System.out.println("cancel order '" + orderId + "' result: " + coData);
+                }
+            } else {
+                System.err.println("invalid 'cancel' command: use followed format: cancel orderId pair. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+            }
+        } else {
+            if (tokensNum == 2) {
+                tok.nextToken();
+                String orderId = tok.nextToken();
+                CancelOrderData coData = Fetcher.calcelOrder(s_exchange, orderId, null);
+                System.out.println("cancel order '" + orderId + "' result: " + coData);
+            } else {
+                System.err.println("invalid 'cancel' command: use followed format: cancel orderId");
+            }
         }
-        System.err.println("invalid 'cancel' command: use followed format: cancel orderId");
     }
 
     private static void doOrder(String line) throws Exception {

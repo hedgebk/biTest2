@@ -396,7 +396,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     return true;
                 } else {
                     String orderId = order.m_orderId;
-                    CancelOrderData coData = Fetcher.calcelOrder(Exchange.BTCE, orderId);
+                    CancelOrderData coData = Fetcher.calcelOrder(Exchange.BTCE, orderId, null);
                     String error = coData.m_error;
                     if (error == null) {
                         order.cancel();

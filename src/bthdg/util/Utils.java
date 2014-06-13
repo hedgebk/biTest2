@@ -126,6 +126,10 @@ public class Utils {
         }
     }
 
+    public static String getString(Object obj) {
+        return obj.toString();
+    }
+
     public static boolean compareAndNotNulls(Object o1, Object o2) {
         if (o1 == null) {
             if (o2 == null) {

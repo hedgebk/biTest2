@@ -27,6 +27,8 @@ public class Btcn extends BaseExch {
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH };
+    // supported currencies
+    private static final Currency[] CURRENCIES = { Currency.BTC, Currency.LTC, Currency.CNH };
 
     @Override public String getNextNonce() { return Long.toString(System.currentTimeMillis() * 1000); }
     @Override protected String getCryproAlgo() { return null; }
@@ -34,6 +36,7 @@ public class Btcn extends BaseExch {
     @Override protected String getApiEndpoint() { return "https://api.btcchina.com/api_trade_v1.php"; }
 
     @Override public Pair[] supportedPairs() { return PAIRS; }
+    @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
     @Override public double minOurPriceStep(Pair pair) { return 0.01; }
 
     private static void log(String s) { Log.log(s); }

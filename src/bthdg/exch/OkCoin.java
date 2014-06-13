@@ -15,10 +15,13 @@ import java.util.*;
 public class OkCoin extends BaseExch {
     private static String SECRET;
     private static String PARTNER;
-    public static boolean LOG_PARSE = false;
+    public static boolean LOG_PARSE = true;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
+
+    // supported currencies
+    private static final Currency[] CURRENCIES = { Currency.BTC, Currency.LTC, Currency.CNH };
 
     static DecimalFormat s_priceFormat = mkFormat("0.00");
     static DecimalFormat s_amountFormat = mkFormat("0.000");
@@ -28,6 +31,7 @@ public class OkCoin extends BaseExch {
     @Override protected String getSecret() { return null; }
     @Override protected String getApiEndpoint() { return null; }
     @Override public Pair[] supportedPairs() { return PAIRS; }
+    @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
     @Override public double minOurPriceStep(Pair pair) { return 0.01; }
 
     @Override public double roundPrice(double price, Pair pair){
@@ -103,9 +107,14 @@ public class OkCoin extends BaseExch {
         switch (pair) {
             case BTC_CNH: return "btc_cny";
             case LTC_CNH: return "ltc_cny";
-//            case LTC_BTC: return "ltcbtc";
             default: return "?";
         }
+    }
+
+    private static Pair getPair(String pair) {
+        if (pair.equals("btc_cny")) { return Pair.BTC_CNH; }
+        if (pair.equals("ltc_cny")) { return Pair.LTC_CNH; }
+        return null;
     }
 
     // https://www.okcoin.com/about/publicApi.do
@@ -207,8 +216,8 @@ public class OkCoin extends BaseExch {
         if (LOG_PARSE) {
             log("OkCoin.parseOrder() " + jObj);
         }
-        Boolean success = (Boolean) jObj.get("result");
-        if( success ) {
+        Boolean result = (Boolean) jObj.get("result");
+        if( result ) {
             long orderId = Utils.getLong(jObj.get("order_id"));
             return new PlaceOrderData(orderId);
         } else {
@@ -224,7 +233,7 @@ public class OkCoin extends BaseExch {
                 Map<String,String> sArray = new HashMap<String, String>();
               	sArray.put("partner", PARTNER);
                 String sign = buildMysign(sArray, SECRET);
-                return getPostData(sign);
+                return getPostData(sArray, sign);
             }
             case ORDER: {
                 OrderData order = options.getOrderData();
@@ -239,37 +248,87 @@ public class OkCoin extends BaseExch {
                 sArray.put("rate", priceStr);
                 sArray.put("amount", amountStr);
                 String sign = buildMysign(sArray, SECRET);
-
-                List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
-                postParams.add(new Post.NameValue("partner", PARTNER));
-                postParams.add(new Post.NameValue("symbol", getPairParam(pair)));
-                postParams.add(new Post.NameValue("type", getOrderSideStr(order)));
-                postParams.add(new Post.NameValue("rate", priceStr));
-                postParams.add(new Post.NameValue("amount", amountStr));
-                postParams.add(new Post.NameValue("sign", sign));
-                final String postData = Post.buildPostQueryString(postParams);
-                return new IPostData() {
-                    @Override public String postStr() { return postData; }
-                    @Override public Map<String, String> headerLines() { return null; }
-                };
-
-//                return getPostData(sign);
+                return getPostData(sArray, sign);
+            }
+            case ORDERS: {
+                Pair pair = options.getPair();
+                Map<String, String> sArray = new HashMap<String, String>();
+                sArray.put("partner", PARTNER);
+                sArray.put("order_id", "-1");
+                sArray.put("symbol", getPairParam(pair));
+                String sign = buildMysign(sArray, SECRET);
+                return getPostData(sArray, sign);
+            }
+            case CANCEL: {
+                Pair pair = options.getPair();
+                Map<String, String> sArray = new HashMap<String, String>();
+                sArray.put("partner", PARTNER);
+                sArray.put("order_id", options.getOrderId());
+                sArray.put("symbol", getPairParam(pair));
+                String sign = buildMysign(sArray, SECRET);
+                return getPostData(sArray, sign);
             }
         }
         throw new RuntimeException("not supported");
     }
 
-    private IPostData getPostData(String sign) {
-        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
-        postParams.add(new Post.NameValue("partner", PARTNER));
-        postParams.add(new Post.NameValue("sign", sign));
-        final String postData = Post.buildPostQueryString(postParams);
+    private IPostData getPostData(Map<String, String> sArray, String sign) {
+        sArray.put("sign", sign);
+        final String postData = Post.createHttpPostString(sArray, false);
         return new IPostData() {
             @Override public String postStr() { return postData; }
             @Override public Map<String, String> headerLines() { return null; }
         };
     }
 
+    public static OrdersData parseOrders(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("OkCoin.parseOrders() " + jObj);
+        }
+        Boolean result = (Boolean) jObj.get("result");
+        if( result ) {
+            JSONArray orders = (JSONArray) jObj.get("orders");
+            int size = orders.size();
+            Map<String,OrdersData.OrdData> ords = new HashMap<String,OrdersData.OrdData>();
+            for(int i = 0; i < size; i++) {
+                JSONObject order = (JSONObject) orders.get(i);
+                String orderId = ((Long) order.get("orders_id")).toString();
+                double orderAmount = Utils.getDouble(order.get("amount"));
+                double executedAmount = Utils.getDouble(order.get("deal_amount")); // Has been traded quantity
+                double remainedAmount = orderAmount - executedAmount;
+                double rate = Utils.getDouble(order.get("rate"));
+                long status = Utils.getLong(order.get("status")); // 0-pending?
+                String pair = (String) order.get("symbol");
+                String type = (String) order.get("type");
+                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, status, getPair(pair), getOrderSide(type));
+                ords.put(orderId, ord);
+            }
+            return new OrdersData(ords);
+        } else {
+            String error = (String) jObj.get("errorCode");
+            log(" error: " + error);
+            return new OrdersData(error); // orders error
+        }
+    }
+
+    public static CancelOrderData parseCancelOrders(Object obj) {
+//?{"result":true,"order_id":123456}
+//?{"result":false,"errorCode":10000?
+        JSONObject jObj = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("OkCoin.parseCancelOrders() " + jObj);
+        }
+        Boolean result = (Boolean) jObj.get("result");
+        if( result ) {
+            String orderId = Utils.getString(jObj.get("order_id"));
+            return new CancelOrderData(orderId, null);
+        } else {
+            String error = (String) jObj.get("errorCode");
+            log(" error: " + error);
+            return new CancelOrderData(error); // TODO - we have 'invalid parameter: order_id' here
+        }
+    }
 
     /*String url = " https://www.okcoin.com/api/trade.do";
     		Map<String, String> map = new HashMap<String, String>();

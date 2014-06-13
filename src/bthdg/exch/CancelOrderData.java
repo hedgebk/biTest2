@@ -4,14 +4,14 @@ import bthdg.AccountData;
 
 public class CancelOrderData {
     public String m_error;
-    public long m_orderId;
+    public String m_orderId;
     public AccountData m_funds;
 
     public CancelOrderData(String error) {
         m_error = error;
     }
 
-    public CancelOrderData(long orderId, AccountData funds) {
+    public CancelOrderData(String orderId, AccountData funds) {
         m_orderId = orderId;
         m_funds = funds;
     }
