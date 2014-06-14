@@ -234,6 +234,8 @@ public abstract class BaseExch {
         return Double.parseDouble(str);
     }
 
+    public void initFundMap() {}
+
     //*************************************************************************
     public interface IPostData {
         String postStr();

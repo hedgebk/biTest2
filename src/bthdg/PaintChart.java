@@ -15,31 +15,35 @@ import java.util.List;
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
 // - check fading moving average
 public class PaintChart extends BaseChartPaint {
-    private static Vary VARY = Vary.NONE;
-//    private static Vary VARY = Vary.MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN;
-//    private static Vary VARY = Vary.DROP;
+    private static VaryProfile PROFILE = VaryProfile.NONE;
+//    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_1;
+//    private static VaryProfile PROFILE = VaryProfile.DROP;
+//    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_2;
 
-    public static final int STEP_RATIO = 1; // >1 to less accurate calc
-    public static final int DISTANCE_RATIO = 5; // >1 less distance calc
+    public static final ExchangePair PAIR = ExchangePair.BTCN_OKCOIN;       // 1d  231     2d  2742     7d  47      14d  32
 
-    public static final ExchangePair PAIR = ExchangePair.BTCN_OKCOIN;     // 1d 1.4     2d  14.54
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;     // 1d  1.84
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;   // 1d  2.4
+//    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;     // 1d  2.43
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX; // 1d  1.71
 
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;   // 1d 1.36
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;
-//    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;   // 1d 1.36
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX;
-
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_HITBTC;   // 1d 12.97
-//    public static final ExchangePair PAIR = ExchangePair.BTCE_HITBTC;         // 1d  38.9   2d  6.12
-//    public static final ExchangePair PAIR = ExchangePair.BITFINEX_HITBTC;     // 1d  7.2
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_HITBTC;     // 1d 32.87
+//    public static final ExchangePair PAIR = ExchangePair.BTCE_HITBTC;         // 1d  20.73   2d  6.12
+//    public static final ExchangePair PAIR = ExchangePair.BITFINEX_HITBTC;     // 1d  15.63
 
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_LAKEBTC;      // 1d  1.19
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_LAKEBTC;
 //    public static final ExchangePair PAIR = ExchangePair.BITFINEX_LAKEBTC;
 //    public static final ExchangePair PAIR = ExchangePair.HITBTC_LAKEBTC;
 
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_ITBIT;
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_ITBIT;      // 1d  1.3
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_ITBIT;
+
+    private static Vary VARY = Vary.NONE;
+//    private static Vary VARY = Vary.MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN;
+//    private static Vary VARY = Vary.DROP;
+    public static int STEP_RATIO =     1; // >1 to less accurate calc
+    public static int DISTANCE_RATIO = 1; // >1 less distance calc
 
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
     public static final double PERIOD_LENGTH_DAYS = 1.0; // the period width - days
@@ -49,13 +53,12 @@ public class PaintChart extends BaseChartPaint {
     private static final Exchange EXCH2 = PAIR.m_exch2;
     private static final boolean VOLUME_AVERAGE = true;
     // chart area
-    public static final int X_FACTOR = 4; // more points
-    public static final int WIDTH_HEIGHT_RATIO_EXTRA = 3; // more points on X axe
+    public static final int X_FACTOR = 1; // more points
+    public static final int WIDTH_HEIGHT_RATIO_EXTRA = 6; // more points on X axe
                                                                                  // note: better simulation when time per pixel: 25sec
     private static final int WIDTH = (int)(1680 * X_FACTOR * WIDTH_HEIGHT_RATIO_EXTRA * (PERIOD_LENGTH_DAYS * 2)); // PERIOD_LENGTH_DAYS: 30->60; 45->90; 60->120; 90->200
     public static final int HEIGHT = 1000 * X_FACTOR * 2;
     static final boolean PAINT_PRICE = false;
-    static final boolean PAINT_DIFF = (VARY == Vary.NONE);
     public static final int MAX_CHART_DELTA = 60;
     public static final int MIN_CHART_DELTA = -45;
     // drop
@@ -63,6 +66,16 @@ public class PaintChart extends BaseChartPaint {
     public static final double DROP_LEVEL = PAIR.m_dropLevel;
     public static final boolean LOCK_DIRECTION_ON_DROP = false;
     public static final boolean DROP_ONLY_IN_REVERSE_FROM_AVG = true;
+
+    static {
+        if (PROFILE != null) {
+            VARY = PROFILE.m_vary;
+            STEP_RATIO = PROFILE.m_stepRatio;
+            DISTANCE_RATIO = PROFILE.m_distanceRatio;
+        }
+    }
+
+    static final boolean PAINT_DIFF = (VARY == Vary.NONE);
 
     private static final boolean VARY_MOVING_AVERAGE_LEN = (VARY == Vary.MOVING_AVERAGE_LEN || VARY == Vary.MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN );
     private static final int MOVING_AVERAGE_VARY_STEPS = 120/DISTANCE_RATIO;
@@ -736,27 +749,44 @@ public class PaintChart extends BaseChartPaint {
         NONE, MOVING_AVERAGE_LEN, EXPECTED_GAIN, DROP, MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN;
     }
 
+    private enum VaryProfile {
+        NONE(Vary.NONE, 1, 1),
+        AVG_GAIN_1(Vary.MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN, 5, 1),
+        DROP(Vary.DROP, 1, 1),
+        AVG_GAIN_2(Vary.MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN, 1, 5);
+
+        private Vary m_vary;
+        private int m_stepRatio;
+        private int m_distanceRatio;
+
+        VaryProfile(Vary vary, int stepRatio, int distanceRatio) {
+            m_vary = vary;
+            m_stepRatio = stepRatio;
+            m_distanceRatio = distanceRatio;
+        }
+    }
+
     // BITSTAMP, BTCE, CAMPBX
     private static enum ExchangePair {
-        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         29 * 60 + 51, 4.558,  0.004),
-        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,    162 * 60 + 14, 7.35,   0.805),
+        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         29 * 60 + 47, 2.733, -0.051),
+        BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,     51 * 60 + 51, 1.175,  0.805),
 
-        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,          4 * 60 + 44, 2.055,  1.475),
-        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 81 * 60 + 8,  3.555, -0.575),
+        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,         17 * 60 + 21, 2.13,   1.475),
+        BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 74 * 60 + 17, 6.63,  -0.215),
 
-        BITSTAMP_HITBTC(Exchange.BITSTAMP, Exchange.HITBTC,     3 * 60 + 49, 0.225,  1.035 ),
-        BTCE_HITBTC(Exchange.BTCE, Exchange.HITBTC,             6 * 60 + 43,  0.175,   0.011 ),
-        BITFINEX_HITBTC(Exchange.BITFINEX, Exchange.HITBTC,     3 * 60 + 47,  0.15,  0.565 ),
+        BITSTAMP_HITBTC(Exchange.BITSTAMP, Exchange.HITBTC,     14 * 60 + 39, 0.425,  1.035 ),
+        BTCE_HITBTC(Exchange.BTCE, Exchange.HITBTC,             11 * 60 + 5,  0.65,   0.196 ),
+        BITFINEX_HITBTC(Exchange.BITFINEX, Exchange.HITBTC,      5 * 60 + 41, 0.75,   0.565 ),
 
         BITSTAMP_LAKEBTC(Exchange.BITSTAMP, Exchange.LAKEBTC,   87 * 60 + 19, 3.25,   0.05 ),
         BTCE_LAKEBTC(Exchange.BTCE, Exchange.LAKEBTC,          144 * 60 + 34, 5.1,    1.13 ),
         BITFINEX_LAKEBTC(Exchange.BITFINEX, Exchange.LAKEBTC,  126 * 60 + 18, 6.315, -0.155 ),
         HITBTC_LAKEBTC(Exchange.HITBTC, Exchange.LAKEBTC,      134 * 60 + 45, 7.915, -0.22 ),
 
-        BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      78 * 60 + 12, 2.85,  -0.05 ),
+        BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      132 * 60 + 12, 9.225, -0.05 ),
         BTCE_ITBIT(Exchange.BTCE, Exchange.ITBIT,              310 * 60 + 7,  3.825,  0.195 ),
 
-        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,             4 * 60 + 44, 1.25, 0.945 ),
+        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,              9 * 60 + 58, 0.675,  0.45 ),
         ;
 
         public final Exchange m_exch1;

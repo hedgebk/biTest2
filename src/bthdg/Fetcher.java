@@ -174,7 +174,7 @@ public class Fetcher {
             return fetchOrders(exchange, null);
         }
         // aggregate
-        Map<String,OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
+        Map<String, OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
         log("fetching per-pair orders");
         Pair[] pairs = exchange.supportedPairs();
         for (Pair pair : pairs) {
@@ -185,7 +185,7 @@ public class Fetcher {
                     ords.put(ord.m_orderId, ord);
                 }
             } else {
-                return new OrdersData("fetch orders for "+exchange+"/"+pair+" error: " + error);
+                return new OrdersData("fetch orders for " + exchange + "/" + pair + " error: " + error);
             }
         }
         return new OrdersData(ords);

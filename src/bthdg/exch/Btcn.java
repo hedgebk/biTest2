@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.triplet.FundMap;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
@@ -58,6 +59,14 @@ public class Btcn extends BaseExch {
         s_minExchPriceStepMap.put(pair, minExchPriceStep);
         s_minOurPriceStepMap.put(pair, minOurPriceStep);
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
+    }
+
+    @Override public void initFundMap() {
+        Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
+        distributeRatio.put(Currency.BTC, 0.5);
+        distributeRatio.put(Currency.CNH, 0.5);
+        distributeRatio.put(Currency.LTC, 0.0);
+        FundMap.s_map.put(Exchange.BTCN, distributeRatio);
     }
 
     @Override public String getNextNonce() { return Long.toString(System.currentTimeMillis() * 1000); }
@@ -285,9 +294,9 @@ public class Btcn extends BaseExch {
     private IPostData buildPostData(String nonce, String method, String methodParams) throws Exception {
         String params = buildPostParams(nonce, method, methodParams)
                 .replace("\"", "") // do not send " symbol in signature
-                .replace("true", "1")
-                .replace("false", ""); // do not send " symbol in signature
-//log("PostParams="+params);
+                .replace("true", "1")  // send 1 instead of true in signature
+                .replace("false", ""); // do not send false in signature
+log("PostParams="+params);
         // todo: check: use encode() instead if getSignature() ?
         //String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
 
@@ -296,7 +305,7 @@ public class Btcn extends BaseExch {
         String basicAuth = "Basic " + DatatypeConverter.printBase64Binary(userPass.getBytes());
 
         final String postStr = "{\"method\": \"" + method + "\",\"params\":[" + methodParams + "],\"id\": " + nonce + "}";
-//log("postStr="+postStr);
+log("postStr="+postStr);
         final Map<String, String> headerLines = new HashMap<String, String>();
         headerLines.put("Json-Rpc-Tonce", nonce);
         headerLines.put("Authorization", basicAuth);
@@ -374,26 +383,28 @@ public class Btcn extends BaseExch {
     }
 
     private static AccountData parseFunds(JSONObject balance) {
-        JSONObject btc = (JSONObject) balance.get("btc");
-        double btcVal = Utils.getDouble(btc.get("amount"));
-        AccountData accountData = new AccountData(Exchange.BTCN.m_name, 0, btcVal, Double.MAX_VALUE);
-        JSONObject ltc = (JSONObject) balance.get("ltc");
-        double ltcVal = Utils.getDouble(ltc.get("amount"));
-        accountData.setAvailable(Currency.LTC, ltcVal);
-        JSONObject cny = (JSONObject) balance.get("cny");
-        double cnyVal = Utils.getDouble(cny.get("amount"));
-        accountData.setAvailable(Currency.CNH, cnyVal);
+        AccountData accountData = new AccountData(Exchange.BTCN.m_name, Double.MAX_VALUE);
+        setBalance(balance, accountData, "btc", Currency.BTC);
+        setBalance(balance, accountData, "ltc", Currency.LTC);
+        setBalance(balance, accountData, "cny", Currency.CNH);
         return accountData;
     }
-/*
 
-    String params = "tonce=" + tonce.toString() + "&accesskey="
-    					+ ACCESS_KEY
-    					+ "&requestmethod=post&id=1&method="+buyOrderOrSellOrder+"&params="+price+","+amount;
+    private static void setBalance(JSONObject balance, AccountData accountData, String key, Currency curr) {
+        JSONObject btc = (JSONObject) balance.get(key);
+        double btcVal = Utils.getDouble(btc.get("amount"));
+        accountData.setAvailable(curr, btcVal);
+    }
 
-    String postdata = "{\"method\": \""+buyOrderOrSellOrder+"\", \"params\": ["+price+","+amount+"], \"id\": 1}";
+    /*
 
-*/
+        String params = "tonce=" + tonce.toString() + "&accesskey="
+                            + ACCESS_KEY
+                            + "&requestmethod=post&id=1&method="+buyOrderOrSellOrder+"&params="+price+","+amount;
+
+        String postdata = "{\"method\": \""+buyOrderOrSellOrder+"\", \"params\": ["+price+","+amount+"], \"id\": 1}";
+
+    */
     public static BigDecimal truncateAmount(BigDecimal value) {
         return value.setScale(3, RoundingMode.FLOOR).stripTrailingZeros();
     }

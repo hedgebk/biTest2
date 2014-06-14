@@ -48,6 +48,8 @@ public class Console {
             return true;
         } else if( line.startsWith("account")) {
             doAccount(line);
+        } else if( line.startsWith("orders ")) {
+            doOrders(line);
         } else if( line.equals("orders")) {
             doOrders();
         } else if( line.equals("tops")) {
@@ -105,6 +107,21 @@ public class Console {
 
     private static void doOrders() throws Exception {
         OrdersData od = Fetcher.fetchOrders(s_exchange);
+        onOrders(od);
+    }
+
+    private static void doOrders(String line) throws Exception {
+        String pairName = line.substring(7);
+        Pair pair = resolvePair(pairName);
+        if (pair == null) {
+            System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+        } else {
+            OrdersData od = Fetcher.fetchOrders(s_exchange, pair);
+            onOrders(od);
+        }
+    }
+
+    private static void onOrders(OrdersData od) {
         System.out.println("ordersData=" + od);
         String error = od.m_error;
         if (error == null) {
@@ -147,7 +164,7 @@ public class Console {
         Currency[] supportedCurrencies = s_exchange.supportedCurrencies();
         String s = "          ";
         for (Currency inCurrency : supportedCurrencies) {
-            double valuate = account.evaluate(tops, inCurrency);
+            double valuate = account.evaluate(tops, inCurrency, s_exchange);
             valuateMap.put(inCurrency, valuate);
             s += Utils.padLeft(inCurrency.toString(), 32);
         }
@@ -156,11 +173,12 @@ public class Console {
         for (Currency currencyIn : supportedCurrencies) {
             double inValue = account.getAllValue(currencyIn);
             String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn + " ";
-            Double rate = FundMap.s_distributeRatio.get(currencyIn);
+            Map<Currency, Double> distributeRatio = FundMap.distributeRatio(s_exchange);
+            Double rate = distributeRatio.get(currencyIn);
             for (Currency currencyOut : supportedCurrencies) {
                 double converted = (currencyIn == currencyOut)
                         ? inValue :
-                        tops.convert(currencyIn, currencyOut, inValue);
+                        tops.convert(currencyIn, currencyOut, inValue, s_exchange);
                 str += Utils.padLeft(Utils.X_YYYYY.format(converted), 9) + " ";
 
                 double valuate = valuateMap.get(currencyOut);
@@ -179,7 +197,7 @@ public class Console {
             s +=  Utils.padRight(Utils.padLeft(Utils.X_YYYYY.format(valuate), 9), 29) + " | ";
         }
         System.out.println(s);
-        FundMap.test(account, tops);
+        FundMap.test(account, tops, s_exchange);
     }
 
     private static void printHelp() {
@@ -199,11 +217,11 @@ public class Console {
     private static void doTop(String line) throws Exception {
         String pairName = line.substring(4);
         Pair pair = resolvePair(pairName);
-        if(pair == null) {
+        if (pair == null) {
             System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
         } else {
             TopData top = Fetcher.fetchTop(s_exchange, pair);
-            System.out.println(" " + pair + " : " + top);
+            System.out.println(" " + pair + " : " + top.toString(s_exchange, pair));
         }
     }
 
@@ -295,6 +313,10 @@ public class Console {
                         double dif = top.m_ask - top.m_bid;
                         double offset = dif * perc/100;
                         limitPrice = side.isBuy() ? top.m_ask - offset : top.m_bid + offset;
+                        limitPrice = s_exchange.roundPrice(limitPrice, pair);
+                        System.out.println(" bid="+s_exchange.roundPriceStr(top.m_bid, pair) +
+                                           ", ask="+s_exchange.roundPriceStr(top.m_bid, pair) +
+                                           ", limit="+s_exchange.roundPriceStr(limitPrice, pair));
                     } else if (priceStr.equals("peg")) { // place peg
                         TopData top = Fetcher.fetchTop(s_exchange, pair);
                         double step = s_exchange.minOurPriceStep(pair);
@@ -302,6 +324,7 @@ public class Console {
                     } else if (priceStr.equals("mid")) { // place mid
                         TopData top = Fetcher.fetchTop(s_exchange, pair);
                         limitPrice = top.getMid();
+                        limitPrice = s_exchange.roundPrice(limitPrice, pair);
                     } else {
                         limitPrice = Double.parseDouble(priceStr);
                     }

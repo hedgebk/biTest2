@@ -5,6 +5,7 @@ package bthdg.exch;
 // code to inspire here: https://github.com/ReAzem/cryptocoin-tradelib/blob/master/modules/btc_e/src/de/andreas_rueckert/trade/site/btc_e/client/BtcEClient.java
 
 import bthdg.*;
+import bthdg.triplet.FundMap;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
@@ -83,6 +84,21 @@ public class Btce extends BaseExch {
         s_minExchPriceStepMap.put(pair, minExchPriceStep);
         s_minOurPriceStepMap.put(pair, minOurPriceStep);
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
+    }
+
+    @Override public void initFundMap() {
+        Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
+        distributeRatio.put(Currency.USD, 0.23);
+        distributeRatio.put(Currency.BTC, 0.18);
+        distributeRatio.put(Currency.EUR, 0.20);
+        distributeRatio.put(Currency.LTC, 0.15);
+        distributeRatio.put(Currency.PPC, 0.03);
+        distributeRatio.put(Currency.NMC, 0.04);
+        distributeRatio.put(Currency.NVC, 0.04);
+        distributeRatio.put(Currency.RUR, 0.04);
+        distributeRatio.put(Currency.GBP, 0.04);
+        distributeRatio.put(Currency.CNH, 0.04);
+        FundMap.s_map.put(Exchange.BTCE, distributeRatio);
     }
 
     @Override public Pair[] supportedPairs() { return PAIRS; };
@@ -359,9 +375,11 @@ public class Btce extends BaseExch {
     }
 
     private static AccountData parseFunds(JSONObject funds) {
+        AccountData accountData = new AccountData(Exchange.BTCE.m_name, Double.MAX_VALUE);
         double usd = Utils.getDouble(funds.get("usd"));
+        accountData.setAvailable(Currency.USD, usd);
         double btc = Utils.getDouble(funds.get("btc"));
-        AccountData accountData = new AccountData(Exchange.BTCE.m_name, usd, btc, Double.MAX_VALUE);
+        accountData.setAvailable(Currency.BTC, btc);
         double ltc = Utils.getDouble(funds.get("ltc"));
         accountData.setAvailable(Currency.LTC, ltc);
         double eur = Utils.getDouble(funds.get("eur"));

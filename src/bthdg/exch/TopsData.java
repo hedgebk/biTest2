@@ -10,26 +10,43 @@ import java.util.Set;
 public class TopsData {
     public HashMap<Pair,TopData> m_map = new HashMap<Pair,TopData>(Pair.values().length);
 
-    public TopData get(Pair pair) { return m_map.get(pair); }
+    public TopData get(Pair pair) {
+        TopData topData = m_map.get(pair);
+        if (topData == null) {
+            throw new RuntimeException("no top data for pair " + pair);
+        }
+        return topData;
+    }
     public void put(Pair pair, TopData top) { m_map.put(pair, top); }
     public Set<Map.Entry<Pair, TopData>> entrySet() { return m_map.entrySet(); }
 
-    public double convert(Currency inCurrency, Currency outCurrency, double all) {
-        double rate;
-        if(PairDirection.support(inCurrency, outCurrency)) {
-            rate = rate(inCurrency, outCurrency);
-        } else {
-            rate = rate(inCurrency, Currency.BTC) * rate(Currency.BTC, outCurrency);
-        }
+    public double convert(Currency inCurrency, Currency outCurrency, double all, Exchange exchange) {
+        double rate = rate(exchange, inCurrency, outCurrency);
         double converted = all / rate;
         return converted;
     }
 
-    private double rate(Currency inCurrency, Currency outCurrency) {
-        double rate;PairDirection pd = PairDirection.get(inCurrency, outCurrency);
+    public double rate(Exchange exchange, Currency from, Currency to) {
+        double rate;
+        if (from == to) {
+            rate = 1;
+        } else {
+            boolean support = exchange.supportPair(from, to);
+            if(support) {
+                rate = rate(from, to);
+            } else {
+                Currency baseCurrency = exchange.baseCurrency();
+                rate = rate(from, baseCurrency) * rate(baseCurrency, to);
+            }
+        }
+        return rate;
+    }
+
+    public double rate(Currency inCurrency, Currency outCurrency) {
+        PairDirection pd = PairDirection.get(inCurrency, outCurrency);
         Pair pair = pd.m_pair;
         TopData top = get(pair);
-        rate = top.getMid();
+        double rate = top.getMid();
         if (!pd.isForward()) {
             rate = 1 / rate;
         }

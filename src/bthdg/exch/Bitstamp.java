@@ -160,7 +160,10 @@ public class Bitstamp extends BaseExch {
         double usd = Utils.getDouble(jObj.get("usd_balance"));
         double fee = Utils.getDouble(jObj.get("fee")) / 100;
         double btc = Utils.getDouble(jObj.get("btc_balance"));
-        return new AccountData(Exchange.BITSTAMP.m_name, usd, btc, fee);
+        AccountData ret = new AccountData(Exchange.BITSTAMP.m_name, fee);
+        ret.setAvailable(Currency.USD, usd);
+        ret.setAvailable(Currency.BTC, btc);
+        return ret;
     }
 
     public static String accountTestStr() {

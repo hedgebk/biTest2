@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.triplet.FundMap;
 import bthdg.util.Md5;
 import bthdg.util.Post;
 import bthdg.util.Utils;
@@ -17,14 +18,41 @@ public class OkCoin extends BaseExch {
     private static String PARTNER;
     public static boolean LOG_PARSE = true;
 
+    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
+
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
 
     // supported currencies
     private static final Currency[] CURRENCIES = { Currency.BTC, Currency.LTC, Currency.CNH };
 
-    static DecimalFormat s_priceFormat = mkFormat("0.00");
-    static DecimalFormat s_amountFormat = mkFormat("0.000");
+    static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
+        put(Pair.BTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.01);
+        put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.01);
+    }
+
+    private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
+        s_amountFormatMap.put(pair, mkFormat(amountFormat));
+        s_minAmountStepMap.put(pair, minAmountStep);
+        s_priceFormatMap.put(pair, mkFormat(priceFormat));
+        s_minExchPriceStepMap.put(pair, minExchPriceStep);
+        s_minOurPriceStepMap.put(pair, minOurPriceStep);
+        s_minOrderToCreateMap.put(pair, minOrderToCreate);
+    }
+
+
+    @Override public void initFundMap() {
+        Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
+        distributeRatio.put(Currency.BTC, 0.5);
+        distributeRatio.put(Currency.CNH, 0.5);
+        distributeRatio.put(Currency.LTC, 0.0);
+        FundMap.s_map.put(Exchange.OKCOIN, distributeRatio);
+    }
 
     @Override public String getNextNonce() { return null; }
     @Override protected String getCryproAlgo() { return null; }
@@ -42,10 +70,10 @@ public class OkCoin extends BaseExch {
     }
 
     @Override public String roundPriceStr(double price, Pair pair) {
-        return s_priceFormat.format(price);
+        return s_priceFormatMap.get(pair).format(price);
     }
     @Override public String roundAmountStr(double amount, Pair pair) {
-        return s_amountFormat.format(amount);
+        return s_amountFormatMap.get(pair).format(amount);
     }
 
     private static void log(String s) { Log.log(s); }
@@ -200,8 +228,9 @@ public class OkCoin extends BaseExch {
         // {"info":{"funds":{"free":{"btc":"0","cny":"0","ltc":"0"},"freezed":{"btc":"0","cny":"0","ltc":"0"}}},"result":true}
     }
     private static AccountData parseFunds(JSONObject free) {
+        AccountData accountData = new AccountData(Exchange.OKCOIN.m_name, Double.MAX_VALUE);
         double btc = Utils.getDouble(free.get("btc"));
-        AccountData accountData = new AccountData(Exchange.OKCOIN.m_name, 0, btc, Double.MAX_VALUE);
+        accountData.setAvailable(Currency.BTC, btc);
         double ltc = Utils.getDouble(free.get("ltc"));
         accountData.setAvailable(Currency.LTC, ltc);
         double cny = Utils.getDouble(free.get("cny"));
@@ -306,7 +335,7 @@ public class OkCoin extends BaseExch {
             }
             return new OrdersData(ords);
         } else {
-            String error = (String) jObj.get("errorCode");
+            String error = Utils.getString(jObj.get("errorCode"));
             log(" error: " + error);
             return new OrdersData(error); // orders error
         }
@@ -391,4 +420,25 @@ sign        true    string  In the parameters of the request to make a signature
 deal_amount - Has been traded quantity
 avg_rate - The average transaction price
     		*/
+
+// error codes:
+//    10001 - Too frequent user requests
+//	          # too much api request, 2s interval
+//            # TODO need to check whether the order was placed or not
+//            print ("# too frequent api request, pls retry after 2s interval")
+
+//    error codes =   { 10000 : 'Required parameter can not be null',
+//                      10001 : 'Requests are too frequent',
+//                      10002 : 'System Error',
+//                      10003 : 'Restricted list request, please try again later',
+//                      10004 : 'IP restriction',
+//                      10005 : 'Key does not exist',
+//                      10006 : 'User does not exist',
+//                      10007 : 'Signatures do not match',
+//                      10008 : 'Illegal parameter',
+//                      10009 : 'Order does not exist',
+//                      10010 : 'Insufficient balance',
+//                      10011 : 'Order is less than minimum trade amount',
+//                      10012 : 'Unsupported symbol (not btc_cny or ltc_cny)',
+//                      10013 : 'This interface only accepts https requests' }
 }

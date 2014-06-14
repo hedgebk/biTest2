@@ -233,10 +233,10 @@ public class Triplet {
 
         IterationData iData = new IterationData(tAgg, null);
         TopsData tops = iData.getTops();
-        s_startEur = s_startAccount.evaluateEur(tops);
-        s_startUsd = s_startAccount.evaluateUsd(tops);
-        s_startBtc = s_startAccount.evaluate(tops, Currency.BTC);
-        s_startLtc = s_startAccount.evaluate(tops, Currency.LTC);
+        s_startEur = s_startAccount.evaluateEur(tops, Exchange.BTCE);
+        s_startUsd = s_startAccount.evaluateUsd(tops, Exchange.BTCE);
+        s_startBtc = s_startAccount.evaluate(tops, Currency.BTC, Exchange.BTCE);
+        s_startLtc = s_startAccount.evaluate(tops, Currency.LTC, Exchange.BTCE);
         System.out.println(" evaluateEur: " + format5(s_startEur) + " evaluateUsd: " + format5(s_startUsd)
                 + " evaluateBtc: " + format5(s_startBtc) + " evaluateLtc: " + format5(s_startLtc));
         return account;

@@ -57,6 +57,7 @@ public enum Exchange {
         @Override public double minOrderSize(Pair pair) { return Btce.minOrderToCreate(pair); }
         @Override public boolean queryOrdersBySymbol() { return false; }
         @Override public boolean supportsMultiplePairsRequest() { return true; }
+        @Override public Currency baseCurrency() { return Currency.BTC; }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -92,6 +93,7 @@ public enum Exchange {
         @Override public OrdersData parseOrders(Object jObj) { return Btcn.parseOrders(jObj); }
         @Override public boolean queryOrdersBySymbol() { return false; }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btcn.parseCancelOrders(jObj); }
+        @Override public Currency baseCurrency() { return Currency.CNH; }
     },
     OKCOIN("OkCoin", new OkCoin(), "okcoinCNY", 10, 0.00001, true, 2,
            null, "https://www.okcoin.cn/api/ticker.do?symbol=XXXX", // XXXX like "ltc_cny"
@@ -110,6 +112,7 @@ public enum Exchange {
         @Override public PlaceOrderData parseOrder(Object jObj) { return OkCoin.parseOrder(jObj); }
         @Override public OrdersData parseOrders(Object jObj) { return OkCoin.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return OkCoin.parseCancelOrders(jObj); }
+        @Override public Currency baseCurrency() { return Currency.CNH; }
     },
     HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false, 2,
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
@@ -125,6 +128,14 @@ public enum Exchange {
         @Override public AccountData parseAccount(Object jObj) { return Huobi.parseAccount(jObj); }
     },
     ;
+
+    static {
+        for(Exchange exchange: values()) {
+            if (exchange.m_baseExch != null) {
+                exchange.m_baseExch.initFundMap();
+            }
+        }
+    }
 
     public final String m_name;
     public BaseExch m_baseExch;
@@ -220,6 +231,19 @@ public enum Exchange {
     public boolean supportsMultiplePairsRequest() { return false; }
     public boolean queryOrdersBySymbol() { return true; }
     public Currency[] supportedCurrencies() { return m_baseExch.supportedCurrencies(); }
+    public Currency baseCurrency() { throw new RuntimeException("baseCurrency not implemented on " + this ); }
+
+    public boolean supportPair(Currency from, Currency to) {
+        for( Pair pair: supportedPairs()) {
+            if((pair.m_from == from) && (pair.m_to == to)) {
+                return true;
+            }
+            if((pair.m_to == from) && (pair.m_from == to)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class UrlDef {

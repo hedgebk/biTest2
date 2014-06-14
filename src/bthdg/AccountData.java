@@ -35,12 +35,6 @@ public class AccountData {
         return Math.round(value * 1000000000d) / 1000000000d;
     }
 
-    public AccountData(String name, double usd, double btc, double fee) {
-        this(name, fee);
-        setAvailable(Currency.USD, usd);
-        setAvailable(Currency.BTC, btc);
-    }
-
     public AccountData(String name, double fee) {
         m_name = name;
         m_fee = fee;
@@ -110,7 +104,9 @@ public class AccountData {
         double usd = Double.parseDouble(usdStr);
         double btc = Double.parseDouble(btcStr);
         double fee = (feeStr.length() == 0) ? Double.MAX_VALUE: Double.parseDouble(feeStr);
-        AccountData ret = new AccountData(name, usd, btc, fee);
+        AccountData ret = new AccountData(name, fee);
+        ret.setAvailable(Currency.USD, usd);
+        ret.setAvailable(Currency.BTC, btc);
         return ret;
     }
 
@@ -189,47 +185,26 @@ public class AccountData {
         return ret;
     }
 
-    public double evaluateEur(TopsData tops) {
-        return evaluate(tops, Currency.EUR);
+    public double evaluateEur(TopsData tops, Exchange exchange) {
+        return evaluate(tops, Currency.EUR, exchange);
     }
 
-    public double evaluateUsd(TopsData tops) {
-        return evaluate(tops, Currency.USD);
+    public double evaluateUsd(TopsData tops, Exchange exchange) {
+        return evaluate(tops, Currency.USD, exchange);
     }
 
-    public double evaluate(TopsData tops, Currency curr) {
+    public double evaluate(TopsData tops, Currency curr, Exchange exchange) {
         double allValue = 0;
         for (Currency currency : m_funds.keySet()) {
             double value = getAllValue(currency);
             if (value > 0.000000001) {
-                double rate;
-                if (currency == curr) {
-                    rate = 1;
-                } else {
-                    boolean support = PairDirection.support(currency, curr);
-                    if(support) {
-                        rate = rate(tops, currency, curr);
-                    } else {
-                        rate = rate(tops, currency, Currency.BTC) * rate(tops, Currency.BTC, curr);
-                    }
-                }
+                double rate = tops.rate(exchange, currency, curr);
                 value = value / rate;
                 allValue += value;
             }
 
         }
         return allValue;
-    }
-
-    private double rate(TopsData tops, Currency currencyFrom, Currency currencyTo) {
-        PairDirection pd = PairDirection.get(currencyFrom, currencyTo);
-        Pair pair = pd.m_pair;
-        TopData top = tops.get(pair);
-        double rate = top.getMid();
-        if (!pd.isForward()) {
-            rate = 1 / rate;
-        }
-        return rate;
     }
 
     public double getAllValue(Currency currency) {
@@ -243,7 +218,6 @@ public class AccountData {
             allValue += allocated;
         }
         return allValue;
-
     }
 
     public double midMul(AccountData account) {

@@ -118,7 +118,7 @@ public enum TriTradeState {
         double gain = out / in;
 
         TopsData tops = iData.getTops();
-        double acctEval = account.evaluate(tops, startCurrency);
+        double acctEval = account.evaluate(tops, startCurrency, Exchange.BTCE);
 
         Triplet.s_totalRatio *= (1+plus/acctEval);
         Triplet.s_counter++;
@@ -128,11 +128,11 @@ public enum TriTradeState {
         double ratio3 = ends3[1]/ends3[0];
         double ratio = ratio1 * ratio2 * ratio3;
 
-        double valuateEur = account.evaluateEur(tops);
+        double valuateEur = account.evaluateEur(tops, Exchange.BTCE);
         double eurRate = valuateEur / Triplet.s_startEur;
-        double valuateUsd = account.evaluateUsd(tops);
+        double valuateUsd = account.evaluateUsd(tops, Exchange.BTCE);
         double usdRate = valuateUsd / Triplet.s_startUsd;
-        double valuateBtc = account.evaluate(tops, Currency.BTC);
+        double valuateBtc = account.evaluate(tops, Currency.BTC, Exchange.BTCE);
         double btcRate = valuateBtc / Triplet.s_startBtc;
 
         double midMul = account.midMul(Triplet.s_startAccount);
