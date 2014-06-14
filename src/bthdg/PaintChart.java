@@ -42,14 +42,14 @@ public class PaintChart extends BaseChartPaint {
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_ITBIT;
 
     private static final int PERIOD_END_OFFSET_DAYS = 0; // minus days from last tick
-    public static final double PERIOD_LENGTH_DAYS = 2.0; // the period width - days
+    public static final double PERIOD_LENGTH_DAYS = 1.0; // the period width - days
     private static final long MOVING_AVERAGE_MILLIS = PAIR.m_movingAverage;
     private static final double EXPECTED_GAIN = PAIR.m_expectedGain;
     private static final Exchange EXCH1 = PAIR.m_exch1;
     private static final Exchange EXCH2 = PAIR.m_exch2;
     private static final boolean VOLUME_AVERAGE = true;
     // chart area
-    public static final int X_FACTOR = 2; // more points
+    public static final int X_FACTOR = 4; // more points
     public static final int WIDTH_HEIGHT_RATIO_EXTRA = 3; // more points on X axe
                                                                                  // note: better simulation when time per pixel: 25sec
     private static final int WIDTH = (int)(1680 * X_FACTOR * WIDTH_HEIGHT_RATIO_EXTRA * (PERIOD_LENGTH_DAYS * 2)); // PERIOD_LENGTH_DAYS: 30->60; 45->90; 60->120; 90->200
@@ -756,7 +756,7 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      78 * 60 + 12, 2.85,  -0.05 ),
         BTCE_ITBIT(Exchange.BTCE, Exchange.ITBIT,              310 * 60 + 7,  3.825,  0.195 ),
 
-        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,             9 * 60 + 28, 0.35, 0.495 ),
+        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,             4 * 60 + 44, 1.25, 0.945 ),
         ;
 
         public final Exchange m_exch1;

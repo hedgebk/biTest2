@@ -38,11 +38,11 @@ public class OrdersData {
         public double m_remainedAmount;
         public double m_rate;
         public long m_createTime; // not all exchanges supports
-        public long m_status;
+        public String m_status;
         public Pair m_pair;
         public OrderSide m_orderSide;
 
-        public OrdData(String orderId, double orderAmount, double remainedAmount, double rate, long createTime, long status, Pair pair, OrderSide orderSide) {
+        public OrdData(String orderId, double orderAmount, double remainedAmount, double rate, long createTime, String status, Pair pair, OrderSide orderSide) {
             m_orderId = orderId;
             m_orderAmount = orderAmount;
             m_remainedAmount = remainedAmount;

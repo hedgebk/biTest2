@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.*;
+import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -13,11 +14,18 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.util.*;
 
 /**
  * https://github.com/agent462/chinashop/tree/master/lib/chinashop
+ * ## Private API
+ * http://btcchina.org/api-trade-documentation-en
+ * ## Public API
+ * http://btcchina.org/api-market-data-documentation-en
  * */
 public class Btcn extends BaseExch {
     private static String KEY;
@@ -25,10 +33,32 @@ public class Btcn extends BaseExch {
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
     public static boolean LOG_PARSE = true;
 
+    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
+
     // supported pairs
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH };
     // supported currencies
     private static final Currency[] CURRENCIES = { Currency.BTC, Currency.LTC, Currency.CNH };
+
+    static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
+        put(Pair.LTC_BTC, "0.0000",   0.0001,           0.0002,          "0.0###",      0.001,          0.01);
+        put(Pair.BTC_CNH, "0.00",     0.01,             0.02,            "0.0###",      0.0001,         0.001);
+        put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.01);
+    }
+
+    private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
+        s_amountFormatMap.put(pair, mkFormat(amountFormat));
+        s_minAmountStepMap.put(pair, minAmountStep);
+        s_priceFormatMap.put(pair, mkFormat(priceFormat));
+        s_minExchPriceStepMap.put(pair, minExchPriceStep);
+        s_minOurPriceStepMap.put(pair, minOurPriceStep);
+        s_minOrderToCreateMap.put(pair, minOrderToCreate);
+    }
 
     @Override public String getNextNonce() { return Long.toString(System.currentTimeMillis() * 1000); }
     @Override protected String getCryproAlgo() { return null; }
@@ -37,7 +67,21 @@ public class Btcn extends BaseExch {
 
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
-    @Override public double minOurPriceStep(Pair pair) { return 0.01; }
+    @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
+
+    @Override public double roundPrice(double price, Pair pair){
+        return defRoundPrice(price, pair);
+    }
+    @Override public double roundAmount(double amount, Pair pair){
+        return defRoundAmount(amount, pair);
+    }
+
+    @Override public String roundPriceStr(double price, Pair pair) {
+        return s_priceFormatMap.get(pair).format(price);
+    }
+    @Override public String roundAmountStr(double amount, Pair pair) {
+        return s_amountFormatMap.get(pair).format(amount);
+    }
 
     private static void log(String s) { Log.log(s); }
 
@@ -151,7 +195,7 @@ public class Btcn extends BaseExch {
         String params = "tonce=" + nonce +
                 "&accesskey=" + KEY +
                 "&requestmethod=post" +
-                "&id=1" +
+                "&id=" + nonce +
                 "&method=getAccountInfo" +
                 "&params=";
         String hash = getSignature(params, SECRET);
@@ -194,14 +238,56 @@ public class Btcn extends BaseExch {
     }
 
     @Override public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
-        String nonce = getNextNonce();
-        String params = "tonce=" + nonce +
-                "&accesskey=" + KEY +
-                "&requestmethod=post" +
-                "&id=1" +
-                "&method=getAccountInfo" +
-                "&params=";
+        switch (command) {
+            case ACCOUNT: {
+                String nonce = getNextNonce();
+                return buildPostData(nonce, "getAccountInfo", "");
+            }
+            case ORDER: {
+                OrderData order = options.getOrderData();
+                Pair pair = order.m_pair;
+                String priceStr = roundPriceStr(order.m_price, pair);
+                String amountStr = roundAmountStr(order.m_amount, pair);
+                String market = getPairParam(pair).toUpperCase();
+                String methodParams = priceStr + "," + amountStr + ",\"" + market + "\"";
+                String nonce = getNextNonce();
+                String method = getOrderSideMethod(order);
+                return buildPostData(nonce, method, methodParams);
+            }
+            case ORDERS: {
+//                Name 	   Value   Required Description
+//                openonly 	boolean 	NO 	Default is 'true'. Only open orders are returned.
+//                market 	string 	    NO 	Default to “BTCCNY”. [ BTCCNY | LTCCNY | LTCBTC | ALL]
+//                limit 	integer 	NO 	Limit the number of transactions, default value is 1000.
+//                offset 	integer 	NO 	Start index used for pagination, default value is 0.
+//                {"method":"getOrders","params":[],"id":1}
+//                {"method":"getOrders","params":[false],"id":1}
+//                ## all orders from all markets limit to 2 orders per market ##
+//                {"method":"getOrders","params":[false,"ALL",2],"id":1}
+                String nonce = getNextNonce();
+                return buildPostData(nonce, "getOrders", "true,\"ALL\"");
+            }
+            case CANCEL: {
+//                Pair pair = options.getPair();
+                String orderId = options.getOrderId();
+                String nonce = getNextNonce();
+                return buildPostData(nonce, "cancelOrder", orderId);
+            }
+        }
+        return null;
+    }
 
+    protected static String getOrderSideMethod(OrderData order) {
+//        return order.m_side.isBuy() ? "buyOrder" : "sellOrder";
+        return order.m_side.isBuy() ? "buyOrder2" : "sellOrder2";
+    }
+
+    private IPostData buildPostData(String nonce, String method, String methodParams) throws Exception {
+        String params = buildPostParams(nonce, method, methodParams)
+                .replace("\"", "") // do not send " symbol in signature
+                .replace("true", "1")
+                .replace("false", ""); // do not send " symbol in signature
+//log("PostParams="+params);
         // todo: check: use encode() instead if getSignature() ?
         //String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
 
@@ -209,7 +295,8 @@ public class Btcn extends BaseExch {
         String userPass = KEY + ":" + hash;
         String basicAuth = "Basic " + DatatypeConverter.printBase64Binary(userPass.getBytes());
 
-        final String postStr = "{\"method\": \"getAccountInfo\", \"params\": [], \"id\": 1}";
+        final String postStr = "{\"method\": \"" + method + "\",\"params\":[" + methodParams + "],\"id\": " + nonce + "}";
+//log("postStr="+postStr);
         final Map<String, String> headerLines = new HashMap<String, String>();
         headerLines.put("Json-Rpc-Tonce", nonce);
         headerLines.put("Authorization", basicAuth);
@@ -217,6 +304,17 @@ public class Btcn extends BaseExch {
             @Override public String postStr() { return postStr; }
             @Override public Map<String, String> headerLines() { return headerLines; }
         };
+    }
+
+    private String buildPostParams(String nonce, String method, String methodParams) {
+        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
+        postParams.add(new Post.NameValue("tonce", nonce));
+        postParams.add(new Post.NameValue("accesskey", KEY));
+        postParams.add(new Post.NameValue("requestmethod", "post"));
+        postParams.add(new Post.NameValue("id", nonce));
+        postParams.add(new Post.NameValue("method", method));
+        postParams.add(new Post.NameValue("params", methodParams));
+        return Post.buildPostQueryString(postParams);
     }
 
     public static String getSignature(String data, String key) throws Exception {
@@ -296,4 +394,104 @@ public class Btcn extends BaseExch {
     String postdata = "{\"method\": \""+buyOrderOrSellOrder+"\", \"params\": ["+price+","+amount+"], \"id\": 1}";
 
 */
+    public static BigDecimal truncateAmount(BigDecimal value) {
+        return value.setScale(3, RoundingMode.FLOOR).stripTrailingZeros();
+    }
+
+    public static PlaceOrderData parseOrder(Object obj) {
+        // {"result":12345,"id":"1"}
+//        {"error":{
+//            "code":-32003,
+//            "message":"Insufficient CNY balance",
+//            "id": 1
+//            }
+//        }
+        JSONObject jObj = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("Btcn.parseOrder() " + jObj);
+        }
+        Object result = jObj.get("result");
+        if( result != null ) {
+            long orderId = Utils.getLong(result);
+            return new PlaceOrderData(orderId);
+        } else {
+            String errMsg = parseError(jObj);
+            log(" error: " + errMsg);
+            return new PlaceOrderData(errMsg); // order is not placed
+        }
+    }
+
+    private static String parseError(JSONObject jObj) {
+        JSONObject error = (JSONObject)jObj.get("error");
+        String msg = (String) error.get("message");
+        long code = Utils.getLong(error.get("code"));
+        return code + ": " + msg;
+//        Code 	Message
+//        -32000 	Internal error
+//        -32003 	Insufficient CNY balance
+//        -32004 	Insufficient BTC balance
+//        -32005 	Order not found
+//        -32006 	Invalid user
+//        -32007 	Invalid currency
+//        -32008 	Invalid amount
+//        -32009 	Invalid wallet address
+//        -32010 	Withdrawal not found
+//        -32011 	Deposit not found
+//        -32017 	Invalid type
+//        -32018 	Invalid price
+//        -32019 	Invalid parameter
+//        -32062 	Lack of liquidity
+//        -32065 	Invalid market
+    }
+
+    public static OrdersData parseOrders(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("Btcn.parseOrders() " + jObj);
+        }
+        JSONObject result = (JSONObject)jObj.get("result");
+        if( result != null ) {
+            Map<String,OrdersData.OrdData> ords = new HashMap<String,OrdersData.OrdData>();
+            for(Pair pair : PAIRS) {
+                String pairParam = getPairParam(pair);
+                String key = "order_" + pairParam;
+                JSONArray orders = (JSONArray) result.get(key);
+                int size = orders.size();
+                for(int i = 0; i < size; i++) {
+                    JSONObject order = (JSONObject) orders.get(i);
+//                            "currency": "CNY",
+//                            "date": 1396255376,
+                    String orderId = ((Long) order.get("id")).toString();
+                    String type = (String) order.get("type");
+                    double rate = Utils.getDouble(order.get("price"));
+                    double remainedAmount = Utils.getDouble(order.get("amount"));
+                    double orderAmount = Utils.getDouble(order.get("amount_original"));
+                    String status = Utils.getString(order.get("status"));
+                    OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, status, pair, getOrderSide(type));
+                    ords.put(orderId, ord);
+                }
+            }
+            return new OrdersData(ords);
+        } else {
+            String errMsg = parseError(jObj);
+            log(" error: " + errMsg);
+            return new OrdersData(errMsg);
+        }
+    }
+
+    public static CancelOrderData parseCancelOrders(Object obj) {
+//{"result":true,"id":"1"}
+        JSONObject jObj = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("Btcn.parseCancelOrders() " + jObj);
+        }
+        Boolean result = (Boolean)jObj.get("result");
+        if( result != null ) {
+            return new CancelOrderData(null, null);
+        } else {
+            String errMsg = parseError(jObj);
+            log(" error: " + errMsg);
+            return new CancelOrderData(errMsg);
+        }
+    }
 }

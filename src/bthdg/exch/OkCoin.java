@@ -298,7 +298,7 @@ public class OkCoin extends BaseExch {
                 double executedAmount = Utils.getDouble(order.get("deal_amount")); // Has been traded quantity
                 double remainedAmount = orderAmount - executedAmount;
                 double rate = Utils.getDouble(order.get("rate"));
-                long status = Utils.getLong(order.get("status")); // 0-pending?
+                String status = Utils.getString(order.get("status")); // 0-pending?
                 String pair = (String) order.get("symbol");
                 String type = (String) order.get("type");
                 OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, status, getPair(pair), getOrderSide(type));

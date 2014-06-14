@@ -14,7 +14,7 @@ import java.util.Map;
 // crypto-trade.com ?
 // huobi ? https://github.com/xiaojay/huobi/blob/master/huobi.py
 // check more exchnages examples here https://github.com/mobnetic/BitcoinChecker/tree/master/DataModule/src/com/mobnetic/coinguardian/model/market
-
+//   https://github.com/timmolter/XChange
 public enum Exchange {
     BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.002, true, 2,
              Bitstamp.topTestStr(), "https://www.bitstamp.net/api/ticker/",
@@ -56,6 +56,7 @@ public enum Exchange {
         @Override public double minAmountStep(Pair pair) { return Btce.minAmountStep(pair); }
         @Override public double minOrderSize(Pair pair) { return Btce.minOrderToCreate(pair); }
         @Override public boolean queryOrdersBySymbol() { return false; }
+        @Override public boolean supportsMultiplePairsRequest() { return true; }
     },
     MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
@@ -78,13 +79,19 @@ public enum Exchange {
          null, "https://data.btcchina.com/data/orderbook?market=XXXX",
          "", "",
          null, new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
-         null, null, null) {
+         new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
+         new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
+         new UrlDef("https://api.btcchina.com/api_trade_v1.php")) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btcn.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btcn.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Btcn.parseDeep(jObj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return Btcn.parseAccount(jObj); }
+        @Override public PlaceOrderData parseOrder(Object jObj) { return Btcn.parseOrder(jObj); }
+        @Override public OrdersData parseOrders(Object jObj) { return Btcn.parseOrders(jObj); }
+        @Override public boolean queryOrdersBySymbol() { return false; }
+        @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btcn.parseCancelOrders(jObj); }
     },
     OKCOIN("OkCoin", new OkCoin(), "okcoinCNY", 10, 0.00001, true, 2,
            null, "https://www.okcoin.cn/api/ticker.do?symbol=XXXX", // XXXX like "ltc_cny"

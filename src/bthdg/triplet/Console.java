@@ -27,6 +27,7 @@ public class Console {
             Properties keys = BaseExch.loadKeys();
             Btce.init(keys);
             OkCoin.init(keys);
+            Btcn.init(keys);
 
             new ConsoleReader() {
                 @Override protected void beforeLine() {

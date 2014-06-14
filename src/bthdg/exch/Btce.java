@@ -120,22 +120,18 @@ public class Btce extends BaseExch {
 //      run("TransHistory");
     }
 
-    public double roundPrice(double price, Pair pair){
+    @Override public double roundPrice(double price, Pair pair){
         return defRoundPrice(price, pair);
     }
-    public double roundAmount(double amount, Pair pair){
+    @Override public double roundAmount(double amount, Pair pair){
         return defRoundAmount(amount, pair);
     }
 
-    public String roundPriceStr(double price, Pair pair) {
-        DecimalFormat format = s_priceFormatMap.get(pair);
-        String str = format.format(price);
-        return str;
+    @Override public String roundPriceStr(double price, Pair pair) {
+        return s_priceFormatMap.get(pair).format(price);
     }
-    public String roundAmountStr(double amount, Pair pair) {
-        DecimalFormat format = s_amountFormatMap.get(pair);
-        String str = format.format(amount);
-        return str;
+    @Override public String roundAmountStr(double amount, Pair pair) {
+        return s_amountFormatMap.get(pair).format(amount);
     }
 
     public static String apiTradesEndpoint() {
@@ -473,7 +469,7 @@ public class Btce extends BaseExch {
                 double amount = Utils.getDouble(order.get("amount"));
                 double rate = Utils.getDouble(order.get("rate"));
                 long createTime = Utils.getLong(order.get("timestamp_created"));
-                long status = Utils.getLong(order.get("status"));
+                String status = Utils.getString(order.get("status"));
                 String pair = (String) order.get("pair");
                 String type = (String) order.get("type");
                 OrdersData.OrdData ord = new OrdersData.OrdData(orderId, 0, amount, rate, createTime, status, getPair(pair), getOrderSide(type));

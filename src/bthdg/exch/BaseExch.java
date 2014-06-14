@@ -213,9 +213,9 @@ public abstract class BaseExch {
     }
 
     protected static OrderSide getOrderSide(String side) {
-        return side.equals("buy")
+        return side.equals("buy") || side.equals("bid")
                 ? OrderSide.BUY
-                : side.equals("sell")
+                : side.equals("sell") || side.equals("ask")
                     ? OrderSide.SELL
                     : null;
     }
@@ -226,14 +226,12 @@ public abstract class BaseExch {
 
     protected double defRoundPrice(double price, Pair pair) {
         String str = roundPriceStr(price, pair);
-        double ret = Double.parseDouble(str);
-        return ret;
+        return Double.parseDouble(str);
     }
 
     protected double defRoundAmount(double amount, Pair pair) {
         String str = roundAmountStr(amount, pair);
-        double ret = Double.parseDouble(str);
-        return ret;
+        return Double.parseDouble(str);
     }
 
     //*************************************************************************
