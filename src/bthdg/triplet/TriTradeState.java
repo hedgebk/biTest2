@@ -9,7 +9,7 @@ public enum TriTradeState {
         @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
             OrderData order = triTradeData.m_order;
             triTradeData.log("PEG_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
-            order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
+            order.checkState(iData, Triplet.s_exchange, triangleData.m_account, null, triangleData);
             triangleData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, PEG_FILLED);
             triTradeData.log("PEG_PLACED(" + triTradeData.m_peg.name() + ") END");
         }
@@ -18,7 +18,7 @@ public enum TriTradeState {
         @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
             OrderData order = triTradeData.m_order;
             triTradeData.log("BRACKET_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
-            order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
+            order.checkState(iData, Triplet.s_exchange, triangleData.m_account, null, triangleData);
             triangleData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, PEG_FILLED);
             triTradeData.log("BRACKET_PLACED(" + triTradeData.m_peg.name() + ") END");
         }
@@ -118,7 +118,7 @@ public enum TriTradeState {
         double gain = out / in;
 
         TopsData tops = iData.getTops();
-        double acctEval = account.evaluate(tops, startCurrency, Exchange.BTCE);
+        double acctEval = account.evaluate(tops, startCurrency, Triplet.s_exchange);
 
         Triplet.s_totalRatio *= (1+plus/acctEval);
         Triplet.s_counter++;
@@ -128,12 +128,26 @@ public enum TriTradeState {
         double ratio3 = ends3[1]/ends3[0];
         double ratio = ratio1 * ratio2 * ratio3;
 
-        double valuateEur = account.evaluateEur(tops, Exchange.BTCE);
-        double eurRate = valuateEur / Triplet.s_startEur;
-        double valuateUsd = account.evaluateUsd(tops, Exchange.BTCE);
-        double usdRate = valuateUsd / Triplet.s_startUsd;
-        double valuateBtc = account.evaluate(tops, Currency.BTC, Exchange.BTCE);
-        double btcRate = valuateBtc / Triplet.s_startBtc;
+        double eurRate = 0;
+        if (Triplet.s_exchange.supportsCurrency(Currency.EUR)) {
+            double valuateEur = account.evaluateEur(tops, Triplet.s_exchange);
+            eurRate = valuateEur / Triplet.s_startEur;
+        }
+        double usdRate = 0;
+        if (Triplet.s_exchange.supportsCurrency(Currency.USD)) {
+            double valuateUsd = account.evaluateUsd(tops, Triplet.s_exchange);
+            usdRate = valuateUsd / Triplet.s_startUsd;
+        }
+        double btcRate = 0;
+        if (Triplet.s_exchange.supportsCurrency(Currency.BTC)) {
+            double valuateBtc = account.evaluate(tops, Currency.BTC, Triplet.s_exchange);
+            btcRate = valuateBtc / Triplet.s_startBtc;
+        }
+        double cnhRate = 0;
+        if (Triplet.s_exchange.supportsCurrency(Currency.CNH)) {
+            double valuateCnh = account.evaluate(tops, Currency.CNH, Triplet.s_exchange);
+            cnhRate = valuateCnh / Triplet.s_startCnh;
+        }
 
         double midMul = account.midMul(Triplet.s_startAccount);
 
@@ -143,16 +157,21 @@ public enum TriTradeState {
                 "; iterations=" + triTradeData.m_iterationsNum );
         triTradeData.log(" @@@@@@   in=" + format5(in) + ";  out=" + format5(out) +
                 "; out-in=" + format5(plus) + " " + startCurrency + ";  gain=" + format5(gain) +
-                "; level=" + Triplet.s_level + ";  totalRatio=" + format5(Triplet.s_totalRatio) +
-                "; millis=" + System.currentTimeMillis() + "; valuateUsd=" + format5(usdRate) +
-                "; valuateEur=" + format5(eurRate) + "; valuateBtc=" + format5(btcRate) + "; midMul=" + format5(midMul) +
+                "; level=" + Triplet.s_level +
+                ";  totalRatio=" + format5(Triplet.s_totalRatio) +
+                "; millis=" + System.currentTimeMillis() +
+                ((usdRate != 0) ? "; valuateUsd=" + format5(usdRate) : "") +
+                ((eurRate != 0) ? "; valuateEur=" + format5(eurRate) : "") +
+                ((btcRate != 0) ? "; valuateBtc=" + format5(btcRate) : "") +
+                ((cnhRate != 0) ? "; valuateCnh=" + format5(cnhRate) : "") +
+                "; midMul=" + format5(midMul) +
                 "; count=" + Triplet.s_counter);
         triTradeData.log(" @@@@@@    peg: max"+(doMktOffset?"":"*")+"=" + format5(peg.m_max) +
                 "; max10"+(doMktOffset?"*":"")+"=" + format5(peg.m_max10) + "; startIndx=" + startIndx +
                 "; need=" + format5(peg.m_need) +
-                "; price1=" + Exchange.BTCE.roundPrice(price1, peg.m_pair1.m_pair) + "; p1=" + peg.m_pair1 +
-                "; price2=" + Exchange.BTCE.roundPrice(price2, peg.m_pair2.m_pair) + "; p2=" + peg.m_pair2 +
-                "; price3=" + Exchange.BTCE.roundPrice(price3, peg.m_pair3.m_pair) + "; p3=" + peg.m_pair3
+                "; price1=" + Triplet.s_exchange.roundPrice(price1, peg.m_pair1.m_pair) + "; p1=" + peg.m_pair1 +
+                "; price2=" + Triplet.s_exchange.roundPrice(price2, peg.m_pair2.m_pair) + "; p2=" + peg.m_pair2 +
+                "; price3=" + Triplet.s_exchange.roundPrice(price3, peg.m_pair3.m_pair) + "; p3=" + peg.m_pair3
         );
 
         if (gain > 1) {
@@ -178,27 +197,27 @@ public enum TriTradeState {
         boolean isFirst = (num == 1);
         int indx = num - 1;
         OrderData order = triTradeData.m_mktOrders[indx];
-        String orderStr = (order != null) ? order.toString(Exchange.BTCE) : null;
+        String orderStr = (order != null) ? order.toString(Triplet.s_exchange) : null;
         String name = triTradeData.m_peg.name();
         triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + name + ") - check order " + orderStr + " ...");
         if (order == null) { // move mkt order can be unsuccessful - cancel fine, but placing failed - just start mkt again
             triTradeData.log(" no MKT order " + num + " - placing new " + (isFirst ? "1st" : "2nd") + " MKT order...");
             triTradeData.startMktOrder(iData, triangleData, num, stateForFilled);
         } else {
-            order.checkState(iData, Exchange.BTCE, triangleData.m_account, null, triangleData);
+            order.checkState(iData, Triplet.s_exchange, triangleData.m_account, null, triangleData);
             triangleData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, stateForFilled);
             if (!order.isFilled()) {
-                orderStr = order.toString(Exchange.BTCE);
+                orderStr = order.toString(Triplet.s_exchange);
                 Pair pair = order.m_pair;
-                TopData top = iData.getTop(Exchange.BTCE, pair);
-                String topStr = top.toString(Exchange.BTCE, pair);
+                TopData top = iData.getTop(Triplet.s_exchange, pair);
+                String topStr = top.toString(Triplet.s_exchange, pair);
                 double mktPrice = order.m_side.mktPrice(top);
                 double orderPrice = order.m_price;
-                String orderPriceStr = Exchange.BTCE.roundPriceStr(orderPrice, pair);
-                String bidPriceStr = Exchange.BTCE.roundPriceStr(top.m_bid, pair);
-                String askPriceStr = Exchange.BTCE.roundPriceStr(top.m_ask, pair);
-                double absPriceDif = Exchange.BTCE.roundPrice(Math.abs(orderPrice - mktPrice), pair);
-                double minPriceStep = Btce.minExchPriceStep(pair);
+                String orderPriceStr = Triplet.s_exchange.roundPriceStr(orderPrice, pair);
+                String bidPriceStr = Triplet.s_exchange.roundPriceStr(top.m_bid, pair);
+                String askPriceStr = Triplet.s_exchange.roundPriceStr(top.m_ask, pair);
+                double absPriceDif = Triplet.s_exchange.roundPrice(Math.abs(orderPrice - mktPrice), pair);
+                double minPriceStep = Triplet.s_exchange.minExchPriceStep(pair);
                 if (absPriceDif >= minPriceStep) {
                     triTradeData.log("MKT order " + num + " run out of market: [" + bidPriceStr + "; " + orderPriceStr + "; " + askPriceStr + "]: " + orderStr);
                     if (triangleData.cancelOrder(order, iData)) {

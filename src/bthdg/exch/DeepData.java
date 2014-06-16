@@ -44,7 +44,7 @@ public class DeepData {
     }
 
     public void joinSmallQuotes(Exchange exchange, Pair pair) {
-        double minOrderSize = exchange.minOrderSize(pair) * JOIN_SMALL_QUOTES_THRESHOLD;
+        double minOrderSize = exchange.minOrderToCreate(pair) * JOIN_SMALL_QUOTES_THRESHOLD;
         joinSmallQuotes(minOrderSize, m_bids, exchange, pair, "bid");
         joinSmallQuotes(minOrderSize, m_asks, exchange, pair, "ask");
     }

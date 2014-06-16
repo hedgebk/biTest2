@@ -1,5 +1,6 @@
 package bthdg.run;
 
+import bthdg.AccountData;
 import bthdg.Exchange;
 import bthdg.Fetcher;
 import bthdg.Log;
@@ -8,49 +9,30 @@ import bthdg.exch.Pair;
 import bthdg.exch.TopData;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class BiAlgo implements Runner.IAlgo {
     private static final long MIN_ITERATION_TIME = 3000;
     private static final long MOVING_AVERAGE = (9 * 60 + 28) * 1000;
 
-    private static Exchange[] s_exchanges = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN/*, Exchange.HUOBI*/};
-    private static List<ExchangesPair> s_exchPairs = mkExchPairs();
-    private static List<ExchangesPairData> s_exchPairsDatas = mkExchPairsDatas();
-    private static MdStorage s_mdStorage = new MdStorage();
+    private final Exchange[] m_exchanges = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN/*, Exchange.HUOBI*/};
+    private final Pair m_pair = Pair.BTC_CNH;
+
+    private List<ExchangesPair> m_exchPairs = mkExchPairs();
+    private List<ExchangesPairData> m_exchPairsDatas = mkExchPairsDatas();
+    private MdStorage m_mdStorage = new MdStorage();
     private Runnable m_stopRunnable;
+    private int m_maxExchNameLen; // for formatting
+    private Map<Exchange, AccountData> m_startAccountMap = new HashMap<Exchange, AccountData>();
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
+    @Override public void stop(Runnable runnable) { m_stopRunnable = runnable; }
 
-    private static List<ExchangesPairData> mkExchPairsDatas() {
-        List<ExchangesPairData> ret = new ArrayList<ExchangesPairData>(s_exchPairs.size());
-        for (ExchangesPair exchangesPair : s_exchPairs) {
-            ret.add(new ExchangesPairData(exchangesPair));
-        }
-        return ret;
-    }
-
-    private static List<ExchangesPair> mkExchPairs() {
-        List<ExchangesPair> ret = new ArrayList<ExchangesPair>();
-        for (Exchange exch1 : s_exchanges) {
-            boolean foundSelf = false;
-            for (Exchange exch2 : s_exchanges) {
-                if (foundSelf) {
-                    ret.add(new ExchangesPair(exch1, exch2));
-                } else {
-                    if (exch1 == exch2) {
-                        foundSelf = true;
-                    }
-                }
-            }
-        }
-        return ret;
-    }
-
-    public BiAlgo() {
-    }
+    public BiAlgo() {}
 
     @Override public void runAlgo() {
         new Thread("Bialgo") {
@@ -62,6 +44,7 @@ class BiAlgo implements Runner.IAlgo {
 
     private void runAlgoInt() {
         try {
+            runInit();
             int iterationCount = 0;
             while (m_stopRunnable == null) {
                 long millis = System.currentTimeMillis();
@@ -72,8 +55,101 @@ class BiAlgo implements Runner.IAlgo {
             }
             m_stopRunnable.run();
         } catch (Exception e) {
-            Log.err("runAlgo error: " + e, e);
+            err("runAlgo error: " + e, e);
         }
+    }
+
+    private void runInit() throws Exception {
+        doInParallel("getAccountData", new IExchangeRunnable() {
+            @Override public void run(Exchange exchange) throws Exception {
+                AccountData accountData = Fetcher.fetchAccount(exchange);
+                m_startAccountMap.put(exchange, accountData);
+            }
+        });
+    }
+
+    private void runIteration(int iterationCount) throws Exception {
+        doInParallel("getMktData", new IExchangeRunnable() {
+            @Override public void run(Exchange exchange) throws Exception {
+                TopData topData = Fetcher.fetchTop(exchange, m_pair);
+                m_mdStorage.put(exchange, m_pair, topData);
+            }
+        });
+
+        int length = m_exchanges.length;
+        if(m_maxExchNameLen == 0) { // calc once
+            for (int i = length - 1; i >= 0; i--) {
+                m_maxExchNameLen = Math.max(m_maxExchNameLen, m_exchanges[i].name().length());
+            }
+        }
+        for (int i = length - 1; i >= 0; i--) {
+            Exchange exchange = m_exchanges[i];
+            TopDataHolder topDataHolder = m_mdStorage.get(exchange, m_pair);
+            log(Utils.padRight(exchange.name(), m_maxExchNameLen) + ": " + topDataHolder.m_topData);
+        }
+
+        runForPairs();
+    }
+
+    private void doInParallel(String name, final IExchangeRunnable exchangeRunnable) throws InterruptedException {
+        int length = m_exchanges.length;
+        final AtomicInteger counter = new AtomicInteger(length);
+        for (int i = length - 1; i >= 0; i--) {
+            final Exchange exchange = m_exchanges[i];
+            Runnable r = new Runnable() {
+                @Override public void run() {
+                    try {
+                        exchangeRunnable.run(exchange);
+                    } catch (Exception e) {
+                        err("runForOnExch error: " + e, e);
+                        e.printStackTrace();
+                    } finally {
+                        synchronized (counter) {
+                            int value = counter.decrementAndGet();
+                            if (value == 0) {
+                                counter.notifyAll();
+                            }
+                        }
+                    }
+                }
+            };
+            new Thread(r, exchange.name() + "_" + name).start();
+        }
+        synchronized (counter) {
+            if(counter.get() != 0) {
+                counter.wait();
+            }
+        }
+        return;
+    }
+
+    private void runForPairs() {
+        for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
+            exchPairsData.run();
+        }
+    }
+
+    private List<ExchangesPairData> mkExchPairsDatas() {
+        List<ExchangesPairData> ret = new ArrayList<ExchangesPairData>(m_exchPairs.size());
+        for (ExchangesPair exchangesPair : m_exchPairs) {
+            ret.add(new ExchangesPairData(exchangesPair));
+        }
+        return ret;
+    }
+
+    private List<ExchangesPair> mkExchPairs() {
+        List<ExchangesPair> ret = new ArrayList<ExchangesPair>();
+        for (Exchange exch1 : m_exchanges) {
+            boolean foundSelf = false;
+            for (Exchange exch2 : m_exchanges) {
+                if (foundSelf) {
+                    ret.add(new ExchangesPair(exch1, exch2));
+                } else if (exch1 == exch2) {
+                    foundSelf = true;
+                }
+            }
+        }
+        return ret;
     }
 
     private void sleepIfNeeded(long start) throws InterruptedException {
@@ -86,65 +162,7 @@ class BiAlgo implements Runner.IAlgo {
         }
     }
 
-    @Override public void stop(Runnable runnable) {
-        m_stopRunnable = runnable;
-    }
-
-    private void runIteration(int iterationCount) throws InterruptedException {
-        int length = s_exchanges.length;
-        final AtomicInteger counter = new AtomicInteger(length);
-        for (int i = length - 1; i >= 0; i--) {
-            final Exchange exchange = s_exchanges[i];
-            Runnable r = new Runnable() {
-                @Override public void run() {
-                    runForOnExch(counter, exchange);
-                }
-            };
-            new Thread(r, exchange.name() + "_" + iterationCount).start();
-        }
-        synchronized (counter) {
-            if(counter.get() != 0) {
-                counter.wait();
-            }
-        }
-
-        int max = 0;
-        for (int i = length - 1; i >= 0; i--) {
-            max = Math.max(max, s_exchanges[i].name().length());
-        }
-        for (int i = length - 1; i >= 0; i--) {
-            Exchange exchange = s_exchanges[i];
-            TopDataHolder topDataHolder = s_mdStorage.get(exchange, Pair.BTC_CNH);
-            log(Utils.padRight(exchange.name(), max) + ": " + topDataHolder.m_topData);
-        }
-
-        runForPairs();
-    }
-
-    private void runForPairs() {
-        for (ExchangesPairData exchPairsData : s_exchPairsDatas) {
-            exchPairsData.run();
-        }
-    }
-
-    private void runForOnExch(AtomicInteger counter, Exchange exchange) {
-        try {
-            TopData topData = Fetcher.fetchTop(exchange, Pair.BTC_CNH);
-//            log(exchange.name() + ":  " + topData);
-            s_mdStorage.put(exchange, Pair.BTC_CNH, topData);
-        } catch (Exception e) {
-            err("runForOnExch error: " + e, e);
-            e.printStackTrace();
-        } finally {
-            synchronized (counter) {
-                int value = counter.decrementAndGet();
-                if (value == 0) {
-                    counter.notifyAll();
-                }
-            }
-        }
-    }
-
+    /** **************************************************************************************** */
     private static class ExchangesPair {
         public final Exchange m_exchange1;
         public final Exchange m_exchange2;
@@ -159,7 +177,7 @@ class BiAlgo implements Runner.IAlgo {
         }
     }
 
-    private static class ExchangesPairData {
+    private class ExchangesPairData {
         public final ExchangesPair m_exchangesPair;
         private final Utils.AverageCounter m_diffAverageCounter;
         private final List<TimeDiff> m_timeDiffs = new ArrayList<TimeDiff>();
@@ -174,8 +192,8 @@ class BiAlgo implements Runner.IAlgo {
         public void run() {
             Exchange e1 = m_exchangesPair.m_exchange1;
             Exchange e2 = m_exchangesPair.m_exchange2;
-            TopData td1 = s_mdStorage.get(e1, Pair.BTC_CNH).m_topData;
-            TopData td2 = s_mdStorage.get(e2, Pair.BTC_CNH).m_topData;
+            TopData td1 = m_mdStorage.get(e1, m_pair).m_topData;
+            TopData td2 = m_mdStorage.get(e2, m_pair).m_topData;
             double mid1 = td1.getMid();
             double mid2 = td2.getMid();
             double diff = mid1 - mid2;
@@ -200,5 +218,9 @@ class BiAlgo implements Runner.IAlgo {
             m_millis = millis;
             m_diff = diff;
         }
+    }
+
+    private interface IExchangeRunnable {
+        void run(Exchange exchange) throws Exception;
     }
 }

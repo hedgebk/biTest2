@@ -124,7 +124,7 @@ public class FundMap {
         }
     }
 
-    static Map<Currency, Double> distributeRatio(Exchange exchange) {
+    public static Map<Currency, Double> distributeRatio(Exchange exchange) {
         Map<Currency, Double> distributeRatio = s_map.get(exchange);
         if (distributeRatio == null) {
             throw new RuntimeException("no funds distributeRatio defined for exchange " + exchange);

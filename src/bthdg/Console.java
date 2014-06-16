@@ -1,8 +1,8 @@
-package bthdg.triplet;
+package bthdg;
 
-import bthdg.*;
 import bthdg.exch.*;
 import bthdg.exch.Currency;
+import bthdg.triplet.FundMap;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 
@@ -12,7 +12,7 @@ import java.io.InputStreamReader;
 import java.util.*;
 
 public class Console {
-    private static Exchange s_exchange = Exchange.BTCE;
+    private static Exchange s_exchange = Exchange.BTCE; // by default btce
 
     public static void main(String[] args) {
         System.out.println("Started.");
@@ -79,30 +79,46 @@ public class Console {
 
     private static void switchExchange(String line) {
         String exchName = line.substring(2).toUpperCase();
-        System.err.println("requested change to exchange "+exchName);
-        Exchange[] exchanges = Exchange.values();
-        List<Exchange> startsWith = new ArrayList<Exchange>();
-        for(Exchange exchange: exchanges) {
-            String name = exchange.name();
-            if( name.equalsIgnoreCase(exchName) ) {
-                s_exchange = exchange;
-                System.err.println(" current exchange is changed successfully to "+name);
-                return;
-            }
-            if( name.startsWith(exchName) ) {
-                startsWith.add(exchange);
-            }
-        }
-        if(startsWith.size() == 1) {
-            s_exchange = startsWith.get(0);
-            System.err.println(" current exchange is guessed and changed successfully to "+s_exchange.name());
-            return;
-        }
+        List<Exchange> startsWith = Exchange.resolveExchange(exchName);
         if(startsWith.size() > 1) {
             System.err.println("multiple exchanges starts with '"+exchName+"' : " + startsWith);
         } else {
-            System.err.println("exchange '"+exchName+"' not found. supported: " + Arrays.asList(exchanges));
+            if(startsWith.size() == 1) {
+                s_exchange = startsWith.get(0);
+                String name = s_exchange.name();
+                if(name.equalsIgnoreCase(exchName)) {
+                    System.err.println(" current exchange is changed successfully to "+name);
+                } else {
+                    System.err.println(" current exchange is guessed and changed successfully to "+ name);
+                }
+            } else {
+                System.err.println("exchange '"+exchName+"' not found. supported: " + Arrays.asList(Exchange.values()));
+            }
         }
+
+//        System.err.println("requested change to exchange "+exchName);
+//        List<Exchange> startsWith = new ArrayList<Exchange>();
+//        for(Exchange exchange: Exchange.values()) {
+//            String name = exchange.name();
+//            if( name.equalsIgnoreCase(exchName) ) {
+//                s_exchange = exchange;
+//                System.err.println(" current exchange is changed successfully to "+name);
+//                return;
+//            }
+//            if( name.startsWith(exchName) ) {
+//                startsWith.add(exchange);
+//            }
+//        }
+//        if(startsWith.size() == 1) {
+//            s_exchange = startsWith.get(0);
+//            System.err.println(" current exchange is guessed and changed successfully to "+s_exchange.name());
+//            return;
+//        }
+//        if(startsWith.size() > 1) {
+//            System.err.println("multiple exchanges starts with '"+exchName+"' : " + startsWith);
+//        } else {
+//            System.err.println("exchange '"+exchName+"' not found. supported: " + Arrays.asList(Exchange.values()));
+//        }
     }
 
     private static void doOrders() throws Exception {
@@ -112,7 +128,7 @@ public class Console {
 
     private static void doOrders(String line) throws Exception {
         String pairName = line.substring(7);
-        Pair pair = resolvePair(pairName);
+        Pair pair = Pair.resolvePair(pairName, s_exchange);
         if (pair == null) {
             System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
         } else {
@@ -216,23 +232,13 @@ public class Console {
 
     private static void doTop(String line) throws Exception {
         String pairName = line.substring(4);
-        Pair pair = resolvePair(pairName);
+        Pair pair = Pair.resolvePair(pairName, s_exchange);
         if (pair == null) {
             System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
         } else {
             TopData top = Fetcher.fetchTop(s_exchange, pair);
             System.out.println(" " + pair + " : " + top.toString(s_exchange, pair));
         }
-    }
-
-    private static Pair resolvePair(String pairName) {
-        Pair[] pairs = s_exchange.supportedPairs();
-        for (Pair pair : pairs) {
-            if (pair.name().equalsIgnoreCase(pairName)) {
-                return pair;
-            }
-        }
-        return null;
     }
 
     private static void printTops(TopsData tops) {
@@ -244,15 +250,15 @@ public class Console {
     }
 
     private static void doCancel(String line) throws Exception {
-        // cancel 12345
+        // cancel 12345 [LTC_CNH]
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
-        if(s_exchange.queryOrdersBySymbol()) {
+        if(s_exchange.requirePairForCancel()) {
             if (tokensNum == 3) {
                 tok.nextToken();
                 String orderId = tok.nextToken();
                 String pairName = tok.nextToken();
-                Pair pair = resolvePair(pairName);
+                Pair pair = Pair.resolvePair(pairName, s_exchange);
                 if (pair == null) {
                     System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
                 } else {
@@ -263,7 +269,7 @@ public class Console {
                 System.err.println("invalid 'cancel' command: use followed format: cancel orderId pair. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
             }
         } else {
-            if (tokensNum == 2) {
+            if (tokensNum >= 2) {
                 tok.nextToken();
                 String orderId = tok.nextToken();
                 CancelOrderData coData = Fetcher.calcelOrder(s_exchange, orderId, null);

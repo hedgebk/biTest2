@@ -29,11 +29,11 @@ public class DeepsData extends HashMap<Pair,DeepData> {
         private boolean m_synced;
 
         @Override public TopData get(Pair pair) {
-            TopData topData = super.get(pair);
+            TopData topData = super.getInt(pair);
             if(topData == null) {
                 DeepData deepData = DeepsData.this.get(pair);
                 if(deepData == null) {
-                    throw new RuntimeException("no DeepsData for pait " + pair);
+                    throw new RuntimeException("no DeepsData for pair " + pair);
                 }
                 topData = deepData.getTopDataAdapter();
                 put(pair, topData);

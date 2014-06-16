@@ -31,7 +31,9 @@ public class PlaceOrderData {
                         : "orderId=" + m_orderId +
                           ", remains=" + m_remains +
                           ", received=" + m_received +
-                          ", accountData=" + m_accountData
+                          ((m_accountData == null)
+                                  ? ""
+                                  : ", accountData=" + m_accountData)
                 ) +
                 '}';
     }

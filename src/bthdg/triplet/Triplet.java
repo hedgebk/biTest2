@@ -36,28 +36,109 @@ import java.util.*;
  *   - then can run > 2 triangles at once/ no delays
  */
 public class Triplet {
-    public static final int NUMBER_OF_ACTIVE_TRIANGLES = 7;
-    public static final int START_TRIANGLES_PER_ITERATION = 3;
+    private enum Preset {
+        BTCE{
+            @Override void apply() {
+                Triplet.s_exchange = Exchange.BTCE;
+                Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 7;
+                Triplet.START_TRIANGLES_PER_ITERATION = 3;
+                Triplet.LVL = 100.602408; // commission level - note - complex percents here
+                Triplet.LVL2 = 100.70; // min target level
+                Triplet.WAIT_MKT_ORDER_STEPS = 0;
+                Triplet.TRY_WITH_MKT_OFFSET = false;
+                Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
+                Triplet.MKT_OFFSET_LEVEL_DELTA = 0.15;
+                Triplet.ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
+                Triplet.MIN_SLEEP_TIME = 300; // min sleep between iterations
+                Triplet.PREFER_LIQUID_PAIRS = true; // prefer start from LTC_BTC, BTC_USD, LTC_USD
+                Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
+                Triplet.LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
+                Triplet.USE_DEEP = true;
 
-    public static final double LVL = 100.602408; // commission level - note - complex percents here
-    public static final double LVL2 = 100.70; // min target level
-    public static final int WAIT_MKT_ORDER_STEPS = 2;
-    public static final boolean TRY_WITH_MKT_OFFSET = true;
-    public static final double MKT_OFFSET_PRICE_MINUS = 0.12; // mkt - 10%
-    public static final double MKT_OFFSET_LEVEL_DELTA = 0.12;
-    public static final int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
-    public static final int MIN_SLEEP_TIME = 300; // min sleep between iterations
+                Triplet.PAIRS = new Pair[]{Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
+                                           Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
+                                           Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
+                                           Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD,
+                                           Pair.BTC_CNH, Pair.LTC_CNH, Pair.USD_CNH};
 
-    public static final boolean PREFER_EUR_CRYPT_PAIRS = false; // BTC_EUR, LTC_EUR
-    public static final boolean PREFER_LIQUID_PAIRS = true; // prefer start from LTC_BTC, BTC_USD, LTC_USD
-    public static final boolean LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
-    public static final double LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
+                Triplet.TRIANGLES = new Triangle[]{
+                    new Triangle(Currency.USD, Currency.LTC, Currency.BTC), // usd -> ltc -> btc -> usd
 
-    public static final boolean USE_BRACKETS = false;
-    public static final double BRACKET_LEVEL_EXTRA = 0.19;
-    public static final int BRACKET_DISTANCE_MAX = 2;
+                    new Triangle(Currency.EUR, Currency.LTC, Currency.BTC), // eur -> ltc -> btc -> eur
+                    new Triangle(Currency.USD, Currency.LTC, Currency.EUR), // usd -> ltc -> eur -> usd
+                    new Triangle(Currency.EUR, Currency.USD, Currency.BTC), // eur -> usd -> btc -> eur
 
-    public static final boolean USE_DEEP = true;
+                    new Triangle(Currency.USD, Currency.PPC, Currency.BTC), // usd -> ppc -> btc -> usd
+                    new Triangle(Currency.USD, Currency.NMC, Currency.BTC), // usd -> nmc -> btc -> usd
+                    new Triangle(Currency.USD, Currency.NVC, Currency.BTC), // usd -> nvc -> btc -> usd
+
+                    new Triangle(Currency.BTC, Currency.RUR, Currency.LTC), // btc -> rur -> ltc -> btc
+                    new Triangle(Currency.BTC, Currency.RUR, Currency.USD), // btc -> rur -> usd -> btc
+                    new Triangle(Currency.USD, Currency.RUR, Currency.LTC), // usd -> rur -> ltc -> usd
+                    new Triangle(Currency.BTC, Currency.RUR, Currency.EUR), // btc -> rur -> eur -> btc
+                    new Triangle(Currency.EUR, Currency.RUR, Currency.LTC), // eur -> rur -> ltc -> eur
+                    new Triangle(Currency.RUR, Currency.USD, Currency.EUR), // rur -> usd -> eur -> rur
+
+                    new Triangle(Currency.GBP, Currency.USD, Currency.BTC), // gbp -> usd -> btc -> gbp
+                    new Triangle(Currency.GBP, Currency.USD, Currency.LTC), // gbp -> usd -> ltc -> gbp
+                    new Triangle(Currency.GBP, Currency.LTC, Currency.BTC), // gbp -> ltc -> btc -> gbp
+
+                    new Triangle(Currency.CNH, Currency.USD, Currency.BTC), // cnh -> usd -> btc -> gbp
+                    new Triangle(Currency.CNH, Currency.USD, Currency.LTC), // cnh -> usd -> ltc -> gbp
+                    new Triangle(Currency.CNH, Currency.LTC, Currency.BTC), // cnh -> ltc -> btc -> gbp
+                };
+                Btce.LOG_PARSE = false;
+                Btce.JOIN_SMALL_QUOTES = JOIN_SMALL_QUOTES;
+            }
+        }, BTCN {
+            @Override void apply() {
+                Triplet.s_exchange = Exchange.BTCN;
+                Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 2;
+                Triplet.START_TRIANGLES_PER_ITERATION = 1;
+                Triplet.LVL = 100.009; // commission level
+                Triplet.LVL2 = 100.01; // min target level
+                Triplet.WAIT_MKT_ORDER_STEPS = 0;
+                Triplet.TRY_WITH_MKT_OFFSET = false;
+                Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
+                Triplet.MKT_OFFSET_LEVEL_DELTA = 0.15;
+                Triplet.ITERATIONS_SLEEP_TIME = 3100; // sleep between iterations
+                Triplet.MIN_SLEEP_TIME = 1500; // min sleep between iterations
+                Triplet.PREFER_LIQUID_PAIRS = false; // prefer start from LTC_BTC, BTC_USD, LTC_USD
+                Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
+                Triplet.LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
+                Triplet.USE_DEEP = false;
+
+                Triplet.PAIRS = new Pair[]{Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH};
+
+                Triplet.TRIANGLES = new Triangle[]{
+                        new Triangle(Currency.CNH, Currency.LTC, Currency.BTC), // cnh -> ltc -> btc -> gbp
+                };
+            }
+        };
+
+        void apply(){}
+    }
+
+    public static Preset PRESET;
+
+    public static int NUMBER_OF_ACTIVE_TRIANGLES = 7;
+    public static int START_TRIANGLES_PER_ITERATION = 3;
+
+    public static double LVL = 100.602408; // commission level - note - complex percents here
+    public static double LVL2 = 100.70; // min target level
+    public static int WAIT_MKT_ORDER_STEPS = 0;
+    public static boolean TRY_WITH_MKT_OFFSET = false;
+    public static double MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
+    public static double MKT_OFFSET_LEVEL_DELTA = 0.15;
+    public static int ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
+    public static int MIN_SLEEP_TIME = 300; // min sleep between iterations
+
+    public static boolean PREFER_EUR_CRYPT_PAIRS = false; // BTC_EUR, LTC_EUR
+    public static boolean PREFER_LIQUID_PAIRS = true; // prefer start from LTC_BTC, BTC_USD, LTC_USD
+    public static boolean LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
+    public static double LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
+
+    public static boolean USE_DEEP = true;
     public static final boolean JOIN_SMALL_QUOTES = true;
     public static final boolean ADJUST_AMOUNT_TO_MKT_AVAILABLE = true;
     public static final double PLACE_MORE_THAN_MKT_AVAILABLE = 1.1;
@@ -65,6 +146,10 @@ public class Triplet {
 
     public static final boolean USE_TRI_MKT = false;
     public static final double TRI_MKT_LVL = 100.65; // min target level
+
+    public static final boolean USE_BRACKETS = false;
+    public static final double BRACKET_LEVEL_EXTRA = 0.19;
+    public static final int BRACKET_DISTANCE_MAX = 2;
 
     public static final boolean USE_NEW = true;
     public static final boolean USE_RALLY = false;
@@ -82,42 +167,16 @@ public class Triplet {
     public static int s_counter = 0;
     public static double s_level = LVL2;
 
-    static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
-                                 Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
-                                 Pair.BTC_RUR, Pair.LTC_RUR, Pair.USD_RUR, Pair.EUR_RUR,
-                                 Pair.BTC_GBP, Pair.LTC_GBP, Pair.GBP_USD,
-                                 Pair.BTC_CNH, Pair.LTC_CNH, Pair.USD_CNH };
-
-    public static final Triangle T1  = new Triangle(Currency.USD, Currency.LTC, Currency.BTC); // usd -> ltc -> btc -> usd
-    public static final Triangle T2  = new Triangle(Currency.EUR, Currency.LTC, Currency.BTC); // eur -> ltc -> btc -> eur
-    public static final Triangle T3  = new Triangle(Currency.USD, Currency.LTC, Currency.EUR); // usd -> ltc -> eur -> usd
-    public static final Triangle T4  = new Triangle(Currency.EUR, Currency.USD, Currency.BTC); // eur -> usd -> btc -> eur
-    public static final Triangle T5  = new Triangle(Currency.USD, Currency.PPC, Currency.BTC); // usd -> ppc -> btc -> usd
-    public static final Triangle T6  = new Triangle(Currency.USD, Currency.NMC, Currency.BTC); // usd -> nmc -> btc -> usd
-    public static final Triangle T7  = new Triangle(Currency.USD, Currency.NVC, Currency.BTC); // usd -> nvc -> btc -> usd
-
-    public static final Triangle T8  = new Triangle(Currency.BTC, Currency.RUR, Currency.LTC); // btc -> rur -> ltc -> btc
-    public static final Triangle T9  = new Triangle(Currency.BTC, Currency.RUR, Currency.USD); // btc -> rur -> usd -> btc
-    public static final Triangle T10 = new Triangle(Currency.USD, Currency.RUR, Currency.LTC); // usd -> rur -> ltc -> usd
-    public static final Triangle T11 = new Triangle(Currency.BTC, Currency.RUR, Currency.EUR); // btc -> rur -> eur -> btc
-    public static final Triangle T12 = new Triangle(Currency.EUR, Currency.RUR, Currency.LTC); // eur -> rur -> ltc -> eur
-    public static final Triangle T13 = new Triangle(Currency.RUR, Currency.USD, Currency.EUR); // rur -> usd -> eur -> rur
-
-    public static final Triangle T14 = new Triangle(Currency.GBP, Currency.USD, Currency.BTC); // gbp -> usd -> btc -> gbp
-    public static final Triangle T15 = new Triangle(Currency.GBP, Currency.USD, Currency.LTC); // gbp -> usd -> ltc -> gbp
-    public static final Triangle T16 = new Triangle(Currency.GBP, Currency.LTC, Currency.BTC); // gbp -> ltc -> btc -> gbp
-
-    public static final Triangle T17 = new Triangle(Currency.CNH, Currency.USD, Currency.BTC); // cnh -> usd -> btc -> gbp
-    public static final Triangle T18 = new Triangle(Currency.CNH, Currency.USD, Currency.LTC); // cnh -> usd -> ltc -> gbp
-    public static final Triangle T19 = new Triangle(Currency.CNH, Currency.LTC, Currency.BTC); // cnh -> ltc -> btc -> gbp
-
-    public static final Triangle[] TRIANGLES = new Triangle[]{T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19};
+    static Exchange s_exchange;
+    static Pair[] PAIRS;
+    public static Triangle[] TRIANGLES;
 
     static AccountData s_startAccount;
     public static double s_startEur;
     public static double s_startUsd;
     public static double s_startBtc;
     public static double s_startLtc;
+    public static double s_startCnh;
     static boolean s_stopRequested;
     static int s_notEnoughFundsCounter;
 
@@ -126,8 +185,7 @@ public class Triplet {
 
         Fetcher.LOG_LOADING = false;
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
-        Btce.LOG_PARSE = false;
-        Btce.JOIN_SMALL_QUOTES = JOIN_SMALL_QUOTES;
+
         Fetcher.USE_ACCOUNT_TEST_STR = USE_ACCOUNT_TEST_STR;
         Fetcher.SIMULATE_ORDER_EXECUTION = SIMULATE_ORDER_EXECUTION;
         Fetcher.SIMULATE_ACCEPT_ORDER_PRICE = false;
@@ -135,11 +193,14 @@ public class Triplet {
         Btce.BTCE_TRADES_IN_REQUEST = LOAD_TRADES_NUM;
         Btce.BTCE_DEEP_ORDERS_IN_REQUEST = LOAD_ORDERS_NUM;
 
-        if (TRY_WITH_MKT_OFFSET && WAIT_MKT_ORDER_STEPS < 1) {
-            System.out.println("WARNING: TRY_WITH_MKT_OFFSET used but WAIT_MKT_ORDER_STEPS=" + WAIT_MKT_ORDER_STEPS);
-        }
-
         try {
+            applyPresets(args);
+            s_level = LVL2;
+
+            if (TRY_WITH_MKT_OFFSET && (WAIT_MKT_ORDER_STEPS < 1)) {
+                System.out.println("WARNING: TRY_WITH_MKT_OFFSET used but WAIT_MKT_ORDER_STEPS=" + WAIT_MKT_ORDER_STEPS);
+            }
+
             TradesAggregator tAgg = new TradesAggregator();
             tAgg.load();
 
@@ -171,7 +232,7 @@ public class Triplet {
                         td.m_account = syncAccountIfNeeded(td.m_account);
                         sleep += sleep / 2; // no trades - sleep more
 
-                        if (s_level > LVL2) {
+                        if (s_level > LVL2) { // decrease penalty level on empty iterations
                             double level = s_level;
                             s_level = (s_level - LVL) * 0.99 + LVL;
                             s_level = Math.max(s_level, LVL2);
@@ -206,11 +267,35 @@ public class Triplet {
         }
     }
 
+    private static void applyPresets(String[] args) {
+        if (args.length == 0) {
+            PRESET = Preset.BTCE; // use btce by def
+        } else {
+            String name = args[0];
+            List<Exchange> exchanges = Exchange.resolveExchange(name);
+            if (exchanges.isEmpty()) {
+                throw new RuntimeException("unknown exchange '" + name + "'");
+            }
+            Exchange exchange = exchanges.get(0);
+            switch (exchange) {
+                case BTCE:
+                    PRESET = Preset.BTCE;
+                    break;
+                case BTCN:
+                    PRESET = Preset.BTCN;
+                    break;
+                default:
+                    throw new RuntimeException("exchange '" + name + "' not supported by Triplet");
+            }
+        }
+        PRESET.apply();
+    }
+
     private static AccountData syncAccountIfNeeded(AccountData account) throws Exception {
         boolean gotFundDiff = account.m_gotFundDiff;
         if ((s_notEnoughFundsCounter > 0) || gotFundDiff) {
             System.out.println("!!!!!----- account is out of sync (notEnoughFundsCounter=" + s_notEnoughFundsCounter + ", gotFundDiff=" + gotFundDiff + "): " + account);
-            AccountData newAccount = getAccount();
+            AccountData newAccount = Fetcher.fetchAccount(s_exchange);
             if (newAccount != null) {
                 System.out.println(" synced with new Account: " + newAccount);
                 s_notEnoughFundsCounter = 0;
@@ -225,26 +310,49 @@ public class Triplet {
     private static AccountData init(TradesAggregator tAgg) throws Exception {
         Properties keys = BaseExch.loadKeys();
         Btce.init(keys);
+        Btcn.init(keys);
 
-        AccountData account = getAccount();
+        AccountData account = Fetcher.fetchAccount(s_exchange);
         System.out.println("account: " + account);
 
         s_startAccount = account.copy();
 
         IterationData iData = new IterationData(tAgg, null);
         TopsData tops = iData.getTops();
-        s_startEur = s_startAccount.evaluateEur(tops, Exchange.BTCE);
-        s_startUsd = s_startAccount.evaluateUsd(tops, Exchange.BTCE);
-        s_startBtc = s_startAccount.evaluate(tops, Currency.BTC, Exchange.BTCE);
-        s_startLtc = s_startAccount.evaluate(tops, Currency.LTC, Exchange.BTCE);
-        System.out.println(" evaluateEur: " + format5(s_startEur) + " evaluateUsd: " + format5(s_startUsd)
-                + " evaluateBtc: " + format5(s_startBtc) + " evaluateLtc: " + format5(s_startLtc));
+
+        boolean supportsEur = s_exchange.supportsCurrency(Currency.EUR);
+        if (supportsEur) {
+            s_startEur = s_startAccount.evaluateEur(tops, s_exchange);
+        }
+        boolean supportsUsd = s_exchange.supportsCurrency(Currency.USD);
+        if (supportsUsd) {
+            s_startUsd = s_startAccount.evaluateUsd(tops, s_exchange);
+        }
+        boolean supportsBtc = s_exchange.supportsCurrency(Currency.BTC);
+        if (supportsBtc) {
+            s_startBtc = s_startAccount.evaluate(tops, Currency.BTC, s_exchange);
+        }
+        boolean supportsLtc = s_exchange.supportsCurrency(Currency.LTC);
+        if (supportsLtc) {
+            s_startLtc = s_startAccount.evaluate(tops, Currency.LTC, s_exchange);
+        }
+        boolean supportsCnh = s_exchange.supportsCurrency(Currency.CNH);
+        if (supportsCnh) {
+            s_startCnh = s_startAccount.evaluate(tops, Currency.CNH, s_exchange);
+        }
+
+        System.out.println((supportsEur?" evaluateEur: " + format5(s_startEur):"") +
+                           (supportsUsd?" evaluateUsd: " + format5(s_startUsd):"")  +
+                           (supportsBtc?" evaluateBtc: " + format5(s_startBtc):"") +
+                           (supportsLtc?" evaluateLtc: " + format5(s_startLtc):"") +
+                           (supportsLtc?" evaluateCnh: " + format5(s_startCnh):"")
+        );
         return account;
     }
 
     // todo: to move this to OrderData as NON-static method
     public static OrderData.OrderPlaceStatus placeOrder(AccountData account, OrderData orderData, OrderState state, IterationData iData) throws Exception {
-        log("placeOrder() " + iData.millisFromStart() + "ms: " + orderData.toString(Exchange.BTCE));
+        log("placeOrder() " + iData.millisFromStart() + "ms: " + orderData.toString(s_exchange));
 
         OrderData.OrderPlaceStatus ret;
         if (account.allocateOrder(orderData)) {
@@ -262,7 +370,7 @@ public class Triplet {
             log("ERROR: account allocateOrder unsuccessful: " + orderData + ", account: " + account);
             ret = OrderData.OrderPlaceStatus.ERROR;
         }
-        //log("placeOrder() END: " + orderData.toString(Exchange.BTCE));
+        //log("placeOrder() END: " + orderData.toString(s_exchange));
         return ret;
     }
 
@@ -270,21 +378,23 @@ public class Triplet {
         int repeatCounter = MAX_PLACE_ORDER_REPEAT;
         while( true ) {
             OrderData.OrderPlaceStatus ret;
-            PlaceOrderData poData = Fetcher.placeOrder(orderData, Exchange.BTCE);
+            PlaceOrderData poData = Fetcher.placeOrder(orderData, s_exchange);
             log(" PlaceOrderData: " + poData);
             String error = poData.m_error;
             if (error == null) {
                 orderData.m_status = OrderStatus.SUBMITTED;
                 double amount = poData.m_received;
                 if (amount != 0) {
-                    String amountStr = orderData.roundAmountStr(Exchange.BTCE, amount);
-                    String orderAmountStr = orderData.roundAmountStr(Exchange.BTCE);
+                    String amountStr = orderData.roundAmountStr(s_exchange, amount);
+                    String orderAmountStr = orderData.roundAmountStr(s_exchange);
                     log("  some part of order (" + amountStr + " from " + orderAmountStr + ") is executed at the time of placing ");
                     double price = orderData.m_price;
-                    orderData.addExecution(price, amount, Exchange.BTCE);
+                    orderData.addExecution(price, amount, s_exchange);
                     account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount);
                 }
-                poData.m_accountData.compareFunds(account);
+                if (poData.m_accountData != null) {
+                    poData.m_accountData.compareFunds(account);
+                }
                 orderData.m_state = (orderData.m_status == OrderStatus.FILLED)
                         ? OrderState.NONE // can be fully filled once the order placed
                         : state;
@@ -333,11 +443,6 @@ public class Triplet {
 
     public static String format5(double number) {
         return Utils.X_YYYYY.format(number);
-    }
-
-    public static AccountData getAccount() throws Exception {
-        AccountData account = Fetcher.fetchAccount(Exchange.BTCE);
-        return account;
     }
 
     private static void log(String s) {

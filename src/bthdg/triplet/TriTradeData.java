@@ -2,6 +2,7 @@ package bthdg.triplet;
 
 import bthdg.*;
 import bthdg.exch.*;
+import bthdg.util.Utils;
 
 import java.util.Random;
 
@@ -49,7 +50,7 @@ public class TriTradeData {
         double tryPrice = withMktOffset
                 ? Triangle.mktPrice(topData, pd, Triplet.MKT_OFFSET_PRICE_MINUS)
                 : Triangle.mktPrice(topData, pd);
-        log("  calculated tryPrice" + (withMktOffset ? "*" : "") + "=" + tryPrice + "; side=" + side + "; top=" + topData.toString(Exchange.BTCE, pair));
+        log("  calculated tryPrice" + (withMktOffset ? "*" : "") + "=" + tryPrice + "; side=" + side + "; top=" + topData.toString(Triplet.s_exchange, pair));
 
         if (m_doMktOffset && (m_waitMktOrderStep >= Triplet.WAIT_MKT_ORDER_STEPS)) {
             log("   no more steps to do MKT offset - will use mkt price = " + tryPrice);
@@ -75,11 +76,11 @@ public class TriTradeData {
         if (available != 0) {
             double orderAmount = side.isBuy() ? (amount / tryPrice) : amount;
 
-            String tryPriceStr = Exchange.BTCE.roundPriceStr(tryPrice, pair);
-            String bidPriceStr = Exchange.BTCE.roundPriceStr(topData.m_bid, pair);
-            String askPriceStr = Exchange.BTCE.roundPriceStr(topData.m_ask, pair);
-            String amountStr = Exchange.BTCE.roundAmountStr(orderAmount, pair);
-            String availableStr = Exchange.BTCE.roundAmountStr(available, pair);
+            String tryPriceStr = Triplet.s_exchange.roundPriceStr(tryPrice, pair);
+            String bidPriceStr = Triplet.s_exchange.roundPriceStr(topData.m_bid, pair);
+            String askPriceStr = Triplet.s_exchange.roundPriceStr(topData.m_ask, pair);
+            String amountStr = Triplet.s_exchange.roundAmountStr(orderAmount, pair);
+            String availableStr = Triplet.s_exchange.roundAmountStr(available, pair);
             log("order(" + num + "):" + m_peg.name() + ", pair: " + pair + ", forward=" + forward + ", from=" + currency +
                     "; available=" + availableStr + "; orderAmount=" + amountStr + "; side=" + side +
                     "; tryPrice=[" + bidPriceStr + "; " + tryPriceStr + "; " + askPriceStr + "]");
@@ -102,7 +103,7 @@ public class TriTradeData {
                 setState(TriTradeState.ERROR);
             }
         }
-        log("startMktOrder(" + num + ") END: " + toString(Exchange.BTCE));
+        log("startMktOrder(" + num + ") END: " + toString(Triplet.s_exchange));
     }
 
     private double checkAvailable(IterationData iData, TriangleData triangleData, int num, AccountData account, CurrencyAmount currencyAmount) throws Exception {
@@ -145,7 +146,7 @@ public class TriTradeData {
     private double calcLimitPrice(int num, AccountData account, TopsData tops, Pair pair,
                                   boolean forward, TopData topData, OrderSide side, final double mktPrice) {
         Double limitPrice = null;
-        String mktPriceStr = Exchange.BTCE.roundPriceStr(mktPrice, pair);
+        String mktPriceStr = Triplet.s_exchange.roundPriceStr(mktPrice, pair);
 
         double ratio1 = m_order.ratio(account); // commission is applied to ratio
         double ratio2 = (num == 1)
@@ -157,12 +158,16 @@ public class TriTradeData {
             ? m_peg.mktRatio3(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
             : m_peg.mktRatio3(tops, account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
-        log(" ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio + ";  mktPrice=" + mktPriceStr);
+        log(" ratio1=" +Utils.X_YYYYY.format(ratio1) +
+                "; ratio2=" + Utils.X_YYYYY.format(ratio2) +
+                "; ratio3=" + Utils.X_YYYYY.format(ratio3) +
+                "; ratio=" + Utils.X_YYYYY.format(ratio) +
+                ";  mktPrice=" + mktPriceStr);
         int attempt = m_waitMktOrderStep++;
         if (ratio < 1) {
             if (ratio < Triplet.TOO_BIG_LOSS_LEVEL) {
                 log("!!!!!  MKT conditions gives TOO BIG LOSS - stop trade. ratio=" + ratio + "; pair=" + pair + "; forward=" + forward +
-                        "; side=" + side + "; top=" + topData.toString(Exchange.BTCE, pair));
+                        "; side=" + side + "; top=" + topData.toString(Triplet.s_exchange, pair));
                 return Double.MAX_VALUE;
             }
             double zeroProfitRatio = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
@@ -171,9 +176,9 @@ public class TriTradeData {
                 zeroProfitPrice = 1 / zeroProfitPrice;
             }
             double mid = topData.getMid();
-            String midStr = Exchange.BTCE.roundPriceStr(mid, pair);
+            String midStr = Triplet.s_exchange.roundPriceStr(mid, pair);
             log("  MKT conditions do not allow profit on MKT orders close. pair=" + pair + "; forward=" + forward +
-                    "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Exchange.BTCE, pair) +
+                    "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Triplet.s_exchange, pair) +
                     "; mid=" + midStr);
 
             if (attempt < Triplet.WAIT_MKT_ORDER_STEPS) {
@@ -182,7 +187,7 @@ public class TriTradeData {
                             ? ((mid > zeroProfitPrice) && (zeroProfitPrice > mktPrice))
                             : ((mid < zeroProfitPrice) && (zeroProfitPrice < mktPrice));
                     if (betweenMidMkt) {
-                        limitPrice = Exchange.BTCE.roundPrice(zeroProfitPrice, pair);
+                        limitPrice = Triplet.s_exchange.roundPrice(zeroProfitPrice, pair);
                         log("    ! zero_Profit_Price is between mid and mkt - try zero price " + mktPriceStr);
                     } else {
                         log("    ! zero_Profit_Price is between mkt edges but too far from mkt - use mkt price " + mktPriceStr);
@@ -191,7 +196,7 @@ public class TriTradeData {
                     log("    ! zero_Profit_Price is outside of mkt edges");
                     double priceAdd = (mktPrice - mid) * attempt / Triplet.WAIT_MKT_ORDER_STEPS;
                     limitPrice = mid + priceAdd;
-                    String priceAddStr = Exchange.BTCE.roundPriceStr(priceAdd, pair);
+                    String priceAddStr = Triplet.s_exchange.roundPriceStr(priceAdd, pair);
                     log("     wait some time - try with mid->mkt orders first: mkt=" + mktPrice + "; mid=" + midStr +
                             "; step=" + attempt + "; priceAdd=" + priceAddStr + ", lmtPrice=" + mktPriceStr);
                     if ((mktPrice > topData.m_ask) || (topData.m_bid > mktPrice)) {
@@ -205,7 +210,7 @@ public class TriTradeData {
         } else { // all fine - ratio is profitable
             // todo - try e.g. mkt-10 first  to get better profit
         }
-        return mktPrice;
+        return limitPrice;
     }
 
     private void tryCancelPegOrders(IterationData iData, TriangleData triangleData,
@@ -367,41 +372,41 @@ public class TriTradeData {
 
     public boolean isMktOrderPartiallyFilled(int indx) {
         OrderData mktOrder = getMktOrder(indx);
-        return (mktOrder != null) && mktOrder.isPartiallyFilled(Exchange.BTCE);
+        return (mktOrder != null) && mktOrder.isPartiallyFilled(Triplet.s_exchange);
     }
 
     public TriTradeData forkIfNeeded() {
         TriTradeData forkRemained = null;
         switch (m_state) {
             case PEG_PLACED:
-                if(m_order.isPartiallyFilled(Exchange.BTCE)) {
-                    log("PEG order is partially filled - splitting: " + m_order.toString(Exchange.BTCE));
+                if(m_order.isPartiallyFilled(Triplet.s_exchange)) {
+                    log("PEG order is partially filled - splitting: " + m_order.toString(Triplet.s_exchange));
                     forkRemained = forkPegOrBracket("peg", TriTradeState.PEG_PLACED);
                 }
                 break;
             case BRACKET_PLACED:
-                if(m_order.isPartiallyFilled(Exchange.BTCE)) {
-                    log("BRACKET order is partially filled - splitting: " + m_order.toString(Exchange.BTCE));
+                if(m_order.isPartiallyFilled(Triplet.s_exchange)) {
+                    log("BRACKET order is partially filled - splitting: " + m_order.toString(Triplet.s_exchange));
                     forkRemained = forkPegOrBracket("bracket", TriTradeState.BRACKET_PLACED);
                 }
                 break;
             case MKT1_PLACED:
                 if(isMktOrderPartiallyFilled(0)) {
-                    log("MKT1 order is partially filled - splitting: " + getMktOrder(0).toString(Exchange.BTCE));
+                    log("MKT1 order is partially filled - splitting: " + getMktOrder(0).toString(Triplet.s_exchange));
                     forkRemained = forkMkt(1);
                 }
                 break;
             case MKT2_PLACED:
                 if(isMktOrderPartiallyFilled(1)) {
-                    log("MKT2 order is partially filled - splitting: " + getMktOrder(1).toString(Exchange.BTCE));
+                    log("MKT2 order is partially filled - splitting: " + getMktOrder(1).toString(Triplet.s_exchange));
                     forkRemained = forkMkt(2);
                 }
                 break;
             default:
-                if(m_order.isPartiallyFilled(Exchange.BTCE) ||
+                if(m_order.isPartiallyFilled(Triplet.s_exchange) ||
                     isMktOrderPartiallyFilled(0) ||
                     isMktOrderPartiallyFilled(1)) {
-                    log("warning: unexpected state - some order is partially filled: " + toString(Exchange.BTCE));
+                    log("warning: unexpected state - some order is partially filled: " + toString(Triplet.s_exchange));
                 }
         }
         return forkRemained;

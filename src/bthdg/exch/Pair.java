@@ -1,5 +1,6 @@
 package bthdg.exch;
 
+import bthdg.Exchange;
 import bthdg.triplet.Direction;
 
 public enum Pair {
@@ -68,5 +69,15 @@ public enum Pair {
             }
         }
         throw new RuntimeException("no pair with name=" + name);
+    }
+
+    public static Pair resolvePair(String pairName, Exchange exchange) {
+        Pair[] pairs = exchange.supportedPairs();
+        for (Pair pair : pairs) {
+            if (pair.name().equalsIgnoreCase(pairName)) {
+                return pair;
+            }
+        }
+        return null;
     }
 }

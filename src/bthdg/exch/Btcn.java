@@ -34,38 +34,22 @@ public class Btcn extends BaseExch {
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
     public static boolean LOG_PARSE = true;
 
-    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
-
     // supported pairs
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH };
     // supported currencies
     private static final Currency[] CURRENCIES = { Currency.BTC, Currency.LTC, Currency.CNH };
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
-        put(Pair.LTC_BTC, "0.0000",   0.0001,           0.0002,          "0.0###",      0.001,          0.01);
-        put(Pair.BTC_CNH, "0.00",     0.01,             0.02,            "0.0###",      0.0001,         0.001);
-        put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.01);
-    }
-
-    private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
-        s_amountFormatMap.put(pair, mkFormat(amountFormat));
-        s_minAmountStepMap.put(pair, minAmountStep);
-        s_priceFormatMap.put(pair, mkFormat(priceFormat));
-        s_minExchPriceStepMap.put(pair, minExchPriceStep);
-        s_minOurPriceStepMap.put(pair, minOurPriceStep);
-        s_minOrderToCreateMap.put(pair, minOrderToCreate);
+        put(Pair.LTC_BTC, "0.0000", 0.0001, 0.0002, "0.0###", 0.001, 0.01);
+        put(Pair.BTC_CNH, "0.00", 0.01, 0.02, "0.0###", 0.0001, 0.001);
+        put(Pair.LTC_CNH, "0.00", 0.01, 0.02, "0.0##", 0.001, 0.01);
     }
 
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
-        distributeRatio.put(Currency.BTC, 0.5);
-        distributeRatio.put(Currency.CNH, 0.5);
-        distributeRatio.put(Currency.LTC, 0.0);
+        distributeRatio.put(Currency.BTC, 0.3);
+        distributeRatio.put(Currency.CNH, 0.4);
+        distributeRatio.put(Currency.LTC, 0.3);
         FundMap.s_map.put(Exchange.BTCN, distributeRatio);
     }
 
@@ -76,21 +60,6 @@ public class Btcn extends BaseExch {
 
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
-    @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
-
-    @Override public double roundPrice(double price, Pair pair){
-        return defRoundPrice(price, pair);
-    }
-    @Override public double roundAmount(double amount, Pair pair){
-        return defRoundAmount(amount, pair);
-    }
-
-    @Override public String roundPriceStr(double price, Pair pair) {
-        return s_priceFormatMap.get(pair).format(price);
-    }
-    @Override public String roundAmountStr(double amount, Pair pair) {
-        return s_amountFormatMap.get(pair).format(amount);
-    }
 
     private static void log(String s) { Log.log(s); }
 
@@ -277,10 +246,14 @@ public class Btcn extends BaseExch {
                 return buildPostData(nonce, "getOrders", "true,\"ALL\"");
             }
             case CANCEL: {
-//                Pair pair = options.getPair();
+//                Name 	    Value 	Required 	Description
+//                id 	    number 	YES 	    The order id to cancel.
+//                market 	string 	NO      	Default to “BTCCNY”. [ BTCCNY | LTCCNY | LTCBTC ]
+                Pair pair = options.getPair();
                 String orderId = options.getOrderId();
                 String nonce = getNextNonce();
-                return buildPostData(nonce, "cancelOrder", orderId);
+                String market = getPairParam(pair).toUpperCase();
+                return buildPostData(nonce, "cancelOrder", orderId + ",\"" + market + "\"");
             }
         }
         return null;

@@ -11,12 +11,17 @@ public class TopsData {
     public HashMap<Pair,TopData> m_map = new HashMap<Pair,TopData>(Pair.values().length);
 
     public TopData get(Pair pair) {
-        TopData topData = m_map.get(pair);
+        TopData topData = getInt(pair);
         if (topData == null) {
             throw new RuntimeException("no top data for pair " + pair);
         }
         return topData;
     }
+
+    TopData getInt(Pair pair) {
+        return m_map.get(pair);
+    }
+
     public void put(Pair pair, TopData top) { m_map.put(pair, top); }
     public Set<Map.Entry<Pair, TopData>> entrySet() { return m_map.entrySet(); }
 

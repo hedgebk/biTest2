@@ -31,13 +31,6 @@ public class Btce extends BaseExch {
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;
 
-    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
-
     // supported pairs
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_USD, Pair.LTC_USD, Pair.BTC_EUR, Pair.LTC_EUR, Pair.EUR_USD,
                                  Pair.PPC_USD, Pair.PPC_BTC, Pair.NMC_USD, Pair.NMC_BTC, Pair.NVC_USD, Pair.NVC_BTC,
@@ -77,15 +70,6 @@ public class Btce extends BaseExch {
         put(Pair.USD_CNH, "0.0000",   0.0001,           0.0002,          "0.0#######",  0.00000001,     1);
     }
 
-    private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
-        s_amountFormatMap.put(pair, mkFormat(amountFormat));
-        s_minAmountStepMap.put(pair, minAmountStep);
-        s_priceFormatMap.put(pair, mkFormat(priceFormat));
-        s_minExchPriceStepMap.put(pair, minExchPriceStep);
-        s_minOurPriceStepMap.put(pair, minOurPriceStep);
-        s_minOrderToCreateMap.put(pair, minOrderToCreate);
-    }
-
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
         distributeRatio.put(Currency.USD, 0.23);
@@ -103,11 +87,6 @@ public class Btce extends BaseExch {
 
     @Override public Pair[] supportedPairs() { return PAIRS; };
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
-    
-    @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
-    public static double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
-    public static double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
-    public static double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
 
     @Override public String getNextNonce() { return Integer.toString(s_nonce++); }
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
@@ -134,20 +113,6 @@ public class Btce extends BaseExch {
         init();
         run("getInfo");
 //      run("TransHistory");
-    }
-
-    @Override public double roundPrice(double price, Pair pair){
-        return defRoundPrice(price, pair);
-    }
-    @Override public double roundAmount(double amount, Pair pair){
-        return defRoundAmount(amount, pair);
-    }
-
-    @Override public String roundPriceStr(double price, Pair pair) {
-        return s_priceFormatMap.get(pair).format(price);
-    }
-    @Override public String roundAmountStr(double amount, Pair pair) {
-        return s_amountFormatMap.get(pair).format(amount);
     }
 
     public static String apiTradesEndpoint() {

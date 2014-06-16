@@ -208,9 +208,9 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
             double amount = side.isBuy() ? available / bracketPrice : available;
             log("    bracketPrice:" + bracketPrice + "; side=" + side + "; amount=" + amount + "; top=" + top);
 
-            double minOrderToCreate = Btce.minOrderToCreate(pair);
+            double minOrderToCreate = Triplet.s_exchange.minOrderToCreate(pair);
             if (amount > minOrderToCreate) {
-                iData.getNewTradesData(Exchange.BTCE, this); // make sure we have loaded all trades on this iteration
+                iData.getNewTradesData(Triplet.s_exchange, this); // make sure we have loaded all trades on this iteration
                 OrderData order = new OrderData(pair, side, bracketPrice, amount);
                 OrderData.OrderPlaceStatus ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
                 log("   place order = " + ok + ":  " + order);
@@ -221,7 +221,7 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
                 }
             } else {
                 log(" no funds for NEW bracket order: minOrderToCreate=" + minOrderToCreate +
-                        ", amount " + Exchange.BTCE.roundAmount(amount, pair) + " " + fromCurrency + " : " + m_account);
+                        ", amount " + Triplet.s_exchange.roundAmount(amount, pair) + " " + fromCurrency + " : " + m_account);
             }
         }
     }
@@ -287,7 +287,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 log(" we have " + triTradesToDie.size() + " orders to die");
                 for (TriTradeData triTrade : triTradesToDie) {
                     if (!cancelOrder(triTrade, iData)) {
-                        log("  order cancel error - add back to m_triTrades - will check in next iteration again: " + triTrade.toString(Exchange.BTCE));
+                        log("  order cancel error - add back to m_triTrades - will check in next iteration again: " + triTrade.toString(Triplet.s_exchange));
                         m_triTrades.add(triTrade); // in case of errors - add back to m_triTrades - will check in next iteration again
                     }
                 }
@@ -299,7 +299,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         boolean toLive = false;
         double distance = peg1.getBracketDistance(tops);
         if (distance < Triplet.BRACKET_DISTANCE_MAX) {
-            double bracketPrice = Exchange.BTCE.roundPrice(peg1.m_bracketPrice, peg1.m_pair1.m_pair);
+            double bracketPrice = Triplet.s_exchange.roundPrice(peg1.m_bracketPrice, peg1.m_pair1.m_pair);
             double pegPrice = peg1.m_price1;
             OrderData order = triTrade.m_order;
             double orderPrice = order.m_price;
@@ -325,8 +325,8 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             double pegPrice = peg1.calcPegPrice(tops);
             double priceDif = Math.abs(pegPrice - orderPrice); // like 16.220010999999998 and 16.22001
             Pair pair = tradePeg.m_pair1.m_pair;
-            double minOurPriceStep = Exchange.BTCE.minOurPriceStep(pair); // like 0.00001
-            double minExchPriceStep = Btce.minExchPriceStep(pair); // like 0.00001
+            double minOurPriceStep = Triplet.s_exchange.minOurPriceStep(pair); // like 0.00001
+            double minExchPriceStep = Triplet.s_exchange.minExchPriceStep(pair); // like 0.00001
             double allowPriceDiff = minOurPriceStep * 1.1; //  do not jump over itself
             if (Triplet.ALLOW_ONE_PRICE_STEP_CONCURRENT_PEG) {
                 allowPriceDiff += minExchPriceStep;
@@ -338,7 +338,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 }
                 toLive = true;
                 triTrade.log("  peg to live (" + pegName + "): pegMax=" + pegMax + "; tradePegMax=" + tradePeg.m_max +
-                        "; priceDif=" + order.roundPriceStr(Exchange.BTCE, priceDif) + ", pegPrice=" + pegPrice + "; order=" + order);
+                        "; priceDif=" + order.roundPriceStr(Triplet.s_exchange, priceDif) + ", pegPrice=" + pegPrice + "; order=" + order);
             } else {
                 triTrade.log("   peg order should be moved (" + pegName + "). orderPrice=" + orderPrice +
                         ", pegPrice=" + pegPrice + "; priceDif=" + Utils.X_YYYYYYYY.format(priceDif) +
@@ -396,13 +396,15 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     return true;
                 } else {
                     String orderId = order.m_orderId;
-                    CancelOrderData coData = Fetcher.calcelOrder(Exchange.BTCE, orderId, null);
+                    CancelOrderData coData = Fetcher.calcelOrder(Triplet.s_exchange, orderId, order.m_pair);
                     String error = coData.m_error;
                     if (error == null) {
                         order.cancel();
                         m_account.releaseOrder(order);
                         iData.resetLiveOrders(); // clean cached data
-                        coData.m_funds.compareFunds(m_account);
+                        if(coData.m_funds != null) {
+                            coData.m_funds.compareFunds(m_account);
+                        }
                         return true;
                     } else {
                         log("error in cancel order: " + error + "; " + order);
@@ -602,7 +604,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
         Currency fromCurrency = pd1.currencyFrom();
         double available = getAvailable(fromCurrency);
-        String availableStr = Exchange.BTCE.roundAmountStr(available, pair1);
+        String availableStr = Triplet.s_exchange.roundAmountStr(available, pair1);
         double amount = side.isBuy() ? available / startPrice : available;
 
         if (Triplet.USE_DEEP // adjust amount to pairs mkt availability
@@ -618,7 +620,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 Currency pairCurrency = pd1.m_pair.m_to;
                 log("due to MKT orders availability in the book. PEG amount reduced from " + Utils.X_YYYYYYYY.format(amountIn) + " to " + Utils.X_YYYYYYYY.format(amount) + " " + pairCurrency);
                 if (Triplet.ADJUST_TO_MIN_ORDER_SIZE) {
-                    double minOrderToCreate = Btce.minOrderToCreate(pair1);
+                    double minOrderToCreate = Triplet.s_exchange.minOrderToCreate(pair1);
                     if (amount < minOrderToCreate) {
                         log(" amount increased to minOrderToCreate: from " + Utils.X_YYYYYYYY.format(amount) + " to " + Utils.X_YYYYYYYY.format(minOrderToCreate) + " " + pairCurrency);
                         amount = minOrderToCreate;
@@ -627,24 +629,24 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             }
         }
 
-        amount = Exchange.BTCE.roundAmount(amount, pair1);
-        String amountStr = Exchange.BTCE.roundAmountStr(amount, pair1);
+        amount = Triplet.s_exchange.roundAmount(amount, pair1);
+        String amountStr = Triplet.s_exchange.roundAmountStr(amount, pair1);
         double needPeg = peg.m_need;
-        String needPegStr = Exchange.BTCE.roundPriceStr(needPeg, pair1);
-        double orderPrice = Exchange.BTCE.roundPrice(startPrice, pair1);
-        String orderPriceStr = Exchange.BTCE.roundPriceStr(orderPrice, pair1);
+        String needPegStr = Triplet.s_exchange.roundPriceStr(needPeg, pair1);
+        double orderPrice = Triplet.s_exchange.roundPrice(startPrice, pair1);
+        String orderPriceStr = Triplet.s_exchange.roundPriceStr(orderPrice, pair1);
 
         log("#### " +
                 (doMktOffset ? "mkt-offset" : "best") +
                 ": " + Triplet.formatAndPad(maxPeg) + "; " + name + ", pair: " + pair1 + ", direction=" + direction +
                 ", from=" + fromCurrency + "; available=" + availableStr + "; amount=" + amountStr + "; side=" + side +
                 (isBracket ? "; bracket=" : "; peg=") +
-                orderPriceStr + "; need=" + needPegStr + "; top: " + top.toString(Exchange.BTCE, pair1));
+                orderPriceStr + "; need=" + needPegStr + "; top: " + top.toString(Triplet.s_exchange, pair1));
 
-        double minOrderToCreate = Btce.minOrderToCreate(pair1);
+        double minOrderToCreate = Triplet.s_exchange.minOrderToCreate(pair1);
         if (amount >= minOrderToCreate) {
-            String mkt1PriceStr = Exchange.BTCE.roundPriceStr(mkt1Price, pair2);
-            String mkt2PriceStr = Exchange.BTCE.roundPriceStr(mkt2Price, pair3);
+            String mkt1PriceStr = Triplet.s_exchange.roundPriceStr(mkt1Price, pair2);
+            String mkt2PriceStr = Triplet.s_exchange.roundPriceStr(mkt2Price, pair3);
 
             // todo: try price between peg and need, but not for all pairs
 //            if( (top.m_ask > needPeg) && (needPeg > top.m_bid)) {
@@ -657,30 +659,30 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 //            }
 
             if (Triplet.SIMULATE_ORDER_EXECUTION) {
-                iData.getNewTradesData(Exchange.BTCE, this); // make sure we have loaded all trades on this iteration
+                iData.getNewTradesData(Triplet.s_exchange, this); // make sure we have loaded all trades on this iteration
             }
             OrderData order = new OrderData(pair1, side, orderPrice, amount);
             TriTradeState initState = isBracket ? TriTradeState.BRACKET_PLACED : TriTradeState.PEG_PLACED;
             TriTradeData ttData = new TriTradeData(order, peg, doMktOffset, initState);
-            String bid1Str = Exchange.BTCE.roundPriceStr(top.m_bid, pair1);
-            String ask1Str = Exchange.BTCE.roundPriceStr(top.m_ask, pair1);
-            String bid2Str = Exchange.BTCE.roundPriceStr(top2.m_bid, pair2);
-            String ask2Str = Exchange.BTCE.roundPriceStr(top2.m_ask, pair2);
-            String bid3Str = Exchange.BTCE.roundPriceStr(top3.m_bid, pair3);
-            String ask3Str = Exchange.BTCE.roundPriceStr(top3.m_ask, pair3);
+            String bid1Str = Triplet.s_exchange.roundPriceStr(top.m_bid, pair1);
+            String ask1Str = Triplet.s_exchange.roundPriceStr(top.m_ask, pair1);
+            String bid2Str = Triplet.s_exchange.roundPriceStr(top2.m_bid, pair2);
+            String ask2Str = Triplet.s_exchange.roundPriceStr(top2.m_ask, pair2);
+            String bid3Str = Triplet.s_exchange.roundPriceStr(top3.m_bid, pair3);
+            String ask3Str = Triplet.s_exchange.roundPriceStr(top3.m_ask, pair3);
             ttData.log("   expected prices: [" + bid1Str + "; " + orderPriceStr + "; " + ask1Str  + "] -> " +
                                            "[" + bid2Str + "; " + mkt1PriceStr + "; " + ask2Str + "] -> " +
                                            "[" + bid3Str + "; " + mkt2PriceStr + "; " + ask3Str + "]");
             OrderData.OrderPlaceStatus ok = Triplet.placeOrder(m_account, order, OrderState.LIMIT_PLACED, iData);
-            ttData.log("START:  place order = " + ok + ":  " + order.toString(Exchange.BTCE));
+            ttData.log("START:  place order = " + ok + ":  " + order.toString(Triplet.s_exchange));
             if (ok == OrderData.OrderPlaceStatus.OK) {
                 iData.noSleep();
                 return ttData;
             }
-            ttData.log("   place order unsuccessful: " + order.toString(Exchange.BTCE)); // do nothing special here
+            ttData.log("   place order unsuccessful: " + order.toString(Triplet.s_exchange)); // do nothing special here
         } else {
             log(" small amount " + amountStr + " for NEW order; minOrderToCreate=" +
-                    Exchange.BTCE.roundAmountStr(minOrderToCreate, pair1) + " " + fromCurrency + " : " + m_account);
+                    Triplet.s_exchange.roundAmountStr(minOrderToCreate, pair1) + " " + fromCurrency + " : " + m_account);
             // todo: if we have other non started TriTradeData with lower maxPeg holding required currency - cancel it
         }
         return null;
@@ -703,7 +705,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         //log(" PEG(" + pd1.getName() + ") has ratio1="+ratio1);
         double amount2 = amount * ratio1;
         //log("  after PEG we will have amount=" + amount2 + " " + pd1to);
-        amount2 = Exchange.BTCE.roundAmount(amount2, pair1);
+        amount2 = Triplet.s_exchange.roundAmount(amount2, pair1);
         //log("   round=" + amount2);
 
         DeepsData.TopsDataAdapter adapter = (DeepsData.TopsDataAdapter) tops;
@@ -744,7 +746,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             amount3 = amount2*ratio2;
         }
         //log("  after MKT1 we may have amount=" + amount3 + " " + pd2.currencyTo());
-        amount3 = Exchange.BTCE.roundAmount(amount3, pair2);
+        amount3 = Triplet.s_exchange.roundAmount(amount3, pair2);
         //log("   round=" + amount3);
 
         OrderSide side3 = pd3.getSide();

@@ -2,6 +2,9 @@ package bthdg;
 
 import bthdg.exch.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 // to support others ?
@@ -16,7 +19,7 @@ import java.util.Map;
 // check more exchnages examples here https://github.com/mobnetic/BitcoinChecker/tree/master/DataModule/src/com/mobnetic/coinguardian/model/market
 //   https://github.com/timmolter/XChange
 public enum Exchange {
-    BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.002, true, 2,
+    BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.002, true,
              Bitstamp.topTestStr(), "https://www.bitstamp.net/api/ticker/",
              null, "https://www.bitstamp.net/api/order_book/",
              Bitstamp.tradesTestStr(), "https://www.bitstamp.net/api/transactions/?time=minute",
@@ -29,7 +32,7 @@ public enum Exchange {
         @Override public AccountData parseAccount(Object jObj) { return Bitstamp.parseAccount(jObj); }
         @Override public String deepTestStr() { return Bitstamp.deepTestStr(); }
     },
-    BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true, 3,
+    BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true,
           Btce.topTestStr(), "https://btc-e.com/api/3/ticker/XXXX", // XXXX like "btc_usd-ltc_btc" // old? : "https://btc-e.com/api/2/btc_usd/ticker"
           Btce.deepTestStr(), Btce.apiDeepEndpoint(), // GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
           Btce.tradesTestStr(), Btce.apiTradesEndpoint(), // XXXX like "btc_usd-ltc_btc"; GET-parameter "limit" - how much trades to return def_value = 150; max_value=2000
@@ -52,30 +55,27 @@ public enum Exchange {
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTradesEndpoint, options); }
-        @Override public double minPriceStep(Pair pair) { return Btce.minExchPriceStep(pair); }
-        @Override public double minAmountStep(Pair pair) { return Btce.minAmountStep(pair); }
-        @Override public double minOrderSize(Pair pair) { return Btce.minOrderToCreate(pair); }
-        @Override public boolean queryOrdersBySymbol() { return false; }
+        @Override public boolean supportsQueryOrdersBySymbol() { return false; }
         @Override public boolean supportsMultiplePairsRequest() { return true; }
         @Override public Currency baseCurrency() { return Currency.BTC; }
     },
-    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, 0, null, null, null, null, null, null, null, null, null, null, null), // DEAD
-    CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true, 2,
+    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null, null, null, null), // DEAD
+    CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
            null, null, "", "", null, null, null, null, null),
-    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.0015, true, 2,
+    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.0015, true,
            null, null,
            null, null, "", "", null, null, null, null, null),
-    HITBTC("HitBtc", null, "hitbtcUSD", 6, 0.00085, true, 2,
+    HITBTC("HitBtc", null, "hitbtcUSD", 6, 0.00085, true,
            null, null,
            null, null, "", "", null, null, null, null, null),
-    LAKEBTC("LakeBtc", null, "lakeUSD", 7, 0.003, true, 2,
+    LAKEBTC("LakeBtc", null, "lakeUSD", 7, 0.003, true,
            null, null,
            null, null, "", "", null, null, null, null, null),
-    ITBIT("ItBit", null, "itbitUSD", 8, 0.0017, true, 2,
+    ITBIT("ItBit", null, "itbitUSD", 8, 0.0017, true,
            null, null,
            null, null, "", "", null, null, null, null, null),
-    BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.00001, true, 2,
+    BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.00001, true,
          null, "https://data.btcchina.com/data/ticker?market=XXXX", // XXXX like "btccny"
          null, "https://data.btcchina.com/data/orderbook?market=XXXX",
          "", "",
@@ -91,11 +91,11 @@ public enum Exchange {
         @Override public AccountData parseAccount(Object jObj) { return Btcn.parseAccount(jObj); }
         @Override public PlaceOrderData parseOrder(Object jObj) { return Btcn.parseOrder(jObj); }
         @Override public OrdersData parseOrders(Object jObj) { return Btcn.parseOrders(jObj); }
-        @Override public boolean queryOrdersBySymbol() { return false; }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btcn.parseCancelOrders(jObj); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
+        @Override public boolean requirePairForCancel() { return true; }
     },
-    OKCOIN("OkCoin", new OkCoin(), "okcoinCNY", 10, 0.00001, true, 2,
+    OKCOIN("OkCoin", new OkCoin(), "okcoinCNY", 10, 0.00001, true,
            null, "https://www.okcoin.cn/api/ticker.do?symbol=XXXX", // XXXX like "ltc_cny"
            null, "https://www.okcoin.cn/api/depth.do?symbol=XXXX", // XXXX like "ltc_cny"
            "", "",
@@ -114,7 +114,7 @@ public enum Exchange {
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return OkCoin.parseCancelOrders(jObj); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
     },
-    HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false, 2,
+    HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false,
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
            null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",
@@ -160,12 +160,11 @@ public enum Exchange {
     public UrlDef m_cancelEndpoint;
 
     public final boolean m_doWebUpdate;
-    private final int m_priceDecimals;
 
     public String deepTestStr() { return m_deepTestStr; }
 
     Exchange(String name, BaseExch baseExch, String bitcoinchartsSymbol, int databaseId,
-             double baseFee, boolean doWebUpdate, int priceDecimals,
+             double baseFee, boolean doWebUpdate,
              String topTestStr, String apiTopEndpoint,
              String deepTestStr, String apiDeepEndpoint,
              String tradesTestStr, String apiTradesEndpoint,
@@ -180,7 +179,6 @@ public enum Exchange {
         m_databaseId = databaseId;
         m_baseFee = baseFee;
         m_doWebUpdate = doWebUpdate;
-        m_priceDecimals = priceDecimals;
 
         m_apiTopEndpoint = new UrlDef(apiTopEndpoint);
         m_topTestStr = topTestStr;
@@ -213,11 +211,11 @@ public enum Exchange {
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
     public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return m_apiDeepEndpoint; }
     public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return m_apiTradesEndpoint; }
-    public double minPriceStep(Pair pair) { return 0.01; }
-    public double minAmountStep(Pair pair) { return 0.0001; }
-    public double minOrderSize(Pair pair) { return 0.01; }
 
-    private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
+    public double minExchPriceStep(Pair pair) { return m_baseExch.minExchPriceStep(pair); }
+    public double minOurPriceStep(Pair pair) { return m_baseExch.minOurPriceStep(pair); }
+    public double minAmountStep(Pair pair) { return m_baseExch.minAmountStep(pair); }
+    public double minOrderToCreate(Pair pair) { return m_baseExch.minOrderToCreate(pair); }
 
     public double roundPrice(double price, Pair pair) { return m_baseExch.roundPrice(price, pair); }
     public String roundPriceStr(double price, Pair pair) { return m_baseExch.roundPriceStr(price, pair); }
@@ -227,11 +225,14 @@ public enum Exchange {
     public int connectTimeout() { return m_baseExch.connectTimeout(); }
     public int readTimeout() { return m_baseExch.readTimeout(); }
     public Pair[] supportedPairs() { return m_baseExch.supportedPairs(); }
-    public double minOurPriceStep(Pair pair) { return m_baseExch.minOurPriceStep(pair); }
     public boolean supportsMultiplePairsRequest() { return false; }
-    public boolean queryOrdersBySymbol() { return true; }
+    public boolean supportsQueryAllOrders() { return true; }
+    public boolean supportsQueryOrdersBySymbol() { return true; }
+    public boolean requirePairForCancel() { return false; }
     public Currency[] supportedCurrencies() { return m_baseExch.supportedCurrencies(); }
     public Currency baseCurrency() { throw new RuntimeException("baseCurrency not implemented on " + this ); }
+
+    private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
 
     public boolean supportPair(Currency from, Currency to) {
         for( Pair pair: supportedPairs()) {
@@ -243,6 +244,27 @@ public enum Exchange {
             }
         }
         return false;
+    }
+
+    public static List<Exchange> resolveExchange(String exchName) {
+        List<Exchange> startsWith = new ArrayList<Exchange>();
+        for (Exchange exchange : Exchange.values()) {
+            String name = exchange.name();
+            if (name.equalsIgnoreCase(exchName)) {
+                startsWith.add(exchange);
+                return startsWith;
+            }
+            if (name.startsWith(exchName)) {
+                startsWith.add(exchange);
+            }
+        }
+        return startsWith;
+    }
+
+    public boolean supportsCurrency(Currency currency) {
+        Currency[] currencies = supportedCurrencies();
+        int indx = Arrays.binarySearch(currencies, currency);
+        return (indx >= 0);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

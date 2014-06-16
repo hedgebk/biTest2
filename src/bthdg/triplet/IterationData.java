@@ -45,11 +45,11 @@ public class IterationData implements IIterationContext {
 
     public TopsData getAnyTops() throws Exception {
         if (m_tops != null) {
-            log(" USING CURRENT ITERATION tops (do not load fresh) " + millisFromStart() + "ms: " + m_tops.toString(Exchange.BTCE));
+            log(" USING CURRENT ITERATION tops (do not load fresh) " + millisFromStart() + "ms: " + m_tops.toString(Triplet.s_exchange));
             return m_tops;
         }
         if(m_prevTops != null) {
-            log(" USING PREV ITERATION tops (blind trade) " + millisFromStart() + "ms: " + m_tops.toString(Exchange.BTCE));
+            log(" USING PREV ITERATION tops (blind trade) " + millisFromStart() + "ms: " + m_tops.toString(Triplet.s_exchange));
             return m_prevTops;
         }
         return getTops();
@@ -65,17 +65,17 @@ public class IterationData implements IIterationContext {
     public TopsData loadTops() throws Exception {
         long start = System.currentTimeMillis();
         if (Triplet.USE_DEEP) {
-            m_deeps = Fetcher.fetchDeeps(Exchange.BTCE, Triplet.PAIRS);
+            m_deeps = Fetcher.fetchDeeps(Triplet.s_exchange, Triplet.PAIRS);
             m_tops = m_deeps.getTopsDataAdapter();
         } else {
-            m_tops = Fetcher.fetchTops(Exchange.BTCE, Triplet.PAIRS);
+            m_tops = Fetcher.fetchTops(Triplet.s_exchange, Triplet.PAIRS);
         }
         long end = System.currentTimeMillis();
         long takes = end - start;
         s_topLoadTakes += takes;
         s_topLoadCount++;
         long average = s_topLoadTakes/s_topLoadCount;
-        log(" loaded tops" + (Triplet.USE_DEEP ? "*" : "") + " " + millisFromStart() + "ms; take " + takes + "ms; avg " + average + "ms: " + m_tops.toString(Exchange.BTCE));
+        log(" loaded tops" + (Triplet.USE_DEEP ? "*" : "") + " " + millisFromStart() + "ms; take " + takes + "ms; avg " + average + "ms: " + m_tops.toString(Triplet.s_exchange));
         m_topsLoadTime = System.currentTimeMillis();
         if(Triplet.USE_RALLY) {
             checkLtcBtc();
@@ -103,7 +103,7 @@ public class IterationData implements IIterationContext {
 
     public Map<Pair, TradesData> getTrades() throws Exception {
         if (m_trades == null) {
-            m_trades = Fetcher.fetchTrades(Exchange.BTCE, Triplet.PAIRS);
+            m_trades = Fetcher.fetchTrades(Triplet.s_exchange, Triplet.PAIRS);
         }
         return m_trades;
     }

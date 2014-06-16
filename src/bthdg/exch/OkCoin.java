@@ -36,16 +36,6 @@ public class OkCoin extends BaseExch {
         put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.01);
     }
 
-    private static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
-        s_amountFormatMap.put(pair, mkFormat(amountFormat));
-        s_minAmountStepMap.put(pair, minAmountStep);
-        s_priceFormatMap.put(pair, mkFormat(priceFormat));
-        s_minExchPriceStepMap.put(pair, minExchPriceStep);
-        s_minOurPriceStepMap.put(pair, minOurPriceStep);
-        s_minOrderToCreateMap.put(pair, minOrderToCreate);
-    }
-
-
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
         distributeRatio.put(Currency.BTC, 0.5);

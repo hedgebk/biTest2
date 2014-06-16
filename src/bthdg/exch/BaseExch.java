@@ -24,19 +24,47 @@ public abstract class BaseExch {
     public static final int DEF_CONNECT_TIMEOUT = 6000;
     public static final int DEF_READ_TIMEOUT = 7000;
 
+    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
+
+    protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
+        s_amountFormatMap.put(pair, mkFormat(amountFormat));
+        s_minAmountStepMap.put(pair, minAmountStep);
+        s_priceFormatMap.put(pair, mkFormat(priceFormat));
+        s_minExchPriceStepMap.put(pair, minExchPriceStep);
+        s_minOurPriceStepMap.put(pair, minOurPriceStep);
+        s_minOrderToCreateMap.put(pair, minOrderToCreate);
+    }
+
+    public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
+    public double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
+    public double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
+    public double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
+
+    public double roundPrice(double price, Pair pair){
+        return defRoundPrice(price, pair);
+    }
+    public double roundAmount(double amount, Pair pair){
+        return defRoundAmount(amount, pair);
+    }
+
+    public String roundPriceStr(double price, Pair pair) {
+        return s_priceFormatMap.get(pair).format(price);
+    }
+    public String roundAmountStr(double amount, Pair pair) {
+        return s_amountFormatMap.get(pair).format(amount);
+    }
+
     public abstract String getNextNonce();
+    public abstract Pair[] supportedPairs();
+    public abstract Currency[] supportedCurrencies();
     protected abstract String getCryproAlgo();
     protected abstract String getSecret();
     protected abstract String getApiEndpoint();
-
-    public double roundPrice(double price, Pair pair) { throw new RuntimeException("roundPrice not implemented on " + this ); }
-    public double roundAmount(double amount, Pair pair) { throw new RuntimeException("roundAmount not implemented on " + this ); }
-    public String roundPriceStr(double price, Pair pair) { throw new RuntimeException("roundPriceStr not implemented on " + this ); }
-    public String roundAmountStr(double amount, Pair pair) { throw new RuntimeException("roundAmountStr not implemented on " + this ); }
-
-    public abstract Pair[] supportedPairs();
-    public abstract Currency[] supportedCurrencies();
-    public abstract double minOurPriceStep(Pair pair);
 
     public int connectTimeout() { return DEF_CONNECT_TIMEOUT; };
     public int readTimeout() { return DEF_READ_TIMEOUT; };

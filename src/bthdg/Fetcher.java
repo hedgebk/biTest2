@@ -170,25 +170,28 @@ public class Fetcher {
     }
 
     public static OrdersData fetchOrders(Exchange exchange) throws Exception {
-        if (!exchange.queryOrdersBySymbol()) {
+        if (exchange.supportsQueryAllOrders()) {
             return fetchOrders(exchange, null);
         }
-        // aggregate
-        Map<String, OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
-        log("fetching per-pair orders");
-        Pair[] pairs = exchange.supportedPairs();
-        for (Pair pair : pairs) {
-            OrdersData ordersData = fetchOrders(exchange, pair);
-            String error = ordersData.m_error;
-            if (error == null) {
-                for (OrdersData.OrdData ord : ordersData.m_ords.values()) {
-                    ords.put(ord.m_orderId, ord);
+        if (!exchange.supportsQueryOrdersBySymbol()) {
+            // query by pair & aggregate
+            Map<String, OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
+            log("fetching per-pair orders");
+            Pair[] pairs = exchange.supportedPairs();
+            for (Pair pair : pairs) {
+                OrdersData ordersData = fetchOrders(exchange, pair);
+                String error = ordersData.m_error;
+                if (error == null) {
+                    for (OrdersData.OrdData ord : ordersData.m_ords.values()) {
+                        ords.put(ord.m_orderId, ord);
+                    }
+                } else {
+                    return new OrdersData("fetch orders for " + exchange + "/" + pair + " error: " + error);
                 }
-            } else {
-                return new OrdersData("fetch orders for " + exchange + "/" + pair + " error: " + error);
             }
+            return new OrdersData(ords);
         }
-        return new OrdersData(ords);
+        throw new RuntimeException("fetch orders not suppoirted/configured");
     }
 
     public static OrdersData fetchOrders(Exchange exchange, final Pair pair) throws Exception {
