@@ -126,32 +126,39 @@ public class OnePegCalcData {
         return price;
     }
 
+    /** commissions deducted */
     public double pegRatio1(TopsData tops, AccountData account) {
         double pegPrice = calcPegPrice(tops);
         return pegRatio1(account, pegPrice);
     }
 
+    /** commissions deducted */
     public double pegRatio1(AccountData account, double pegPrice) {
         OrderSide side = m_pair1.getSide();
         return calcRatio(account, pegPrice, side);
     }
 
+    /** commissions deducted */
     public double mktRatio2(TopsData tops, AccountData account) {
         return mktRatio(tops, account, m_pair2);
     }
 
+    /** commissions deducted */
     public double mktRatio2(TopsData tops, AccountData account, double offset) {
         return mktRatio(tops, account, m_pair2, offset);
     }
 
+    /** commissions deducted */
     public double mktRatio3(TopsData tops, AccountData account) {
         return mktRatio(tops, account, m_pair3);
     }
 
+    /** commissions deducted */
     public double mktRatio3(TopsData tops, AccountData account, double offset) {
         return mktRatio(tops, account, m_pair3, offset);
     }
 
+    /** commissions deducted */
     private double mktRatio(TopsData tops, AccountData account, PairDirection pd) {
         double mktPrice = calcMktPrice(tops, pd);
         OrderSide side = pd.getSide();
@@ -162,6 +169,7 @@ public class OnePegCalcData {
         return (side.isBuy() ? 1 / price : price) * (1 - account.m_fee); // deduct commissions
     }
 
+    /** commissions deducted */
     private double mktRatio(TopsData tops, AccountData account, PairDirection pd, double offset) {
         double mktPrice = calcMktPrice(tops, pd, offset);
         OrderSide side = pd.getSide();

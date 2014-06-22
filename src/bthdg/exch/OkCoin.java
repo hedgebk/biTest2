@@ -9,7 +9,6 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
-import java.text.DecimalFormat;
 import java.util.*;
 
 /** https://www.okcoin.com/t-1000097.html */
@@ -17,13 +16,6 @@ public class OkCoin extends BaseExch {
     private static String SECRET;
     private static String PARTNER;
     public static boolean LOG_PARSE = true;
-
-    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
@@ -51,20 +43,6 @@ public class OkCoin extends BaseExch {
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
     @Override public double minOurPriceStep(Pair pair) { return 0.01; }
-
-    @Override public double roundPrice(double price, Pair pair){
-        return defRoundPrice(price, pair);
-    }
-    @Override public double roundAmount(double amount, Pair pair){
-        return defRoundAmount(amount, pair);
-    }
-
-    @Override public String roundPriceStr(double price, Pair pair) {
-        return s_priceFormatMap.get(pair).format(price);
-    }
-    @Override public String roundAmountStr(double amount, Pair pair) {
-        return s_amountFormatMap.get(pair).format(amount);
-    }
 
     private static void log(String s) { Log.log(s); }
 

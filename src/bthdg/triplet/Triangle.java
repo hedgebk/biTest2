@@ -137,6 +137,7 @@ public class Triangle extends ArrayList<PairDirection> {
         OrderSide side = pd.getSide(); // ASK > BID
         double price = side.pegPrice(top, minPriceStep);
         // the price is changed from quoted by exchange - need to be rounded
+// TODO: the price need to be rounded to direction based on order side - not just mathematically to nearest exch price step
         double ret = Triplet.s_exchange.roundPrice(price, pair);
         return ret;
     }
