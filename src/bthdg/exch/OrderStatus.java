@@ -1,4 +1,4 @@
-package bthdg;
+package bthdg.exch;
 
 public enum OrderStatus {
     NEW,

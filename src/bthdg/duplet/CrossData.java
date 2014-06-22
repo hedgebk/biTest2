@@ -1,6 +1,7 @@
 package bthdg.duplet;
 
 import bthdg.*;
+import bthdg.exch.OrderSide;
 import bthdg.exch.Pair;
 import bthdg.exch.TopData;
 import bthdg.util.Utils;

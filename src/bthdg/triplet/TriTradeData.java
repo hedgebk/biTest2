@@ -133,7 +133,7 @@ public class TriTradeData {
         OrderSide prevSide = prevOrder.m_side;
         Currency prevEndCurrency = prevOrder.endCurrency();
         double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - account.m_fee); // deduct commissions
-        log(" prev order " + prevOrder + "; exit amount " + prevEndAmount + " " + prevEndCurrency);
+        log(" prev order " + prevOrder + "; exit amount " + Triplet.s_exchange.roundPriceStr(prevEndAmount, pair) + " " + prevEndCurrency);
 
         Currency fromCurrency = pair.currencyFrom(forward);
         if (prevEndCurrency != fromCurrency) {
@@ -143,7 +143,7 @@ public class TriTradeData {
         return new CurrencyAmount(prevEndAmount, fromCurrency);
     }
 
-    private double calcLimitPrice(int num, AccountData account, TopsData tops, Pair pair,
+    private Double calcLimitPrice(int num, AccountData account, TopsData tops, Pair pair,
                                   boolean forward, TopData topData, OrderSide side, final double mktPrice) {
         Double limitPrice = null;
         String mktPriceStr = Triplet.s_exchange.roundPriceStr(mktPrice, pair);

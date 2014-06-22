@@ -1,11 +1,9 @@
 package bthdg;
 
 import bthdg.exch.*;
+import bthdg.exch.Currency;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 // to support others ?
 // https://www.kraken.com
@@ -83,6 +81,7 @@ public enum Exchange {
          new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
          new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
          new UrlDef("https://api.btcchina.com/api_trade_v1.php")) {
+        @Override public void init(Properties keys) { Btcn.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btcn.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btcn.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Btcn.parseDeep(jObj); }
@@ -103,6 +102,7 @@ public enum Exchange {
            new UrlDef("https://www.okcoin.com/api/trade.do"),
            new UrlDef("https://www.okcoin.com/api/getorder.do"),
            new UrlDef("https://www.okcoin.com/api/cancelorder.do")) {
+        @Override public void init(Properties keys) { OkCoin.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return OkCoin.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return OkCoin.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return OkCoin.parseDeep(jObj); }
@@ -120,6 +120,7 @@ public enum Exchange {
            "", "",
            null, new UrlDef("https://api.huobi.com/api.php"),
            null, null, null) {
+        @Override public void init(Properties keys) { Huobi.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj) { return Huobi.parseDeep(jObj); }
@@ -266,6 +267,8 @@ public enum Exchange {
         int indx = Arrays.binarySearch(currencies, currency);
         return (indx >= 0);
     }
+
+    public void init(Properties keys) {}
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class UrlDef {

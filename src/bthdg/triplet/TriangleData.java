@@ -42,24 +42,23 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
 
         if (Triplet.s_stopRequested) {
             System.out.println("stopRequested: do not check for NEW - process only existing");
-        } else if (Triplet.s_notEnoughFundsCounter > 5) {
+        } else if (Triplet.s_notEnoughFundsCounter > Triplet.NOT_ENOUGH_FUNDS_TREHSOLD_1) {
             System.out.println("warning: notEnoughFundsCounter=" + Triplet.s_notEnoughFundsCounter + " - need account sync: do not check for NEW - process only existing");
         } else {
-            millis = iData.millisFromTopsLoad();
-            if (millis > 1000) { // much time passed from last Tops loading to consider new triangles
-                iData.resetTops(); // recalculate top/best data
-                System.out.println(" !! much time passed from tops loading (" + millis + "ms) - recalculate top/best data");
-
-                tops = iData.getTops();
-                trianglesCalc = TrianglesCalcData.calc(tops);
-                log(trianglesCalc.str());
-
-                bestMap = trianglesCalc.findBestMap();
-            }
-
             if (m_triTrades.size() >= Triplet.NUMBER_OF_ACTIVE_TRIANGLES) {
                 log("do not create new orders - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
             } else {
+                millis = iData.millisFromTopsLoad();
+                if (millis > 1000) { // much time passed from last Tops loading to consider new triangles
+                    iData.resetTops(); // recalculate top/best data
+                    System.out.println(" !! much time passed from tops loading (" + millis + "ms) - recalculate top/best data");
+
+                    tops = iData.getTops();
+                    trianglesCalc = TrianglesCalcData.calc(tops);
+                    log(trianglesCalc.str());
+
+                    bestMap = trianglesCalc.findBestMap();
+                }
 //                checkMkt(iData, trianglesCalc, tops);
                 if (Triplet.USE_NEW) {
                     checkNew(iData, bestMap, tops);
@@ -265,6 +264,8 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         boolean toLive = false;
                         if( Triplet.s_stopRequested ) {
                             triTrade.log("   " + (isPeg ? "peg" : "bracket") + " should be cancelled - stopRequested: " + triTrade);
+                        } else if (Triplet.s_notEnoughFundsCounter > Triplet.NOT_ENOUGH_FUNDS_TREHSOLD_2) {
+                            triTrade.log("   " + (isPeg ? "peg" : "bracket") + " should be cancelled - notEnoughFundsCounter=" + Triplet.s_notEnoughFundsCounter);
                         } else {
                             OnePegCalcData tradePeg = triTrade.m_peg;
                             OnePegCalcData peg1 = findPeg(bestMap, tradePeg);

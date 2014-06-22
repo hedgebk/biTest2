@@ -1,7 +1,5 @@
 package bthdg.exch;
 
-import bthdg.OrderSide;
-
 import java.util.Map;
 
 public class OrdersData {

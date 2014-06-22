@@ -9,6 +9,7 @@ import bthdg.util.Utils;
 import java.util.*;
 
 /**
+ * - even on MKT steps - check prev steps live orders - have the case when peg order is missed but appers on next step
  * - catch all 3 @ mkt - just consequentially
  *   - cancel possible pegs first
  * - looks 'executed in X ms' calculated not properly
@@ -90,13 +91,14 @@ public class Triplet {
                 Btce.LOG_PARSE = false;
                 Btce.JOIN_SMALL_QUOTES = JOIN_SMALL_QUOTES;
             }
-        }, BTCN {
+        },
+        BTCN {
             @Override void apply() {
                 Triplet.s_exchange = Exchange.BTCN;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 2;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
-                Triplet.LVL = 100.009; // commission level
-                Triplet.LVL2 = 100.01; // min target level
+                Triplet.LVL  = 100.007; // commission level
+                Triplet.LVL2 = 100.008; // min target level
                 Triplet.WAIT_MKT_ORDER_STEPS = 0;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
@@ -162,6 +164,9 @@ public class Triplet {
     public static final boolean SIMULATE = false;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
+
+    public static final int NOT_ENOUGH_FUNDS_TREHSOLD_1 = 2; // do not start new triangles
+    public static final int NOT_ENOUGH_FUNDS_TREHSOLD_2 = 5; // stop pending triangles
 
     public static double s_totalRatio = 1;
     public static int s_counter = 0;
@@ -414,7 +419,8 @@ public class Triplet {
                         continue;
                     }
                     ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
-                } else if (error.contains("It is not enough")) { // It is not enough BTC in the account for sale
+                } else if (error.contains("It is not enough") || // It is not enough BTC in the account for sale
+                          (error.contains("Insufficient") && error.contains("balance"))) { // Insufficient CNY balance
                     s_notEnoughFundsCounter++;
                     ret = OrderData.OrderPlaceStatus.ERROR;
                     log("  NotEnoughFunds detected - increased account sync counter to " + s_notEnoughFundsCounter );

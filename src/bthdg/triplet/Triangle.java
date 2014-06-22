@@ -1,6 +1,5 @@
 package bthdg.triplet;
 
-import bthdg.*;
 import bthdg.exch.*;
 
 import java.util.ArrayList;

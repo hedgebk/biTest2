@@ -1,5 +1,6 @@
 package bthdg;
 
+import bthdg.exch.OrderSide;
 import bthdg.exch.TradesData;
 import bthdg.util.Utils;
 

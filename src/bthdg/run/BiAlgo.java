@@ -4,14 +4,10 @@ import bthdg.AccountData;
 import bthdg.Exchange;
 import bthdg.Fetcher;
 import bthdg.Log;
+import bthdg.exch.*;
 import bthdg.util.Utils;
-import bthdg.exch.Pair;
-import bthdg.exch.TopData;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class BiAlgo implements Runner.IAlgo {
@@ -62,6 +58,8 @@ class BiAlgo implements Runner.IAlgo {
     private void runInit() throws Exception {
         doInParallel("getAccountData", new IExchangeRunnable() {
             @Override public void run(Exchange exchange) throws Exception {
+                Properties keys = BaseExch.loadKeys();
+                exchange.init(keys);
                 AccountData accountData = Fetcher.fetchAccount(exchange);
                 m_startAccountMap.put(exchange, accountData);
             }

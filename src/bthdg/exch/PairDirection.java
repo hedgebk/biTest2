@@ -1,6 +1,5 @@
 package bthdg.exch;
 
-import bthdg.OrderSide;
 import bthdg.triplet.Direction;
 
 public class PairDirection {

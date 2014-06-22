@@ -1,6 +1,4 @@
-package bthdg;
-
-import bthdg.exch.TopData;
+package bthdg.exch;
 
 public enum OrderSide {
     BUY("B", "buy") {
