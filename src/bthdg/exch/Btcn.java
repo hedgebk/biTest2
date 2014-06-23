@@ -18,16 +18,14 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URL;
+
 import java.text.DecimalFormat;
 import java.util.*;
 
 /**
  * https://github.com/agent462/chinashop/tree/master/lib/chinashop
- * ## Private API
- * http://btcchina.org/api-trade-documentation-en
- * ## Public API
- * http://btcchina.org/api-market-data-documentation-en
- * */
+ * ## Private API   http://btcchina.org/api-trade-documentation-en
+ * ## Public API    http://btcchina.org/api-market-data-documentation-en       */
 public class Btcn extends BaseExch {
     private static String KEY;
     private static String SECRET;
@@ -39,11 +37,35 @@ public class Btcn extends BaseExch {
     // supported currencies
     private static final Currency[] CURRENCIES = { Currency.BTC, Currency.LTC, Currency.CNH };
 
+    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
+
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
-        put(Pair.LTC_BTC, "0.0000", 0.0001, 0.0002, "0.0###", 0.001, 0.01);
-        put(Pair.BTC_CNH, "0.00", 0.01, 0.02, "0.0###", 0.0001, 0.001);
-        put(Pair.LTC_CNH, "0.00", 0.01, 0.02, "0.0##", 0.001, 0.01);
+        put(Pair.BTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         0.001);
+        put(Pair.LTC_CNH, "0.##",     0.01,             0.02,            "0.0##",       0.001,          0.01);
+        put(Pair.LTC_BTC, "0.####",   0.0001,           0.0002,          "0.0###",      0.001,          0.01);
     }
+
+    protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,
+                              String amountFormat, double minAmountStep, double minOrderToCreate) {
+        s_amountFormatMap.put(pair, mkFormat(amountFormat));
+        s_minAmountStepMap.put(pair, minAmountStep);
+        s_priceFormatMap.put(pair, mkFormat(priceFormat));
+        s_minExchPriceStepMap.put(pair, minExchPriceStep);
+        s_minOurPriceStepMap.put(pair, minOurPriceStep);
+        s_minOrderToCreateMap.put(pair, minOrderToCreate);
+    }
+
+    @Override protected DecimalFormat priceFormat(Pair pair) { return s_priceFormatMap.get(pair); }
+    @Override protected DecimalFormat amountFormat(Pair pair) { return s_amountFormatMap.get(pair); }
+    @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
+    @Override public double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
+    @Override public double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
+    @Override public double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
 
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();

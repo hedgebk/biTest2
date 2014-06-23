@@ -42,6 +42,13 @@ public class Btce extends BaseExch {
         Currency.USD, Currency.BTC, Currency.LTC, Currency.EUR, Currency.PPC, Currency.NMC, Currency.NVC, Currency.RUR, Currency.GBP, Currency.CNH,
     };
 
+    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
+
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.LTC_USD, "0.000000", 0.000001,         0.000005,        "0.0#######",  0.00000001,     0.1);
         put(Pair.LTC_BTC, "0.00000",  0.00001,          0.00002,         "0.0#######",  0.00000001,     0.1);
@@ -69,6 +76,23 @@ public class Btce extends BaseExch {
         put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0#######",  0.00000001,     0.1);
         put(Pair.USD_CNH, "0.0000",   0.0001,           0.0002,          "0.0#######",  0.00000001,     1);
     }
+
+    protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,
+                              String amountFormat, double minAmountStep, double minOrderToCreate) {
+        s_amountFormatMap.put(pair, mkFormat(amountFormat));
+        s_minAmountStepMap.put(pair, minAmountStep);
+        s_priceFormatMap.put(pair, mkFormat(priceFormat));
+        s_minExchPriceStepMap.put(pair, minExchPriceStep);
+        s_minOurPriceStepMap.put(pair, minOurPriceStep);
+        s_minOrderToCreateMap.put(pair, minOrderToCreate);
+    }
+
+    @Override protected DecimalFormat priceFormat(Pair pair) { return s_priceFormatMap.get(pair); }
+    @Override protected DecimalFormat amountFormat(Pair pair) { return s_amountFormatMap.get(pair); }
+    @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
+    @Override public double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
+    @Override public double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
+    @Override public double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
 
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();

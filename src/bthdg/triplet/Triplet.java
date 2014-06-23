@@ -165,8 +165,7 @@ public class Triplet {
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
 
-    public static final int NOT_ENOUGH_FUNDS_TREHSOLD_1 = 2; // do not start new triangles
-    public static final int NOT_ENOUGH_FUNDS_TREHSOLD_2 = 5; // stop pending triangles
+    public static final int NOT_ENOUGH_FUNDS_TREHSOLD = 2; // do not start new triangles
 
     public static double s_totalRatio = 1;
     public static int s_counter = 0;

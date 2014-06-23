@@ -80,6 +80,7 @@ public class UpdateFromWeb extends DbReady {
             // http://api.bitcoincharts.com/v1/trades.csv?symbol=SYMBOL[&start=UNIXTIME]
             long star = timestamp / 1000;
             URL url = new URL("http://api.bitcoincharts.com/v1/trades.csv?symbol=" + exchange.m_bitcoinchartsSymbol + "&start=" + star);
+            System.out.println("loading from: " + url);
             URLConnection conn = url.openConnection();
             InputStream is = conn.getInputStream();
             // returns CSV: unixtime,price,amount

@@ -24,26 +24,12 @@ public abstract class BaseExch {
     public static final int DEF_CONNECT_TIMEOUT = 6000;
     public static final int DEF_READ_TIMEOUT = 7000;
 
-    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
-    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
-    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
-
-    protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep, String amountFormat, double minAmountStep, double minOrderToCreate) {
-        s_amountFormatMap.put(pair, mkFormat(amountFormat));
-        s_minAmountStepMap.put(pair, minAmountStep);
-        s_priceFormatMap.put(pair, mkFormat(priceFormat));
-        s_minExchPriceStepMap.put(pair, minExchPriceStep);
-        s_minOurPriceStepMap.put(pair, minOurPriceStep);
-        s_minOrderToCreateMap.put(pair, minOrderToCreate);
-    }
-
-    public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
-    public double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
-    public double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
-    public double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
+    protected DecimalFormat priceFormat(Pair pair) { throw new RuntimeException("priceFormat() not implemented on " + this); }
+    protected DecimalFormat amountFormat(Pair pair) { throw new RuntimeException("amountFormat() not implemented on " + this); }
+    public double minOurPriceStep(Pair pair) { throw new RuntimeException("minOurPriceStep() not implemented on " + this); }
+    public double minExchPriceStep(Pair pair) { throw new RuntimeException("minExchPriceStep() not implemented on " + this); }
+    public double minAmountStep(Pair pair) { throw new RuntimeException("minAmountStep() not implemented on " + this); }
+    public double minOrderToCreate(Pair pair) { throw new RuntimeException("minOrderToCreate() not implemented on " + this); }
 
     public double roundPrice(double price, Pair pair){
         return defRoundPrice(price, pair);
@@ -53,10 +39,13 @@ public abstract class BaseExch {
     }
 
     public String roundPriceStr(double price, Pair pair) {
-        return s_priceFormatMap.get(pair).format(price);
+        DecimalFormat decimalFormat = priceFormat(pair);
+        return decimalFormat.format(price);
     }
+
     public String roundAmountStr(double amount, Pair pair) {
-        return s_amountFormatMap.get(pair).format(amount);
+        DecimalFormat decimalFormat = amountFormat(pair);
+        return decimalFormat.format(amount);
     }
 
     public abstract String getNextNonce();

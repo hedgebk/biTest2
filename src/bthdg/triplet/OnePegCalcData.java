@@ -105,8 +105,14 @@ public class OnePegCalcData {
     }
 
     public double calcMktPrice(TopsData tops, int indx) {
-        PairDirection pd = (indx == 0) ? m_pair2 : m_pair3;
+        PairDirection pd = getPd(indx);
         return calcMktPrice(tops, pd);
+    }
+
+    public double calcMidPrice(TopsData tops, int indx) {
+        PairDirection pd = getPd(indx);
+        TopData top = tops.get(pd.m_pair);
+        return top.getMid();
     }
 
     public double calcMktPrice(TopsData tops, PairDirection pd) {
@@ -115,9 +121,24 @@ public class OnePegCalcData {
         return price;
     }
 
+    public double calcFollowPrice(TopsData tops, int indx) {
+        PairDirection pd = getPd(indx);
+        TopData top = tops.get(pd.m_pair);
+        double price = Triangle.followPrice(top, pd);
+        return price;
+    }
+
     public double calcMktPrice(TopsData tops, int indx, double offset) {
-        PairDirection pd = (indx == 0) ? m_pair2 : m_pair3;
+        PairDirection pd = getPd(indx);
         return calcMktPrice(tops, pd, offset);
+    }
+
+    private PairDirection getPd(int indx) {
+        return (indx == 0)
+                    ? m_pair1
+                    : ((indx == 1)
+                        ? m_pair2
+                        : m_pair3);
     }
 
     public double calcMktPrice(TopsData tops, PairDirection pd, double offset) {

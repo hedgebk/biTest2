@@ -44,8 +44,8 @@ public class AccountData {
         return "AccountData{" +
                 "name='" + m_name + "\' " +
                 "funds=" + toString(m_funds) + "; " +
-                "allocated=" + toString(m_allocatedFunds) + " " +
-                ((m_fee != Double.MAX_VALUE) ? ", fee=" + m_fee : "") +
+                "allocated=" + toString(m_allocatedFunds) +
+                ((m_fee != Double.MAX_VALUE) ? ", fee=" + Utils.X_YYYYY.format(m_fee) : "") +
                 '}';
     }
 

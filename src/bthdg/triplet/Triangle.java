@@ -108,6 +108,10 @@ public class Triangle extends ArrayList<PairDirection> {
         double price = pd.getSide().mktPrice(top); // ASK > BID
         return price;
     }
+    public static double followPrice(TopData top, PairDirection pd) {
+        double price = pd.getSide().opposite().mktPrice(top);
+        return price;
+    }
 
     public static double mulMkt(double in, TopData top, PairDirection pd, double offset) {
         double mktPrice = mktPrice(top, pd, offset);
