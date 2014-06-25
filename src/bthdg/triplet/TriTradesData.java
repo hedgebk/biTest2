@@ -346,9 +346,9 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         "; priceDif=" + order.roundPriceStr(Triplet.s_exchange, priceDif) + ", pegPrice=" + pegPrice + "; order=" + order);
             } else {
                 triTrade.log("   peg order should be moved (" + pegName + "). orderPrice=" + orderPrice +
-                        ", pegPrice=" + pegPrice + "; priceDif=" + Utils.X_YYYYYYYY.format(priceDif) +
-                        "; minOurPriceStep=" + Utils.X_YYYYYYYY.format(minOurPriceStep) +
-                        "; minExchPriceStep=" + Utils.X_YYYYYYYY.format(minExchPriceStep)
+                        ", pegPrice=" + pegPrice + "; priceDif=" + Utils.format8(priceDif) +
+                        "; minOurPriceStep=" + Utils.format8(minOurPriceStep) +
+                        "; minExchPriceStep=" + Utils.format8(minExchPriceStep)
                 );
             }
         } else {
@@ -556,7 +556,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         : midMkt
                             //  [follow peg      mid      mkt]
                             //                       need
-                            ? needPrice + (midPrice - needPrice) * random * random // [mid need], but more close to need
+                            ? needPrice + (pegPrice - needPrice) * random * random // [peg need], but more close to need
                             //  [follow peg      mid      mkt]
                             //                                  need
                             : mktPrice;
@@ -568,11 +568,11 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 Pair pair1 = peg.m_pair1.m_pair;
                 log(" [follow=" + Triplet.s_exchange.roundPriceStr(followPrice, pair1) +
                         " peg=" + Triplet.s_exchange.roundPriceStr(pegPrice, pair1) +
-                        " mid=" + Utils.X_YYYYYYYY.format(midPrice) +
+                        " mid=" + Utils.format8(midPrice) +
                         " mkt=" + Triplet.s_exchange.roundPriceStr(mktPrice, pair1) +
-                        "] need=" + Utils.X_YYYYYYYY.format(needPrice) +
+                        "] need=" + Utils.format8(needPrice) +
                         "  => " + type +
-                        " price=" +  Utils.X_YYYYYYYY.format(price) +
+                        " price=" +  Utils.format8(price) +
                         "  rounded=" +  Triplet.s_exchange.roundPriceStr(price, pair1)
                 );
                 TriTradeData newTriTrade = createNewOne(iData, tops, peg, price, doMktOffset, false);
@@ -710,11 +710,11 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 double amountIn = amount;
                 amount = amountIn * ratio;
                 Currency pairCurrency = pd1.m_pair.m_to;
-                log("due to MKT orders availability in the book. PEG amount reduced from " + Utils.X_YYYYYYYY.format(amountIn) + " to " + Utils.X_YYYYYYYY.format(amount) + " " + pairCurrency);
+                log("due to MKT orders availability in the book. PEG amount reduced from " + Utils.format8(amountIn) + " to " + Utils.format8(amount) + " " + pairCurrency);
                 if (Triplet.ADJUST_TO_MIN_ORDER_SIZE) {
                     double minOrderToCreate = Triplet.s_exchange.minOrderToCreate(pair1);
                     if (amount < minOrderToCreate) {
-                        log(" amount increased to minOrderToCreate: from " + Utils.X_YYYYYYYY.format(amount) + " to " + Utils.X_YYYYYYYY.format(minOrderToCreate) + " " + pairCurrency);
+                        log(" amount increased to minOrderToCreate: from " + Utils.format8(amount) + " to " + Utils.format8(minOrderToCreate) + " " + pairCurrency);
                         amount = minOrderToCreate;
                     }
                 }
@@ -832,7 +832,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         double amount3;
         if (mktAmount2in < amount2) {
             ret = mktAmount2in / amount2;
-            log("MKT1 " + pd2.getName() + "; pair=" + pair2 + "; side=" + side2 + ". book has only qty=" + Utils.X_YYYYYYYY.format(mktAmount2in) + " " + pd2.currencyFrom()+
+            log("MKT1 " + pd2.getName() + "; pair=" + pair2 + "; side=" + side2 + ". book has only qty=" + Utils.format8(mktAmount2in) + " " + pd2.currencyFrom()+
                     ", need=" + amount2 + ": reducing amount at ratio="+ret);
             amount3 = mktAmount2out;
             //log("     adjustRatio=" + ret);
@@ -864,7 +864,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         if(mktAmount3in < amount3) {
             double ratio = mktAmount3in / amount3;
             ret *= ratio;
-            log("MKT2 " + pd3.getName() + "; pair=" + pair3 + "; side=" + side3 + ". book has only qty=" + Utils.X_YYYYYYYY.format(mktAmount3in) + " " + pd3.currencyFrom()+
+            log("MKT2 " + pd3.getName() + "; pair=" + pair3 + "; side=" + side3 + ". book has only qty=" + Utils.format8(mktAmount3in) + " " + pd3.currencyFrom()+
                     ", need=" + amount3 + ": reducing amount at ratio=" + ret );
             //log("     adjustRatio=" + ret);
         }

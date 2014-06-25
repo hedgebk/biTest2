@@ -1,8 +1,10 @@
 package bthdg.util;
 
 import bthdg.Deserializer;
+import bthdg.Log;
 import org.json.simple.JSONObject;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.text.DecimalFormat;
@@ -21,7 +23,16 @@ public class Utils {
     public static final DecimalFormat X_X = new DecimalFormat("0.0#######");
 
     public static String encodeHexString(byte[] hash) {
-        return String.format("%064x", new BigInteger(1, hash));
+        String hex = String.format("%0128x", new BigInteger(1, hash));
+//        String old = String.format("%064x", new BigInteger(1, hash));
+//        String other = DatatypeConverter.printHexBinary(hash).toLowerCase();
+//        if (!old.equals(other) || !old.equals(hex)) {
+//            Log.log("not equal hex strings:" +
+//                    "\n old:  " + old +
+//                    "\n new:  " + other +
+//                    "\n new2: " + hex);
+//        }
+        return hex;
     }
 
     public static String millisToDHMSStr(long millis) {
@@ -134,15 +145,13 @@ public class Utils {
         if (o1 == null) {
             if (o2 == null) {
                 return false;
-            } else {
-                throw new RuntimeException("null & not_null");
             }
+            throw new RuntimeException("null & not_null");
         } else {
             if (o2 == null) {
                 throw new RuntimeException("not_null & null");
-            } else {
-                return true;
             }
+            return true;
         }
     }
 
@@ -175,6 +184,10 @@ public class Utils {
             return padLeft(PADS.substring(0, Math.min(destLen - currLen, PADS.length())) + str, destLen);
         }
         return str;
+    }
+
+    public static String format8(double value) {
+        return X_YYYYYYYY.format(value);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

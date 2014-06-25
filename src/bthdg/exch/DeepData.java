@@ -62,9 +62,9 @@ public class DeepData {
                 deep1.m_size = quoteSize;
                 if (LOG_JOIN_SMALL_QUOTES) {
                     System.out.println("joined small deep quote: " + side + " " + exchange + " " + pair +
-                            " min=" + format8(minOrderSize) + ": 0-size=" + format8(quote0size) + "@" + deep0.m_price +
-                            ", 1-size=" + format8(quote1size) + "@" + deep1.m_price +
-                            " => size=" + format8(quoteSize));
+                            " min=" + Utils.format8(minOrderSize) + ": 0-size=" + Utils.format8(quote0size) + "@" + deep0.m_price +
+                            ", 1-size=" + Utils.format8(quote1size) + "@" + deep1.m_price +
+                            " => size=" + Utils.format8(quoteSize));
                 }
                 deeps.remove(0);
                 i--;
@@ -72,10 +72,6 @@ public class DeepData {
                 break;
             }
         }
-    }
-
-    private String format8(double minOrderSize) {
-        return Utils.X_YYYYYYYY.format(minOrderSize);
     }
 
     public static class Deep {

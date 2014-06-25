@@ -158,16 +158,34 @@ public class TriTradeData {
             ? m_peg.mktRatio3(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
             : m_peg.mktRatio3(tops, account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
-        log(" ratio1=" +Utils.X_YYYYY.format(ratio1) +
+        log(" ratio1=" + Utils.X_YYYYY.format(ratio1) +
                 "; ratio2=" + Utils.X_YYYYY.format(ratio2) +
                 "; ratio3=" + Utils.X_YYYYY.format(ratio3) +
                 "; ratio=" + Utils.X_YYYYY.format(ratio) +
                 ";  mktPrice=" + mktPriceStr);
         int attempt = m_waitMktOrderStep++;
         if (ratio < 1) {
+            String topDataStr = topData.toString(Triplet.s_exchange, pair);
             if (ratio < Triplet.TOO_BIG_LOSS_LEVEL) {
                 log("!!!!!  MKT conditions gives TOO BIG LOSS - stop trade. ratio=" + ratio + "; pair=" + pair + "; forward=" + forward +
-                        "; side=" + side + "; top=" + topData.toString(Triplet.s_exchange, pair));
+                        "; side=" + side + "; top=" + topDataStr);
+
+                OrderData order1 = m_order;
+                OrderData order2 = m_mktOrders[0];
+                OrderData order3 = m_mktOrders[1];
+
+                double price1 = m_peg.m_price1;
+                double price2 = m_doMktOffset ? m_peg.m_price2minus : m_peg.m_price2;
+                double price3 = m_doMktOffset ? m_peg.m_price3minus : m_peg.m_price3;
+
+                double orderPrice = m_order.m_price;
+                double mktPrice1 = m_doMktOffset ? m_peg.calcMktPrice(tops, 1, Triplet.MKT_OFFSET_PRICE_MINUS) : m_peg.calcMktPrice(tops, 1);
+                double mktPrice2 = m_doMktOffset ? m_peg.calcMktPrice(tops, 2, Triplet.MKT_OFFSET_PRICE_MINUS) : m_peg.calcMktPrice(tops, 2);
+
+                logOrderEnds(1, order1, price1, orderPrice, m_peg.m_pair1.getSide());
+                logOrderEnds(2, order2, price2, mktPrice1, m_peg.m_pair2.getSide());
+                logOrderEnds(3, order3, price3, mktPrice2, m_peg.m_pair3.getSide());
+
                 return Double.MAX_VALUE;
             }
             double zeroProfitRatio = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
@@ -178,7 +196,7 @@ public class TriTradeData {
             double mid = topData.getMid();
             String midStr = Triplet.roundPriceStr(mid, pair);
             log("  MKT conditions do not allow profit on MKT orders close. pair=" + pair + "; forward=" + forward +
-                    "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Triplet.s_exchange, pair) +
+                    "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topDataStr +
                     "; mid=" + midStr);
 
             if (attempt < Triplet.WAIT_MKT_ORDER_STEPS) {
@@ -211,6 +229,18 @@ public class TriTradeData {
             // todo - try e.g. mkt-10 first  to get better profit
         }
         return limitPrice;
+    }
+
+    private void logOrderEnds(int i, OrderData order, double expectedPrice, double mktPrice, OrderSide side) {
+        if (order == null) {
+            double delta = side.isBuy() ? expectedPrice - mktPrice : mktPrice - expectedPrice;
+            log(" order" + i + ": " + Utils.padLeft(side.toString(), 4) +
+                    " " + Utils.padLeft(Utils.format8(expectedPrice), 13) +
+                    " -> " + Utils.padLeft(Utils.format8(mktPrice), 13) +
+                    "; delta=" + Utils.format8(delta));
+        } else {
+            order.logOrderEnds(i, expectedPrice);
+        }
     }
 
     private void tryCancelPegOrders(IterationData iData, TriTradesData triTradesData,

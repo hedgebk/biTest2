@@ -47,7 +47,7 @@ public class Btcn extends BaseExch {
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.BTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         0.001);
         put(Pair.LTC_CNH, "0.##",     0.01,             0.02,            "0.0##",       0.001,          0.01);
-        put(Pair.LTC_BTC, "0.####",   0.0001,           0.0002,          "0.0###",      0.001,          0.01);
+        put(Pair.LTC_BTC, "0.####",   0.0001,           0.0001,          "0.0###",      0.001,          0.01);
     }
 
     protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,

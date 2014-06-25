@@ -1,25 +1,47 @@
 package bthdg.exch;
 
+import java.math.RoundingMode;
+
 public enum OrderSide {
     BUY("B", "buy") {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice >= mktPrice; }
         @Override public OrderSide opposite() { return SELL; }
         @Override public double mktPrice(TopData top) { return top.m_ask; }
-        @Override public double pegPrice(TopData top, Double step) {
-            double pegPrice = top.m_bid + minPriceStep(step); // bid and ask can be VERY close - peg will run out of mkt bid/ask bounds - adjust
-            return (pegPrice >= top.m_ask) ? top.getMid() : pegPrice;
+        @Override public double pegPrice(TopData top, Double step, Double minStep) {
+            double pegStep = minPriceStep(step);
+            double pegPrice = top.m_bid + pegStep;
+            if (pegPrice >= top.m_ask) {
+                double exchStep = minPriceStep(minStep);
+                pegPrice = top.m_bid + exchStep;
+                if (pegPrice >= top.m_ask) {
+                    pegPrice = top.m_bid;
+                }
+            }
+            return pegPrice;
         }
         @Override public boolean isBuy() { return true; }
+        @Override public RoundingMode getPegRoundMode() { return RoundingMode.FLOOR; }
+        @Override public RoundingMode getMktRoundMode() { return RoundingMode.CEILING; }
     },
     SELL("S", "sell") {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice <= mktPrice; }
         @Override public OrderSide opposite() { return BUY; }
         @Override public double mktPrice(TopData top) { return top.m_bid; }
-        @Override public double pegPrice(TopData top, Double step) {
-            double pegPrice = top.m_ask - minPriceStep(step); // bid and ask can be VERY close - peg will run out of mkt bid/ask bounds - adjust
-            return (pegPrice <= top.m_bid) ? top.getMid() : pegPrice;
+        @Override public double pegPrice(TopData top, Double step, Double minStep) {
+            double pegStep = minPriceStep(step);
+            double pegPrice = top.m_ask - pegStep;
+            if (pegPrice <= top.m_bid) {
+                double exchStep = minPriceStep(minStep);
+                pegPrice = top.m_ask - exchStep;
+                if (pegPrice <= top.m_bid) {
+                    pegPrice = top.m_ask;
+                }
+            }
+            return pegPrice;
         }
         @Override public boolean isBuy() { return false; }
+        @Override public RoundingMode getPegRoundMode() { return RoundingMode.CEILING; }
+        @Override public RoundingMode getMktRoundMode() { return RoundingMode.FLOOR; }
     };
 
     public static final double MIN_PRICE_PRECISION = 0.01;
@@ -37,8 +59,10 @@ public enum OrderSide {
     public boolean acceptPrice(double orderPrice, double mktPrice) { return false; }
     public OrderSide opposite() { return null; }
     public double mktPrice(TopData top) { return 0; } // ASK > BID
-    public double pegPrice(TopData top, Double step) { return 0; }
+    public double pegPrice(TopData top, Double step, Double minStep) { return 0; }
     public boolean isBuy() { return false; }
+    public RoundingMode getPegRoundMode() { return null; }
+    public RoundingMode getMktRoundMode() { return null; }
 
     public static OrderSide getByCode(String str) {
         if (str == null) {

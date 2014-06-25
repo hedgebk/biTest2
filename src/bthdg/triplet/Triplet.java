@@ -158,9 +158,9 @@ public class Triplet {
     public static final boolean ALLOW_ONE_PRICE_STEP_CONCURRENT_PEG = false;
     public static final int LOAD_TRADES_NUM = 30; // num of last trades to load api
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
-    public static final double USE_ACCOUNT_FUNDS = 0.96;
+    public static final double USE_ACCOUNT_FUNDS = 0.96; // leave some for rounding
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
-    public static final double TOO_BIG_LOSS_LEVEL = 0.997; // stop current trade if mkt conditions will give big loss
+    public static final double TOO_BIG_LOSS_LEVEL = 0.9985; // stop current trade if mkt conditions will give big loss
     public static final boolean SIMULATE = false;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
@@ -240,7 +240,7 @@ public class Triplet {
                             double level = s_level;
                             s_level = (s_level - LVL) * 0.99 + LVL;
                             s_level = Math.max(s_level, LVL2);
-                            log(" LEVEL decreased (-1%) from " + Utils.X_YYYYYYYY.format(level) + " to " + Utils.X_YYYYYYYY.format(Triplet.s_level));
+                            log(" LEVEL decreased (-1%) from " + Utils.format8(level) + " to " + Utils.format8(Triplet.s_level));
                         }
                     } else {
                         if (size > 1) {

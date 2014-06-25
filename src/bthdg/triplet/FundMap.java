@@ -96,8 +96,9 @@ public class FundMap {
                         TopData top = tops.get(pair);
                         System.out.println("top=" + top);
                         double step = exchange.minOurPriceStep(pair);
-                        System.out.println("minOurPriceStep=" + step);
-                        double limitPrice = side.pegPrice(top, step);
+                        double exchStep = exchange.minExchPriceStep(pair);
+                        System.out.println("minOurPriceStep=" + step + "; minExchPriceStep=" + exchStep);
+                        double limitPrice = side.pegPrice(top, step, exchStep);
                         System.out.println("price(peg)=" + limitPrice);
                         if (!forward) {
                             amount = amount / limitPrice;

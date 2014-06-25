@@ -30,8 +30,8 @@ public class PlaceOrderData {
                 (m_error != null
                         ? "error='" + m_error + "'"
                         : "orderId=" + m_orderId +
-                          ", remains=" + Utils.X_YYYYYYYY.format(m_remains) +
-                          ", received=" + Utils.X_YYYYYYYY.format(m_received) +
+                          ", remains=" + Utils.format8(m_remains) +
+                          ", received=" + Utils.format8(m_received) +
                           ((m_accountData == null)
                                   ? ""
                                   : ", accountData=" + m_accountData)

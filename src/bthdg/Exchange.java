@@ -3,6 +3,7 @@ package bthdg;
 import bthdg.exch.*;
 import bthdg.exch.Currency;
 
+import java.math.RoundingMode;
 import java.util.*;
 
 // to support others ?
@@ -57,10 +58,12 @@ public enum Exchange {
         @Override public boolean supportsMultiplePairsRequest() { return true; }
         @Override public Currency baseCurrency() { return Currency.BTC; }
     },
-    MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null, null, null, null), // DEAD
+    @Deprecated MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
            null, null, "", "", null, null, null, null, null),
+// read some spec: https://github.com/timmolter/XChange/blob/develop/xchange-bitfinex/api-specification.txt
+//  sign https://github.com/timmolter/XChange/blob/develop/xchange-bitfinex/src/main/java/com/xeiam/xchange/bitfinex/v1/service/BitfinexHmacPostBodyDigest.java
     BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.0015, true,
            null, null,
            null, null, "", "", null, null, null, null, null),
@@ -219,6 +222,7 @@ public enum Exchange {
     public double minOrderToCreate(Pair pair) { return m_baseExch.minOrderToCreate(pair); }
 
     public double roundPrice(double price, Pair pair) { return m_baseExch.roundPrice(price, pair); }
+    public double roundPrice(double price, Pair pair, RoundingMode round) { return m_baseExch.roundPrice(price, pair, round); }
     public String roundPriceStr(double price, Pair pair) { return m_baseExch.roundPriceStr(price, pair); }
     public double roundAmount(double amount, Pair pair) { return m_baseExch.roundAmount(amount, pair); }
     public String roundAmountStr(double amount, Pair pair) { return m_baseExch.roundAmountStr(amount, pair); }

@@ -326,7 +326,8 @@ public class Console {
                     } else if (priceStr.equals("peg")) { // place peg
                         TopData top = Fetcher.fetchTop(s_exchange, pair);
                         double step = s_exchange.minOurPriceStep(pair);
-                        limitPrice = side.pegPrice(top, step);
+                        double exchStep = s_exchange.minExchPriceStep(pair);
+                        limitPrice = side.pegPrice(top, step, exchStep);
                     } else if (priceStr.equals("mid")) { // place mid
                         TopData top = Fetcher.fetchTop(s_exchange, pair);
                         limitPrice = top.getMid();

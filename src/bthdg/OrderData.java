@@ -137,30 +137,26 @@ public class OrderData {
                 if (filled >= minAmountStep) {
                     return true;
                 }
-                throw new RuntimeException("Error order state: PARTIALLY_FILLED order with zero filled(" + format8(filled) + "), " +
-                        "m_filled=" + format8(m_filled) + "; minAmountStep=" + format8(minAmountStep) + ": " + this);
+                throw new RuntimeException("Error order state: PARTIALLY_FILLED order with zero filled(" + Utils.format8(filled) + "), " +
+                        "m_filled=" + Utils.format8(m_filled) + "; minAmountStep=" + Utils.format8(minAmountStep) + ": " + this);
             }
             if ((m_status == OrderStatus.SUBMITTED) || (m_status == OrderStatus.NEW)) {
                 if (filled < minAmountStep) {
                     return false;
                 }
-                throw new RuntimeException("Error order state: NEW | SUBMITTED order with non zero filled(" + format8(filled) + ", " +
-                        "m_filled=" + format8(m_filled) + "; minAmountStep=" + format8(minAmountStep) + ": " + this);
+                throw new RuntimeException("Error order state: NEW | SUBMITTED order with non zero filled(" + Utils.format8(filled) + ", " +
+                        "m_filled=" + Utils.format8(m_filled) + "; minAmountStep=" + Utils.format8(minAmountStep) + ": " + this);
             }
             if (m_status == OrderStatus.FILLED) {
                 double amount = roundAmount(exchange, m_amount);
                 if (Math.abs(filled - amount) < minAmountStep) {
                     return false;
                 }
-                throw new RuntimeException("Error order state: FILLED order with non equal filled(" + format8(filled) + "), " +
-                        "m_filled=" + m_filled + " and amount(" + format8(amount) + "), minAmountStep=" + format8(minAmountStep) + ": " + this);
+                throw new RuntimeException("Error order state: FILLED order with non equal filled(" + Utils.format8(filled) + "), " +
+                        "m_filled=" + m_filled + " and amount(" + Utils.format8(amount) + "), minAmountStep=" + Utils.format8(minAmountStep) + ": " + this);
             }
             throw new RuntimeException("isPartiallyFilled check on order with unsupported status: " + this);
         }
-    }
-
-    private static String format8(double value) {
-        return Utils.X_YYYYYYYY.format(value);
     }
 
     @Override public String toString() {
@@ -377,12 +373,15 @@ public class OrderData {
         }
     }
 
-    public double[] logOrderEnds(AccountData account, int i, double expectedPrice) {
+    public void logOrderEnds(int i, double expectedPrice) {
         double delta = m_side.isBuy() ? expectedPrice - m_price : m_price - expectedPrice;
         log(" order" + i + ": " + Utils.padLeft(m_side.toString(), 4) +
-            " " + Utils.padLeft(format8(expectedPrice), 13) +
-            " -> " + Utils.padLeft(format8(m_price), 13) +
-            "; delta=" + format8(delta) + " on " + this);
+            " " + Utils.padLeft(Utils.format8(expectedPrice), 13) +
+            " -> " + Utils.padLeft(Utils.format8(m_price), 13) +
+            "; delta=" + Utils.format8(delta) + " on " + this);
+    }
+
+    public double[] calcOrderEnds(AccountData account, double expectedPrice) {
         double startAmount = startAmount();
         double endAmount = endAmount(account);
         return new double[] {startAmount, endAmount};

@@ -97,22 +97,27 @@ public enum TriTradeState {
         double price2 = doMktOffset ? peg.m_price2minus : peg.m_price2;
         double price3 = doMktOffset ? peg.m_price3minus : peg.m_price3;
 
-        double[] ends1 = order1.logOrderEnds(account, 1, price1);
-        double[] ends2 = order2.logOrderEnds(account, 2, price2);
-        double[] ends3 = order3.logOrderEnds(account, 3, price3);
+        order1.logOrderEnds(1, price1);
+        order2.logOrderEnds(2, price2);
+        order3.logOrderEnds(3, price3);
+
+        double[] ends1 = order1.calcOrderEnds(account, price1);
+        double[] ends2 = order2.calcOrderEnds(account, price2);
+        double[] ends3 = order3.calcOrderEnds(account, price3);
+
         Currency startCurrency = order1.startCurrency();
         Currency endCurrency = order3.endCurrency();
         double amount1 = order1.startAmount();
         double amount3 = order3.endAmount(account);
         triTradeData.log(
-                "  START " + Utils.X_YYYYYYYY.format(amount1) + " " + startCurrency +
-                        " -> END " + Utils.X_YYYYYYYY.format(amount3) + " " + endCurrency +
-                        "  |||  start " + Utils.X_YYYYYYYY.format(amount1) + " " + startCurrency +
-                        "  end " + Utils.X_YYYYYYYY.format(order1.endAmount(account)) + " " + order1.endCurrency() +
-                        " | start " + Utils.X_YYYYYYYY.format(order2.startAmount()) + " " + order2.startCurrency() +
-                        "  end " + Utils.X_YYYYYYYY.format(order2.endAmount(account)) + " " + order2.endCurrency() +
-                        " | start " + Utils.X_YYYYYYYY.format(order3.startAmount()) + " " + order3.startCurrency() +
-                        "  end " + Utils.X_YYYYYYYY.format(amount3) + " " + endCurrency
+                "  START " + Utils.format8(amount1) + " " + startCurrency +
+                        " -> END " + Utils.format8(amount3) + " " + endCurrency +
+                        "  |||  start " + Utils.format8(amount1) + " " + startCurrency +
+                        "  end " + Utils.format8(order1.endAmount(account)) + " " + order1.endCurrency() +
+                        " | start " + Utils.format8(order2.startAmount()) + " " + order2.startCurrency() +
+                        "  end " + Utils.format8(order2.endAmount(account)) + " " + order2.endCurrency() +
+                        " | start " + Utils.format8(order3.startAmount()) + " " + order3.startCurrency() +
+                        "  end " + Utils.format8(amount3) + " " + endCurrency
         );
 
         double in = ends1[0];
@@ -169,7 +174,9 @@ public enum TriTradeState {
                 ((cnhRate != 0) ? "; valuateCnh=" + format5(cnhRate) : "") +
                 "; midMul=" + format5(midMul) +
                 "; count=" + Triplet.s_counter);
-        triTradeData.log(" @@@@@@    peg: max"+(doMktOffset?"":"*")+"=" + format5(peg.m_max) +
+        triTradeData.log(" @@@@@@    peg: " +
+                (peg.mktCrossLvl() ? "!MKT! " : "") +
+                "max" + (doMktOffset ? "" : "*") + "=" + format5(peg.m_max) +
                 "; max10" + (doMktOffset ? "*" : "") + "=" + format5(peg.m_max10) + "; startIndx=" + startIndx +
                 "; need=" + format5(peg.m_need) +
                 "; price1=" + Triplet.roundPrice(price1, peg.m_pair1.m_pair) + "; p1=" + peg.m_pair1 +
@@ -233,7 +240,7 @@ public enum TriTradeState {
                     }
                 } else {
                     triTradeData.log("MKT order " + num + " is on market bound: [" + bidPriceStr + "; " + orderPriceStr + "; " + askPriceStr + "]: " +
-                            "absPriceDif=" + Utils.X_YYYYYYYY.format(absPriceDif) + "; " + orderStr + ";  top=" + topStr);
+                            "absPriceDif=" + Utils.format8(absPriceDif) + "; " + orderStr + ";  top=" + topStr);
                 }
             }
         }

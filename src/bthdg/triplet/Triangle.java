@@ -94,7 +94,6 @@ public class Triangle extends ArrayList<PairDirection> {
 
     public static double midPrice(TopData top, PairDirection pd) {
         double price = top.getMid();
-        // the price is changed from quoted by exchange - need to be rounded
         double ret = Triplet.roundPrice(price, pd.m_pair);
         return ret;
     }
@@ -125,7 +124,7 @@ public class Triangle extends ArrayList<PairDirection> {
         double mktPrice = side.mktPrice(top);
         double price = pd.isForward() ? mktPrice - delta : mktPrice + delta; // ASK > BID
         // the price is changed from quoted by exchange - need to be rounded
-        double ret = Triplet.roundPrice(price, pd.m_pair);
+        double ret = Triplet.s_exchange.roundPrice(price, pd.m_pair, side.getMktRoundMode());
         return ret;
     }
 
@@ -138,11 +137,10 @@ public class Triangle extends ArrayList<PairDirection> {
     public static double pegPrice(TopData top, PairDirection pd) {
         Pair pair = pd.m_pair;
         double minPriceStep = Triplet.s_exchange.minOurPriceStep(pair);
+        double exchStep = Triplet.s_exchange.minExchPriceStep(pair);
         OrderSide side = pd.getSide(); // ASK > BID
-        double price = side.pegPrice(top, minPriceStep);
-        // the price is changed from quoted by exchange - need to be rounded
-// TODO: the price need to be rounded to direction based on order side - not just mathematically to nearest exch price step
-        double ret = Triplet.roundPrice(price, pair);
+        double price = side.pegPrice(top, minPriceStep, exchStep); // the price is changed here from quoted by exchange - need to be rounded
+        double ret = Triplet.s_exchange.roundPrice(price, pair, side.getPegRoundMode()); // round to direction based on order side
         return ret;
     }
 } // Triangle

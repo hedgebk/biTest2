@@ -8,6 +8,8 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.*;
 import java.io.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.InvalidKeyException;
@@ -32,20 +34,42 @@ public abstract class BaseExch {
     public double minOrderToCreate(Pair pair) { throw new RuntimeException("minOrderToCreate() not implemented on " + this); }
 
     public double roundPrice(double price, Pair pair){
-        return defRoundPrice(price, pair);
+        return roundPrice(price, pair, RoundingMode.HALF_UP);
     }
+    public double roundPrice(double price, Pair pair, RoundingMode round){ // ROUND_UP, ROUND_DOWN, ROUND_HALF_UP
+        DecimalFormat decimalFormat = priceFormat(pair);
+        int scale = decimalFormat.getMaximumFractionDigits();
+        return round(price, scale, round);
+    }
+
     public double roundAmount(double amount, Pair pair){
-        return defRoundAmount(amount, pair);
+        DecimalFormat decimalFormat = amountFormat(pair);
+        int scale = decimalFormat.getMaximumFractionDigits();
+        return round(amount, scale, RoundingMode.FLOOR); // round always down
     }
 
     public String roundPriceStr(double price, Pair pair) {
+        return roundPriceStr(price, pair, RoundingMode.HALF_UP);
+    }
+
+    private String roundPriceStr(double price, Pair pair, RoundingMode round) {
+        double rounded = roundPrice(price, pair, round);
         DecimalFormat decimalFormat = priceFormat(pair);
-        return decimalFormat.format(price);
+        String ret = decimalFormat.format(rounded);
+        return ret;
     }
 
     public String roundAmountStr(double amount, Pair pair) {
+        double rounded = roundAmount(amount, pair);
         DecimalFormat decimalFormat = amountFormat(pair);
-        return decimalFormat.format(amount);
+        return decimalFormat.format(rounded);
+    }
+
+    private static double round(double value, int scale, RoundingMode round) {
+        BigDecimal bd = BigDecimal.valueOf(value);
+        bd = bd.setScale(scale,round);
+        double ret = bd.doubleValue();
+        return ret;
     }
 
     public abstract String getNextNonce();
@@ -239,16 +263,6 @@ public abstract class BaseExch {
 
     protected static DecimalFormat mkFormat(String format) {
         return new DecimalFormat(format, DecimalFormatSymbols.getInstance(Locale.ENGLISH));
-    }
-
-    protected double defRoundPrice(double price, Pair pair) {
-        String str = roundPriceStr(price, pair);
-        return Double.parseDouble(str);
-    }
-
-    protected double defRoundAmount(double amount, Pair pair) {
-        String str = roundAmountStr(amount, pair);
-        return Double.parseDouble(str);
     }
 
     public void initFundMap() {}
