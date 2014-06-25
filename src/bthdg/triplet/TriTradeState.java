@@ -6,85 +6,88 @@ import bthdg.util.Utils;
 
 public enum TriTradeState {
     PEG_PLACED {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             OrderData order = triTradeData.m_order;
             triTradeData.log("PEG_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
-            order.checkState(iData, Triplet.s_exchange, triangleData.m_account, null, triangleData);
-            triangleData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, PEG_FILLED);
+            order.checkState(iData, Triplet.s_exchange, triTradesData.m_account, null, triTradesData);
+            triTradesData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, PEG_FILLED);
             triTradeData.log("PEG_PLACED(" + triTradeData.m_peg.name() + ") END");
         }
     },
     BRACKET_PLACED {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             OrderData order = triTradeData.m_order;
             triTradeData.log("BRACKET_PLACED(" + triTradeData.m_peg.name() + ") - check order " + order + " ...");
-            order.checkState(iData, Triplet.s_exchange, triangleData.m_account, null, triangleData);
-            triangleData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, PEG_FILLED);
+            order.checkState(iData, Triplet.s_exchange, triTradesData.m_account, null, triTradesData);
+            triTradesData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, PEG_FILLED);
             triTradeData.log("BRACKET_PLACED(" + triTradeData.m_peg.name() + ") END");
         }
     },
     PEG_JUST_FILLED {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("PEG_JUST_FILLED(" + triTradeData.m_peg.name() + ") - run 1st MKT order...");
             triTradeData.setState(PEG_FILLED);
-            triTradeData.startMktOrder(iData, triangleData, 1, MKT1_EXECUTED, true); // try to place mkt without re-questing tops - blind trade
+            triTradeData.startMktOrder(iData, triTradesData, 1, MKT1_EXECUTED, true); // try to place mkt without re-questing tops - blind trade
             triTradeData.log("PEG_JUST_FILLED(" + triTradeData.m_peg.name() + ") END");
         }
     },
     PEG_FILLED {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("PEG_FILLED(" + triTradeData.m_peg.name() + ") - run 1st MKT order...");
-            triTradeData.startMktOrder(iData, triangleData, 1, MKT1_EXECUTED); // will fork and check inside if needed
+            triTradeData.startMktOrder(iData, triTradesData, 1, MKT1_EXECUTED); // will fork and check inside if needed
             triTradeData.log("PEG_FILLED(" + triTradeData.m_peg.name() + ") END");
         }
     },
     MKT1_PLACED {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
-            checkMktPlaced(iData, triangleData, triTradeData, 1, MKT1_EXECUTED);
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
+            checkMktPlaced(iData, triTradesData, triTradeData, 1, MKT1_EXECUTED);
         }
     },
     MKT1_EXECUTED{
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("MKT1_EXECUTED(" + triTradeData.m_peg.name() + ") - run 2nd MKT order...");
-            triTradeData.startMktOrder(iData, triangleData, 2, MKT2_EXECUTED); // will fork and check inside if needed
+            triTradeData.startMktOrder(iData, triTradesData, 2, MKT2_EXECUTED); // will fork and check inside if needed
             triTradeData.log("MKT1_EXECUTED(" + triTradeData.m_peg.name() + ") END");
         }
     },
     MKT2_PLACED {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
-            checkMktPlaced(iData, triangleData, triTradeData, 2, MKT2_EXECUTED);
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
+            checkMktPlaced(iData, triTradesData, triTradeData, 2, MKT2_EXECUTED);
         }
     },
     MKT2_EXECUTED {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("MKT2_EXECUTED(" + triTradeData.m_peg.name() + ") - we are done");
-            allExecuted(iData, triangleData, triTradeData);
+            allExecuted(iData, triTradesData, triTradeData);
             triTradeData.log("MKT2_EXECUTED(" + triTradeData.m_peg.name() + ") END");
         }
     },
     DONE {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("DONE state on " + this);
         }
+        @Override public boolean isInactive() { return true; }
     },
     CANCELED {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("CANCELED state on " + this);
         }
+        @Override public boolean isInactive() { return true; }
     },
     ERROR {
-        @Override public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+        @Override public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
             triTradeData.log("ERROR state on " + this);
         }
+        @Override public boolean isInactive() { return true; }
     },
     ;
 
-    private static void allExecuted(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {
+    private static void allExecuted(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {
         OnePegCalcData peg = triTradeData.m_peg;
         boolean doMktOffset = triTradeData.m_doMktOffset;
         int startIndx = peg.m_indx;
 
-        AccountData account = triangleData.m_account;
+        AccountData account = triTradesData.m_account;
 
         OrderData order1 = triTradeData.m_order;
         OrderData order2 = triTradeData.m_mktOrders[0];
@@ -167,23 +170,24 @@ public enum TriTradeState {
                 "; midMul=" + format5(midMul) +
                 "; count=" + Triplet.s_counter);
         triTradeData.log(" @@@@@@    peg: max"+(doMktOffset?"":"*")+"=" + format5(peg.m_max) +
-                "; max10"+(doMktOffset?"*":"")+"=" + format5(peg.m_max10) + "; startIndx=" + startIndx +
+                "; max10" + (doMktOffset ? "*" : "") + "=" + format5(peg.m_max10) + "; startIndx=" + startIndx +
                 "; need=" + format5(peg.m_need) +
-                "; price1=" + Triplet.s_exchange.roundPrice(price1, peg.m_pair1.m_pair) + "; p1=" + peg.m_pair1 +
-                "; price2=" + Triplet.s_exchange.roundPrice(price2, peg.m_pair2.m_pair) + "; p2=" + peg.m_pair2 +
-                "; price3=" + Triplet.s_exchange.roundPrice(price3, peg.m_pair3.m_pair) + "; p3=" + peg.m_pair3
+                "; price1=" + Triplet.roundPrice(price1, peg.m_pair1.m_pair) + "; p1=" + peg.m_pair1 +
+                "; price2=" + Triplet.roundPrice(price2, peg.m_pair2.m_pair) + "; p2=" + peg.m_pair2 +
+                "; price3=" + Triplet.roundPrice(price3, peg.m_pair3.m_pair) + "; p3=" + peg.m_pair3
         );
 
         if (gain > 1) {
             if (Triplet.s_level > Triplet.LVL2) {
                 double level = Triplet.s_level;
-                Triplet.s_level = (Triplet.s_level - Triplet.LVL) / 1.2 + Triplet.LVL;
-                Triplet.s_level = Math.max(Triplet.s_level, Triplet.LVL2);
+                double newLevel = (level - Triplet.LVL) / 1.2 + level;
+                newLevel = Math.max(newLevel, Triplet.LVL2);
+                Triplet.s_level = newLevel;
                 triTradeData.log(" LEVEL decreased from " + format5(level) + " to " + format5(Triplet.s_level));
             }
         } else {
             double level = Triplet.s_level;
-            Triplet.s_level = (Triplet.s_level - Triplet.LVL) * 1.4 + Triplet.LVL;
+            Triplet.s_level = (level - Triplet.LVL) * 1.4 + level;
             triTradeData.log(" LEVEL increased from " + format5(level) + " to " + format5(Triplet.s_level));
         }
         triTradeData.setState(DONE);
@@ -193,19 +197,19 @@ public enum TriTradeState {
         return Utils.X_YYYYY.format(ratio1);
     }
 
-    private static void checkMktPlaced(IterationData iData, TriangleData triangleData, TriTradeData triTradeData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
+    private static void checkMktPlaced(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
         boolean isFirst = (num == 1);
-        int indx = num - 1;
-        OrderData order = triTradeData.m_mktOrders[indx];
+        int mktOrderIndx = num - 1;
+        OrderData order = triTradeData.m_mktOrders[mktOrderIndx];
         String orderStr = (order != null) ? order.toString(Triplet.s_exchange) : null;
         String name = triTradeData.m_peg.name();
         triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + name + ") - check order " + orderStr + " ...");
         if (order == null) { // move mkt order can be unsuccessful - cancel fine, but placing failed - just start mkt again
             triTradeData.log(" no MKT order " + num + " - placing new " + (isFirst ? "1st" : "2nd") + " MKT order...");
-            triTradeData.startMktOrder(iData, triangleData, num, stateForFilled);
+            triTradeData.startMktOrder(iData, triTradesData, num, stateForFilled);
         } else {
-            order.checkState(iData, Triplet.s_exchange, triangleData.m_account, null, triangleData);
-            triangleData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, stateForFilled);
+            order.checkState(iData, Triplet.s_exchange, triTradesData.m_account, null, triTradesData);
+            triTradesData.forkAndCheckFilledIfNeeded(iData, triTradeData, order, stateForFilled);
             if (!order.isFilled()) {
                 orderStr = order.toString(Triplet.s_exchange);
                 Pair pair = order.m_pair;
@@ -213,17 +217,17 @@ public enum TriTradeState {
                 String topStr = top.toString(Triplet.s_exchange, pair);
                 double mktPrice = order.m_side.mktPrice(top);
                 double orderPrice = order.m_price;
-                String orderPriceStr = Triplet.s_exchange.roundPriceStr(orderPrice, pair);
-                String bidPriceStr = Triplet.s_exchange.roundPriceStr(top.m_bid, pair);
-                String askPriceStr = Triplet.s_exchange.roundPriceStr(top.m_ask, pair);
-                double absPriceDif = Triplet.s_exchange.roundPrice(Math.abs(orderPrice - mktPrice), pair);
+                String orderPriceStr = Triplet.roundPriceStr(orderPrice, pair);
+                String bidPriceStr = Triplet.roundPriceStr(top.m_bid, pair);
+                String askPriceStr = Triplet.roundPriceStr(top.m_ask, pair);
+                double absPriceDif = Triplet.roundPrice(Math.abs(orderPrice - mktPrice), pair);
                 double minPriceStep = Triplet.s_exchange.minExchPriceStep(pair);
                 if (absPriceDif >= minPriceStep) {
                     triTradeData.log("MKT order " + num + " run out of market: [" + bidPriceStr + "; " + orderPriceStr + "; " + askPriceStr + "]: " + orderStr);
-                    if (triangleData.cancelOrder(order, iData)) {
-                        triTradeData.m_mktOrders[indx] = null;
+                    if (triTradesData.cancelOrder(order, iData)) {
+                        triTradeData.m_mktOrders[mktOrderIndx] = null;
                         triTradeData.log("placing new " + (isFirst ? "1st" : "2nd") + " MKT order...");
-                        triTradeData.startMktOrder(iData, triangleData, num, stateForFilled);
+                        triTradeData.startMktOrder(iData, triTradesData, num, stateForFilled);
                     } else {
                         triTradeData.log("cancel order failed: " + orderStr);
                     }
@@ -236,5 +240,6 @@ public enum TriTradeState {
         triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + name + ") END");
     }
 
-    public void checkState(IterationData iData, TriangleData triangleData, TriTradeData triTradeData) throws Exception {}
+    public void checkState(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData) throws Exception {}
+    public boolean isInactive() { return false; }
 }

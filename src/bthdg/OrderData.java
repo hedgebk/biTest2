@@ -165,12 +165,12 @@ public class OrderData {
 
     @Override public String toString() {
         return "OrderData{" +
-                (m_orderId != null ? "id=" + m_orderId + " " : "") +
-                "pair=" + m_pair +
+                ((m_orderId != null) ? "id=" + m_orderId + " " : "") +
+                "status=" + m_status +
+                ", pair=" + m_pair +
                 ", side=" + m_side +
                 ", amount=" + Utils.X_YYYYY.format(m_amount) +
                 ", price=" + Utils.X_YYYYY.format(m_price) +
-                ", status=" + m_status +
                 ", state=" + m_state +
                 ", filled=" + Utils.X_YYYYY.format(m_filled) +
                 '}';
@@ -179,11 +179,11 @@ public class OrderData {
     public String toString(Exchange exchange) {
         return "OrderData{" +
                 (m_orderId != null ? "id=" + m_orderId + " " : "") +
-                "pair=" + m_pair +
+                "status=" + m_status +
+                ", pair=" + m_pair +
                 ", side=" + m_side +
                 ", amount=" + roundAmountStr(exchange) +
                 ", price=" + roundPriceStr(exchange) +
-                ", status=" + m_status +
                 ", state=" + m_state +
                 ", filled=" + roundPriceStr(exchange, m_filled) +
                 '}';

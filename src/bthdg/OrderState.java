@@ -1,6 +1,7 @@
 package bthdg;
 
 import bthdg.exch.*;
+import bthdg.util.Utils;
 
 import java.util.Map;
 
@@ -101,7 +102,7 @@ public enum OrderState {
                         log("     skipped: < minAmountStep (" + minAmountStepStr + ")");
                     }
                 } else {
-                    log("  order " + orderId + " not executed.  absAmountDelta(" + absAmountDelta + ") < pair.minAmountStep(" + minAmountStepStr + ")");
+                    log("  order " + orderId + " not executed.  absAmountDelta(" + Utils.X_YYYYYYYY.format(absAmountDelta) + ") < pair.minAmountStep(" + minAmountStepStr + ")");
                 }
             } else {
                 log(" liveOrder[" + orderId + "]=" + ordData + ";  no such liveOrder. EXECUTED");

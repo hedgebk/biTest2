@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import bthdg.AccountData;
+import bthdg.util.Utils;
 
 public class PlaceOrderData {
     public String m_error;
@@ -29,8 +30,8 @@ public class PlaceOrderData {
                 (m_error != null
                         ? "error='" + m_error + "'"
                         : "orderId=" + m_orderId +
-                          ", remains=" + m_remains +
-                          ", received=" + m_received +
+                          ", remains=" + Utils.X_YYYYYYYY.format(m_remains) +
+                          ", received=" + Utils.X_YYYYYYYY.format(m_received) +
                           ((m_accountData == null)
                                   ? ""
                                   : ", accountData=" + m_accountData)

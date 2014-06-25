@@ -47,6 +47,7 @@ public class OnePegCalcData {
 
     private double price2() { return m_pair2.isForward() ? 1/m_price2 : m_price2; }
     private double price3() { return m_pair3.isForward() ? 1/m_price3 : m_price3; }
+    public boolean mktCrossLvl() { return m_parent.mktCrossLvl(); }
 
     public String name() {
         StringBuilder sb = new StringBuilder();

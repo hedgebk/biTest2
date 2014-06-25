@@ -93,8 +93,12 @@ public class TriangleRotationCalcData {
 
     private void findBestMap(TreeMap<Double, OnePegCalcData> ret, int indx) {
         OnePegCalcData peg = m_pegs[indx];
-        double key = peg.m_max;
-        ret.put(1 / key, peg); // 1/key - to make items appears from high to low
+        double max = peg.m_max;
+        double key = 1 / max; // 1/key - to make items appears from high to low
+        if (mktCrossLvl()) {
+            key = -m_mkt; // mktCrossed are first
+        }
+        ret.put(key, peg);
     }
 
     public void checkMkt() {

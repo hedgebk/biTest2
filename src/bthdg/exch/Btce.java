@@ -26,7 +26,7 @@ public class Btce extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
     private static String SECRET;
     private static String KEY;
-    private static int s_nonce = (int) (System.currentTimeMillis() / 1000);
+    private static int s_nonce = (int) (System.currentTimeMillis() / 700);
     public static boolean LOG_PARSE = false;
     private static final int BTCE_CONNECT_TIMEOUT = 12000;
     private static final int BTCE_READ_TIMEOUT = 15000;
@@ -261,9 +261,9 @@ public class Btce extends BaseExch {
             log("BTCE.parseDeeps() " + obj);
         }
         DeepsData ret = new DeepsData();
-        for(Pair pair: pairs) {
+        for (Pair pair : pairs) {
             DeepData deep = parseDeepInt(obj, pair);
-            if(JOIN_SMALL_QUOTES) {
+            if (JOIN_SMALL_QUOTES) {
                 deep.joinSmallQuotes(Exchange.BTCE, pair);
             }
             ret.put(pair, deep);

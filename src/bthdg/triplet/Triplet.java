@@ -44,11 +44,11 @@ public class Triplet {
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 7;
                 Triplet.START_TRIANGLES_PER_ITERATION = 3;
                 Triplet.LVL = 100.602408; // commission level - note - complex percents here
-                Triplet.LVL2 = 100.70; // min target level
-                Triplet.WAIT_MKT_ORDER_STEPS = 0;
+                Triplet.LVL2 = 100.72; // min target level
+                Triplet.WAIT_MKT_ORDER_STEPS = 2;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
-                Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
-                Triplet.MKT_OFFSET_LEVEL_DELTA = 0.15;
+                Triplet.MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%
+                Triplet.MKT_OFFSET_LEVEL_DELTA = 0.11;
                 Triplet.ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
                 Triplet.MIN_SLEEP_TIME = 300; // min sleep between iterations
                 Triplet.PREFER_LIQUID_PAIRS = true; // prefer start from LTC_BTC, BTC_USD, LTC_USD
@@ -97,8 +97,8 @@ public class Triplet {
                 Triplet.s_exchange = Exchange.BTCN;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 2;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
-                Triplet.LVL  = 100.007; // commission level
-                Triplet.LVL2 = 100.008; // min target level
+                Triplet.LVL  = 100.009; // commission level
+                Triplet.LVL2 = 100.01; // min target level
                 Triplet.WAIT_MKT_ORDER_STEPS = 0;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
@@ -113,7 +113,7 @@ public class Triplet {
                 Triplet.PAIRS = new Pair[]{Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH};
 
                 Triplet.TRIANGLES = new Triangle[]{
-                        new Triangle(Currency.CNH, Currency.LTC, Currency.BTC), // cnh -> ltc -> btc -> gbp
+                        new Triangle(Currency.CNH, Currency.LTC, Currency.BTC), // cnh -> ltc -> btc -> cnh
                 };
             }
         };
@@ -217,7 +217,7 @@ public class Triplet {
 
                 long start = System.currentTimeMillis();
                 int counter = 1;
-                TriangleData td = new TriangleData(account);
+                TriTradesData td = new TriTradesData(account);
                 while (true) {
                     log("============================================== iteration " + (counter++) +
                             "; active " + td.m_triTrades.size() +
@@ -452,6 +452,14 @@ public class Triplet {
 
     private static void log(String s) {
         Log.log(s);
+    }
+
+    public static double roundPrice(double price, Pair pair) {
+        return s_exchange.roundPrice(price, pair);
+    }
+
+    public static String roundPriceStr(double price, Pair pair) {
+        return s_exchange.roundPriceStr(price, pair);
     }
 
     private static class IntConsoleReader extends ConsoleReader {

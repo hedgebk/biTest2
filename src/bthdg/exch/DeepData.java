@@ -9,7 +9,9 @@ import java.util.List;
 
 /** Deep book data */
 public class DeepData {
+    public static boolean LOG_JOIN_SMALL_QUOTES = false;
     public final double JOIN_SMALL_QUOTES_THRESHOLD = 0.8;
+
     public final List<Deep> m_bids;
     public final List<Deep> m_asks;
 
@@ -58,10 +60,12 @@ public class DeepData {
                 double quote1size = deep1.m_size;
                 double quoteSize = quote0size + quote1size;
                 deep1.m_size = quoteSize;
-                System.out.println("joined small deep quote: " + side + " " + exchange + " " + pair +
-                        " min=" + format8(minOrderSize) + ": 0-size=" + format8(quote0size) + "@" + deep0.m_price +
-                        ", 1-size=" + format8(quote1size) + "@" + deep1.m_price +
-                        " => size=" + format8(quoteSize));
+                if (LOG_JOIN_SMALL_QUOTES) {
+                    System.out.println("joined small deep quote: " + side + " " + exchange + " " + pair +
+                            " min=" + format8(minOrderSize) + ": 0-size=" + format8(quote0size) + "@" + deep0.m_price +
+                            ", 1-size=" + format8(quote1size) + "@" + deep1.m_price +
+                            " => size=" + format8(quoteSize));
+                }
                 deeps.remove(0);
                 i--;
             } else {

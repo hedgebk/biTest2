@@ -11,8 +11,8 @@ public class TriTradeData {
 
     public final long m_startTime;
     public final String m_id;
-    public OrderData m_order;
-    public OrderData[] m_mktOrders;
+    public OrderData m_order; // peg/bracket order
+    public OrderData[] m_mktOrders; // 2 mkt orders
     public OnePegCalcData m_peg;
     public TriTradeState m_state = TriTradeState.PEG_PLACED;
     public int m_waitMktOrderStep;
@@ -31,14 +31,14 @@ public class TriTradeData {
         m_state = initState;
     }
 
-    public void startMktOrder(IterationData iData, TriangleData triangleData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
-        startMktOrder(iData, triangleData, num, stateForFilled, false);
+    public void startMktOrder(IterationData iData, TriTradesData triTradesData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
+        startMktOrder(iData, triTradesData, num, stateForFilled, false);
     }
 
-    public void startMktOrder(IterationData iData, TriangleData triangleData, int num/*1 or 2*/, TriTradeState stateForFilled, boolean blind) throws Exception {
+    public void startMktOrder(IterationData iData, TriTradesData triTradesData, int num/*1 or 2*/, TriTradeState stateForFilled, boolean blind) throws Exception {
         log("startMktOrder(" + num + ") waitStep=" + m_waitMktOrderStep);
 
-        AccountData account = triangleData.m_account;
+        AccountData account = triTradesData.m_account;
         TopsData tops = blind ? iData.getAnyTops() : iData.getTops();
 
         PairDirection pd = (num == 1) ? m_peg.m_pair2 : m_peg.m_pair3;
@@ -72,13 +72,13 @@ public class TriTradeData {
         Currency currency = currencyAmount.m_currency;
         double amount = currencyAmount.m_amount;
 
-        double available = checkAvailable(iData, triangleData, num, account, currencyAmount);
+        double available = checkAvailable(iData, triTradesData, num, account, currencyAmount);
         if (available != 0) {
             double orderAmount = side.isBuy() ? (amount / tryPrice) : amount;
 
-            String tryPriceStr = Triplet.s_exchange.roundPriceStr(tryPrice, pair);
-            String bidPriceStr = Triplet.s_exchange.roundPriceStr(topData.m_bid, pair);
-            String askPriceStr = Triplet.s_exchange.roundPriceStr(topData.m_ask, pair);
+            String tryPriceStr = Triplet.roundPriceStr(tryPrice, pair);
+            String bidPriceStr = Triplet.roundPriceStr(topData.m_bid, pair);
+            String askPriceStr = Triplet.roundPriceStr(topData.m_ask, pair);
             String amountStr = Triplet.s_exchange.roundAmountStr(orderAmount, pair);
             String availableStr = Triplet.s_exchange.roundAmountStr(available, pair);
             log("order(" + num + "):" + m_peg.name() + ", pair: " + pair + ", forward=" + forward + ", from=" + currency +
@@ -95,7 +95,7 @@ public class TriTradeData {
                 int indx = num - 1;
                 setState((indx == 0) ? TriTradeState.MKT1_PLACED : TriTradeState.MKT2_PLACED);
                 setMktOrder(order, indx);
-                triangleData.forkAndCheckFilledIfNeeded(iData, this, order, stateForFilled);
+                triTradesData.forkAndCheckFilledIfNeeded(iData, this, order, stateForFilled);
             } else if (ok == OrderData.OrderPlaceStatus.CAN_REPEAT) {
                 log("    some problem, but we can repeat place order on next iteration");
             } else {
@@ -103,17 +103,17 @@ public class TriTradeData {
                 setState(TriTradeState.ERROR);
             }
         }
-        log("startMktOrder(" + num + ") END: " + toString(Triplet.s_exchange));
+        log("startMktOrder(" + num + ") END: " + this);
     }
 
-    private double checkAvailable(IterationData iData, TriangleData triangleData, int num, AccountData account, CurrencyAmount currencyAmount) throws Exception {
+    private double checkAvailable(IterationData iData, TriTradesData triTradesData, int num, AccountData account, CurrencyAmount currencyAmount) throws Exception {
         Currency currency = currencyAmount.m_currency;
         double amount = currencyAmount.m_amount;
         double available = account.available(currency);
         if (amount > available) {
             log(" try cancel PEG orders for " + currency + " - not enough available funds to place MKT: available=" + available + "; needed=" + amount);
 
-            tryCancelPegOrders(iData, triangleData, account, currencyAmount);
+            tryCancelPegOrders(iData, triTradesData, account, currencyAmount);
 
             available = account.available(currency);
             if (amount > available) {
@@ -133,7 +133,7 @@ public class TriTradeData {
         OrderSide prevSide = prevOrder.m_side;
         Currency prevEndCurrency = prevOrder.endCurrency();
         double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - account.m_fee); // deduct commissions
-        log(" prev order " + prevOrder + "; exit amount " + Triplet.s_exchange.roundPriceStr(prevEndAmount, pair) + " " + prevEndCurrency);
+        log(" prev order " + prevOrder + "; exit amount " + Triplet.roundPriceStr(prevEndAmount, pair) + " " + prevEndCurrency);
 
         Currency fromCurrency = pair.currencyFrom(forward);
         if (prevEndCurrency != fromCurrency) {
@@ -146,7 +146,7 @@ public class TriTradeData {
     private Double calcLimitPrice(int num, AccountData account, TopsData tops, Pair pair,
                                   boolean forward, TopData topData, OrderSide side, final double mktPrice) {
         Double limitPrice = null;
-        String mktPriceStr = Triplet.s_exchange.roundPriceStr(mktPrice, pair);
+        String mktPriceStr = Triplet.roundPriceStr(mktPrice, pair);
 
         double ratio1 = m_order.ratio(account); // commission is applied to ratio
         double ratio2 = (num == 1)
@@ -176,7 +176,7 @@ public class TriTradeData {
                 zeroProfitPrice = 1 / zeroProfitPrice;
             }
             double mid = topData.getMid();
-            String midStr = Triplet.s_exchange.roundPriceStr(mid, pair);
+            String midStr = Triplet.roundPriceStr(mid, pair);
             log("  MKT conditions do not allow profit on MKT orders close. pair=" + pair + "; forward=" + forward +
                     "; side=" + side + "; zeroProfitPrice=" + zeroProfitPrice + "; top=" + topData.toString(Triplet.s_exchange, pair) +
                     "; mid=" + midStr);
@@ -187,7 +187,7 @@ public class TriTradeData {
                             ? ((mid > zeroProfitPrice) && (zeroProfitPrice > mktPrice))
                             : ((mid < zeroProfitPrice) && (zeroProfitPrice < mktPrice));
                     if (betweenMidMkt) {
-                        limitPrice = Triplet.s_exchange.roundPrice(zeroProfitPrice, pair);
+                        limitPrice = Triplet.roundPrice(zeroProfitPrice, pair);
                         log("    ! zero_Profit_Price is between mid and mkt - try zero price " + mktPriceStr);
                     } else {
                         log("    ! zero_Profit_Price is between mkt edges but too far from mkt - use mkt price " + mktPriceStr);
@@ -196,7 +196,7 @@ public class TriTradeData {
                     log("    ! zero_Profit_Price is outside of mkt edges");
                     double priceAdd = (mktPrice - mid) * attempt / Triplet.WAIT_MKT_ORDER_STEPS;
                     limitPrice = mid + priceAdd;
-                    String priceAddStr = Triplet.s_exchange.roundPriceStr(priceAdd, pair);
+                    String priceAddStr = Triplet.roundPriceStr(priceAdd, pair);
                     log("     wait some time - try with mid->mkt orders first: mkt=" + mktPrice + "; mid=" + midStr +
                             "; step=" + attempt + "; priceAdd=" + priceAddStr + ", lmtPrice=" + mktPriceStr);
                     if ((mktPrice > topData.m_ask) || (topData.m_bid > mktPrice)) {
@@ -213,16 +213,16 @@ public class TriTradeData {
         return limitPrice;
     }
 
-    private void tryCancelPegOrders(IterationData iData, TriangleData triangleData,
+    private void tryCancelPegOrders(IterationData iData, TriTradesData triTradesData,
                                     AccountData account, CurrencyAmount currencyAmount) throws Exception {
-        for (TriTradeData nextTriTrade : triangleData.m_triTrades) {
+        for (TriTradeData nextTriTrade : triTradesData.m_triTrades) {
             if (nextTriTrade.m_state == TriTradeState.PEG_PLACED) {
                 OrderData order = nextTriTrade.m_order;
                 Currency startCurrency = order.startCurrency();
                 Currency currency = currencyAmount.m_currency;
                 if (startCurrency == currency) {
                     log("  found PEG order for " + currency + " " + nextTriTrade.m_peg.name() + " " + order);
-                    boolean canceled = triangleData.cancelOrder(order, iData);
+                    boolean canceled = triTradesData.cancelOrder(order, iData);
                     if (canceled) {
                         nextTriTrade.setState(TriTradeState.CANCELED);
                         double available = account.available(currency);
@@ -252,8 +252,8 @@ public class TriTradeData {
         return buf.toString();
     }
 
-    public void checkState(IterationData iData, TriangleData triangleData) throws Exception {
-        m_state.checkState(iData, triangleData, this);
+    public void checkState(IterationData iData, TriTradesData triTradesData) throws Exception {
+        m_state.checkState(iData, triTradesData, this);
     }
 
     public void setState(TriTradeState state) {
@@ -345,12 +345,7 @@ public class TriTradeData {
     }
 
     @Override public String toString() {
-        return "TriTradeData[" + m_id + " " + m_peg.name() + " " +
-                "state=" + m_state +
-                "; order=" + m_order +
-                (((m_mktOrders != null) && (m_mktOrders[0] != null)) ? "; mktOrder1=" + m_mktOrders[0] : "") +
-                (((m_mktOrders != null) && (m_mktOrders[1] != null)) ? "; mktOrder2=" + m_mktOrders[1] : "") +
-                "]";
+        return toString(Triplet.s_exchange);
     }
 
     public String toString(Exchange exchange) {
@@ -406,7 +401,7 @@ public class TriTradeData {
                 if(m_order.isPartiallyFilled(Triplet.s_exchange) ||
                     isMktOrderPartiallyFilled(0) ||
                     isMktOrderPartiallyFilled(1)) {
-                    log("warning: unexpected state - some order is partially filled: " + toString(Triplet.s_exchange));
+                    log("warning: unexpected state - some order is partially filled: " + this);
                 }
         }
         return forkRemained;

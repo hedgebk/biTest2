@@ -20,18 +20,19 @@ public class PaintChart extends BaseChartPaint {
 //    private static VaryProfile PROFILE = VaryProfile.DROP;
 //    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_2;
 
-    public static final ExchangePair PAIR = ExchangePair.BTCN_OKCOIN;       // 1d  231     2d  2742     7d  47      14d  32
+    public static final ExchangePair PAIR = ExchangePair.BTCN_OKCOIN;       // 1d  10.8     2d  8.5     7d  5.4      14d  32
 
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;     // 1d  1.84
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;   // 1d  2.4
-//    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;     // 1d  2.43
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX; // 1d  1.71
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;     // 1d  1
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;   // 1d  1
 
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_HITBTC;     // 1d 32.87
-//    public static final ExchangePair PAIR = ExchangePair.BTCE_HITBTC;         // 1d  20.73   2d  6.12
-//    public static final ExchangePair PAIR = ExchangePair.BITFINEX_HITBTC;     // 1d  15.63
+//    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;     // 1d  1
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX; // 1d  1.3
 
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_LAKEBTC;      // 1d  1.19
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_HITBTC;     // 1d 2.04
+//    public static final ExchangePair PAIR = ExchangePair.BTCE_HITBTC;         // 1d  2.8   2d  2.73
+//    public static final ExchangePair PAIR = ExchangePair.BITFINEX_HITBTC;     // 1d  1.3
+
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_LAKEBTC;
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_LAKEBTC;
 //    public static final ExchangePair PAIR = ExchangePair.BITFINEX_LAKEBTC;
 //    public static final ExchangePair PAIR = ExchangePair.HITBTC_LAKEBTC;
@@ -775,8 +776,8 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 74 * 60 + 17, 6.63,  -0.215),
 
         BITSTAMP_HITBTC(Exchange.BITSTAMP, Exchange.HITBTC,     14 * 60 + 39, 0.425,  1.035 ),
-        BTCE_HITBTC(Exchange.BTCE, Exchange.HITBTC,             11 * 60 + 5,  0.65,   0.196 ),
-        BITFINEX_HITBTC(Exchange.BITFINEX, Exchange.HITBTC,      5 * 60 + 41, 0.75,   0.565 ),
+        BTCE_HITBTC(Exchange.BTCE, Exchange.HITBTC,            413 * 60 + 3,  0.42,   0.196 ),
+        BITFINEX_HITBTC(Exchange.BITFINEX, Exchange.HITBTC,    112 * 60 + 51, 1.5,    0.565 ),
 
         BITSTAMP_LAKEBTC(Exchange.BITSTAMP, Exchange.LAKEBTC,   87 * 60 + 19, 3.25,   0.05 ),
         BTCE_LAKEBTC(Exchange.BTCE, Exchange.LAKEBTC,          144 * 60 + 34, 5.1,    1.13 ),
@@ -786,7 +787,7 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      132 * 60 + 12, 9.225, -0.05 ),
         BTCE_ITBIT(Exchange.BTCE, Exchange.ITBIT,              310 * 60 + 7,  3.825,  0.195 ),
 
-        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,              9 * 60 + 58, 0.675,  0.45 ),
+        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,             87 * 60 + 13, 0.525, -0.2 ),
         ;
 
         public final Exchange m_exch1;

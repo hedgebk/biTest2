@@ -7,7 +7,8 @@ import bthdg.util.Utils;
 
 import java.util.*;
 
-public class TriangleData implements OrderState.IOrderExecListener, TradesData.ILastTradeTimeHolder {
+/** holder of all running TriTradeDatas */
+public class TriTradesData implements OrderState.IOrderExecListener, TradesData.ILastTradeTimeHolder {
     private long m_lastProcessedTradesTime;
     public AccountData m_account;
     public List<TriTradeData> m_triTrades = new ArrayList<TriTradeData>();
@@ -16,7 +17,7 @@ public class TriangleData implements OrderState.IOrderExecListener, TradesData.I
     @Override public void lastProcessedTradesTime(long lastProcessedTradesTime) { m_lastProcessedTradesTime = lastProcessedTradesTime; }
     @Override public void onOrderFilled(IIterationContext iContext, Exchange exchange, OrderData orderData) { /*noop*/ }
 
-    public TriangleData(AccountData account) {
+    public TriTradesData(AccountData account) {
         m_account = account;
     }
 
@@ -291,7 +292,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 log(" we have " + triTradesToDie.size() + " orders to die");
                 for (TriTradeData triTrade : triTradesToDie) {
                     if (!cancelOrder(triTrade, iData)) {
-                        log("  order cancel error - add back to m_triTrades - will check in next iteration again: " + triTrade.toString(Triplet.s_exchange));
+                        log("  order cancel error - add back to m_triTrades - will check in next iteration again: " + triTrade);
                         m_triTrades.add(triTrade); // in case of errors - add back to m_triTrades - will check in next iteration again
                     }
                 }
@@ -303,7 +304,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         boolean toLive = false;
         double distance = peg1.getBracketDistance(tops);
         if (distance < Triplet.BRACKET_DISTANCE_MAX) {
-            double bracketPrice = Triplet.s_exchange.roundPrice(peg1.m_bracketPrice, peg1.m_pair1.m_pair);
+            double bracketPrice = Triplet.roundPrice(peg1.m_bracketPrice, peg1.m_pair1.m_pair);
             double pegPrice = peg1.m_price1;
             OrderData order = triTrade.m_order;
             double orderPrice = order.m_price;
@@ -425,11 +426,11 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         return false;
     }
 
-    private void checkOrdersState(IterationData iData, TriangleData triangleData) throws Exception {
+    private void checkOrdersState(IterationData iData, TriTradesData triTradesData) throws Exception {
         if (!m_triTrades.isEmpty()) {
             List<TriTradeData> triTrades = new ArrayList<TriTradeData>(m_triTrades); // iterate over the copy - avoid concurrent modifications
             for (TriTradeData triTrade : triTrades) {
-                triTrade.checkState(iData, triangleData); // <---------------------------------
+                triTrade.checkState(iData, triTradesData); // <---------------------------------
                 triTrade.m_iterationsNum++;
             }
         }
@@ -466,6 +467,9 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             if(opcd.m_max10 - opcd.m_max > 0.1) {
                 key /= 1.5; // prefer pairs big max-max10 diff
             }
+            if (opcd.mktCrossLvl()) {
+                key = -opcd.m_parent.m_mkt; // mktCrossed are first
+            }
             best10Map.put(key, opcd);
         }
         return best10Map;
@@ -479,6 +483,9 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             Pair pair = opcd.m_pair1.m_pair;
             if((pair == Pair.BTC_EUR) || (pair == Pair.LTC_EUR)) {
                 key /= 1.5; // prefer pairs with EurCrypt
+            }
+            if (opcd.mktCrossLvl()) {
+                key = -opcd.m_parent.m_mkt; // mktCrossed are first
             }
             bestMapEurCrypt.put(key, opcd);
         }
@@ -496,6 +503,9 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             if(pair == Pair.LTC_BTC) {
                 key /= 1.25; // prefer pairs with good liquidity
             }
+            if (opcd.mktCrossLvl()) {
+                key = -opcd.m_parent.m_mkt; // mktCrossed are first
+            }
             bestMapPref.put(key, opcd);
         }
         return bestMapPref;
@@ -504,9 +514,10 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
     private boolean checkNew(IterationData iData, TreeMap<Double, OnePegCalcData> bestMap, TopsData tops,
                              boolean doMktOffset) throws Exception {
         boolean oneStarted = false;
+        boolean forceOneBestLogging = true;
         for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
             OnePegCalcData peg = entry.getValue();
-            boolean mktLevel = peg.m_parent.mktCrossLvl();
+            boolean mktLevel = peg.mktCrossLvl();
             if (!mktLevel) {
                 long millis = iData.millisFromTopsLoad();
                 if (millis > 1500) { // much time passed from tops loading to consider new triangles
@@ -514,9 +525,10 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     break;
                 }
             }
-            boolean levelReached = isLevelReached(peg, doMktOffset);
+            boolean levelReached = isLevelReached(peg, doMktOffset, forceOneBestLogging);
+            forceOneBestLogging = false;
             if (levelReached) {
-                if(!mktLevel) {
+                if (!mktLevel) {
                     if (m_triTrades.size() >= Triplet.NUMBER_OF_ACTIVE_TRIANGLES) {
                         log("do not create new order - NUMBER_OF_ACTIVE_TRIANGLES=" + Triplet.NUMBER_OF_ACTIVE_TRIANGLES + " reached");
                         break; // do not create more orders
@@ -526,26 +538,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         break; // do not start many trades in one iteration
                     }
                 }
-                // do not create multiple tri-trades for the pair-direction
-                PairDirection pd1 = peg.m_pair1;
-                TriTradeData ttd = findTriTradeData(pd1);
-// stop brackets here if needed to start pegs
-                if (ttd != null) {
-                    boolean isPeg = (ttd.m_state == TriTradeState.PEG_PLACED);
-                    if (mktLevel && isPeg) {
-                        log(" mkt level is reached for peg order - cancel: " + ttd);
-                        if (!cancelOrder(ttd, iData)) {
-                            log("  order cancel error");
-                            continue; // do not start multiple tri-trades
-                        }
-                    } else {
-                        log("  do not start multiple tri-trades on the same pair-direction. existing: " + ttd);
-                        continue;
-                    }
-                }
-                ttd = findTriTradeData(peg);
-                if (ttd != null) {
-                    log("do not start multiple tri-trades. existing: " + ttd);
+                if (checkSamePairDirectionTriTrades(iData, peg)) {
                     continue; // do not start multiple tri-trades
                 }
                 double followPrice = peg.calcFollowPrice(tops, 0);
@@ -554,36 +547,93 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 double pegPrice = peg.m_price1;
                 double needPrice = peg.m_need; // ~zeroPrice
                 double random = new Random().nextDouble();
-                double price = ((pegPrice <= needPrice && needPrice <= midPrice) || (pegPrice >= needPrice && needPrice >= midPrice))
+                boolean pegMid = ((pegPrice <= needPrice) && (needPrice <= midPrice)) || ((pegPrice >= needPrice) && (needPrice >= midPrice));
+                boolean midMkt = ((midPrice <= needPrice) && (needPrice <= mktPrice)) || ((midPrice >= needPrice) && (needPrice >= mktPrice));
+                double price = pegMid
                         //  [follow peg      mid       mkt]
                         //              need
-                        ? needPrice + (pegPrice - needPrice) * random
-                        : ((midPrice <= needPrice && needPrice <= mktPrice) || (midPrice >= needPrice && needPrice >= mktPrice))
+                        ? needPrice + (pegPrice - needPrice) * random // [peg need]
+                        : midMkt
                             //  [follow peg      mid      mkt]
                             //                       need
-                            ? needPrice + (midPrice - needPrice) * random * random
+                            ? needPrice + (midPrice - needPrice) * random * random // [mid need], but more close to need
                             //  [follow peg      mid      mkt]
                             //                                  need
-                            : (needPrice + mktPrice) / 2;
-                log(" [follow=" + Utils.X_YYYYYYYY.format(followPrice) +
-                        " peg=" + Utils.X_YYYYYYYY.format(pegPrice) +
+                            : mktPrice;
+                String type = pegMid
+                        ? "[peg-need-mid]"
+                        : midMkt
+                            ? "[mid-need-mkt]"
+                            : "[mkt]";
+                Pair pair1 = peg.m_pair1.m_pair;
+                log(" [follow=" + Triplet.s_exchange.roundPriceStr(followPrice, pair1) +
+                        " peg=" + Triplet.s_exchange.roundPriceStr(pegPrice, pair1) +
                         " mid=" + Utils.X_YYYYYYYY.format(midPrice) +
-                        " mkt=" + Utils.X_YYYYYYYY.format(mktPrice) +
+                        " mkt=" + Triplet.s_exchange.roundPriceStr(mktPrice, pair1) +
                         "] need=" + Utils.X_YYYYYYYY.format(needPrice) +
-                        "  => price=" +  Utils.X_YYYYYYYY.format(price));
+                        "  => " + type +
+                        " price=" +  Utils.X_YYYYYYYY.format(price) +
+                        "  rounded=" +  Triplet.s_exchange.roundPriceStr(price, pair1)
+                );
                 TriTradeData newTriTrade = createNewOne(iData, tops, peg, price, doMktOffset, false);
                 if (newTriTrade != null) { // order placed
                     iData.oneMoreTriangleStarted();
                     oneStarted = true;
                     m_triTrades.add(newTriTrade);
                     forkAndCheckFilledIfNeeded(iData, newTriTrade, newTriTrade.m_order, TriTradeState.PEG_JUST_FILLED);
+                    if (mktLevel) {
+                        log("do not start more tri-trades since one mktLevel is started: " + newTriTrade); // need to be executed quickly
+                        break;
+                    }
                 }
             }
         }
         return oneStarted;
     }
 
-    private boolean isLevelReached(OnePegCalcData peg, boolean doMktOffset) {
+    private boolean checkSamePairDirectionTriTrades(IterationData iData, OnePegCalcData peg) throws Exception {
+        boolean mktLevel = peg.mktCrossLvl();
+        // do not create multiple tri-trades for the pair-direction
+        PairDirection pd1 = peg.m_pair1;
+        TriTradeData ttd = findTriTradeData(pd1); // search triangle with the same first pair
+// stop brackets here if needed to start pegs
+        if (ttd != null) {
+            boolean isPeg = (ttd.m_state == TriTradeState.PEG_PLACED);
+            if (mktLevel && isPeg) {
+                log(" mkt level is reached - existing peg should be cancelled: " + ttd);
+                if (cancelOrder(ttd, iData)) {
+                    ttd.setState(TriTradeState.CANCELED);
+                } else {
+                    log("  order cancel error");
+                    return true;
+                }
+            } else {
+                log("  do not start multiple tri-trades on the same pair-direction. existing: " + ttd);
+                return true;
+            }
+        }
+        ttd = findTriTradeData(peg); // search for same triangle
+        if (ttd != null) {
+            boolean isPeg = (ttd.m_state == TriTradeState.PEG_PLACED);
+            if (mktLevel && isPeg) {
+                log(" mkt level is reached - existing peg should be cancelled: " + ttd);
+                if (cancelOrder(ttd, iData)) {
+                    ttd.setState(TriTradeState.CANCELED);
+                } else {
+                    log("  order cancel error");
+                    return true;
+                }
+            } else {
+                if (!ttd.m_state.isInactive()) {
+                    log("do not start multiple tri-trades. existing: " + ttd);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isLevelReached(OnePegCalcData peg, boolean doMktOffset, boolean forceLogging) {
         double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
         double level = Triplet.s_level;
         Pair startPair = peg.m_pair1.m_pair;
@@ -595,12 +645,14 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         if (doMktOffset) {
             level += Triplet.MKT_OFFSET_LEVEL_DELTA; // increase level mkt offsets
         }
-        if (maxPeg > (level - 0.1)) {
-            log("BEST: max" + (doMktOffset ? "" : "*") + "=" + peg.m_max +
+        if (forceLogging || (maxPeg > (level - 0.1))) {
+            log("BEST: " +
+                    (peg.mktCrossLvl() ? "!MKT! ": "")+
+                    "max" + (doMktOffset ? "" : "*") + "=" + peg.m_max +
                     ", max10" + (doMktOffset ? "*" : "") + "=" + peg.m_max10 +
                     "; level=" + level + "; need=" + peg.m_need + ": " + peg.name());
         }
-        return (maxPeg > level);
+        return (maxPeg > level) || peg.mktCrossLvl();
     }
 
     private TriTradeData findTriTradeData(OnePegCalcData peg) {
@@ -672,11 +724,11 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         amount = Triplet.s_exchange.roundAmount(amount, pair1);
         String amountStr = Triplet.s_exchange.roundAmountStr(amount, pair1);
         double needPeg = peg.m_need;
-        String needPegStr = Triplet.s_exchange.roundPriceStr(needPeg, pair1);
+        String needPegStr = Triplet.roundPriceStr(needPeg, pair1);
         double pegPrice = peg.m_price1;
-        String pegPriceStr = Triplet.s_exchange.roundPriceStr(pegPrice, pair1);
-        double orderPrice = Triplet.s_exchange.roundPrice(startPrice, pair1);
-        String orderPriceStr = Triplet.s_exchange.roundPriceStr(orderPrice, pair1);
+        String pegPriceStr = Triplet.roundPriceStr(pegPrice, pair1);
+        double orderPrice = Triplet.roundPrice(startPrice, pair1);
+        String orderPriceStr = Triplet.roundPriceStr(orderPrice, pair1);
 
         log("#### " +
                 (doMktOffset ? "mkt-offset" : "best") +
@@ -687,8 +739,8 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
         double minOrderToCreate = Triplet.s_exchange.minOrderToCreate(pair1);
         if (amount >= minOrderToCreate) {
-            String mkt1PriceStr = Triplet.s_exchange.roundPriceStr(mkt1Price, pair2);
-            String mkt2PriceStr = Triplet.s_exchange.roundPriceStr(mkt2Price, pair3);
+            String mkt1PriceStr = Triplet.roundPriceStr(mkt1Price, pair2);
+            String mkt2PriceStr = Triplet.roundPriceStr(mkt2Price, pair3);
 
             // todo: try price between peg and need, but not for all pairs
 //            if( (top.m_ask > needPeg) && (needPeg > top.m_bid)) {
@@ -706,12 +758,12 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             OrderData order = new OrderData(pair1, side, orderPrice, amount);
             TriTradeState initState = isBracket ? TriTradeState.BRACKET_PLACED : TriTradeState.PEG_PLACED;
             TriTradeData ttData = new TriTradeData(order, peg, doMktOffset, initState);
-            String bid1Str = Triplet.s_exchange.roundPriceStr(top.m_bid, pair1);
-            String ask1Str = Triplet.s_exchange.roundPriceStr(top.m_ask, pair1);
-            String bid2Str = Triplet.s_exchange.roundPriceStr(top2.m_bid, pair2);
-            String ask2Str = Triplet.s_exchange.roundPriceStr(top2.m_ask, pair2);
-            String bid3Str = Triplet.s_exchange.roundPriceStr(top3.m_bid, pair3);
-            String ask3Str = Triplet.s_exchange.roundPriceStr(top3.m_ask, pair3);
+            String bid1Str = Triplet.roundPriceStr(top.m_bid, pair1);
+            String ask1Str = Triplet.roundPriceStr(top.m_ask, pair1);
+            String bid2Str = Triplet.roundPriceStr(top2.m_bid, pair2);
+            String ask2Str = Triplet.roundPriceStr(top2.m_ask, pair2);
+            String bid3Str = Triplet.roundPriceStr(top3.m_bid, pair3);
+            String ask3Str = Triplet.roundPriceStr(top3.m_ask, pair3);
             ttData.log("   expected prices: [" + bid1Str + "; " + orderPriceStr + "; " + ask1Str  + "] -> " +
                                            "[" + bid2Str + "; " + mkt1PriceStr + "; " + ask2Str + "] -> " +
                                            "[" + bid3Str + "; " + mkt2PriceStr + "; " + ask3Str + "]");
@@ -800,15 +852,13 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 ? peg.calcMktPrice(tops, pd3, Triplet.MKT_OFFSET_PRICE_MINUS)
                 : peg.calcMktPrice(tops, pd3);
         //log("   mktAmount3=" + mktAmount3 + " " + pair3.m_to + "; mktPrice3="+mktPrice3);
-        double mktAmount3in, mktAmount3out;
+        double mktAmount3in;
         if( side3.isBuy() ) {
             // LTC_USD, buy: USD->LTC: mktPrice2=12.691896; mktAmount2=0.1002004 LTC
             mktAmount3in = mktAmount3 * mktPrice3; //~ 1.2 usd
-            mktAmount3out = mktAmount3; // 0.1002004 LTC
         } else {
             // LTC_USD, sell: LTC->USD: mktPrice2=12.691896; mktAmount2=0.1002004 LTC
             mktAmount3in = mktAmount3; // 0.1002004 LTC
-            mktAmount3out = mktAmount3 * mktPrice3; //~ 1.2 usd
         }
         //log("    mktAmount3in=" + mktAmount3in + " " + pd3.currencyFrom() + "; mktAmount3out=" + mktAmount3out + " " + pd3.currencyTo());
         if(mktAmount3in < amount3) {
