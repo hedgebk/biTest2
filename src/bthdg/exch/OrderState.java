@@ -1,6 +1,8 @@
-package bthdg;
+package bthdg.exch;
 
-import bthdg.exch.*;
+import bthdg.Fetcher;
+import bthdg.IIterationContext;
+import bthdg.Log;
 import bthdg.util.Utils;
 
 import java.util.Map;

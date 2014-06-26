@@ -1,6 +1,8 @@
 package bthdg;
 
+import bthdg.exch.Exchange;
 import bthdg.exch.Pair;
+import bthdg.exch.TradeData;
 import bthdg.exch.TradesData;
 
 import java.util.HashMap;

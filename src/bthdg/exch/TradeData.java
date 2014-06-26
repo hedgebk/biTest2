@@ -1,7 +1,5 @@
-package bthdg;
+package bthdg.exch;
 
-import bthdg.exch.OrderSide;
-import bthdg.exch.TradesData;
 import bthdg.util.Utils;
 
 public class TradeData {
@@ -12,8 +10,8 @@ public class TradeData {
     public final TradesData.TradeType m_type;
     public final OrderSide m_orderSide;
     public final int m_exchId;
-    public final long m_crossId;
-    public final long m_forkId;
+    public final long m_crossId; // TODO: eliminate - should reside in some wrapper
+    public final long m_forkId;  // TODO: eliminate - should reside in some wrapper
 
     public TradeData(double amount, double price, long timestamp, long tid, TradesData.TradeType type) {
         this(amount, price, timestamp, tid, type, null, 0, 0, 0);

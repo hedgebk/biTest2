@@ -1,10 +1,9 @@
 package bthdg.duplet;
 
-import bthdg.*;
-import bthdg.exch.Currency;
-import bthdg.exch.Pair;
-import bthdg.exch.TopData;
-import bthdg.exch.TradesData;
+import bthdg.Deserializer;
+import bthdg.Fetcher;
+import bthdg.Log;
+import bthdg.exch.*;
 import bthdg.util.Utils;
 
 import java.io.IOException;

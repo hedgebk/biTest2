@@ -1,10 +1,9 @@
 package bthdg.duplet;
 
-import bthdg.*;
-import bthdg.exch.OrderSide;
-import bthdg.exch.OrderStatus;
-import bthdg.exch.Pair;
-import bthdg.exch.TopData;
+import bthdg.Deserializer;
+import bthdg.Fetcher;
+import bthdg.Log;
+import bthdg.exch.*;
 import bthdg.util.Utils;
 
 import java.io.IOException;

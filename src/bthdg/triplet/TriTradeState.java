@@ -1,6 +1,5 @@
 package bthdg.triplet;
 
-import bthdg.*;
 import bthdg.exch.*;
 import bthdg.util.Utils;
 
@@ -97,9 +96,11 @@ public enum TriTradeState {
         double price2 = doMktOffset ? peg.m_price2minus : peg.m_price2;
         double price3 = doMktOffset ? peg.m_price3minus : peg.m_price3;
 
-        order1.logOrderEnds(1, price1);
-        order2.logOrderEnds(2, price2);
-        order3.logOrderEnds(3, price3);
+        String prefix = triTradeData.m_id;
+
+        order1.logOrderEnds(prefix, 1, price1);
+        order2.logOrderEnds(prefix, 2, price2);
+        order3.logOrderEnds(prefix, 3, price3);
 
         double[] ends1 = order1.calcOrderEnds(account, price1);
         double[] ends2 = order2.calcOrderEnds(account, price2);
@@ -187,14 +188,14 @@ public enum TriTradeState {
         if (gain > 1) {
             if (Triplet.s_level > Triplet.LVL2) {
                 double level = Triplet.s_level;
-                double newLevel = (level - Triplet.LVL) / 1.2 + level;
+                double newLevel = (level - Triplet.LVL) / Triplet.LVL_DECREASE_RATE + Triplet.LVL;
                 newLevel = Math.max(newLevel, Triplet.LVL2);
                 Triplet.s_level = newLevel;
                 triTradeData.log(" LEVEL decreased from " + format5(level) + " to " + format5(Triplet.s_level));
             }
         } else {
             double level = Triplet.s_level;
-            Triplet.s_level = (level - Triplet.LVL) * 1.4 + level;
+            Triplet.s_level = (level - Triplet.LVL) * Triplet.LVL_INCREASE_RATE + Triplet.LVL;
             triTradeData.log(" LEVEL increased from " + format5(level) + " to " + format5(Triplet.s_level));
         }
         triTradeData.setState(DONE);

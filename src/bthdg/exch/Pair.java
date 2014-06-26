@@ -1,6 +1,5 @@
 package bthdg.exch;
 
-import bthdg.Exchange;
 import bthdg.triplet.Direction;
 
 public enum Pair {

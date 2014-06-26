@@ -1,6 +1,6 @@
 package bthdg.triplet;
 
-import bthdg.*;
+import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.util.Utils;
 
@@ -238,7 +238,7 @@ public class TriTradeData {
                     " -> " + Utils.padLeft(Utils.format8(mktPrice), 13) +
                     "; delta=" + Utils.format8(delta));
         } else {
-            order.logOrderEnds(i, expectedPrice);
+            order.logOrderEnds(m_id, i, expectedPrice);
         }
     }
 

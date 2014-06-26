@@ -1,6 +1,5 @@
 package bthdg.exch;
 
-import bthdg.AccountData;
 import bthdg.util.Utils;
 
 public class PlaceOrderData {

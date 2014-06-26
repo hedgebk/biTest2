@@ -1,9 +1,10 @@
 package bthdg.duplet;
 
-import bthdg.*;
-import bthdg.exch.OrderSide;
-import bthdg.exch.Pair;
-import bthdg.exch.TopData;
+import bthdg.BuySell;
+import bthdg.Fetcher;
+import bthdg.IIterationContext;
+import bthdg.Log;
+import bthdg.exch.*;
 import bthdg.util.Utils;
 
 public class CrossData implements OrderState.IOrderExecListener {

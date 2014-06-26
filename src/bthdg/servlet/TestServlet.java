@@ -1,13 +1,14 @@
 package bthdg.servlet;
 
-import bthdg.*;
+import bthdg.Config;
+import bthdg.Deserializer;
+import bthdg.Log;
 import bthdg.duplet.ForkState;
 import bthdg.duplet.IterationContext;
 import bthdg.duplet.PairExchangeData;
+import bthdg.exch.Exchange;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
-
-import static com.google.appengine.api.taskqueue.TaskOptions.Builder.*;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
@@ -18,6 +19,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Random;
+
+import static com.google.appengine.api.taskqueue.TaskOptions.Builder.withUrl;
 
 public class TestServlet extends HttpServlet {
     public static final String COUNTER = "TestServlet.counter";

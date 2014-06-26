@@ -1,6 +1,10 @@
 package bthdg.duplet;
 
-import bthdg.*;
+import bthdg.Deserializer;
+import bthdg.Fetcher;
+import bthdg.Log;
+import bthdg.exch.Exchange;
+import bthdg.exch.OrderData;
 import bthdg.exch.OrderSide;
 import bthdg.exch.TopData;
 import bthdg.util.Utils;

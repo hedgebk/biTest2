@@ -1,5 +1,6 @@
 package bthdg;
 
+import bthdg.exch.Exchange;
 import bthdg.util.Utils;
 
 import java.io.BufferedInputStream;

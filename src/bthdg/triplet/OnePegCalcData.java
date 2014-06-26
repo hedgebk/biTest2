@@ -1,10 +1,6 @@
 package bthdg.triplet;
 
-import bthdg.*;
-import bthdg.exch.OrderSide;
-import bthdg.exch.PairDirection;
-import bthdg.exch.TopData;
-import bthdg.exch.TopsData;
+import bthdg.exch.*;
 
 public class OnePegCalcData {
     public int m_indx;

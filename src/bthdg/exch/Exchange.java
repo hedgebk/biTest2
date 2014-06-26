@@ -1,7 +1,6 @@
-package bthdg;
+package bthdg.exch;
 
-import bthdg.exch.*;
-import bthdg.exch.Currency;
+import bthdg.Fetcher;
 
 import java.math.RoundingMode;
 import java.util.*;

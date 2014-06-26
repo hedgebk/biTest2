@@ -1,7 +1,5 @@
 package bthdg.run;
 
-import bthdg.AccountData;
-import bthdg.Exchange;
 import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.exch.*;

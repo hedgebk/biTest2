@@ -1,12 +1,14 @@
 package bthdg.triplet;
 
-import bthdg.*;
-import bthdg.exch.Currency;
+import bthdg.Fetcher;
+import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
 
 /**
  * - even on MKT steps - check prev steps live orders - have the case when peg order is missed but appers on next step
@@ -128,6 +130,8 @@ public class Triplet {
 
     public static double LVL = 100.602408; // commission level - note - complex percents here
     public static double LVL2 = 100.70; // min target level
+    public static final double LVL_INCREASE_RATE = 1.3;
+    public static final double LVL_DECREASE_RATE = 1.2;
     public static int WAIT_MKT_ORDER_STEPS = 0;
     public static boolean TRY_WITH_MKT_OFFSET = false;
     public static double MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%

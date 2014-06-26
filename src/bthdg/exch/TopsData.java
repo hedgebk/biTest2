@@ -1,7 +1,5 @@
 package bthdg.exch;
 
-import bthdg.Exchange;
-
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;

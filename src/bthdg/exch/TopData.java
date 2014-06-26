@@ -1,7 +1,6 @@
 package bthdg.exch;
 
 import bthdg.Deserializer;
-import bthdg.Exchange;
 import bthdg.util.Utils;
 
 import java.io.IOException;

@@ -1,7 +1,5 @@
 package bthdg.exch;
 
-import bthdg.AccountData;
-
 public class CancelOrderData {
     public String m_error;
     public String m_orderId;

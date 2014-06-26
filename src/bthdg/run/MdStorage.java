@@ -1,6 +1,6 @@
 package bthdg.run;
 
-import bthdg.Exchange;
+import bthdg.exch.Exchange;
 import bthdg.exch.Pair;
 import bthdg.exch.TopData;
 

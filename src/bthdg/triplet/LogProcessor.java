@@ -1,11 +1,11 @@
 package bthdg.triplet;
 
 import bthdg.DbReady;
-import bthdg.Exchange;
-import bthdg.util.Utils;
+import bthdg.exch.Exchange;
 import bthdg.exch.Pair;
 import bthdg.exch.TopData;
 import bthdg.exch.TopsData;
+import bthdg.util.Utils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;

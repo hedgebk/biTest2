@@ -1,6 +1,9 @@
-package bthdg;
+package bthdg.exch;
 
-import bthdg.exch.*;
+import bthdg.Deserializer;
+import bthdg.Fetcher;
+import bthdg.IIterationContext;
+import bthdg.Log;
 import bthdg.util.Utils;
 
 import java.io.IOException;
@@ -373,12 +376,12 @@ public class OrderData {
         }
     }
 
-    public void logOrderEnds(int i, double expectedPrice) {
+    public void logOrderEnds(String prefix, int i, double expectedPrice) {
         double delta = m_side.isBuy() ? expectedPrice - m_price : m_price - expectedPrice;
-        log(" order" + i + ": " + Utils.padLeft(m_side.toString(), 4) +
-            " " + Utils.padLeft(Utils.format8(expectedPrice), 13) +
-            " -> " + Utils.padLeft(Utils.format8(m_price), 13) +
-            "; delta=" + Utils.format8(delta) + " on " + this);
+        log(prefix + "  order" + i + ": " + Utils.padLeft(m_side.toString(), 4) +
+                " " + Utils.padLeft(Utils.format8(expectedPrice), 13) +
+                " -> " + Utils.padLeft(Utils.format8(m_price), 13) +
+                "; delta=" + Utils.format8(delta) + " on " + this);
     }
 
     public double[] calcOrderEnds(AccountData account, double expectedPrice) {

@@ -1,7 +1,8 @@
-package bthdg;
+package bthdg.exch;
 
-import bthdg.exch.*;
-import bthdg.exch.Currency;
+import bthdg.Deserializer;
+import bthdg.Fetcher;
+import bthdg.Log;
 import bthdg.util.Utils;
 
 import java.io.IOException;
@@ -18,6 +19,7 @@ public class AccountData {
 
     private static void log(String s) { Log.log(s); }
 
+    // shortcuts
     public double availableUsd() { return available(Currency.USD); }
     public double availableBtc() { return available(Currency.BTC); }
     public double allocatedUsd() { return allocated(Currency.USD); }
