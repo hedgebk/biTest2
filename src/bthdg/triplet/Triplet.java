@@ -97,8 +97,8 @@ public class Triplet {
                 Triplet.s_exchange = Exchange.BTCN;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 2;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
-                Triplet.LVL  = 100.009; // commission level
-                Triplet.LVL2 = 100.01; // min target level
+                Triplet.LVL  = 100.011; // commission level
+                Triplet.LVL2 = 100.012; // min target level
                 Triplet.WAIT_MKT_ORDER_STEPS = 0;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%

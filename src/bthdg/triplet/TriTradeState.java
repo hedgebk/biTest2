@@ -90,8 +90,8 @@ public enum TriTradeState {
         AccountData account = triTradesData.m_account;
 
         OrderData order1 = triTradeData.m_order;
-        OrderData order2 = triTradeData.m_mktOrders[0];
-        OrderData order3 = triTradeData.m_mktOrders[1];
+        OrderData order2 = triTradeData.getMktOrder(0);
+        OrderData order3 = triTradeData.getMktOrder(1);
 
         double price1 = peg.m_price1;
         double price2 = doMktOffset ? peg.m_price2minus : peg.m_price2;
@@ -207,7 +207,7 @@ public enum TriTradeState {
     private static void checkMktPlaced(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {
         boolean isFirst = (num == 1);
         int mktOrderIndx = num - 1;
-        OrderData order = triTradeData.m_mktOrders[mktOrderIndx];
+        OrderData order = triTradeData.getMktOrder(mktOrderIndx);
         String orderStr = (order != null) ? order.toString(Triplet.s_exchange) : null;
         String name = triTradeData.m_peg.name();
         triTradeData.log("TriTradeState.MKT" + num + "_PLACED(" + name + ") - check order " + orderStr + " ...");

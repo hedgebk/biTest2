@@ -20,12 +20,12 @@ public class PaintChart extends BaseChartPaint {
 //    private static VaryProfile PROFILE = VaryProfile.DROP;
 //    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_2;
 
-    public static final ExchangePair PAIR = ExchangePair.BTCN_OKCOIN;       // 1d  10.8     2d  8.5     7d  5.4      14d  32
+    public static final ExchangePair PAIR = ExchangePair.BTCN_OKCOIN;       // 1d  236     2d  51     7d  11      14d  34
 
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;     // 1d  1
+//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;     // 1d  1.49     2d  1.42
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;   // 1d  1
 
-//    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;     // 1d  1
+//    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;     // 1d  1.4      2d  1.22
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BITFINEX; // 1d  1.3
 
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_HITBTC;     // 1d 2.04
@@ -769,10 +769,10 @@ public class PaintChart extends BaseChartPaint {
 
     // BITSTAMP, BTCE, CAMPBX
     private static enum ExchangePair {
-        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         29 * 60 + 47, 2.733, -0.051),
+        BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         89 * 60 + 39, 1.858, -0.051),
         BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,     51 * 60 + 51, 1.175,  0.805),
 
-        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,         17 * 60 + 21, 2.13,   1.475),
+        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,          9 * 60 + 2,  1.255,  1.475),
         BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 74 * 60 + 17, 6.63,  -0.215),
 
         BITSTAMP_HITBTC(Exchange.BITSTAMP, Exchange.HITBTC,     14 * 60 + 39, 0.425,  1.035 ),
@@ -787,7 +787,7 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      132 * 60 + 12, 9.225, -0.05 ),
         BTCE_ITBIT(Exchange.BTCE, Exchange.ITBIT,              310 * 60 + 7,  3.825,  0.195 ),
 
-        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,             87 * 60 + 13, 0.525, -0.2 ),
+        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,              2 * 60 + 50, 0.575, -0.165 ),
         ;
 
         public final Exchange m_exch1;

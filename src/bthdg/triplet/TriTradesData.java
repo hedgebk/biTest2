@@ -565,17 +565,22 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                         : midMkt
                             ? "[mid-need-mkt]"
                             : "[mkt]";
-                Pair pair1 = peg.m_pair1.m_pair;
+                PairDirection pd1 = peg.m_pair1;
+                Pair pair1 = pd1.m_pair;
+
+                double roundPrice = Triplet.s_exchange.roundPrice(price, pair1, pd1.getSide().getPegRoundMode());
+                String roundPriceStr = Triplet.s_exchange.roundPriceStr(roundPrice, pair1);
+
                 log(" [follow=" + Triplet.s_exchange.roundPriceStr(followPrice, pair1) +
                         " peg=" + Triplet.s_exchange.roundPriceStr(pegPrice, pair1) +
                         " mid=" + Utils.format8(midPrice) +
                         " mkt=" + Triplet.s_exchange.roundPriceStr(mktPrice, pair1) +
                         "] need=" + Utils.format8(needPrice) +
                         "  => " + type +
-                        " price=" +  Utils.format8(price) +
-                        "  rounded=" +  Triplet.s_exchange.roundPriceStr(price, pair1)
+                        " price=" + Utils.format8(price) +
+                        "  rounded=" + roundPriceStr
                 );
-                TriTradeData newTriTrade = createNewOne(iData, tops, peg, price, doMktOffset, false);
+                TriTradeData newTriTrade = createNewOne(iData, tops, peg, roundPrice, doMktOffset, false);
                 if (newTriTrade != null) { // order placed
                     iData.oneMoreTriangleStarted();
                     oneStarted = true;

@@ -139,7 +139,6 @@ public class TriTradeData {
         if (prevEndCurrency != fromCurrency) {
             log("ERROR: currencies are not matched");
         }
-
         return new CurrencyAmount(prevEndAmount, fromCurrency);
     }
 
@@ -153,7 +152,7 @@ public class TriTradeData {
                 ? m_doMktOffset
                     ? m_peg.mktRatio2(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
                     : m_peg.mktRatio2(tops, account)
-                : m_mktOrders[0].ratio(account); // commission is applied to ratio
+                : getMktOrder(0).ratio(account); // commission is applied to ratio
         double ratio3 = m_doMktOffset
             ? m_peg.mktRatio3(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
             : m_peg.mktRatio3(tops, account); // commission is applied to ratio
@@ -171,8 +170,8 @@ public class TriTradeData {
                         "; side=" + side + "; top=" + topDataStr);
 
                 OrderData order1 = m_order;
-                OrderData order2 = m_mktOrders[0];
-                OrderData order3 = m_mktOrders[1];
+                OrderData order2 = getMktOrder(0);
+                OrderData order3 = getMktOrder(1);
 
                 double price1 = m_peg.m_price1;
                 double price2 = m_doMktOffset ? m_peg.m_price2minus : m_peg.m_price2;
