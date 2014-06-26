@@ -9,8 +9,9 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class BiAlgo implements Runner.IAlgo {
+    private static final double START_LEVEL = 0.0001;
+    private static final long MOVING_AVERAGE = Utils.toMillis(9, 28);
     private static final long MIN_ITERATION_TIME = 3000;
-    private static final long MOVING_AVERAGE = (9 * 60 + 28) * 1000;
 
     private final Exchange[] m_exchanges = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN/*, Exchange.HUOBI*/};
     private final Pair m_pair = Pair.BTC_CNH;
@@ -39,10 +40,11 @@ class BiAlgo implements Runner.IAlgo {
     private void runAlgoInt() {
         try {
             runInit();
+            long start = System.currentTimeMillis();
             int iterationCount = 0;
             while (m_stopRunnable == null) {
                 long millis = System.currentTimeMillis();
-                log("iteration " + iterationCount + " ----------------------");
+                log("iteration " + iterationCount + " ---------------------- elapsed: " + Utils.millisToDHMSStr(millis - start));
                 runIteration(iterationCount);
                 sleepIfNeeded(millis);
                 iterationCount++;
@@ -58,8 +60,9 @@ class BiAlgo implements Runner.IAlgo {
             @Override public void run(Exchange exchange) throws Exception {
                 Properties keys = BaseExch.loadKeys();
                 exchange.init(keys);
-                AccountData accountData = Fetcher.fetchAccount(exchange);
-                m_startAccountMap.put(exchange, accountData);
+// TODO: enable later
+//                AccountData accountData = Fetcher.fetchAccount(exchange);
+//                m_startAccountMap.put(exchange, accountData);
             }
         });
     }
@@ -72,16 +75,10 @@ class BiAlgo implements Runner.IAlgo {
             }
         });
 
-        int length = m_exchanges.length;
-        if(m_maxExchNameLen == 0) { // calc once
-            for (int i = length - 1; i >= 0; i--) {
-                m_maxExchNameLen = Math.max(m_maxExchNameLen, m_exchanges[i].name().length());
-            }
-        }
-        for (int i = length - 1; i >= 0; i--) {
-            Exchange exchange = m_exchanges[i];
+        int maxExchNameLen = getMaxExchNameLen();
+        for (Exchange exchange : m_exchanges) { // log loaded tops
             TopDataHolder topDataHolder = m_mdStorage.get(exchange, m_pair);
-            log(Utils.padRight(exchange.name(), m_maxExchNameLen) + ": " + topDataHolder.m_topData);
+            log(Utils.padRight(exchange.name(), maxExchNameLen) + ": " + topDataHolder.m_topData);
         }
 
         runForPairs();
@@ -158,6 +155,15 @@ class BiAlgo implements Runner.IAlgo {
         }
     }
 
+    public int getMaxExchNameLen() {
+        if (m_maxExchNameLen == 0) { // calc once
+            for (Exchange exchange : m_exchanges) {
+                m_maxExchNameLen = Math.max(m_maxExchNameLen, exchange.name().length());
+            }
+        }
+        return m_maxExchNameLen;
+    }
+
     /** **************************************************************************************** */
     private static class ExchangesPair {
         public final Exchange m_exchange1;
@@ -177,6 +183,7 @@ class BiAlgo implements Runner.IAlgo {
         public final ExchangesPair m_exchangesPair;
         private final Utils.AverageCounter m_diffAverageCounter;
         private final List<TimeDiff> m_timeDiffs = new ArrayList<TimeDiff>();
+        private MktPoint m_start;
 
         public String name() { return m_exchangesPair.name(); }
 
@@ -186,6 +193,7 @@ class BiAlgo implements Runner.IAlgo {
         }
 
         public void run() {
+            // TODO: introduce exchangesPair.priceFormatter - since precisions can be different on exchanges
             Exchange e1 = m_exchangesPair.m_exchange1;
             Exchange e2 = m_exchangesPair.m_exchange2;
             TopData td1 = m_mdStorage.get(e1, m_pair).m_topData;
@@ -198,11 +206,106 @@ class BiAlgo implements Runner.IAlgo {
             double bidAskDiff = bidAskDiff1 + bidAskDiff2;
             double avgDiff = m_diffAverageCounter.add(System.currentTimeMillis(), diff);
             double diffDiff = diff - avgDiff;
-            log(name() + " diff=" + Utils.XX_YYYY.format(diff) +
-                    ", avgDiff="+ Utils.XX_YYYY.format(avgDiff) +
-                    ", diffDiff="+ Utils.XX_YYYY.format(diffDiff) +
-                    ", bidAskDiff="+ Utils.XX_YYYY.format(bidAskDiff));
+            log(name() + " diff=" + e1.roundPriceStr(diff, m_pair) + // TODO: introduce roundPriceStrPlus - to add some precision
+                    ", avgDiff="+ e1.roundPriceStr(avgDiff, m_pair) +
+                    ", diffDiff="+ e1.roundPriceStr(diffDiff, m_pair) +
+                    ", bidAskDiff="+ e1.roundPriceStr(bidAskDiff, m_pair));
             m_timeDiffs.add(new TimeDiff(System.currentTimeMillis(), diff));
+
+            MktPoint mktPoint = new MktPoint(td1, td2, avgDiff, diffDiff, bidAskDiff);
+            if (m_start == null) {
+                checkForNew(mktPoint);
+            } else {
+                checkForEnd(mktPoint);
+            }
+        }
+
+        private void checkForEnd(MktPoint mktPoint) {
+            if(((mktPoint.m_diffDiff > 0) && (m_start.m_diffDiff < 0))
+               || ((mktPoint.m_diffDiff < 0) && (m_start.m_diffDiff > 0))) { // look for opposite difDiffs
+                double gain = mktPoint.gain();
+                double midMid = mktPoint.midMid();
+                double level = gain / midMid;
+
+                Exchange e1 = m_exchangesPair.m_exchange1;
+                log(name() + " E  gain=" + e1.roundPriceStr(gain, m_pair) +
+                        ", midMid="+ e1.roundPriceStr(midMid, m_pair) +
+                        ", level="+ Utils.format8(level));
+                if (level > START_LEVEL) {
+                    log(name() + "   GOT END");
+                    onEnd(mktPoint);
+                    m_start = null;
+                }
+            }
+        }
+
+        private void checkForNew(MktPoint mktPoint) {
+            double gain = mktPoint.gain();
+            double midMid = mktPoint.midMid();
+            double level = gain / midMid;
+
+            Exchange e1 = m_exchangesPair.m_exchange1;
+            log(name() + " S  gain=" + e1.roundPriceStr(gain, m_pair) +
+                    ", midMid="+ e1.roundPriceStr(midMid, m_pair) +
+                    ", level="+ Utils.format8(level));
+            if (level > START_LEVEL) {
+                log(name() + "   GOT START");
+                m_start = mktPoint;
+            }
+        }
+
+        private void onEnd(MktPoint end) {
+            boolean startUp = m_start.up();
+            boolean endUp = end.up();
+            double balance1 = startUp
+                    ?  m_start.m_td2.m_bid - end.m_td2.m_ask
+                    : -m_start.m_td2.m_ask + end.m_td2.m_bid;
+            double balance2 = startUp
+                    ? -m_start.m_td2.m_ask + end.m_td2.m_bid
+                    :  m_start.m_td2.m_bid - end.m_td2.m_ask;
+            double balance = balance1 + balance2;
+
+            log(name() + "%%%%%% ");
+            log(name() + "%%%%%% START up=" + startUp + "; top1=" + m_start.m_td1 + "; top2=" + m_start.m_td2);
+            log(name() + "%%%%%% END   up=" + endUp +   "; top1=" + end.m_td1 +     "; top2=" + end.m_td2    );
+            log(name() + "%%%%%% ");
+            log(name() + "%%%%%% START buy " + (startUp ? "2" : "1") + " @ " + (startUp ? m_start.m_td2 : m_start.m_td1).askStr() +
+                                   "; sell " + (startUp ? "1" : "2") + " @ " + (startUp ? m_start.m_td1 : m_start.m_td2).bidStr() );
+            log(name() + "%%%%%% END   buy " + (startUp ? "1" : "2") + " @ " + (startUp ? end.m_td1     : end.m_td2    ).askStr() +
+                                   "; sell " + (startUp ? "2" : "1") + " @ " + (startUp ? end.m_td2     : end.m_td1    ).bidStr() );
+            log(name() + "%%%%%% ");
+            log(name() + "%%%%%% balance1=" + balance1 + "; balance2=" + balance2 + "; balance=" + balance);
+            log(name() + "%%%%%% ");
+        }
+
+        // pre-calculated top data relations
+        private class MktPoint {
+            final TopData m_td1;
+            final TopData m_td2;
+            final double m_avgDiff;
+            // cached
+            final double m_diffDiff;
+            final double m_bidAskDiff;
+
+            public boolean up() { return (m_diffDiff > 0); }
+
+            public MktPoint(TopData td1, TopData td2, double avgDiff, double diffDiff, double bidAskDiff) {
+                m_td1 = td1;
+                m_td2 = td2;
+                m_avgDiff = avgDiff;
+                m_diffDiff = diffDiff;
+                m_bidAskDiff = bidAskDiff;
+            }
+
+            public double gain() {
+                return Math.abs(m_diffDiff) - m_bidAskDiff / 2;
+            }
+
+            public double midMid() {
+                double mid1 = m_td1.getMid();
+                double mid2 = m_td2.getMid();
+                return (mid1 + mid2) / 2;
+            }
         }
     }
 

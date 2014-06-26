@@ -1,10 +1,8 @@
 package bthdg.util;
 
 import bthdg.Deserializer;
-import bthdg.Log;
 import org.json.simple.JSONObject;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.text.DecimalFormat;
@@ -188,6 +186,14 @@ public class Utils {
 
     public static String format8(double value) {
         return X_YYYYYYYY.format(value);
+    }
+
+    public static long toMillis(int min, int sec) {
+        return (min * 60 + sec) * 1000;
+    }
+
+    public static long toMillis(int hour, int min, int sec) {
+        return ((hour * 60 + min) * 60 + sec) * 1000;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
