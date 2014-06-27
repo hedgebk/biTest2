@@ -1,5 +1,7 @@
 package bthdg.triplet;
 
+import bthdg.exch.AccountData;
+import bthdg.exch.Direction;
 import bthdg.exch.TopsData;
 
 import java.util.TreeMap;
@@ -13,9 +15,10 @@ public class TriangleCalcData {
         m_backward = backward;
     }
 
-    static TriangleCalcData calc(TopsData tops, Triangle triangle) {
-        return new TriangleCalcData(TriangleRotationCalcData.calc(tops, triangle, Direction.FORWARD),
-                                    TriangleRotationCalcData.calc(tops, triangle, Direction.BACKWARD));
+    static TriangleCalcData calc(TopsData tops, Triangle triangle, AccountData account) {
+        double level = triangle.level(account);
+        return new TriangleCalcData(TriangleRotationCalcData.calc(tops, triangle, Direction.FORWARD,  account, level),
+                                    TriangleRotationCalcData.calc(tops, triangle, Direction.BACKWARD, account, level));
     }
 
     public String str() {

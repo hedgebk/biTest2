@@ -102,21 +102,21 @@ public enum TriTradeState {
         order2.logOrderEnds(prefix, 2, price2);
         order3.logOrderEnds(prefix, 3, price3);
 
-        double[] ends1 = order1.calcOrderEnds(account, price1);
-        double[] ends2 = order2.calcOrderEnds(account, price2);
-        double[] ends3 = order3.calcOrderEnds(account, price3);
+        double[] ends1 = order1.calcOrderEnds(account, price1, Triplet.s_exchange);
+        double[] ends2 = order2.calcOrderEnds(account, price2, Triplet.s_exchange);
+        double[] ends3 = order3.calcOrderEnds(account, price3, Triplet.s_exchange);
 
         Currency startCurrency = order1.startCurrency();
         Currency endCurrency = order3.endCurrency();
         double amount1 = order1.startAmount();
-        double amount3 = order3.endAmount(account);
+        double amount3 = order3.endAmount(account, Triplet.s_exchange);
         triTradeData.log(
                 "  START " + Utils.format8(amount1) + " " + startCurrency +
                         " -> END " + Utils.format8(amount3) + " " + endCurrency +
                         "  |||  start " + Utils.format8(amount1) + " " + startCurrency +
-                        "  end " + Utils.format8(order1.endAmount(account)) + " " + order1.endCurrency() +
+                        "  end " + Utils.format8(order1.endAmount(account, Triplet.s_exchange)) + " " + order1.endCurrency() +
                         " | start " + Utils.format8(order2.startAmount()) + " " + order2.startCurrency() +
-                        "  end " + Utils.format8(order2.endAmount(account)) + " " + order2.endCurrency() +
+                        "  end " + Utils.format8(order2.endAmount(account, Triplet.s_exchange)) + " " + order2.endCurrency() +
                         " | start " + Utils.format8(order3.startAmount()) + " " + order3.startCurrency() +
                         "  end " + Utils.format8(amount3) + " " + endCurrency
         );
@@ -178,7 +178,7 @@ public enum TriTradeState {
                 "; iterations=" + triTradeData.m_iterationsNum );
         triTradeData.log(" @@@@@@   in=" + format5(in) + ";  out=" + format5(out) +
                 "; out-in=" + format5(plus) + " " + startCurrency + ";  gain=" + format5(gain) +
-                "; level=" + Triplet.s_level +
+                "; level=" + triTradeData.level(account) +
                 ";  totalRatio=" + format5(Triplet.s_totalRatio) +
                 "; millis=" + System.currentTimeMillis() +
                 "; count=" + Triplet.s_counter);
@@ -198,20 +198,7 @@ public enum TriTradeState {
                 "; price3=" + Triplet.roundPrice(price3, peg.m_pair3.m_pair) + "; p3=" + peg.m_pair3
         );
 
-
-        if (gain > 1) {
-            if (Triplet.s_level > Triplet.LVL2) {
-                double level = Triplet.s_level;
-                double newLevel = (level - Triplet.LVL) / Triplet.LVL_DECREASE_RATE + Triplet.LVL;
-                newLevel = Math.max(newLevel, Triplet.LVL2);
-                Triplet.s_level = newLevel;
-                triTradeData.log(" LEVEL decreased from " + format5(level) + " to " + format5(Triplet.s_level));
-            }
-        } else {
-            double level = Triplet.s_level;
-            Triplet.s_level = (level - Triplet.LVL) * Triplet.LVL_INCREASE_RATE + Triplet.LVL;
-            triTradeData.log(" LEVEL increased from " + format5(level) + " to " + format5(Triplet.s_level));
-        }
+        Triplet.updateLevelPenalty(triTradeData, account, gain);
         triTradeData.setState(DONE);
     }
 

@@ -1,7 +1,7 @@
 package bthdg.exch;
 
-import bthdg.*;
-import bthdg.triplet.FundMap;
+import bthdg.Fetcher;
+import bthdg.Log;
 import bthdg.util.Md5;
 import bthdg.util.Post;
 import bthdg.util.Utils;

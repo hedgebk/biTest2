@@ -132,7 +132,8 @@ public class TriTradeData {
         OrderData prevOrder = (num == 1) ? m_order : m_mktOrders[0];
         OrderSide prevSide = prevOrder.m_side;
         Currency prevEndCurrency = prevOrder.endCurrency();
-        double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - account.m_fee); // deduct commissions
+        double fee = account.getFee(Triplet.s_exchange, prevOrder.m_pair);
+        double prevEndAmount = (prevSide.isBuy() ? prevOrder.m_amount : prevOrder.m_amount * prevOrder.m_price) * (1 - fee); // deduct commissions
         log(" prev order " + prevOrder + "; exit amount " + Triplet.roundPriceStr(prevEndAmount, pair) + " " + prevEndCurrency);
 
         Currency fromCurrency = pair.currencyFrom(forward);
@@ -142,17 +143,17 @@ public class TriTradeData {
         return new CurrencyAmount(prevEndAmount, fromCurrency);
     }
 
-    private Double calcLimitPrice(int num, AccountData account, TopsData tops, Pair pair,
+    private Double calcLimitPrice(int num/*1 or 2*/, AccountData account, TopsData tops, Pair pair,
                                   boolean forward, TopData topData, OrderSide side, final double mktPrice) {
         Double limitPrice = null;
         String mktPriceStr = Triplet.roundPriceStr(mktPrice, pair);
 
-        double ratio1 = m_order.ratio(account); // commission is applied to ratio
+        double ratio1 = m_order.ratio(account, Triplet.s_exchange); // commission is applied to ratio
         double ratio2 = (num == 1)
                 ? m_doMktOffset
                     ? m_peg.mktRatio2(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
                     : m_peg.mktRatio2(tops, account)
-                : getMktOrder(0).ratio(account); // commission is applied to ratio
+                : getMktOrder(0).ratio(account, Triplet.s_exchange); // commission is applied to ratio
         double ratio3 = m_doMktOffset
             ? m_peg.mktRatio3(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
             : m_peg.mktRatio3(tops, account); // commission is applied to ratio
@@ -188,7 +189,8 @@ public class TriTradeData {
                 return Double.MAX_VALUE;
             }
             double zeroProfitRatio = (num == 1) ? (1.0 / ratio1 / ratio3) : (1.0 / ratio1 / ratio2);
-            double zeroProfitPrice = zeroProfitRatio / (1 - account.m_fee); // add commission
+            double fee = account.getFee(Triplet.s_exchange, pair);
+            double zeroProfitPrice = zeroProfitRatio / (1 - fee); // add commission
             if (side.isBuy()) {
                 zeroProfitPrice = 1 / zeroProfitPrice;
             }
@@ -436,6 +438,9 @@ public class TriTradeData {
         return forkRemained;
     }
 
+    public double level(AccountData account) {
+        return m_peg.level();  // 100.602408
+    }
 
     public static class CurrencyAmount {
         public double m_amount;

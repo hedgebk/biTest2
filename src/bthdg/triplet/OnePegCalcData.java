@@ -3,26 +3,28 @@ package bthdg.triplet;
 import bthdg.exch.*;
 
 public class OnePegCalcData {
-    public int m_indx;
-    public double m_max; // peg -> mkt -> mkt
-    public double m_max10; // peg -> mkt-10 -> mkt-10
+    public final int m_indx;
+    public final double m_level;
+    public final double m_max; // peg -> mkt -> mkt
+    public final double m_max10; // peg -> mkt-10 -> mkt-10
     public TriangleRotationCalcData m_parent;
-    public double m_price1;
-    public double m_price2;
-    public double m_price2minus; // mkt-10
-    public double m_price3;
-    public double m_price3minus; // mkt-10
-    public PairDirection m_pair1;
-    public PairDirection m_pair2;
-    public PairDirection m_pair3;
-    public double m_need;
-    public double m_bracketPrice;
+    public final double m_price1;
+    public final double m_price2;
+    public final double m_price2minus; // mkt-10
+    public final double m_price3;
+    public final double m_price3minus; // mkt-10
+    public final PairDirection m_pair1;
+    public final PairDirection m_pair2;
+    public final PairDirection m_pair3;
+    public final double m_need;
+    public final double m_bracketPrice;
 
-    public OnePegCalcData(int indx, double max, double max10,
+    public OnePegCalcData(int indx, double level, double max, double max10,
                           PairDirection pair1, double price1,
                           PairDirection pair2, double price2, double price2minus,
                           PairDirection pair3, double price3, double price3minus) {
         m_indx = indx;
+        m_level = level;
         m_max = max;
         m_max10 = max10;
         m_price1 = price1;
@@ -33,17 +35,21 @@ public class OnePegCalcData {
         m_pair1 = pair1;
         m_pair2 = pair2;
         m_pair3 = pair3;
-        m_need = (Triplet.s_level / 100) / price2() / price3();
-        m_bracketPrice = ((Triplet.s_level + Triplet.BRACKET_LEVEL_EXTRA) / 100) / price2() / price3();
+        double need = (level / 100) / price2() / price3();
+        double bracketPrice = ((level + Triplet.BRACKET_LEVEL_EXTRA) / 100) / price2() / price3();
         if (m_pair1.isForward()) {
-            m_need = 1 / m_need;
-            m_bracketPrice = 1 / m_bracketPrice;
+            m_need = 1 / need;
+            m_bracketPrice = 1 / bracketPrice;
+        } else {
+            m_need = need;
+            m_bracketPrice = bracketPrice;
         }
     }
 
     private double price2() { return m_pair2.isForward() ? 1/m_price2 : m_price2; }
     private double price3() { return m_pair3.isForward() ? 1/m_price3 : m_price3; }
     public boolean mktCrossLvl() { return m_parent.mktCrossLvl(); }
+    public double level() { return m_parent.level(); }
 
     public String name() {
         StringBuilder sb = new StringBuilder();
@@ -71,14 +77,16 @@ public class OnePegCalcData {
     }
 
     public String str() {
-        if (m_max > Triplet.s_level) {
+        double level = level();
+        if (m_max > level) {
             return m_indx + ":" + Triplet.formatAndPad(m_max);
         }
         return "        ";
     }
 
     public String str2() {
-        if (m_max10 > Triplet.s_level) {
+        double level = level();
+        if (m_max10 > level) {
             return m_indx + ":" + Triplet.formatAndPad(m_max10);
         }
         return "        ";
@@ -153,7 +161,7 @@ public class OnePegCalcData {
     /** commissions deducted */
     public double pegRatio1(AccountData account, double pegPrice) {
         OrderSide side = m_pair1.getSide();
-        return calcRatio(account, pegPrice, side);
+        return calcRatio(account, pegPrice, side, m_pair1.m_pair);
     }
 
     /** commissions deducted */
@@ -180,18 +188,19 @@ public class OnePegCalcData {
     private double mktRatio(TopsData tops, AccountData account, PairDirection pd) {
         double mktPrice = calcMktPrice(tops, pd);
         OrderSide side = pd.getSide();
-        return calcRatio(account, mktPrice, side);
+        return calcRatio(account, mktPrice, side, pd.m_pair);
     }
 
-    public double calcRatio(AccountData account, double price, OrderSide side) {
-        return (side.isBuy() ? 1 / price : price) * (1 - account.m_fee); // deduct commissions
+    public double calcRatio(AccountData account, double price, OrderSide side, Pair pair) {
+        double fee = account.getFee(Triplet.s_exchange, pair);
+        return (side.isBuy() ? 1 / price : price) * (1 - fee); // deduct commissions
     }
 
     /** commissions deducted */
     private double mktRatio(TopsData tops, AccountData account, PairDirection pd, double offset) {
         double mktPrice = calcMktPrice(tops, pd, offset);
         OrderSide side = pd.getSide();
-        return calcRatio(account, mktPrice, side);
+        return calcRatio(account, mktPrice, side, pd.m_pair);
     }
 
     public double getBracketDistance(TopsData tops) {

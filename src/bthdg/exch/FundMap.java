@@ -1,6 +1,4 @@
-package bthdg.triplet;
-
-import bthdg.exch.*;
+package bthdg.exch;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package bthdg.triplet;
+package bthdg.exch;
 
 public enum Direction {
     FORWARD(true) {

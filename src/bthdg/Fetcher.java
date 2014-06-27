@@ -10,7 +10,9 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSession;
 import java.io.*;
-import java.net.*;
+import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -458,7 +460,7 @@ public class Fetcher {
     }
 
     public static String format(Double mktPrice) {
-        return (mktPrice == null) ? "-" : Utils.XX_YYYY.format(mktPrice);
+        return (mktPrice == null) ? "-" : Utils.format8(mktPrice);
     }
 
     private static final String DELETE_TICKS_SQL = "DELETE FROM Trace";

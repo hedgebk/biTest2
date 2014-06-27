@@ -1,5 +1,6 @@
 package bthdg.triplet;
 
+import bthdg.exch.AccountData;
 import bthdg.exch.TopsData;
 
 import java.util.ArrayList;
@@ -12,11 +13,11 @@ public class TrianglesCalcData extends ArrayList<TriangleCalcData> {
         super(length);
     }
 
-    static TrianglesCalcData calc(TopsData tops) {
+    static TrianglesCalcData calc(TopsData tops, AccountData account) {
         boolean mktCrossLvl = false;
         TrianglesCalcData ret = new TrianglesCalcData(Triplet.TRIANGLES.length);
         for (Triangle tr : Triplet.TRIANGLES) {
-            TriangleCalcData calc = TriangleCalcData.calc(tops, tr);
+            TriangleCalcData calc = TriangleCalcData.calc(tops, tr, account);
             ret.add(calc);
             mktCrossLvl |= calc.mktCrossLvl();
         }

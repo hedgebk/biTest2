@@ -1,8 +1,10 @@
 package bthdg.triplet;
 
-import bthdg.*;
-import bthdg.exch.Currency;
+import bthdg.Fetcher;
+import bthdg.IIterationContext;
+import bthdg.Log;
 import bthdg.exch.*;
+import bthdg.exch.Currency;
 import bthdg.util.Utils;
 
 import java.util.*;
@@ -31,7 +33,7 @@ public class TriTradesData implements OrderState.IOrderExecListener, TradesData.
         }
 
         TopsData tops = iData.getTops();
-        TrianglesCalcData trianglesCalc = TrianglesCalcData.calc(tops);
+        TrianglesCalcData trianglesCalc = TrianglesCalcData.calc(tops, m_account);
         log(trianglesCalc.str());
 
         if (Triplet.USE_TRI_MKT) {
@@ -55,7 +57,7 @@ public class TriTradesData implements OrderState.IOrderExecListener, TradesData.
                     System.out.println(" !! much time passed from tops loading (" + millis + "ms) - recalculate top/best data");
 
                     tops = iData.getTops();
-                    trianglesCalc = TrianglesCalcData.calc(tops);
+                    trianglesCalc = TrianglesCalcData.calc(tops, m_account);
                     log(trianglesCalc.str());
 
                     bestMap = trianglesCalc.findBestMap();
@@ -324,7 +326,8 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         boolean doMktOffset = triTrade.m_doMktOffset;
         double pegMax = doMktOffset ? peg1.m_max10 : peg1.m_max;
         String pegName = tradePeg.name();
-        if (pegMax > Triplet.s_level) {
+        double level = peg1.level();
+        if (pegMax > level) {
             OrderData order = triTrade.m_order;
             double orderPrice = order.m_price;
             double pegPrice = peg1.calcPegPrice(tops);
@@ -353,7 +356,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             }
         } else {
             triTrade.log("   peg order should be REmoved (" + pegName + "). max=" + pegMax +
-                    ", old max=" + tradePeg.m_max + "; level=" + Triplet.s_level);
+                    ", old max=" + tradePeg.m_max + "; level=" + level);
         }
         return toLive;
     }
@@ -397,7 +400,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
             if (order.canCancel()) {
                 if (Fetcher.SIMULATE_ORDER_EXECUTION) {
                     order.cancel();
-                    m_account.releaseOrder(order);
+                    m_account.releaseOrder(order, Triplet.s_exchange);
                     return true;
                 } else {
                     String orderId = order.m_orderId;
@@ -405,7 +408,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     String error = coData.m_error;
                     if (error == null) {
                         order.cancel();
-                        m_account.releaseOrder(order);
+                        m_account.releaseOrder(order, Triplet.s_exchange);
                         iData.resetLiveOrders(); // clean cached data
                         if(coData.m_funds != null) {
                             coData.m_funds.compareFunds(m_account);
@@ -515,7 +518,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                              boolean doMktOffset) throws Exception {
         boolean oneStarted = false;
         boolean forceOneBestLogging = true;
-        for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) {
+        for (Map.Entry<Double, OnePegCalcData> entry : bestMap.entrySet()) { // pegs are sorted here
             OnePegCalcData peg = entry.getValue();
             boolean mktLevel = peg.mktCrossLvl();
             if (!mktLevel) {
@@ -546,7 +549,9 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 double midPrice = peg.calcMidPrice(tops, 0);
                 double pegPrice = peg.m_price1;
                 double needPrice = peg.m_need; // ~zeroPrice
+                double minOffsetFromNeed = 0.2;
                 double random = new Random().nextDouble();
+                random = minOffsetFromNeed + (1-minOffsetFromNeed)*random; // do not place orders at need price - big risk - at least 20% to peg price direction.
                 boolean pegMid = ((pegPrice <= needPrice) && (needPrice <= midPrice)) || ((pegPrice >= needPrice) && (needPrice >= midPrice));
                 boolean midMkt = ((midPrice <= needPrice) && (needPrice <= mktPrice)) || ((midPrice >= needPrice) && (needPrice >= mktPrice));
                 double price = pegMid
@@ -640,7 +645,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
     private boolean isLevelReached(OnePegCalcData peg, boolean doMktOffset, boolean forceLogging) {
         double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
-        double level = Triplet.s_level;
+        double level = peg.level() + Triplet.LVL_PLUS;
         Pair startPair = peg.m_pair1.m_pair;
         if (Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS) {
             if ((startPair == Pair.LTC_BTC) || (startPair == Pair.BTC_USD) || (startPair == Pair.LTC_USD)) {
@@ -652,10 +657,11 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         }
         if (forceLogging || (maxPeg > (level - 0.1))) {
             log("BEST: " +
-                    (peg.mktCrossLvl() ? "!MKT! ": "")+
-                    "max" + (doMktOffset ? "" : "*") + "=" + peg.m_max +
-                    ", max10" + (doMktOffset ? "*" : "") + "=" + peg.m_max10 +
-                    "; level=" + level + "; need=" + peg.m_need + ": " + peg.name());
+                    (peg.mktCrossLvl() ? "!MKT! " : "") +
+                    "max" + (doMktOffset ? "" : "*") + "=" + Utils.format8(peg.m_max) +
+                    ", max10" + (doMktOffset ? "*" : "") + "=" + Utils.format8(peg.m_max10) +
+                    "; level=" + Utils.format8(level) +
+                    "; need=" + Utils.format8(peg.m_need) + ": " + peg.name());
         }
         return (maxPeg > level) || peg.mktCrossLvl();
     }

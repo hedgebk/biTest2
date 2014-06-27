@@ -44,10 +44,9 @@ public class Triplet {
             @Override void apply() {
                 Triplet.s_exchange = Exchange.BTCE;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 7;
-                Triplet.START_TRIANGLES_PER_ITERATION = 3;
-                Triplet.LVL = 100.602408; // commission level - note - complex percents here
-                Triplet.LVL2 = 100.72; // min target level
-                Triplet.WAIT_MKT_ORDER_STEPS = 2;
+                Triplet.START_TRIANGLES_PER_ITERATION = 2;
+                Triplet.LVL_PLUS = 0.14; // min target level plus
+                Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%
                 Triplet.MKT_OFFSET_LEVEL_DELTA = 0.11;
@@ -97,11 +96,10 @@ public class Triplet {
         BTCN {
             @Override void apply() {
                 Triplet.s_exchange = Exchange.BTCN;
-                Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 2;
+                Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 3;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
-                Triplet.LVL  = 100.011; // commission level
-                Triplet.LVL2 = 100.012; // min target level
-                Triplet.WAIT_MKT_ORDER_STEPS = 0;
+                Triplet.LVL_PLUS = 0.019; // min target level plus
+                Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
                 Triplet.MKT_OFFSET_LEVEL_DELTA = 0.15;
@@ -129,9 +127,9 @@ public class Triplet {
     public static int START_TRIANGLES_PER_ITERATION = 3;
 
     public static double LVL = 100.602408; // commission level - note - complex percents here
-    public static double LVL2 = 100.70; // min target level
-    public static final double LVL_INCREASE_RATE = 1.3;
-    public static final double LVL_DECREASE_RATE = 1.2;
+    public static double LVL_PLUS = 0.014; // min target level plus
+    public static final double LVL_INCREASE_RATE = 0.3;
+    public static final double LVL_DECREASE_RATE = 0.2;
     public static int WAIT_MKT_ORDER_STEPS = 0;
     public static boolean TRY_WITH_MKT_OFFSET = false;
     public static double MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
@@ -164,7 +162,7 @@ public class Triplet {
     public static final int LOAD_ORDERS_NUM = 3; // num of deep orders to load api
     public static final double USE_ACCOUNT_FUNDS = 0.96; // leave some for rounding
     private static final int MAX_PLACE_ORDER_REPEAT = 3;
-    public static final double TOO_BIG_LOSS_LEVEL = 0.9985; // stop current trade if mkt conditions will give big loss
+    public static final double TOO_BIG_LOSS_LEVEL = 0.9987; // stop current trade if mkt conditions will give big loss
     public static final boolean SIMULATE = false;
     public static final boolean USE_ACCOUNT_TEST_STR = SIMULATE;
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
@@ -173,7 +171,7 @@ public class Triplet {
 
     public static double s_totalRatio = 1;
     public static int s_counter = 0;
-    public static double s_level = LVL2;
+    public static double s_levelPenalty = 0;
 
     static Exchange s_exchange;
     static Pair[] PAIRS;
@@ -203,7 +201,6 @@ public class Triplet {
 
         try {
             applyPresets(args);
-            s_level = LVL2;
 
             if (TRY_WITH_MKT_OFFSET && (WAIT_MKT_ORDER_STEPS < 1)) {
                 System.out.println("WARNING: TRY_WITH_MKT_OFFSET used but WAIT_MKT_ORDER_STEPS=" + WAIT_MKT_ORDER_STEPS);
@@ -240,12 +237,7 @@ public class Triplet {
                         td.m_account = syncAccountIfNeeded(td.m_account);
                         sleep += sleep / 2; // no trades - sleep more
 
-                        if (s_level > LVL2) { // decrease penalty level on empty iterations
-                            double level = s_level;
-                            s_level = (s_level - LVL) * 0.99 + LVL;
-                            s_level = Math.max(s_level, LVL2);
-                            log(" LEVEL decreased (-1%) from " + Utils.format8(level) + " to " + Utils.format8(Triplet.s_level));
-                        }
+                        decreaseLevelPenalty(td.m_account); // decrease penalty level on empty iterations
                     } else {
                         if (size > 1) {
                             sleep /= 2;
@@ -372,7 +364,7 @@ public class Triplet {
                 ret = placeOrderToExchange(account, orderData, state, iData);
             }
             if (ret != OrderData.OrderPlaceStatus.OK) {
-                account.releaseOrder(orderData);
+                account.releaseOrder(orderData, s_exchange);
             }
         } else {
             log("ERROR: account allocateOrder unsuccessful: " + orderData + ", account: " + account);
@@ -398,7 +390,7 @@ public class Triplet {
                     log("  some part of order (" + amountStr + " from " + orderAmountStr + ") is executed at the time of placing ");
                     double price = orderData.m_price;
                     orderData.addExecution(price, amount, s_exchange);
-                    account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount);
+                    account.releaseTrade(orderData.m_pair, orderData.m_side, price, amount, s_exchange);
                 }
                 if (poData.m_accountData != null) {
                     poData.m_accountData.compareFunds(account);
@@ -464,6 +456,33 @@ public class Triplet {
 
     public static String roundPriceStr(double price, Pair pair) {
         return s_exchange.roundPriceStr(price, pair);
+    }
+
+    static void updateLevelPenalty(TriTradeData triTradeData, AccountData account, double gain) {
+        double triangleLevel = triTradeData.level(account); // 100.602408
+        double levelPenalty = s_levelPenalty;
+        if (gain > 1) {
+            if (levelPenalty > 0) {
+                s_levelPenalty -= triangleLevel * LVL_DECREASE_RATE; // 0.2
+                s_levelPenalty = Math.max(s_levelPenalty, 0);
+                triTradeData.log(" LEVEL penalty decreased from " + format5(levelPenalty) + " to " + format5(s_levelPenalty));
+            }
+        } else {
+            s_levelPenalty += triangleLevel * LVL_INCREASE_RATE; // 0.3
+            triTradeData.log(" LEVEL penalty increased from " + format5(levelPenalty) + " to " + format5(s_levelPenalty));
+        }
+    }
+
+    private static void decreaseLevelPenalty(AccountData account) {
+        double levelPenalty = s_levelPenalty;
+        if (levelPenalty > 0) {
+            double commonFee = account.m_fee;
+            double commonFeeRate = 1 + commonFee;
+            double commonLevel = commonFeeRate * commonFeeRate * commonFeeRate;
+            s_levelPenalty -= commonLevel * 0.99;
+            s_levelPenalty = Math.max(s_levelPenalty, 0);
+            log(" LEVEL decreased (-1%) from " + Utils.format8(levelPenalty) + " to " + Utils.format8(s_levelPenalty));
+        }
     }
 
     private static class IntConsoleReader extends ConsoleReader {

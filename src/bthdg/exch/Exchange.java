@@ -56,6 +56,7 @@ public enum Exchange {
         @Override public boolean supportsQueryOrdersBySymbol() { return false; }
         @Override public boolean supportsMultiplePairsRequest() { return true; }
         @Override public Currency baseCurrency() { return Currency.BTC; }
+        @Override public double getFee(Pair pair, double commonFee) { return Btce.getFee(pair, commonFee); }
     },
     @Deprecated MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true,
@@ -235,6 +236,7 @@ public enum Exchange {
     public boolean requirePairForCancel() { return false; }
     public Currency[] supportedCurrencies() { return m_baseExch.supportedCurrencies(); }
     public Currency baseCurrency() { throw new RuntimeException("baseCurrency not implemented on " + this ); }
+    public double getFee(Pair pair, double commonFee) { return commonFee; }
 
     private static String campBxTopTestStr() { return "{\"Last Trade\":\"717.58\",\"Best Bid\":\"715.00\",\"Best Ask\":\"720.00\"}"; }
 

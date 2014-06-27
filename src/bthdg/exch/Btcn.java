@@ -1,7 +1,7 @@
 package bthdg.exch;
 
-import bthdg.*;
-import bthdg.triplet.FundMap;
+import bthdg.Fetcher;
+import bthdg.Log;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
@@ -18,7 +18,6 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URL;
-
 import java.text.DecimalFormat;
 import java.util.*;
 

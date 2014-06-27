@@ -136,22 +136,22 @@ public class AccountData {
         return true;
     }
 
-    public void releaseOrder(OrderData orderData) {
+    public void releaseOrder(OrderData orderData, Exchange exchange) {
         double amount = orderData.remained();
         if(orderData.m_filled > 0) { // special case - some portion is already executed. releasing only remained part
             log("special case - some portion is already executed. releasing only remained part="+ amount);
         }
-        release(orderData.m_pair, orderData.m_side, orderData.m_price, amount, false);
+        release(orderData.m_pair, orderData.m_side, orderData.m_price, amount, false, exchange);
     }
 
-    private void release(Pair pair, OrderSide orderSide, double price, double amount, boolean tradeHappens) {
+    private void release(Pair pair, OrderSide orderSide, double price, double amount, boolean tradeHappens, Exchange exchange) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
         log("release() pair: " + pair + "; side: " + orderSide + "; price=" + Fetcher.format(price) +
                 "; amount=" + amount + "   on " + this);
         boolean isBuy = orderSide.isBuy();
         Currency fromCurrency = isBuy ? pair.m_from : pair.m_to;
         double fromSize = isBuy ? amount * price : amount;
-        String str = " fromCurrency " + fromCurrency + "; fromSize=" + Utils.X_YYYYY.format(fromSize);
+        String str = " fromCurrency " + fromCurrency + "; fromSize=" + Utils.format8(fromSize);
 
         double allocated = allocated(fromCurrency);
         setAllocated(fromCurrency, allocated - fromSize);
@@ -159,10 +159,11 @@ public class AccountData {
         if (tradeHappens) {
             Currency toCurrency = isBuy ? pair.m_to : pair.m_from;
             double toSize = isBuy ? amount : amount * price;
-            double commission = toSize * m_fee;
+            double fee = getFee(exchange, pair);
+            double commission = toSize * fee;
             double rest = toSize - commission; // deduct commissions
-            str += ";   toCurrency " + toCurrency + "; toSize=" + Utils.X_YYYYY.format(toSize) +
-                    "; commission=" + Utils.X_YYYYY.format(commission) + "; rest=" + Utils.X_YYYYY.format(rest);
+            str += ";   toCurrency " + toCurrency + "; toSize=" + Utils.format8(toSize) +
+                    "; fee=" + fee + "; commission=" + Utils.format8(commission) + "; rest=" + Utils.format8(rest);
 
             double available = available(toCurrency);
             setAvailable(toCurrency, available + rest);
@@ -176,8 +177,12 @@ public class AccountData {
         }
     }
 
-    public void releaseTrade(Pair pair, OrderSide orderSide, double price, double amount) {
-        release(pair, orderSide, price, amount, true);
+    public double getFee(Exchange exchange, Pair pair) {
+        return exchange.getFee(pair, m_fee);
+    }
+
+    public void releaseTrade(Pair pair, OrderSide orderSide, double price, double amount, Exchange exchnage) {
+        release(pair, orderSide, price, amount, true, exchnage);
     }
 
     public AccountData copy() {

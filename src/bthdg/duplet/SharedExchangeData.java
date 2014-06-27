@@ -1,6 +1,8 @@
 package bthdg.duplet;
 
-import bthdg.*;
+import bthdg.Deserializer;
+import bthdg.Fetcher;
+import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.util.Utils;
 
@@ -143,6 +145,7 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
         // todo: handle if query unsuccessfull
     }
 
+    // TODO: can be exchnage-pair dependent (e.g. btce-rur-usd)
     public double getFee() {
         if (m_account != null) {
             double fee = m_account.m_fee;
@@ -177,7 +180,7 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
             if(orderData.canCancel()) {
                 // todo: implement
                 orderData.cancel();
-                m_account.releaseOrder(orderData);
+                m_account.releaseOrder(orderData, m_exchange);
                 return true;
             } else {
                 log("error: can not cancel order: " + orderData);

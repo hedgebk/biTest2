@@ -2,7 +2,6 @@ package bthdg;
 
 import bthdg.exch.*;
 import bthdg.exch.Currency;
-import bthdg.triplet.FundMap;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 

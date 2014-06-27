@@ -111,7 +111,7 @@ public class OrderData {
                 }
 
                 addExecution(m_price, amount, exchange);
-                account.releaseTrade(m_pair, m_side, m_price, amount);
+                account.releaseTrade(m_pair, m_side, m_price, amount, exchange);
                 if (isFilled()) {
                     return; // the whole order executed
                 }
@@ -137,14 +137,14 @@ public class OrderData {
             double filled = roundAmount(exchange, m_filled);
             double minAmountStep = exchange.minAmountStep(m_pair);
             if (m_status == OrderStatus.PARTIALLY_FILLED) {
-                if (filled >= minAmountStep) {
+                if (m_filled >= minAmountStep) {
                     return true;
                 }
                 throw new RuntimeException("Error order state: PARTIALLY_FILLED order with zero filled(" + Utils.format8(filled) + "), " +
-                        "m_filled=" + Utils.format8(m_filled) + "; minAmountStep=" + Utils.format8(minAmountStep) + ": " + this);
+                        "m_filled=" + Utils.format8(m_filled) + "; minAmountStep=" + Utils.format8(minAmountStep) + ": " + toString(exchange));
             }
             if ((m_status == OrderStatus.SUBMITTED) || (m_status == OrderStatus.NEW)) {
-                if (filled < minAmountStep) {
+                if (m_filled < minAmountStep) {
                     return false;
                 }
                 throw new RuntimeException("Error order state: NEW | SUBMITTED order with non zero filled(" + Utils.format8(filled) + ", " +
@@ -152,7 +152,7 @@ public class OrderData {
             }
             if (m_status == OrderStatus.FILLED) {
                 double amount = roundAmount(exchange, m_amount);
-                if (Math.abs(filled - amount) < minAmountStep) {
+                if (Math.abs(m_filled - amount) < minAmountStep) {
                     return false;
                 }
                 throw new RuntimeException("Error order state: FILLED order with non equal filled(" + Utils.format8(filled) + "), " +
@@ -370,7 +370,7 @@ public class OrderData {
                 " on '" + exchange.m_name + "' have matched TOP price=" + mktPrice + "; top=" + top);
             double remained = remained();
             addExecution(m_price, remained, exchange);
-            account.releaseTrade(m_pair, m_side, m_price, remained);
+            account.releaseTrade(m_pair, m_side, m_price, remained, exchange);
         } else {
             log("WARN: MKT order " + this + " not executed; top: " + top);
         }
@@ -384,14 +384,15 @@ public class OrderData {
                 "; delta=" + Utils.format8(delta) + " on " + this);
     }
 
-    public double[] calcOrderEnds(AccountData account, double expectedPrice) {
+    public double[] calcOrderEnds(AccountData account, double expectedPrice, Exchange exchange) {
         double startAmount = startAmount();
-        double endAmount = endAmount(account);
+        double endAmount = endAmount(account, exchange);
         return new double[] {startAmount, endAmount};
     }
 
-    public double endAmount(AccountData account) {
-        return (m_side.isBuy() ? m_amount : m_amount * m_price) * (1 - account.m_fee);
+    public double endAmount(AccountData account, Exchange exchange) {
+        double fee = account.getFee(exchange, m_pair);
+        return (m_side.isBuy() ? m_amount : m_amount * m_price) * (1 - fee);
     }
 
     public Currency endCurrency() {
@@ -406,9 +407,10 @@ public class OrderData {
         return m_side.isBuy() ? m_amount * m_price : m_amount;
     }
 
-    public double ratio(AccountData account) {
+    public double ratio(AccountData account, Exchange exchange) {
         boolean isBuy = m_side.isBuy();
-        return (isBuy ? 1 / m_price : m_price) * (1 - account.m_fee); // deduct commissions
+        double fee = account.getFee(exchange, m_pair);
+        return (isBuy ? 1 / m_price : m_price) * (1 - fee); // deduct commissions
     }
 
     public String roundPriceStr(Exchange exchange) {

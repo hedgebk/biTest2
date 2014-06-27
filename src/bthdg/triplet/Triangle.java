@@ -51,33 +51,33 @@ public class Triangle extends ArrayList<PairDirection> {
         return sb.toString();
     }
 
-    public OnePegCalcData[] calcPegs(TopsData tops, Direction direction) {
+    public OnePegCalcData[] calcPegs(TopsData tops, Direction direction, double level) {
         PairDirection pd0 = get(0).get(direction);
         PairDirection pd1 = get(1).get(direction);
         PairDirection pd2 = get(2).get(direction);
-        return (direction == Direction.FORWARD) ? calcPegs(tops, pd0, pd1, pd2) : calcPegs(tops, pd2, pd1, pd0);
+        return (direction == Direction.FORWARD) ? calcPegs(tops, pd0, pd1, pd2, level) : calcPegs(tops, pd2, pd1, pd0, level);
     }
 
-    private static OnePegCalcData[] calcPegs(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3) {
+    private static OnePegCalcData[] calcPegs(TopsData tops, PairDirection pair1, PairDirection pair2, PairDirection pair3, double level) {
         TopData top1 = tops.get(pair1.m_pair);
         TopData top2 = tops.get(pair2.m_pair);
         TopData top3 = tops.get(pair3.m_pair);
         double offset = Triplet.MKT_OFFSET_PRICE_MINUS;
 
         return new OnePegCalcData[] {
-                new OnePegCalcData(0,
+                new OnePegCalcData(0, level,
                         mulMkt(mulMkt(mulPeg(100.0, top1, pair1), top2, pair2), top3, pair3),
                         mulMkt(mulMkt(mulPeg(100.0, top1, pair1), top2, pair2, offset), top3, pair3, offset),
                         pair1, pegPrice(top1, pair1),
                         pair2, mktPrice(top2, pair2), mktPrice(top2, pair2, offset),
                         pair3, mktPrice(top3, pair3), mktPrice(top3, pair3, offset)),
-                new OnePegCalcData(1,
+                new OnePegCalcData(1, level,
                         mulMkt(mulPeg(mulMkt(100.0, top1, pair1), top2, pair2), top3, pair3),
                         mulMkt(mulPeg(mulMkt(100.0, top1, pair1, offset), top2, pair2), top3, pair3, offset),
                         pair2, pegPrice(top2, pair2),
                         pair3, mktPrice(top3, pair3), mktPrice(top3, pair3, offset),
                         pair1, mktPrice(top1, pair1), mktPrice(top1, pair1, offset)),
-                new OnePegCalcData(2,
+                new OnePegCalcData(2, level,
                         mulPeg(mulMkt(mulMkt(100.0, top1, pair1), top2, pair2), top3, pair3),
                         mulPeg(mulMkt(mulMkt(100.0, top1, pair1, offset), top2, pair2, offset), top3, pair3),
                         pair3, pegPrice(top3, pair3),
@@ -142,5 +142,13 @@ public class Triangle extends ArrayList<PairDirection> {
         double price = side.pegPrice(top, minPriceStep, exchStep); // the price is changed here from quoted by exchange - need to be rounded
         double ret = Triplet.s_exchange.roundPrice(price, pair, side.getPegRoundMode()); // round to direction based on order side
         return ret;
+    }
+
+    public double level(AccountData account) {
+        double fee1 = get(0).getFee(account, Triplet.s_exchange);
+        double fee2 = get(1).getFee(account, Triplet.s_exchange);
+        double fee3 = get(2).getFee(account, Triplet.s_exchange);
+        double feeRate = (1 + fee1) * (1 + fee2) * (1 + fee3);
+        return feeRate * 100;  // 100.602408
     }
 } // Triangle

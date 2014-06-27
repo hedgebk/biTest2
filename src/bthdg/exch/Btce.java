@@ -4,20 +4,20 @@ package bthdg.exch;
 
 // code to inspire here: https://github.com/ReAzem/cryptocoin-tradelib/blob/master/modules/btc_e/src/de/andreas_rueckert/trade/site/btc_e/client/BtcEClient.java
 
-import bthdg.*;
-import bthdg.triplet.FundMap;
+import bthdg.Log;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import java.io.*;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static bthdg.Fetcher.*;
+import static bthdg.Fetcher.FetchCommand;
+import static bthdg.Fetcher.FetchOptions;
 
 public class Btce extends BaseExch {
     public static final String CRYPTO_ALGO = "HmacSHA512";
@@ -593,6 +593,13 @@ public class Btce extends BaseExch {
         if (pair.equals("ltc_cnh")) { return Pair.LTC_CNH; }
         if (pair.equals("usd_cnh")) { return Pair.USD_CNH; }
         return null;
+    }
+
+    public static double getFee(Pair pair, double commonFee) {
+        if ((pair == Pair.USD_RUR) || (pair == Pair.EUR_RUR)) {
+            return 0.005;
+        }
+        return commonFee;
     }
 }
 

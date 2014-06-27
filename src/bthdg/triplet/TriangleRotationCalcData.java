@@ -1,5 +1,7 @@
 package bthdg.triplet;
 
+import bthdg.exch.AccountData;
+import bthdg.exch.Direction;
 import bthdg.exch.TopsData;
 
 import java.util.TreeMap;
@@ -12,7 +14,8 @@ public class TriangleRotationCalcData {
     private double m_mktMinus10;  // mkt-10
     private double m_mktMinus20; // mkt-20
     private OnePegCalcData[] m_pegs;
-    private OnePegCalcData m_peg;
+    private OnePegCalcData m_bestPeg;
+    private final AccountData m_account;
 
     @Override public boolean equals(Object obj) {
         if(obj == this) { return true; }
@@ -25,7 +28,9 @@ public class TriangleRotationCalcData {
         return false;
     }
 
-    public TriangleRotationCalcData(Triangle triangle, Direction direction, double mid, double mkt, double mktMinus10, double mktMinus20, OnePegCalcData[] pegs) {
+    public TriangleRotationCalcData(Triangle triangle, Direction direction, AccountData account, double mid,
+                                    double mkt, double mktMinus10, double mktMinus20, OnePegCalcData[] pegs) {
+        m_account = account;
         m_triangle = triangle;
         m_direction = direction;
         m_mid = mid;
@@ -33,7 +38,7 @@ public class TriangleRotationCalcData {
         m_mktMinus10 = mktMinus10;
         m_mktMinus20 = mktMinus20;
         m_pegs = pegs;
-        m_peg = findBestPeg();
+        m_bestPeg = findBestPeg();
         pegs[0].m_parent = this;
         pegs[1].m_parent = this;
         pegs[2].m_parent = this;
@@ -47,42 +52,45 @@ public class TriangleRotationCalcData {
         return m_pegs[indx];
     }
 
-    static TriangleRotationCalcData calc(TopsData tops, Triangle triangle, Direction direction) {
-//            log(" rotate forward=" + forward + " on Triangle: " + triangle.name());
-        return new TriangleRotationCalcData(triangle, direction,
+    static TriangleRotationCalcData calc(TopsData tops, Triangle triangle, Direction direction, AccountData account, double level) {
+        return new TriangleRotationCalcData(triangle, direction, account,
                                             triangle.calcMid(tops, direction),
                                             triangle.calcMkt(tops, direction),
                                             triangle.calcMkt(tops, direction, 0.1d),
                                             triangle.calcMkt(tops, direction, 0.2d),
-                                            triangle.calcPegs(tops, direction));
+                                            triangle.calcPegs(tops, direction, level));
     }
 
     public String str() {
-        return Triplet.formatAndPad(m_mid) + " " + Triplet.formatAndPad(m_mkt) + " " + m_peg.str();
+        return Triplet.formatAndPad(m_mid) + " " + Triplet.formatAndPad(m_mkt) + " " + m_bestPeg.str();
     }
 
     public String str2() {
-        return Triplet.formatAndPad(m_mktMinus10) + " " + Triplet.formatAndPad(m_mktMinus20) + " " + m_peg.str2()
-                + ((m_mktMinus10 > Triplet.LVL)
+        return Triplet.formatAndPad(m_mktMinus10) + " " + Triplet.formatAndPad(m_mktMinus20) + " " + m_bestPeg.str2()
+                + ((m_mktMinus10 > level())
                       ? "$"
-                      : (m_mktMinus20 > Triplet.LVL) ? "*" : " "
+                      : (m_mktMinus20 > level()) ? "*" : " "
                   );
     }
 
     public boolean midCrossLvl() {
-        return (m_mid > Triplet.LVL);
+        return (m_mid > level());
+    }
+
+    public double level() {
+        return m_triangle.level(m_account);
     }
 
     public boolean mktCrossLvl() {
-        return (m_mkt > Triplet.LVL);
+        return (m_mkt > level());
     }
 
     public boolean mktCrossLvl2() {
-        return (m_mktMinus10 > Triplet.LVL);
+        return (m_mktMinus10 > level());
     }
 
     public boolean mktCrossLvl3() {
-        return (m_mktMinus20 > Triplet.LVL);
+        return (m_mktMinus20 > level());
     }
 
     public void findBestMap(TreeMap<Double, OnePegCalcData> ret) {

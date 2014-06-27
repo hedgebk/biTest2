@@ -1,7 +1,5 @@
 package bthdg.exch;
 
-import bthdg.triplet.Direction;
-
 public class PairDirection {
     public final Pair m_pair;
     public final Direction m_direction;
@@ -70,5 +68,9 @@ public class PairDirection {
 
     public OrderSide getSide() {
         return (m_direction == Direction.FORWARD) ? OrderSide.BUY : OrderSide.SELL;
+    }
+
+    public double getFee(AccountData account, Exchange exchange) {
+        return m_pair.getFee(account, exchange);
     }
 }

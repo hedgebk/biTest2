@@ -9,8 +9,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class BiAlgo implements Runner.IAlgo {
-    private static final double START_LEVEL = 0.0001;
-    private static final long MOVING_AVERAGE = Utils.toMillis(9, 28);
+    private static final double START_LEVEL = 0.0002;
+    private static final long MOVING_AVERAGE = Utils.toMillis(5, 28); // TODO: make exchange_pair dependent
     private static final long MIN_ITERATION_TIME = 3000;
 
     private final Exchange[] m_exchanges = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN/*, Exchange.HUOBI*/};
@@ -265,17 +265,17 @@ class BiAlgo implements Runner.IAlgo {
                     :  m_start.m_td2.m_bid - end.m_td2.m_ask;
             double balance = balance1 + balance2;
 
-            log(name() + "%%%%%% ");
+            log(name() + "%%%%%%%%%");
             log(name() + "%%%%%% START up=" + startUp + "; top1=" + m_start.m_td1 + "; top2=" + m_start.m_td2);
             log(name() + "%%%%%% END   up=" + endUp +   "; top1=" + end.m_td1 +     "; top2=" + end.m_td2    );
-            log(name() + "%%%%%% ");
+            log(name() + "%%%%%%");
             log(name() + "%%%%%% START buy " + (startUp ? "2" : "1") + " @ " + (startUp ? m_start.m_td2 : m_start.m_td1).askStr() +
                                    "; sell " + (startUp ? "1" : "2") + " @ " + (startUp ? m_start.m_td1 : m_start.m_td2).bidStr() );
             log(name() + "%%%%%% END   buy " + (startUp ? "1" : "2") + " @ " + (startUp ? end.m_td1     : end.m_td2    ).askStr() +
                                    "; sell " + (startUp ? "2" : "1") + " @ " + (startUp ? end.m_td2     : end.m_td1    ).bidStr() );
-            log(name() + "%%%%%% ");
+            log(name() + "%%%%%%");
             log(name() + "%%%%%% balance1=" + balance1 + "; balance2=" + balance2 + "; balance=" + balance);
-            log(name() + "%%%%%% ");
+            log(name() + "%%%%%%");
         }
 
         // pre-calculated top data relations

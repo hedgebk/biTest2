@@ -1,7 +1,5 @@
 package bthdg.exch;
 
-import bthdg.triplet.Direction;
-
 public enum Pair {
     LTC_USD(1, Currency.LTC, Currency.USD),
     LTC_BTC(2, Currency.LTC, Currency.BTC),
@@ -78,5 +76,10 @@ public enum Pair {
             }
         }
         return null;
+    }
+
+    public double getFee(AccountData account, Exchange exchange) {
+        double fee = account.getFee(exchange, this);
+        return fee;
     }
 }

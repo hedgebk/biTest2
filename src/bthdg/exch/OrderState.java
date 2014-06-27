@@ -99,7 +99,7 @@ public enum OrderState {
                     log("    probably partial: " + orderData.roundAmountStr(exchange, partial));
                     if (partial > minAmountStep) {
                         orderData.addExecution(orderPrice, partial, exchange);
-                        account.releaseTrade(pair, orderData.m_side, orderPrice, partial);
+                        account.releaseTrade(pair, orderData.m_side, orderPrice, partial, exchange);
                     } else {
                         log("     skipped: < minAmountStep (" + minAmountStepStr + ")");
                     }
@@ -110,7 +110,7 @@ public enum OrderState {
                 log(" liveOrder[" + orderId + "]=" + ordData + ";  no such liveOrder. EXECUTED");
                 log("   orderPrice=" + orderData.roundPrice(exchange) + "; remained=" + remainedStr);
                 orderData.addExecution(orderPrice, remained, exchange);
-                account.releaseTrade(pair, orderData.m_side, orderPrice, remained);
+                account.releaseTrade(pair, orderData.m_side, orderPrice, remained, exchange);
                 log("    order at result: " + orderData);
             }
         } else {
