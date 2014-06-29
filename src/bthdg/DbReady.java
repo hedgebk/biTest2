@@ -21,7 +21,7 @@ public class DbReady {
 
     public static void main(String[] args) {
         System.out.println("Started");
-        long millis = logTimeMemory();
+        long millis = Utils.logStartTimeMemory();
 
 //        startAndInitDb();
 //        dropTicks(Exchange.BTCE,     "0", "-13d");
@@ -29,14 +29,6 @@ public class DbReady {
         importFromFiles();
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
-    }
-
-    public static long logTimeMemory() {
-        long millis = System.currentTimeMillis();
-        System.out.println("timeMills: " + millis);
-        long maxMemory = Runtime.getRuntime().maxMemory();
-        System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
-        return millis;
     }
 
     public static void startAndInitDb() {

@@ -255,8 +255,8 @@ class BiAlgo implements Runner.IAlgo {
         }
 
         private void onEnd(MktPoint end) {
-            boolean startUp = m_start.up();
-            boolean endUp = end.up();
+            boolean startUp = !m_start.aboveAverage();
+            boolean endUp = !end.aboveAverage();
             double balance1 = startUp
                     ?  m_start.m_td2.m_bid - end.m_td2.m_ask
                     : -m_start.m_td2.m_ask + end.m_td2.m_bid;
@@ -287,7 +287,7 @@ class BiAlgo implements Runner.IAlgo {
             final double m_diffDiff;
             final double m_bidAskDiff;
 
-            public boolean up() { return (m_diffDiff > 0); }
+            public boolean aboveAverage() { return (m_diffDiff > 0); }
 
             public MktPoint(TopData td1, TopData td2, double avgDiff, double diffDiff, double bidAskDiff) {
                 m_td1 = td1;

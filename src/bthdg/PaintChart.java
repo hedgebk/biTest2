@@ -731,12 +731,14 @@ public class PaintChart extends BaseChartPaint {
     public static class PriceDiffList extends ArrayList<Double> {}
 
     public static class ChartAxe {
-        private final double m_min;
-        private final double m_scale;
+        public final double m_min;
+        public final double m_max;
         private final int m_size;
+        private final double m_scale;
 
         public ChartAxe(double min, double max, int size) {
             m_min = min;
+            m_max = max;
             m_size = size;
             double diff = max - min;
             m_scale = diff / size;

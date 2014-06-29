@@ -645,25 +645,25 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
 
     private boolean isLevelReached(OnePegCalcData peg, boolean doMktOffset, boolean forceLogging) {
         double maxPeg = doMktOffset ? peg.m_max10 : peg.m_max;
-        double level = peg.level() + Triplet.LVL_PLUS;
+        double levelSum = peg.level() + Triplet.LVL_PLUS + Triplet.s_levelPenalty;
         Pair startPair = peg.m_pair1.m_pair;
         if (Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS) {
             if ((startPair == Pair.LTC_BTC) || (startPair == Pair.BTC_USD) || (startPair == Pair.LTC_USD)) {
-                level -= Triplet.LIQUIDITY_PAIRS_LEVEL_DELTA; // reduce level for pairs with higher liquidity
+                levelSum -= Triplet.LIQUIDITY_PAIRS_LEVEL_DELTA; // reduce level for pairs with higher liquidity
             }
         }
         if (doMktOffset) {
-            level += Triplet.MKT_OFFSET_LEVEL_DELTA; // increase level mkt offsets
+            levelSum += Triplet.MKT_OFFSET_LEVEL_DELTA; // increase level mkt offsets
         }
-        if (forceLogging || (maxPeg > (level - 0.1))) {
+        if (forceLogging || (maxPeg > (levelSum - 0.1))) {
             log("BEST: " +
                     (peg.mktCrossLvl() ? "!MKT! " : "") +
                     "max" + (doMktOffset ? "" : "*") + "=" + Utils.format8(peg.m_max) +
                     ", max10" + (doMktOffset ? "*" : "") + "=" + Utils.format8(peg.m_max10) +
-                    "; level=" + Utils.format8(level) +
+                    "; level=" + Utils.format8(levelSum) +
                     "; need=" + Utils.format8(peg.m_need) + ": " + peg.name());
         }
-        return (maxPeg > level) || peg.mktCrossLvl();
+        return (maxPeg > levelSum) || peg.mktCrossLvl();
     }
 
     private TriTradeData findTriTradeData(OnePegCalcData peg) {

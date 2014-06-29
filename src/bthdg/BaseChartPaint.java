@@ -17,12 +17,12 @@ public class BaseChartPaint extends DbReady {
     public static final Color SEMI_TRANSPARENT_GRAY = new Color(128, 128, 128, 128); // Color.gray
     public static final BasicStroke DASHED_STROKE = new BasicStroke(1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{10.0f}, 0.0f);
 
-    protected static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
+    public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
                                               Graphics2D g, double priceStep, double priceStart, int width) {
         paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, width, null);
     }
 
-    protected static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
+    public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
                                               Graphics2D g, double priceStep, double priceStart, int width, Double highlightY) {
         Stroke oldStroke = g.getStroke();
         g.setStroke(DASHED_STROKE);
@@ -37,11 +37,12 @@ public class BaseChartPaint extends DbReady {
         g.setStroke(oldStroke);
     }
 
-    protected static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, double priceStep, double priceStart, float xFactor) {
+    public static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, double priceStep,
+                                          double priceStart, float xFactor) {
         paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, xFactor, DecimalFormat.getIntegerInstance());
     }
 
-    protected static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, double priceStep, double priceStart,
+    public static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, double priceStep, double priceStart,
                                              float xFactor, NumberFormat format) {
         g.setFont(g.getFont().deriveFont(20.0f * xFactor));
         for (double price = priceStart; price < maxPrice; price += priceStep) {
@@ -52,7 +53,7 @@ public class BaseChartPaint extends DbReady {
         }
     }
 
-    static void paintRightAxeLabels(double minDif, double maxDif, PaintChart.ChartAxe difAxe, Graphics2D g, int width, int priceDifStep, float xFactor, int yStart) {
+    public static void paintRightAxeLabels(double minDif, double maxDif, PaintChart.ChartAxe difAxe, Graphics2D g, int width, int priceDifStep, float xFactor, int yStart) {
         int priceDifStart = ((int) minDif) / priceDifStep * priceDifStep;
 //        System.out.println("priceDifStart=" + priceDifStart);
         g.setFont(g.getFont().deriveFont(20.0f * xFactor));
@@ -121,7 +122,7 @@ public class BaseChartPaint extends DbReady {
         }
     }
 
-    protected static void writeAndShowImage(BufferedImage image) {
+    public static void writeAndShowImage(BufferedImage image) {
         try {
             long millis = System.currentTimeMillis();
 
@@ -136,7 +137,7 @@ public class BaseChartPaint extends DbReady {
         }
     }
 
-    protected static void setupGraphics(Graphics2D g) {
+    public static void setupGraphics(Graphics2D g) {
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
@@ -144,4 +145,8 @@ public class BaseChartPaint extends DbReady {
         g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY );
     }
 
+    public static void drawX(Graphics2D g, int x, int y, int d) {
+        g.drawLine(x - d, y - d, x + d, y + d);
+        g.drawLine(x - d, y + d, x + d, y - d);
+    }
 }

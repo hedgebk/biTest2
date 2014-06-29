@@ -194,6 +194,41 @@ public class Utils {
         return ((hour * 60 + min) * 60 + sec) * 1000;
     }
 
+    public static long logStartTimeMemory() {
+        long millis = System.currentTimeMillis();
+        System.out.println("timeMills: " + millis);
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
+        return millis;
+    }
+
+    /* 3min 18sec 38ms */
+    public static long parseHMSMtoMillis(String elapsed) {
+        StringTokenizer tok = new StringTokenizer(elapsed);
+        long millis = 0;
+        while (tok.hasMoreTokens()) {
+            String str = tok.nextToken();
+            if (str.endsWith("h")) {
+                String dig = str.substring(0, str.length() - 1);
+                int h = Integer.parseInt(dig);
+                millis = h;
+            } if (str.endsWith("min")) {
+                String dig = str.substring(0, str.length() - 3);
+                int min = Integer.parseInt(dig);
+                millis = millis*60 + min;
+            } if (str.endsWith("sec")) {
+                String dig = str.substring(0, str.length() - 3);
+                int sec = Integer.parseInt(dig);
+                millis = millis*60 + sec;
+            } if (str.endsWith("ms")) {
+                String dig = str.substring(0, str.length() - 2);
+                int ms = Integer.parseInt(dig);
+                millis = millis*1000 + ms;
+            }
+        }
+        return millis;
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static abstract class DoubleAverageCalculator<O> {
         private double m_sum;
@@ -280,13 +315,15 @@ public class Utils {
         public void calculate(O obj) {
             if (obj != null) {
                 Double[] values = getValues(obj);
-                for (Double value : values) {
-                    if (value != null) {
-                        if ((m_maxValue == null) || (value > m_maxValue)) {
-                            m_maxValue = value;
-                        }
-                        if ((m_minValue == null) || (value < m_minValue)) {
-                            m_minValue = value;
+                if(values != null) {
+                    for (Double value : values) {
+                        if (value != null) {
+                            if ((m_maxValue == null) || (value > m_maxValue)) {
+                                m_maxValue = value;
+                            }
+                            if ((m_minValue == null) || (value < m_minValue)) {
+                                m_minValue = value;
+                            }
                         }
                     }
                 }

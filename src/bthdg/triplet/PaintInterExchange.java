@@ -1,13 +1,9 @@
 package bthdg.triplet;
 
 import bthdg.BaseChartPaint;
-import bthdg.exch.Currency;
 import bthdg.PaintChart;
+import bthdg.exch.*;
 import bthdg.util.Utils;
-import bthdg.exch.Pair;
-import bthdg.exch.PairDirection;
-import bthdg.exch.TopData;
-import bthdg.exch.TopsData;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -16,7 +12,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class PaintInterExchange extends BaseChartPaint {
     private static final int XFACTOR = 2;
@@ -28,7 +27,7 @@ public class PaintInterExchange extends BaseChartPaint {
 
     public static void main(String[] args) {
         System.out.println("Started");
-        long millis = logTimeMemory();
+        long millis = Utils.logStartTimeMemory();
 
         long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-36h");
         paint(fromMillis);

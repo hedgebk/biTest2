@@ -524,11 +524,6 @@ public class PaintTrace extends BaseChartPaint {
         drawX(g, x, y, X_DIAMETER_SMALL);
     }
 
-    private static void drawX(Graphics2D g, int x, int y, int d) {
-        g.drawLine(x - d, y - d, x + d, y + d);
-        g.drawLine(x - d, y + d, x + d, y - d);
-    }
-
     private static class TraceData {
         public long m_stamp;
         public BidAsk m_exch1;

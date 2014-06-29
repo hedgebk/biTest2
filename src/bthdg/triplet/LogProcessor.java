@@ -21,7 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LogProcessor extends DbReady {
-    private static final String LOG_FILE = "C:\\Botya\\Projects\\biTest\\logs\\triplet.199.log"; // processed 3 - 199
+    private static final String LOG_FILE = "logs\\triplet.199.log"; // processed 3 - 199
 
     private static Pattern DATE_PATTERN = Pattern.compile(".*iteration.*date=(.*)");
 
@@ -50,7 +50,7 @@ public class LogProcessor extends DbReady {
 
     public static void main(String[] args) {
         System.out.println("LogProcessor Started.");
-        long millis = logTimeMemory();
+        long millis = Utils.logStartTimeMemory();
 
         updateFromLog();
 

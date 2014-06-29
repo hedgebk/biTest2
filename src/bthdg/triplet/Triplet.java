@@ -45,7 +45,7 @@ public class Triplet {
                 Triplet.s_exchange = Exchange.BTCE;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 7;
                 Triplet.START_TRIANGLES_PER_ITERATION = 2;
-                Triplet.LVL_PLUS = 0.14; // min target level plus
+                Triplet.LVL_PLUS = 0.15; // min target level plus
                 Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%
@@ -98,7 +98,7 @@ public class Triplet {
                 Triplet.s_exchange = Exchange.BTCN;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 3;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
-                Triplet.LVL_PLUS = 0.019; // min target level plus
+                Triplet.LVL_PLUS = 0.02; // min target level plus
                 Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
@@ -459,16 +459,16 @@ public class Triplet {
     }
 
     static void updateLevelPenalty(TriTradeData triTradeData, AccountData account, double gain) {
-        double triangleLevel = triTradeData.level(account); // 100.602408
+        double triangleLevelSum = triTradeData.level(account) + LVL_PLUS + s_levelPenalty - 100; // (100.602408 + 0.14 + x)-100 = ~0.75
         double levelPenalty = s_levelPenalty;
         if (gain > 1) {
             if (levelPenalty > 0) {
-                s_levelPenalty -= triangleLevel * LVL_DECREASE_RATE; // 0.2
+                s_levelPenalty -= triangleLevelSum * LVL_DECREASE_RATE; // 0.2
                 s_levelPenalty = Math.max(s_levelPenalty, 0);
                 triTradeData.log(" LEVEL penalty decreased from " + format5(levelPenalty) + " to " + format5(s_levelPenalty));
             }
         } else {
-            s_levelPenalty += triangleLevel * LVL_INCREASE_RATE; // 0.3
+            s_levelPenalty += triangleLevelSum * LVL_INCREASE_RATE; // 0.3
             triTradeData.log(" LEVEL penalty increased from " + format5(levelPenalty) + " to " + format5(s_levelPenalty));
         }
     }

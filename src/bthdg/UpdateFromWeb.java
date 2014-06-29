@@ -19,7 +19,7 @@ public class UpdateFromWeb extends DbReady {
 
     public static void main(String[] args) {
         System.out.println("Started");
-        long millis = logTimeMemory();
+        long millis = Utils.logStartTimeMemory();
 
         updateFromWeb();
 
