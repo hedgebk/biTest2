@@ -158,10 +158,10 @@ public class TriTradeData {
             ? m_peg.mktRatio3(tops, account, Triplet.MKT_OFFSET_PRICE_MINUS)
             : m_peg.mktRatio3(tops, account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
-        log(" ratio1=" + Utils.X_YYYYY.format(ratio1) +
-                "; ratio2=" + Utils.X_YYYYY.format(ratio2) +
-                "; ratio3=" + Utils.X_YYYYY.format(ratio3) +
-                "; ratio=" + Utils.X_YYYYY.format(ratio) +
+        log(" ratio1=" + Utils.format5(ratio1) +
+                "; ratio2=" + Utils.format5(ratio2) +
+                "; ratio3=" + Utils.format5(ratio3) +
+                "; ratio=" + Utils.format5(ratio) +
                 ";  mktPrice=" + mktPriceStr);
         int attempt = m_waitMktOrderStep++;
         if (ratio < 1) {

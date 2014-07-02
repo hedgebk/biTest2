@@ -1,6 +1,8 @@
 package bthdg.exch;
 
-import bthdg.*;
+import bthdg.Config;
+import bthdg.Fetcher;
+import bthdg.Log;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 
@@ -45,7 +47,7 @@ public abstract class BaseExch {
     public double roundAmount(double amount, Pair pair){
         DecimalFormat decimalFormat = amountFormat(pair);
         int scale = decimalFormat.getMaximumFractionDigits();
-        return round(amount, scale, RoundingMode.FLOOR); // round always down
+        return round(amount, scale, RoundingMode.HALF_UP);
     }
 
     public String roundPriceStr(double price, Pair pair) {

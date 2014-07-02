@@ -8,12 +8,17 @@ import bthdg.util.Utils;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * - save open orders/state on stop; read/restore state on start
+ * - maintain isExchLive, correctly fold if exch is down to not affect others;
+ *   - fold all if no inet connection; restart fine on connectivity
+ */
 class BiAlgo implements Runner.IAlgo {
-    private static final double START_LEVEL = 0.0002;
+    private static final double START_LEVEL = 0.0003;
     private static final long MOVING_AVERAGE = Utils.toMillis(5, 28); // TODO: make exchange_pair dependent
-    private static final long MIN_ITERATION_TIME = 3000;
+    private static final long MIN_ITERATION_TIME = 2500;
 
-    private final Exchange[] m_exchanges = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN/*, Exchange.HUOBI*/};
+    private final Exchange[] m_exchanges = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN, Exchange.HUOBI};
     private final Pair m_pair = Pair.BTC_CNH;
 
     private List<ExchangesPair> m_exchPairs = mkExchPairs();
@@ -113,7 +118,6 @@ class BiAlgo implements Runner.IAlgo {
                 counter.wait();
             }
         }
-        return;
     }
 
     private void runForPairs() {
@@ -204,7 +208,7 @@ class BiAlgo implements Runner.IAlgo {
             double bidAskDiff1 = td1.getBidAskDiff();
             double bidAskDiff2 = td2.getBidAskDiff();
             double bidAskDiff = bidAskDiff1 + bidAskDiff2;
-            double avgDiff = m_diffAverageCounter.add(System.currentTimeMillis(), diff);
+            double avgDiff = m_diffAverageCounter.add(diff);
             double diffDiff = diff - avgDiff;
             log(name() + " diff=" + e1.roundPriceStr(diff, m_pair) + // TODO: introduce roundPriceStrPlus - to add some precision
                     ", avgDiff="+ e1.roundPriceStr(avgDiff, m_pair) +
@@ -258,21 +262,21 @@ class BiAlgo implements Runner.IAlgo {
             boolean startUp = !m_start.aboveAverage();
             boolean endUp = !end.aboveAverage();
             double balance1 = startUp
+                    ? -m_start.m_td1.m_ask + end.m_td1.m_bid
+                    :  m_start.m_td1.m_bid - end.m_td1.m_ask;
+            double balance2 = startUp
                     ?  m_start.m_td2.m_bid - end.m_td2.m_ask
                     : -m_start.m_td2.m_ask + end.m_td2.m_bid;
-            double balance2 = startUp
-                    ? -m_start.m_td2.m_ask + end.m_td2.m_bid
-                    :  m_start.m_td2.m_bid - end.m_td2.m_ask;
             double balance = balance1 + balance2;
 
             log(name() + "%%%%%%%%%");
             log(name() + "%%%%%% START up=" + startUp + "; top1=" + m_start.m_td1 + "; top2=" + m_start.m_td2);
             log(name() + "%%%%%% END   up=" + endUp +   "; top1=" + end.m_td1 +     "; top2=" + end.m_td2    );
             log(name() + "%%%%%%");
-            log(name() + "%%%%%% START buy " + (startUp ? "2" : "1") + " @ " + (startUp ? m_start.m_td2 : m_start.m_td1).askStr() +
-                                   "; sell " + (startUp ? "1" : "2") + " @ " + (startUp ? m_start.m_td1 : m_start.m_td2).bidStr() );
-            log(name() + "%%%%%% END   buy " + (startUp ? "1" : "2") + " @ " + (startUp ? end.m_td1     : end.m_td2    ).askStr() +
-                                   "; sell " + (startUp ? "2" : "1") + " @ " + (startUp ? end.m_td2     : end.m_td1    ).bidStr() );
+            log(name() + "%%%%%% START buy " + (startUp ? "1" : "2") + " @ " + (startUp ? m_start.m_td1 : m_start.m_td2).askStr() +
+                                   "; sell " + (startUp ? "2" : "1") + " @ " + (startUp ? m_start.m_td2 : m_start.m_td1).bidStr() );
+            log(name() + "%%%%%% END   buy " + (startUp ? "2" : "1") + " @ " + (startUp ? end.m_td2     : end.m_td1    ).askStr() +
+                                   "; sell " + (startUp ? "1" : "2") + " @ " + (startUp ? end.m_td1     : end.m_td2    ).bidStr() );
             log(name() + "%%%%%%");
             log(name() + "%%%%%% balance1=" + balance1 + "; balance2=" + balance2 + "; balance=" + balance);
             log(name() + "%%%%%%");

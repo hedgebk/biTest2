@@ -37,4 +37,18 @@ public class PlaceOrderData {
                 ) +
                 '}';
     }
+
+    public String toString(Exchange exchange, Pair m_pair) {
+        return "PlaceOrderData{" +
+                (m_error != null
+                        ? "error='" + m_error + "'"
+                        : "orderId=" + m_orderId +
+                          ", remains=" + exchange.roundAmountStr(m_remains, m_pair) +
+                          ", received=" + exchange.roundAmountStr(m_received, m_pair) +
+                          ((m_accountData == null)
+                                  ? ""
+                                  : ", accountData=" + m_accountData)
+                ) +
+                '}';
+    }
 }

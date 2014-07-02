@@ -116,6 +116,8 @@ public enum Exchange {
         @Override public OrdersData parseOrders(Object jObj) { return OkCoin.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return OkCoin.parseCancelOrders(jObj); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
+        @Override public boolean requirePairForOrders() { return true; }
+        @Override public boolean requirePairForCancel() { return true; }
     },
     HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false,
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
@@ -233,6 +235,7 @@ public enum Exchange {
     public boolean supportsMultiplePairsRequest() { return false; }
     public boolean supportsQueryAllOrders() { return true; }
     public boolean supportsQueryOrdersBySymbol() { return true; }
+    public boolean requirePairForOrders() { return false; }
     public boolean requirePairForCancel() { return false; }
     public Currency[] supportedCurrencies() { return m_baseExch.supportedCurrencies(); }
     public Currency baseCurrency() { throw new RuntimeException("baseCurrency not implemented on " + this ); }

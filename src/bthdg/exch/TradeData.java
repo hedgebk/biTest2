@@ -32,8 +32,8 @@ public class TradeData {
 
     @Override public String toString() {
         return "TradeData{" +
-                "amount=" + Utils.X_YYYYY.format(m_amount) +
-                ", price=" + Utils.X_YYYYY.format(m_price) +
+                "amount=" + Utils.format5(m_amount) +
+                ", price=" + Utils.format5(m_price) +
                 ", time=" + m_timestamp +
                 ", tid=" + m_tid +
                 ", type=" + m_type +

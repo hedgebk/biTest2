@@ -120,10 +120,12 @@ public class Btcn extends BaseExch {
 
     private void run() {
         try {
-            TopsData topsData = Fetcher.fetchTops(Exchange.BTCN, Pair.BTC_CNH);
-            log("topsData: " + topsData);
-//            DeepData deepData = Fetcher.fetchDeep(Exchange.BTCN, Pair.BTC_CNH);
-//            log("deepData: " + deepData);
+//            TopsData topsData = Fetcher.fetchTops(Exchange.BTCN, Pair.BTC_CNH);
+//            log("topsData: " + topsData);
+
+            Fetcher.LOG_JOBJ = true;
+            DeepData deepData = Fetcher.fetchDeep(Exchange.BTCN, Pair.BTC_CNH);
+            log("deepData: " + deepData);
 //            run("x");
 //            AccountData account = Fetcher.fetchAccount(Exchange.BTCN);
 //            log("account: " + account);

@@ -128,12 +128,12 @@ public class TriTradesData implements OrderState.IOrderExecListener, TradesData.
                 double bidAskDiff = topData.getBidAskDiff();
 
                 double bracketPrice = calcData.m_bracketPrice;
-                log(" " + calcData.name() + " distance=" + Utils.X_YYYYY.format(distance) +
-                        "; bidAskDiff=" + Utils.X_YYYYY.format(bidAskDiff) +
-                        "; bid=" + Utils.X_YYYYY.format(topData.m_bid) +
-                        "; mid=" + Utils.X_YYYYY.format(topData.getMid()) +
-                        "; ask=" + Utils.X_YYYYY.format(topData.m_ask) +
-                        "; bracket=" + Utils.X_YYYYY.format(bracketPrice));
+                log(" " + calcData.name() + " distance=" + Utils.format5(distance) +
+                        "; bidAskDiff=" + Utils.format5(bidAskDiff) +
+                        "; bid=" + Utils.format5(topData.m_bid) +
+                        "; mid=" + Utils.format5(topData.getMid()) +
+                        "; ask=" + Utils.format5(topData.m_ask) +
+                        "; bracket=" + Utils.format5(bracketPrice));
 
                 // do not create multiple tri-trades for the pair-direction
                 TriTradeData ttd = findTriTradeData(calcData.m_pair1);
@@ -163,17 +163,17 @@ public class TriTradesData implements OrderState.IOrderExecListener, TradesData.
                 double ratio = ratio1 * ratio2 * ratio3;
 
                 log("  MKT2" +
-                        ": bid=" + Utils.X_YYYYY.format(top2.m_bid) +
-                        "; mkt=" + Utils.X_YYYYY.format(mkt2) +
-                        "; ask=" + Utils.X_YYYYY.format(top2.m_ask) +
+                        ": bid=" + Utils.format5(top2.m_bid) +
+                        "; mkt=" + Utils.format5(mkt2) +
+                        "; ask=" + Utils.format5(top2.m_ask) +
                         "   MKT3" +
-                        ": bid=" + Utils.X_YYYYY.format(top3.m_bid) +
-                        "; mkt=" + Utils.X_YYYYY.format(mkt3) +
-                        "; ask=" + Utils.X_YYYYY.format(top3.m_ask) +
-                        ": |  ratio1=" + Utils.X_YYYYY.format(ratio1) +
-                        "; ratio2=" + Utils.X_YYYYY.format(ratio2) +
-                        "; ratio3=" + Utils.X_YYYYY.format(ratio3) +
-                        ": ratio=" + Utils.X_YYYYY.format(ratio)
+                        ": bid=" + Utils.format5(top3.m_bid) +
+                        "; mkt=" + Utils.format5(mkt3) +
+                        "; ask=" + Utils.format5(top3.m_ask) +
+                        ": |  ratio1=" + Utils.format5(ratio1) +
+                        "; ratio2=" + Utils.format5(ratio2) +
+                        "; ratio3=" + Utils.format5(ratio3) +
+                        ": ratio=" + Utils.format5(ratio)
                 );
 
                 if (m_triTrades.size() >= Triplet.NUMBER_OF_ACTIVE_TRIANGLES) {

@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
 
+/** support CANCEL ALL */
 public class Console {
     private static Exchange s_exchange = Exchange.BTCE; // by default btce
 
@@ -47,10 +48,8 @@ public class Console {
             return true;
         } else if( line.startsWith("account")) {
             doAccount(line);
-        } else if( line.startsWith("orders ")) {
+        } else if( line.startsWith("orders")) {
             doOrders(line);
-        } else if( line.equals("orders")) {
-            doOrders();
         } else if( line.equals("tops")) {
             doTops();
         } else if( line.startsWith("top ")) {
@@ -79,59 +78,43 @@ public class Console {
     private static void switchExchange(String line) {
         String exchName = line.substring(2).toUpperCase();
         List<Exchange> startsWith = Exchange.resolveExchange(exchName);
-        if(startsWith.size() > 1) {
-            System.err.println("multiple exchanges starts with '"+exchName+"' : " + startsWith);
+        if (startsWith.size() > 1) {
+            System.err.println("multiple exchanges starts with '" + exchName + "' : " + startsWith);
         } else {
-            if(startsWith.size() == 1) {
+            if (startsWith.size() == 1) {
                 s_exchange = startsWith.get(0);
                 String name = s_exchange.name();
-                if(name.equalsIgnoreCase(exchName)) {
-                    System.err.println(" current exchange is changed successfully to "+name);
+                if (name.equalsIgnoreCase(exchName)) {
+                    System.err.println(" current exchange is changed successfully to " + name);
                 } else {
-                    System.err.println(" current exchange is guessed and changed successfully to "+ name);
+                    System.err.println(" current exchange is guessed and changed successfully to " + name);
                 }
             } else {
-                System.err.println("exchange '"+exchName+"' not found. supported: " + Arrays.asList(Exchange.values()));
+                System.err.println("exchange '" + exchName + "' not found. supported: " + Arrays.asList(Exchange.values()));
             }
         }
-
-//        System.err.println("requested change to exchange "+exchName);
-//        List<Exchange> startsWith = new ArrayList<Exchange>();
-//        for(Exchange exchange: Exchange.values()) {
-//            String name = exchange.name();
-//            if( name.equalsIgnoreCase(exchName) ) {
-//                s_exchange = exchange;
-//                System.err.println(" current exchange is changed successfully to "+name);
-//                return;
-//            }
-//            if( name.startsWith(exchName) ) {
-//                startsWith.add(exchange);
-//            }
-//        }
-//        if(startsWith.size() == 1) {
-//            s_exchange = startsWith.get(0);
-//            System.err.println(" current exchange is guessed and changed successfully to "+s_exchange.name());
-//            return;
-//        }
-//        if(startsWith.size() > 1) {
-//            System.err.println("multiple exchanges starts with '"+exchName+"' : " + startsWith);
-//        } else {
-//            System.err.println("exchange '"+exchName+"' not found. supported: " + Arrays.asList(Exchange.values()));
-//        }
-    }
-
-    private static void doOrders() throws Exception {
-        OrdersData od = Fetcher.fetchOrders(s_exchange);
-        onOrders(od);
     }
 
     private static void doOrders(String line) throws Exception {
-        String pairName = line.substring(7);
-        Pair pair = Pair.resolvePair(pairName, s_exchange);
-        if (pair == null) {
-            System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+        // orers [LTC_CNH]
+        StringTokenizer tok = new StringTokenizer(line.toLowerCase());
+        int tokensNum = tok.countTokens();
+        if(s_exchange.requirePairForOrders()) {
+            if (tokensNum == 2) {
+                tok.nextToken(); // skip 'orders'
+                String pairName = tok.nextToken();
+                Pair pair = Pair.resolvePair(pairName, s_exchange);
+                if (pair == null) {
+                    System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                } else {
+                    OrdersData od = Fetcher.fetchOrders(s_exchange, pair);
+                    onOrders(od);
+                }
+            } else {
+                System.err.println("invalid 'orders' command: use followed format: orders pair. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+            }
         } else {
-            OrdersData od = Fetcher.fetchOrders(s_exchange, pair);
+            OrdersData od = Fetcher.fetchOrders(s_exchange);
             onOrders(od);
         }
     }
@@ -187,21 +170,21 @@ public class Console {
 
         for (Currency currencyIn : supportedCurrencies) {
             double inValue = account.getAllValue(currencyIn);
-            String str = Utils.padLeft(Utils.X_YYYYY.format(inValue), 9) + " " + currencyIn + " ";
+            String str = Utils.padLeft(Utils.format5(inValue), 9) + " " + currencyIn + " ";
             Map<Currency, Double> distributeRatio = FundMap.distributeRatio(s_exchange);
             Double rate = distributeRatio.get(currencyIn);
             for (Currency currencyOut : supportedCurrencies) {
                 double converted = (currencyIn == currencyOut)
                         ? inValue :
                         tops.convert(currencyIn, currencyOut, inValue, s_exchange);
-                str += Utils.padLeft(Utils.X_YYYYY.format(converted), 9) + " ";
+                str += Utils.padLeft(Utils.format5(converted), 9) + " ";
 
                 double valuate = valuateMap.get(currencyOut);
                 double expected = rate * valuate;
-                str += Utils.padLeft(Utils.X_YYYYY.format(expected), 9) + " ";
+                str += Utils.padLeft(Utils.format5(expected), 9) + " ";
 
                 double diff = converted - expected;
-                str += Utils.padLeft(Utils.X_YYYYY.format(diff), 9) + " | ";
+                str += Utils.padLeft(Utils.format5(diff), 9) + " | ";
             }
             System.out.println(str);
         }
@@ -209,7 +192,7 @@ public class Console {
         s = "             ";
         for (Currency outCurrency : supportedCurrencies) {
             double valuate = valuateMap.get(outCurrency);
-            s +=  Utils.padRight(Utils.padLeft(Utils.X_YYYYY.format(valuate), 9), 29) + " | ";
+            s +=  Utils.padRight(Utils.padLeft(Utils.format5(valuate), 9), 29) + " | ";
         }
         System.out.println(s);
         FundMap.test(account, tops, s_exchange);

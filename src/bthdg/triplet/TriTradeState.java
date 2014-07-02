@@ -137,39 +137,7 @@ public enum TriTradeState {
         double ratio3 = ends3[1]/ends3[0];
         double ratio = ratio1 * ratio2 * ratio3;
 
-        double eurRate = 0;
-        double eurRateSleep = 0;
-        if (Triplet.s_exchange.supportsCurrency(Currency.EUR)) {
-            double valuateEur = account.evaluateEur(tops, Triplet.s_exchange);
-            eurRate = valuateEur / Triplet.s_startEur;
-            double valuateEurSleep = Triplet.s_startAccount.evaluateEur(tops, Triplet.s_exchange);
-            eurRateSleep = valuateEurSleep / Triplet.s_startEur;
-        }
-        double usdRate = 0;
-        double usdRateSleep = 0;
-        if (Triplet.s_exchange.supportsCurrency(Currency.USD)) {
-            double valuateUsd = account.evaluateUsd(tops, Triplet.s_exchange);
-            usdRate = valuateUsd / Triplet.s_startUsd;
-            double valuateUsdSleep = Triplet.s_startAccount.evaluateUsd(tops, Triplet.s_exchange);
-            usdRateSleep = valuateUsdSleep / Triplet.s_startUsd;
-        }
-        double btcRate = 0;
-        double btcRateSleep = 0;
-        if (Triplet.s_exchange.supportsCurrency(Currency.BTC)) {
-            double valuateBtc = account.evaluate(tops, Currency.BTC, Triplet.s_exchange);
-            btcRate = valuateBtc / Triplet.s_startBtc;
-            double valuateBtcSleep = Triplet.s_startAccount.evaluate(tops, Currency.BTC, Triplet.s_exchange);
-            btcRateSleep = valuateBtcSleep / Triplet.s_startBtc;
-        }
-        double cnhRate = 0;
-        double cnhRateSleep = 0;
-        if (Triplet.s_exchange.supportsCurrency(Currency.CNH)) {
-            double valuateCnh = account.evaluate(tops, Currency.CNH, Triplet.s_exchange);
-            cnhRate = valuateCnh / Triplet.s_startCnh;
-            double valuateCnhSleep = Triplet.s_startAccount.evaluate(tops, Currency.CNH, Triplet.s_exchange);
-            cnhRateSleep = valuateCnhSleep / Triplet.s_startCnh;
-        }
-
+        String valuateStr = Triplet.valuateStr(account, tops);
         double midMul = account.midMul(Triplet.s_startAccount);
 
         triTradeData.log(" @@@@@@   ratio1=" + format5(ratio1) + ";  ratio2=" + format5(ratio2) +
@@ -182,12 +150,7 @@ public enum TriTradeState {
                 ";  totalRatio=" + format5(Triplet.s_totalRatio) +
                 "; millis=" + System.currentTimeMillis() +
                 "; count=" + Triplet.s_counter);
-        triTradeData.log(" @@@@@@   " +
-                ((usdRate != 0) ? "; valuateUsd=" + format5(usdRate) + " (" + format5(usdRateSleep) + ")" : "") +
-                ((eurRate != 0) ? "; valuateEur=" + format5(eurRate) + " (" + format5(eurRateSleep) + ")" : "") +
-                ((btcRate != 0) ? "; valuateBtc=" + format5(btcRate) + " (" + format5(btcRateSleep) + ")" : "") +
-                ((cnhRate != 0) ? "; valuateCnh=" + format5(cnhRate) + " (" + format5(cnhRateSleep) + ")" : "") +
-                "; midMul=" + format5(midMul));
+        triTradeData.log(" @@@@@@   " + valuateStr + "; midMul=" + format5(midMul));
         triTradeData.log(" @@@@@@    peg: " +
                 (peg.mktCrossLvl() ? "!MKT! " : "") +
                 "max" + (doMktOffset ? "" : "*") + "=" + format5(peg.m_max) +
@@ -202,8 +165,8 @@ public enum TriTradeState {
         triTradeData.setState(DONE);
     }
 
-    private static String format5(double ratio1) {
-        return Utils.X_YYYYY.format(ratio1);
+    private static String format5(double ratio) {
+        return Utils.format5(ratio);
     }
 
     private static void checkMktPlaced(IterationData iData, TriTradesData triTradesData, TriTradeData triTradeData, int num/*1 or 2*/, TriTradeState stateForFilled) throws Exception {

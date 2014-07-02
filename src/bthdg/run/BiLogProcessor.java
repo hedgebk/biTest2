@@ -19,14 +19,31 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class BiLogProcessor {
-    private static final String LOG_FILE = "logs\\runner.012.log";
+    private static final String LOG_FILE = "logs\\runner.log";
+
+//    public static final String EXCH1 = "BTCN";      // 5
+//    public static final String EXCH2 = "OKCOIN";
+
+    public static final String EXCH1 = "OKCOIN";    // 9.7
+    public static final String EXCH2 = "HUOBI";
+
+//    public static final String EXCH1 = "BTCN";        // 5.2
+//    public static final String EXCH2 = "HUOBI";
+
+    public static final String PAIR = EXCH1 + "_" + EXCH2;
+    public static final Exchange ROUND_EXCH = Exchange.BTCN;
+    public static final boolean BALANCED_ACCT = true;
+    private static final boolean LOG_TOP = false;
+    private static final boolean LOG_PAIR = false;
 
     private static long s_time;
-    private static Map<String, PairData> s_pairs = new HashMap<String, PairData>();
-    private static Map<String, ExchData> s_tops = new HashMap<String, ExchData>();
+    private static Map<String, PairData> s_pairs;
+    private static Map<String, ExchData> s_tops;
     private static List<BiLogData> s_timePoints = new ArrayList<BiLogData>();
-    private static List<StartEndData> s_startEnds = new ArrayList<StartEndData>();
-    private static BiLogData s_start;
+    private static Map<String, List<StartEndData>> s_startEndsMap = new HashMap<String, List<StartEndData>>(); // pair->StartEndData[]
+    private static Map<String, BiLogData> s_starts = new HashMap<String, BiLogData>(); // exch->start_BiLogData
+    private static BiLogData s_data;
+    private static String s_lastPair;
 
     private static final int XFACTOR = 1;
     private static final int WIDTH = 1620 * XFACTOR * 16;
@@ -38,142 +55,205 @@ public class BiLogProcessor {
         System.out.println("Started");
         long millis = Utils.logStartTimeMemory();
 
-        importFromFile();
-        paintChart();
+        try {
+            importFromFile();
+            paintChart();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
     }
 
-    private static void importFromFile() {
+    private static void importFromFile() throws Exception {
+        BufferedReader reader = new BufferedReader(new FileReader(LOG_FILE));
         try {
-            BufferedReader reader = new BufferedReader(new FileReader(LOG_FILE));
-            try {
-                State state = State.START;
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    State newState = state.process(line);
-                    if (newState != null) {
-                        state = newState;
-                    }
+            State state = State.START;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                State newState = state.process(line);
+                if (newState != null) {
+                    state = newState;
                 }
-            } finally {
-                reader.close();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } finally {
+            reader.close();
         }
     }
 
     private enum State {
         START {
             @Override public State process(String line) {
-                if (line.contains("iteration ")) {
-                    // iteration 66 ---------------------- elapsed: 3min 18sec 38ms
-                    Matcher matcher = ELAPSED.matcher(line);
-                    if(matcher.matches()) {
-                        String elapsed = matcher.group(1); // 3min 18sec 38ms
-                        long millis = Utils.parseHMSMtoMillis(elapsed);
-                        System.out.println("----------------");
-                        System.out.println("elapsed=" + elapsed + ", millis=" + millis);
-                        s_time = millis;
-                        return TOP;
-                    }
-                }
-                return null; // do not change state
+                return tryStart(line);
             }
         },
         TOP {
             @Override public State process(String line) {
-                // BTCN  : Top{bid=3,778.6300, ask=3,782.2100, last=3,778.6000}
-                Matcher matcher = TOP_.matcher(line);
-                if(matcher.matches()) {
-                    String exch = matcher.group(1);
-                    String bidStr = matcher.group(2);
-                    String askStr = matcher.group(3);
-                    String lastStr = matcher.group(4);
-                    System.out.println("exch=" + exch + ", bidStr=" + bidStr + ", askStr=" + askStr + ", lastStr=" + lastStr);
-
-                    s_tops.put(exch, new ExchData(exch, bidStr, askStr, lastStr));
-                } else if( line.contains("diffDiff=") ) {
-                    return tryPair(line, null);
-                } else {
-                    System.out.println("waiting top but got: " + line);
+                State state = tryTop(line);
+                if (state == null) {
+                    if (line.contains("diffDiff=")) {
+                        state = tryPair(line);
+                    } else {
+                        if(!line.contains("SocketTimeoutException")
+                                && !line.contains("SocketException")
+                                && !line.contains("UnknownHostException")
+                                && !line.contains("\tat ")
+                                && !line.contains("Unexpected token END OF FILE")
+                                && line.length() > 0) {
+                            System.out.println("waiting top but got: " + line);
+                        }
+                    }
                 }
-                return null; // do not change state
+                return state;
             }
         },
         PAIR {
             @Override public State process(String line) {
-                return tryPair(line, s_start == null ? GOT_START : GOT_END);
+                State state = tryPair(line);
+                if(state == null) {
+                    if( s_lastPair != null ) { // we have pair line matched
+                        BiLogData lastPairStart = s_starts.get(s_lastPair);
+                        state = (lastPairStart == null) ? tryOpen(line) : tryClose(line); // try OPEN/CLOSE
+                    }
+                    if(state == null) {
+                        state = tryIterationTook(line);
+                        if(state == null) {
+                            if(!line.contains(", midMid=")
+                                    && !line.contains("iteration took")
+                                    && !line.contains("%%%%%%")) {
+                                System.out.println("nothing in context of PAIR for line: " + line);
+                            }
+                        } else {
+                            s_lastPair = null; // pair line and no OPEN/CLOSE processed
+                        }
+                    }
+                }
+                return state;
             }
         },
-        GOT_START {
-            @Override public State process(String line) {
-                if( line.contains("GOT START") ) {
-                    System.out.println("GOT START: " + line);
-                    s_start = s_data;
-                    return START;
-                }
-                State nextState = START.process(line);
-                return (nextState == null) ? GOT_START : nextState;
-            }
-        },
-        GOT_END {
-            @Override public State process(String line) {
-                if( line.contains("GOT END") ) {
-                    System.out.println("GOT END: " + line);
-                    BiLogData start = s_start;
-                    s_start = null;
-
-                    StartEndData sed = new StartEndData(start, s_data);
-                    s_startEnds.add(sed);
-                    return START;
-                }
-                State nextState = START.process(line);
-                return (nextState == null) ? GOT_END : nextState;
-            }
-        }
         ;
-        private static BiLogData s_data;
 
-        private static State tryPair(String line, State next) {
-            // BTCN_OKCOIN diff=12.12, avgDiff=8.05, diffDiff=-4.07, bidAskDiff=4.12
-            // BTCN_OKCOIN diff=12.12, avgDiff=8.05, diffDiff=4.07, bidAskDiff=4.12
-            // BTCN_OKCOIN diff=12.12, avgDiff=8.05, diffDiff=0, bidAskDiff=4.12
-            // BTCN_OKCOIN diff=5.52, avgDiff=8, diffDiff=-2.48, bidAskDiff=4.7
-            // BTCN_OKCOIN diff=4, avgDiff=7.41, diffDiff=-3.41, bidAskDiff=1.9
-            // BTCN_OKCOIN diff=7.38, avgDiff=5.91, diffDiff=1.47, bidAskDiff=1
-
-            Matcher matcher = PAIR_.matcher(line);
-            if(!matcher.matches()) {
-                if(next == null) {
-                    throw new RuntimeException("not matches PAIR_: " + line);
-                }
+        private static State tryIterationTook(String line) {
+            if(line.contains("iteration took")) {
                 record();
-                return next.process(line);
+                return START;
             }
-            String pair = matcher.group(1);
-            String diffStr = matcher.group(2);
-            String avgDiffStr = matcher.group(3);
-            String diffDiffStr = matcher.group(4);
-            String bidAskDiffStr = matcher.group(5);
-            System.out.println("pair=" + pair + ", diffStr=" + diffStr + ", avgDiffStr=" + avgDiffStr + ", diffDiffStr=" + diffDiffStr + ", bidAskDiffStr=" + bidAskDiffStr);
+            return null;
+        }
 
-            s_pairs.put(pair, new PairData(pair, diffStr, avgDiffStr, diffDiffStr, bidAskDiffStr));
+        private static State tryStart(String line) {
+            if (line.contains("iteration ")) {
+                // iteration 66 ---------------------- elapsed: 3min 18sec 38ms
+                Matcher matcher = ELAPSED.matcher(line);
+                if(matcher.matches()) {
+                    String elapsed = matcher.group(1); // 3min 18sec 38ms
+                    long millis = Utils.parseDHMSMtoMillis(elapsed);
+                    System.out.println("elapsed=" + elapsed + ", millis=" + millis);
+                    s_time = millis;
+                    s_lastPair = null;
+                    s_tops = new HashMap<String, ExchData>();  // prepare for next iteration
+                    s_pairs = new HashMap<String, PairData>(); // prepare for next iteration
+                    s_data = new BiLogData(millis, s_tops, s_pairs);
+                    return TOP;
+                }
+            }
+            return null; // do not change state
+        }
 
-            return PAIR;
+        private static State tryTop(String line) {
+            // BTCN  : Top{bid=3,778.6300, ask=3,782.2100, last=3,778.6000}
+            Matcher matcher = TOP_.matcher(line);
+            if(matcher.matches()) {
+                String exch = matcher.group(1);
+                String bidStr = matcher.group(2);
+                String askStr = matcher.group(3);
+                String lastStr = matcher.group(4);
+                if (LOG_TOP) {
+                    System.out.println("exch=" + exch + ", bidStr=" + bidStr + ", askStr=" + askStr + ", lastStr=" + lastStr);
+                }
+
+                s_tops.put(exch, new ExchData(exch, bidStr, askStr, lastStr));
+                return TOP; // wait for next top
+            }
+            return null;
+        }
+
+        private static State tryPair(String line) {
+            Matcher matcher = PAIR_.matcher(line);
+            if (matcher.matches()) {
+                String pair = matcher.group(1);
+                String diffStr = matcher.group(2);
+                String avgDiffStr = matcher.group(3);
+                String diffDiffStr = matcher.group(4);
+                String bidAskDiffStr = matcher.group(5);
+                if (LOG_PAIR) {
+                    System.out.println("pair=" + pair + ", diffStr=" + diffStr + ", avgDiffStr=" + avgDiffStr + ", diffDiffStr=" + diffDiffStr + ", bidAskDiffStr=" + bidAskDiffStr);
+                }
+
+                s_pairs.put(pair, new PairData(pair, diffStr, avgDiffStr, diffDiffStr, bidAskDiffStr));
+                s_lastPair = pair;
+
+                return PAIR;
+            }
+            if(line.contains("bidAskDiff=")) {
+                System.out.println("non matched PAIR line: " + line);
+            }
+            return null;
+        }
+
+        private static State tryOpen(String line) {
+            if( line.contains("GOT START") ) {
+                System.out.println("GOT START: " + line);
+                String[] split = line.split(" ");
+                String exch = split[0];
+                BiLogData old = s_starts.put(exch, s_data);
+                if (old != null) {
+                    System.out.println("GOT second START without matching END");
+                }
+                s_lastPair = null;
+                return PAIR; // start of one pair found - look for another pair
+            }
+            return null;
+        }
+
+        private static State tryClose(String line) {
+            if( line.contains("GOT END") ) {
+                System.out.println("GOT END: " + line);
+                String pair = s_lastPair;
+                BiLogData start = s_starts.remove(s_lastPair);
+                if (start == null) {
+                    System.out.println("no start data found for matched end: " + line);
+                }
+                s_lastPair = null;
+
+                StartEndData sed = new StartEndData(start, s_data);
+                List<StartEndData> startEnds = s_startEndsMap.get(pair);
+                if(startEnds == null) {
+                    startEnds = new ArrayList<StartEndData>();
+                    s_startEndsMap.put(pair, startEnds);
+                }
+                startEnds.add(sed);
+                return PAIR; // end of one pair found - look for another pair
+            }
+            return null;
         }
 
         private static void record() {
-            s_data = new BiLogData(s_time, s_tops, s_pairs);
+            if (s_tops.size() != 3) {
+                System.out.println("not 3 tops");
+            }
+            if (s_pairs.size() != 3) {
+                System.out.println("not 3 tops");
+            }
             s_timePoints.add(s_data);
-            s_tops.clear();
-            s_pairs.clear();
+            s_data = null;
+            s_tops = null;
+            s_pairs = null;
         }
 
         public static final Pattern ELAPSED = Pattern.compile("iteration .* elapsed\\: (.*)"); // (\d+)min (\d+)sec (\d+)ms
         public static final Pattern TOP_ = Pattern.compile("(\\w+).*Top\\{bid\\=([\\d,]+\\.\\d+), ask\\=([\\d,]+\\.\\d+), last\\=([\\d,]+\\.\\d+)\\}");
-        public static final Pattern PAIR_ = Pattern.compile("(\\w+) diff=(\\d.*), avgDiff=(\\d.*), diffDiff=(-?\\d.*), bidAskDiff=(-?\\d+.*)");
+        public static final Pattern PAIR_ = Pattern.compile("(\\w+) diff=(-?\\d+.*), avgDiff=(-?\\d+.*), diffDiff=(-?\\d+.*), bidAskDiff=(-?\\d+.*)");
 
         public State process(String line) { throw new RuntimeException("not implemented on " + this); }
     }
@@ -263,8 +343,8 @@ public class BiLogProcessor {
 
         public BiLogData(long time, Map<String, ExchData> tops, Map<String, PairData> pairs) {
             m_time = time;
-            m_tops = new HashMap<String, ExchData>(tops);
-            m_pairs = new HashMap<String, PairData>(pairs);
+            m_tops = tops;
+            m_pairs = pairs;
         }
     }
 
@@ -296,7 +376,18 @@ public class BiLogProcessor {
 
             @Override public Double[] getValues(BiLogData obj) {
                 Map<String, PairData> pairs = obj.m_pairs;
-                return (pairs == null) ? null : pairs.get("BTCN_OKCOIN").getPriceDiffs();
+                if (pairs == null) {
+                    System.out.println("pairs = " + pairs);
+                }
+                if (pairs == null) {
+                    return null;
+                } else {
+                    PairData pairData = pairs.get(PAIR);
+                    if (pairData == null) {
+                        System.out.println("pairData = " + pairData);
+                    }
+                    return pairData.getPriceDiffs();
+                }
             }
         };
         priceDiffCalc.calculate(s_timePoints);
@@ -333,7 +424,7 @@ public class BiLogProcessor {
             long millis = timePoint.m_time;
             int x = timeAxe.getPoint(millis);
 
-            PairData pd = timePoint.m_pairs.get("BTCN_OKCOIN");
+            PairData pd = timePoint.m_pairs.get(PAIR);
             if (pd != null) {
                 Double diff = pd.getDiff();
                 int y = priceDiffAxe.getPointReverse(diff);
@@ -342,7 +433,6 @@ public class BiLogProcessor {
                     g.setPaint(LIGHT_RED);
                     g.drawLine(x0, y0, x, y);
                 }
-                x0 = x;
                 y0 = y;
 
                 Double avgDiff = pd.getAvgDiff();
@@ -363,13 +453,15 @@ public class BiLogProcessor {
                 }
                 y0p = yp;
             }
+            x0 = x;
         }
 
         double totalRatio = 1;
         double totalBalance = 0;
-        for (StartEndData startEnds : s_startEnds) {
-            BiLogData start = startEnds.m_start;
-            BiLogData end = startEnds.m_end;
+        List<StartEndData> startEnds = s_startEndsMap.get(PAIR);
+        for (StartEndData startEnd : startEnds) {
+            BiLogData start = startEnd.m_start;
+            BiLogData end = startEnd.m_end;
 
             long millis1 = start.m_time;
             long millis2 = end.m_time;
@@ -377,8 +469,8 @@ public class BiLogProcessor {
             int x1 = timeAxe.getPoint(millis1);
             int x2 = timeAxe.getPoint(millis2);
 
-            PairData pd1 = start.m_pairs.get("BTCN_OKCOIN");
-            PairData pd2 = end.m_pairs.get("BTCN_OKCOIN");
+            PairData pd1 = start.m_pairs.get(PAIR);
+            PairData pd2 = end.m_pairs.get(PAIR);
 
             Double diff1 = pd1.getDiff();
             Double diff2 = pd2.getDiff();
@@ -413,24 +505,24 @@ public class BiLogProcessor {
             int dyl = aboveAverage ? 20 : -20;
             int ys = y1 - dy;
             g.drawString("" + diff1, x1, ys);
-            String startStr = Exchange.BTCN.roundPriceStr(plus1, Pair.BTC_CNH);
+            String startStr = roundStr(plus1);
             g.drawString(startStr, x1, ys - dyl);
 
             int ye = y2 + dy;
             String endStr = "" + diff2;
             Rectangle2D bounds = g.getFont().getStringBounds(endStr, g.getFontRenderContext());
             g.drawString(endStr, (float) (x2 - bounds.getWidth()), ye);
-            endStr = Exchange.BTCN.roundPriceStr(plus2, Pair.BTC_CNH);
+            endStr = roundStr(plus2);
             bounds = g.getFont().getStringBounds(endStr, g.getFontRenderContext());
             g.drawString(endStr, (float) (x2 - bounds.getWidth()), ye + dyl);
 
             int yu = (aboveAverage ? ye: ys) - 17;
             g.drawLine(x1, yu, x2, yu);
 
-            ExchData startTop1 = start.m_tops.get("BTCN");
-            ExchData startTop2 = start.m_tops.get("OKCOIN");
-            ExchData endTop1 = end.m_tops.get("BTCN");
-            ExchData endTop2 = end.m_tops.get("OKCOIN");
+            ExchData startTop1 = start.m_tops.get(EXCH1);
+            ExchData startTop2 = start.m_tops.get(EXCH2);
+            ExchData endTop1 = end.m_tops.get(EXCH1);
+            ExchData endTop2 = end.m_tops.get(EXCH2);
 
             boolean up = !aboveAverage;
 
@@ -448,12 +540,19 @@ public class BiLogProcessor {
 
             double balance = balance1 + balance2;
 
-            String b1 = Exchange.BTCN.roundPriceStr(balance1, Pair.BTC_CNH);
+            String b1 = roundStr(balance1) + "=" +
+                    (up ? roundStr(e1b) + "-" + roundStr(s1a) : roundStr(s1b) + "-" + roundStr(e1a));
             g.drawString(b1, x1, yu + 60);
-            String b2 = Exchange.BTCN.roundPriceStr(balance2, Pair.BTC_CNH);
+            String b2 = roundStr(balance2) + "=" +
+                    (up ? roundStr(s2b) + "-" + roundStr(e2a) : roundStr(e2b) + "-" + roundStr(s2a));
             g.drawString(b2, x1, yu + 80);
-            String b = Exchange.BTCN.roundPriceStr(balance, Pair.BTC_CNH);
+            String b = roundStr(balance);
+            g.setColor((balance > 0) ? Color.green : Color.red);
             g.drawString(b, x1, yu + 100);
+
+//            System.out.println("balance1="+b1);
+//            System.out.println("balance2="+b2);
+//            System.out.println("balance ="+b);
 
             totalBalance += balance;
 
@@ -464,18 +563,22 @@ public class BiLogProcessor {
             Double e2m = (endTop2.getAsk() + endTop2.getBid()) / 2;
             Double m2 = (s2m + e2m) / 2;
             Double mid = (m1 + m2) / 2;
+            double mid2 = BALANCED_ACCT ? mid * 2 : 0;
 
             double aa = up ? s1a + e2a : e1a + s2a;
             double bb = up ? e1b + s2b : s1b + e2b;
-            double ratio = (bb + mid*2) / (aa  + mid*2);
+            double ratio = (bb + mid2) / (aa  + mid2);
             totalRatio *= ratio;
         }
-        System.out.println("runs=" + s_startEnds.size() + ", totalBalance=" + totalBalance +
-                ", time=" + Utils.millisToDHMSStr((long) timeAxe.m_max) + ", totalRatio="+totalRatio);
+        double timeDays = timeAxe.m_max / Utils.ONE_DAY_IN_MILLIS;
+        double dayRatio = Math.pow(totalRatio, 1/timeDays);
 
-        int x = timeAxe.getPoint(0);
-        int y = priceDiffAxe.getPointReverse(7.62);
-        g.setPaint(Color.CYAN);
-        BaseChartPaint.drawX(g, x, y, 50);
+        System.out.println("runs=" + s_startEndsMap.get(PAIR).size() + ", totalBalance=" + totalBalance +
+                ", time=" + Utils.millisToDHMSStr((long) timeAxe.m_max) + ", totalRatio=" + totalRatio +
+                ", timeDays=" + timeDays + "; dayRatio=" + dayRatio);
+    }
+
+    private static String roundStr(double balance1) {
+        return ROUND_EXCH.roundPriceStr(balance1, Pair.BTC_CNH);
     }
 }

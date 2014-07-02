@@ -3,12 +3,11 @@ package bthdg.triplet;
 import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.exch.*;
+import bthdg.exch.Currency;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * - even on MKT steps - check prev steps live orders - have the case when peg order is missed but appers on next step
@@ -45,7 +44,7 @@ public class Triplet {
                 Triplet.s_exchange = Exchange.BTCE;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 7;
                 Triplet.START_TRIANGLES_PER_ITERATION = 2;
-                Triplet.LVL_PLUS = 0.15; // min target level plus
+                Triplet.LVL_PLUS = 0.09; // min target level plus
                 Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%
@@ -98,7 +97,7 @@ public class Triplet {
                 Triplet.s_exchange = Exchange.BTCN;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 3;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
-                Triplet.LVL_PLUS = 0.02; // min target level plus
+                Triplet.LVL_PLUS = 0.05; // min target level plus
                 Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
@@ -168,6 +167,7 @@ public class Triplet {
     public static final boolean SIMULATE_ORDER_EXECUTION = SIMULATE;
 
     public static final int NOT_ENOUGH_FUNDS_TREHSOLD = 2; // do not start new triangles
+    private static Currency[] VALUATE_CURRENCIES = new Currency[] {Currency.EUR, Currency.USD, Currency.BTC, Currency.LTC, Currency.CNH};
 
     public static double s_totalRatio = 1;
     public static int s_counter = 0;
@@ -178,11 +178,7 @@ public class Triplet {
     public static Triangle[] TRIANGLES;
 
     static AccountData s_startAccount;
-    public static double s_startEur;
-    public static double s_startUsd;
-    public static double s_startBtc;
-    public static double s_startLtc;
-    public static double s_startCnh;
+    public static Map<Currency,Double> s_startValuate = new HashMap<Currency, Double>();
     static boolean s_stopRequested;
     static int s_notEnoughFundsCounter;
 
@@ -320,34 +316,38 @@ public class Triplet {
         IterationData iData = new IterationData(tAgg, null);
         TopsData tops = iData.getTops();
 
-        boolean supportsEur = s_exchange.supportsCurrency(Currency.EUR);
-        if (supportsEur) {
-            s_startEur = s_startAccount.evaluateEur(tops, s_exchange);
-        }
-        boolean supportsUsd = s_exchange.supportsCurrency(Currency.USD);
-        if (supportsUsd) {
-            s_startUsd = s_startAccount.evaluateUsd(tops, s_exchange);
-        }
-        boolean supportsBtc = s_exchange.supportsCurrency(Currency.BTC);
-        if (supportsBtc) {
-            s_startBtc = s_startAccount.evaluate(tops, Currency.BTC, s_exchange);
-        }
-        boolean supportsLtc = s_exchange.supportsCurrency(Currency.LTC);
-        if (supportsLtc) {
-            s_startLtc = s_startAccount.evaluate(tops, Currency.LTC, s_exchange);
-        }
-        boolean supportsCnh = s_exchange.supportsCurrency(Currency.CNH);
-        if (supportsCnh) {
-            s_startCnh = s_startAccount.evaluate(tops, Currency.CNH, s_exchange);
-        }
-
-        System.out.println((supportsEur?" evaluateEur: " + format5(s_startEur):"") +
-                           (supportsUsd?" evaluateUsd: " + format5(s_startUsd):"")  +
-                           (supportsBtc?" evaluateBtc: " + format5(s_startBtc):"") +
-                           (supportsLtc?" evaluateLtc: " + format5(s_startLtc):"") +
-                           (supportsLtc?" evaluateCnh: " + format5(s_startCnh):"")
-        );
+        String valuateStart = valuateStart(tops);
+        System.out.println(valuateStart);
         return account;
+    }
+
+    private static String valuateStart(TopsData tops) {
+        StringBuffer buf = new StringBuffer();
+        for (Currency currency : VALUATE_CURRENCIES) {
+            boolean supports = s_exchange.supportsCurrency(currency);
+            if (supports) {
+                Double startValuate = s_startAccount.evaluate(tops, currency, s_exchange);
+                s_startValuate.put(currency, startValuate);
+                buf.append(" evaluate" + Utils.capitalize(currency.m_name) + ": " + format5(startValuate));
+            }
+        }
+        return buf.toString();
+    }
+
+    public static String valuateStr(AccountData account, TopsData tops) {
+        StringBuffer buf = new StringBuffer();
+        for (Currency currency : VALUATE_CURRENCIES) {
+            if (s_exchange.supportsCurrency(currency)) {
+                double valuate = account.evaluate(tops, currency, s_exchange);
+                Double startValuate = s_startValuate.get(currency);
+                double rate = valuate / startValuate;
+                double valuateSleep = s_startAccount.evaluate(tops, currency, s_exchange);
+                double rateSleep = valuateSleep / startValuate;
+                String result = "; valuate" + Utils.capitalize(currency.m_name) + "=" + Utils.format5(rate) + " (" + Utils.format5(rateSleep) + ")";
+                buf.append(result);
+            }
+        }
+        return buf.toString();
     }
 
     // todo: to move this to OrderData as NON-static method
@@ -379,7 +379,7 @@ public class Triplet {
         while( true ) {
             OrderData.OrderPlaceStatus ret;
             PlaceOrderData poData = Fetcher.placeOrder(orderData, s_exchange);
-            log(" PlaceOrderData: " + poData);
+            log(" PlaceOrderData: " + poData.toString(s_exchange, orderData.m_pair));
             String error = poData.m_error;
             if (error == null) {
                 orderData.m_status = OrderStatus.SUBMITTED;
@@ -443,7 +443,7 @@ public class Triplet {
     }
 
     public static String format5(double number) {
-        return Utils.X_YYYYY.format(number);
+        return Utils.format5(number);
     }
 
     private static void log(String s) {

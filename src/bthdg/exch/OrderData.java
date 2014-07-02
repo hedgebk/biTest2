@@ -96,7 +96,7 @@ public class OrderData {
             //noinspection ConstantConditions
             if (acceptPrice(tradePrice) || acceptPriceSimulated) {
                 double tradeAmount = trade.m_amount;
-                log("@@@@@@@@@@@@@@ we have LMT order " + m_side + " " + Utils.X_YYYYY.format(m_amount) + " " + m_pair + " @ " + priceStr() +
+                log("@@@@@@@@@@@@@@ we have LMT order " + m_side + " " + Utils.format5(m_amount) + " " + m_pair + " @ " + priceStr() +
                         " on '" + exchange.m_name + "' got matched trade=" + trade);
 
                 double remained = remained();
@@ -141,7 +141,7 @@ public class OrderData {
                     return true;
                 }
                 throw new RuntimeException("Error order state: PARTIALLY_FILLED order with zero filled(" + Utils.format8(filled) + "), " +
-                        "m_filled=" + Utils.format8(m_filled) + "; minAmountStep=" + Utils.format8(minAmountStep) + ": " + toString(exchange));
+                        "m_filled=" + Utils.X_YYYYYYYYYYYY.format(m_filled) + "; minAmountStep=" + Utils.X_YYYYYYYYYYYY.format(minAmountStep) + ": " + toString(exchange));
             }
             if ((m_status == OrderStatus.SUBMITTED) || (m_status == OrderStatus.NEW)) {
                 if (m_filled < minAmountStep) {
@@ -168,10 +168,10 @@ public class OrderData {
                 "status=" + m_status +
                 ", pair=" + m_pair +
                 ", side=" + m_side +
-                ", amount=" + Utils.X_YYYYY.format(m_amount) +
-                ", price=" + Utils.X_YYYYY.format(m_price) +
+                ", amount=" + Utils.format5(m_amount) +
+                ", price=" + Utils.format5(m_price) +
                 ", state=" + m_state +
-                ", filled=" + Utils.X_YYYYY.format(m_filled) +
+                ", filled=" + Utils.format5(m_filled) +
                 '}';
     }
 
@@ -366,7 +366,7 @@ public class OrderData {
     public void xCheckExecutedMkt(Exchange exchange, TopData top, AccountData account) {
         double mktPrice = m_side.mktPrice(top);
         if (acceptPrice(mktPrice)) {
-            log("@@@@@@@@@@@@@@ we have MKT order " + m_side + " " + Utils.X_YYYYY.format(m_amount) + " " + m_pair + " @ " + priceStr() +
+            log("@@@@@@@@@@@@@@ we have MKT order " + m_side + " " + Utils.format5(m_amount) + " " + m_pair + " @ " + priceStr() +
                 " on '" + exchange.m_name + "' have matched TOP price=" + mktPrice + "; top=" + top);
             double remained = remained();
             addExecution(m_price, remained, exchange);

@@ -1,6 +1,7 @@
 package bthdg.exch;
 
-import bthdg.*;
+import bthdg.Fetcher;
+import bthdg.Log;
 import bthdg.util.Md5;
 import bthdg.util.Post;
 import bthdg.util.Utils;
@@ -72,9 +73,10 @@ public class Huobi extends BaseExch {
         try {
 //            TopData topData = Fetcher.fetchTop(Exchange.HUOBI, Pair.BTC_CNH);
 //            log("huobi:   " + topData);
-//            DeepData deepData = Fetcher.fetchDeep(Exchange.HUOBI, Pair.BTC_CNH);
-//            log("deepData: " + deepData);
-            acct();
+            Fetcher.LOG_JOBJ = true;
+            DeepData deepData = Fetcher.fetchDeep(Exchange.HUOBI, Pair.BTC_CNH);
+            log("deepData: " + deepData);
+//            acct();
 //            AccountData account = Fetcher.fetchAccount(Exchange.HUOBI);
 //            log("account: " + account);
         } catch (Exception e) {

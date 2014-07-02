@@ -18,9 +18,11 @@ public class Utils {
     public static final DecimalFormat X_YYYY = new DecimalFormat("0.0000");
     public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
     private static final DecimalFormat X_YYYYYYYY = new DecimalFormat("0.00000000");
+    public static final DecimalFormat X_YYYYYYYYYYYY = new DecimalFormat("0.000000000000");
     public static final DecimalFormat X_X = new DecimalFormat("0.0#######");
 
     public static String format8(double value) { return X_YYYYYYYY.format(value); }
+    public static String format5(double value) { return X_YYYYY.format(value); }
 
     public static String encodeHexString(byte[] hash) {
         String hex = String.format("%0128x", new BigInteger(1, hash));
@@ -81,9 +83,9 @@ public class Utils {
                 if(suffix.equals("M")) { // month
                     delta = 2592000000L; // 30L * 24L * 60L * 60L * 1000L;
                 } else if(suffix.equals("w")) { // week
-                    delta = 7 * 24 * 60 * 60 * 1000;
+                    delta = 7 * ONE_DAY_IN_MILLIS;
                 } else if(suffix.equals("d")) { // days
-                    delta = 24 * 60 * 60 * 1000;
+                    delta = ONE_DAY_IN_MILLIS;
                 } else if(suffix.equals("h")) { // hours
                     delta = 60 * 60 * 1000;
                 } else if(suffix.equals("m")) { // minutes
@@ -203,30 +205,38 @@ public class Utils {
     }
 
     /* 3min 18sec 38ms */
-    public static long parseHMSMtoMillis(String elapsed) {
+    public static long parseDHMSMtoMillis(String elapsed) {
         StringTokenizer tok = new StringTokenizer(elapsed);
         long millis = 0;
         while (tok.hasMoreTokens()) {
             String str = tok.nextToken();
-            if (str.endsWith("h")) {
+            if (str.endsWith("d")) {
+                String dig = str.substring(0, str.length() - 1);
+                int d = Integer.parseInt(dig);
+                millis = d;
+            } else if (str.endsWith("h")) {
                 String dig = str.substring(0, str.length() - 1);
                 int h = Integer.parseInt(dig);
-                millis = h;
-            } if (str.endsWith("min")) {
+                millis = millis * 24 + h;
+            } else if (str.endsWith("min")) {
                 String dig = str.substring(0, str.length() - 3);
                 int min = Integer.parseInt(dig);
-                millis = millis*60 + min;
-            } if (str.endsWith("sec")) {
+                millis = millis * 60 + min;
+            } else if (str.endsWith("sec")) {
                 String dig = str.substring(0, str.length() - 3);
                 int sec = Integer.parseInt(dig);
-                millis = millis*60 + sec;
-            } if (str.endsWith("ms")) {
+                millis = millis * 60 + sec;
+            } else if (str.endsWith("ms")) {
                 String dig = str.substring(0, str.length() - 2);
                 int ms = Integer.parseInt(dig);
-                millis = millis*1000 + ms;
+                millis = millis * 1000 + ms;
             }
         }
         return millis;
+    }
+
+    public static String capitalize(String str) {
+        return Character.toUpperCase(str.charAt(0)) + str.substring(1);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -376,6 +386,10 @@ public class Utils {
         public AverageCounter(long limit, TreeMap<Long, Double> map) {
             m_limit = limit;
             m_map = map;
+        }
+
+        public double add(double addValue) {
+            return add(System.currentTimeMillis(), addValue);
         }
 
         public double add(long millis, double addValue) {

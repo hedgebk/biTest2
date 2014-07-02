@@ -47,7 +47,7 @@ public class AccountData {
                 "name='" + m_name + "\' " +
                 "funds=" + toString(m_funds) + "; " +
                 "allocated=" + toString(m_allocatedFunds) +
-                ((m_fee != Double.MAX_VALUE) ? ", fee=" + Utils.X_YYYYY.format(m_fee) : "") +
+                ((m_fee != Double.MAX_VALUE) ? ", fee=" + Utils.format5(m_fee) : "") +
                 '}';
     }
 
@@ -63,7 +63,7 @@ public class AccountData {
             if (Math.abs(value) > 0.0000000001) {
                 sb.append(currency);
                 sb.append('=');
-                sb.append(Utils.X_YYYYY.format(value));
+                sb.append(Utils.format5(value));
                 sb.append(',').append(' ');
             }
         }
@@ -146,8 +146,8 @@ public class AccountData {
 
     private void release(Pair pair, OrderSide orderSide, double price, double amount, boolean tradeHappens, Exchange exchange) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
-        log("release() pair: " + pair + "; side: " + orderSide + "; price=" + Fetcher.format(price) +
-                "; amount=" + amount + "   on " + this);
+        log("release() pair: " + pair + "; side: " + orderSide + "; price=" + exchange.roundPriceStr(price, pair) +
+                "; amount=" + exchange.roundAmountStr(amount, pair) + "   on " + this);
         boolean isBuy = orderSide.isBuy();
         Currency fromCurrency = isBuy ? pair.m_from : pair.m_to;
         double fromSize = isBuy ? amount * price : amount;

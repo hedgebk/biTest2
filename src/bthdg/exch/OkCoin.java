@@ -108,11 +108,12 @@ public class OkCoin extends BaseExch {
         try {
 //            TopData topData = Fetcher.fetchTop(Exchange.OKCOIN, Pair.BTC_CNH);
 //            log("topData: " + topData);
-//            DeepData deepData = Fetcher.fetchDeep(Exchange.OKCOIN, Pair.BTC_CNH);
-//            log("deepData: " + deepData);
+            Fetcher.LOG_JOBJ = true;
+            DeepData deepData = Fetcher.fetchDeep(Exchange.OKCOIN, Pair.BTC_CNH);
+            log("deepData: " + deepData);
 //            acct();
-            AccountData account = Fetcher.fetchAccount(Exchange.OKCOIN);
-            log("account: " + account);
+//            AccountData account = Fetcher.fetchAccount(Exchange.OKCOIN);
+//            log("account: " + account);
         } catch (Exception e) {
             e.printStackTrace();
         }
