@@ -10,6 +10,8 @@ import java.util.*;
 
 public class AccountData {
     public static final double FUND_DIFF_RATIO = 0.01;
+
+    public final Exchange m_exchange;
     public final String m_name;
     public double m_fee;
                              // todo: serialize
@@ -37,8 +39,9 @@ public class AccountData {
         return Math.round(value * 1000000000d) / 1000000000d;
     }
 
-    public AccountData(String name, double fee) {
-        m_name = name;
+    public AccountData(Exchange exchange, double fee) {
+        m_exchange = exchange;
+        m_name = exchange.m_name;
         m_fee = fee;
     }
 
@@ -106,7 +109,7 @@ public class AccountData {
         double usd = Double.parseDouble(usdStr);
         double btc = Double.parseDouble(btcStr);
         double fee = (feeStr.length() == 0) ? Double.MAX_VALUE: Double.parseDouble(feeStr);
-        AccountData ret = new AccountData(name, fee);
+        AccountData ret = new AccountData(Exchange.getExchange(name), fee);
         ret.setAvailable(Currency.USD, usd);
         ret.setAvailable(Currency.BTC, btc);
         return ret;
@@ -186,7 +189,7 @@ public class AccountData {
     }
 
     public AccountData copy() {
-        AccountData ret = new AccountData(m_name, m_fee);
+        AccountData ret = new AccountData(m_exchange, m_fee);
         ret.m_funds.putAll(m_funds);
         ret.m_allocatedFunds.putAll(m_allocatedFunds);
         return ret;

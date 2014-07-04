@@ -1,7 +1,6 @@
 package bthdg.exch;
 
 import bthdg.Fetcher;
-import bthdg.Log;
 import bthdg.util.Md5;
 import bthdg.util.Post;
 import bthdg.util.Utils;
@@ -12,7 +11,8 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.*;
 
-/** https://www.okcoin.com/t-1000097.html */
+/** https://www.okcoin.com/about/publicApi.do
+ * https://www.okcoin.com/t-1000097.html */
 public class OkCoin extends BaseExch {
     private static String SECRET;
     private static String PARTNER;
@@ -68,8 +68,6 @@ public class OkCoin extends BaseExch {
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
 
-    private static void log(String s) { Log.log(s); }
-
     public static void main(String[] args) {
         try {
             new OkCoin().start();
@@ -106,11 +104,20 @@ public class OkCoin extends BaseExch {
 
     private void run() {
         try {
-//            TopData topData = Fetcher.fetchTop(Exchange.OKCOIN, Pair.BTC_CNH);
-//            log("topData: " + topData);
             Fetcher.LOG_JOBJ = true;
+            Fetcher.COUNT_TRAFFIC = true;
+            Fetcher.LOG_LOADING_TIME = true;
+
+            TopData topData = Fetcher.fetchTop(Exchange.OKCOIN, Pair.BTC_CNH);
+            log("topData: " + topData);
+            topData = Fetcher.fetchTop(Exchange.OKCOIN, Pair.LTC_CNH);
+            log("topData: " + topData);
+
             DeepData deepData = Fetcher.fetchDeep(Exchange.OKCOIN, Pair.BTC_CNH);
             log("deepData: " + deepData);
+            deepData = Fetcher.fetchDeep(Exchange.OKCOIN, Pair.LTC_CNH);
+            log("deepData: " + deepData);
+
 //            acct();
 //            AccountData account = Fetcher.fetchAccount(Exchange.OKCOIN);
 //            log("account: " + account);
@@ -138,7 +145,6 @@ public class OkCoin extends BaseExch {
         return null;
     }
 
-    // https://www.okcoin.com/about/publicApi.do
     public static TopsData parseTops(Object obj, Pair[] pairs) {
         if (LOG_PARSE) {
             log("OkCoin.parseTops() " + obj);
@@ -221,7 +227,7 @@ public class OkCoin extends BaseExch {
         // {"info":{"funds":{"free":{"btc":"0","cny":"0","ltc":"0"},"freezed":{"btc":"0","cny":"0","ltc":"0"}}},"result":true}
     }
     private static AccountData parseFunds(JSONObject free) {
-        AccountData accountData = new AccountData(Exchange.OKCOIN.m_name, Double.MAX_VALUE);
+        AccountData accountData = new AccountData(Exchange.OKCOIN, Double.MAX_VALUE);
         double btc = Utils.getDouble(free.get("btc"));
         accountData.setAvailable(Currency.BTC, btc);
         double ltc = Utils.getDouble(free.get("ltc"));
@@ -232,8 +238,8 @@ public class OkCoin extends BaseExch {
     }
 
     public static PlaceOrderData parseOrder(Object obj) {
-        // ?{"result":true,"order_id":123456}
-        // ?"result":false,"errorCode":10000?
+        // {"result":true, "order_id":123456}
+        //  "result":false,"errorCode":10000
         JSONObject jObj = (JSONObject) obj;
         if (LOG_PARSE) {
             log("OkCoin.parseOrder() " + jObj);
@@ -335,8 +341,8 @@ public class OkCoin extends BaseExch {
     }
 
     public static CancelOrderData parseCancelOrders(Object obj) {
-//?{"result":true,"order_id":123456}
-//?{"result":false,"errorCode":10000?
+// {"result":true, "order_id":123456}
+// {"result":false,"errorCode":10000
         JSONObject jObj = (JSONObject) obj;
         if (LOG_PARSE) {
             log("OkCoin.parseCancelOrders() " + jObj);

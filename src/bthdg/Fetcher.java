@@ -30,7 +30,7 @@ import java.util.Properties;
  *  - save state to file for restarts - serialize
  *  - calculate requests/minute-do not cross the limit 600 request per 10 minutes
  *  - check fading moving average
- *  - simulate trade at MKT price fast (instanteously)
+ *  - simulate trade at MKT price fast (instantaneously)
  */
 public class Fetcher {
     public static boolean SIMULATE_ORDER_EXECUTION = true;
@@ -49,11 +49,12 @@ public class Fetcher {
     public static final int START_REPEAT_DELAY = 200;
     public static final int REPEAT_DELAY_INCREMENT = 200;
 
-    public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
     public static boolean LOG_LOADING = true;
+    public static boolean LOG_LOADING_TIME = false;
     public static boolean LOG_JOBJ = false;
     public static boolean MUTE_SOCKET_TIMEOUTS = false;
+    public static boolean COUNT_TRAFFIC = false;
 
     public static void main(String[] args) {
         log("Started.  millis=" + System.currentTimeMillis());
@@ -101,7 +102,7 @@ public class Fetcher {
             for (OrdersData.OrdData ord : od.m_ords.values()) {
                 String orderId = ord.m_orderId;
                 log(" next order to cancel: " + orderId);
-                CancelOrderData coData = calcelOrder(Exchange.BTCE, orderId, null);
+                CancelOrderData coData = cancelOrder(Exchange.BTCE, orderId, null);
                 log("  cancel order data: " + coData);
                 String error2 = coData.m_error;
                 if (error2 == null) {
@@ -193,7 +194,7 @@ public class Fetcher {
             }
             return new OrdersData(ords);
         }
-        throw new RuntimeException("fetch orders not suppoirted/configured");
+        throw new RuntimeException("fetch orders not supported/configured");
     }
 
     public static OrdersData fetchOrders(Exchange exchange, final Pair pair) throws Exception {
@@ -208,7 +209,7 @@ public class Fetcher {
     }
 
     private static PlaceOrderData placeOrder(final Exchange exchange, final OrderData order) throws Exception {
-        Object jObj = null;
+        Object jObj;
         try {
             jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
                 @Override public OrderData getOrderData() { return order; }
@@ -222,10 +223,12 @@ public class Fetcher {
             log("jObj=" + jObj);
         }
         PlaceOrderData poData = exchange.parseOrder(jObj);
+        poData.m_received = exchange.roundAmount(poData.m_received, order.m_pair); // to fix like "received":9.9999999947364E-9,
+        poData.m_remains = exchange.roundAmount(poData.m_remains, order.m_pair);
         return poData;
     }
 
-    public static CancelOrderData calcelOrder(Exchange exchange, final String orderId, final Pair pair) throws Exception {
+    public static CancelOrderData cancelOrder(Exchange exchange, final String orderId, final Pair pair) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.CANCEL, new FetchOptions() {
             @Override public String getOrderId() { return orderId; }
             @Override public Pair getPair() { return pair; }
@@ -298,7 +301,7 @@ public class Fetcher {
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
         }
-        return exchange.parseDeep(jObj);
+        return exchange.parseDeep(jObj, pair);
     }
 
     public static DeepsData fetchDeeps(Exchange exchange, Pair... pairs) throws Exception {
@@ -378,78 +381,97 @@ public class Fetcher {
     }
 
     private static Object fetchOnce(Exchange exchange, FetchCommand command, FetchOptions options) throws Exception {
+        long start = System.currentTimeMillis();
         Reader reader;
         if (command.useTestStr()) {
             String str = command.getTestStr(exchange);
             reader = new StringReader(str);
         } else {
-            Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange, options);
-            String location = apiEndpoint.m_location;
-            if (LOG_LOADING) {
-                log("loading from " + location + "...  ");
+            if(command.singleRequest()) {
+                 synchronized (exchange) { // one live request for exchange
+                     reader = fetchInt(exchange, command, options);
+                 }
+            } else {
+                reader = fetchInt(exchange, command, options);
             }
-            URL url = new URL(location);
-            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        }
+        Object o = parseJson(reader); // will close reader inside
+        if (LOG_LOADING_TIME) {
+            long end = System.currentTimeMillis();
+            log("loaded in " + Utils.millisToDHMSStr(end - start));
+        }
+        return o;
+    }
 
-            boolean isHttps = con instanceof HttpsURLConnection;
-            if (command.needSsl() || isHttps) {
-                BaseExch.initSsl();
-            }
+    private static Reader fetchInt(Exchange exchange, FetchCommand command, FetchOptions options) throws Exception {
+        Reader reader;
+        Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange, options);
+        String location = apiEndpoint.m_location;
+        if (LOG_LOADING) {
+            log("loading from " + location + "...  ");
+        }
+        URL url = new URL(location);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
-            if(isHttps) {
-                HttpsURLConnection scon = (HttpsURLConnection)con;
-                scon.setHostnameVerifier(new NullHostNameVerifier());
-            }
+        boolean isHttps = con instanceof HttpsURLConnection;
+        if (command.needSsl() || isHttps) {
+            BaseExch.initSsl();
+        }
+
+        if(isHttps) {
+            HttpsURLConnection scon = (HttpsURLConnection)con;
+            scon.setHostnameVerifier(new NullHostNameVerifier());
+        }
 
 //            con.setDoOutput(true);
 
-            con.setUseCaches(false);
-            con.setConnectTimeout(exchange.connectTimeout());
-            con.setReadTimeout(exchange.readTimeout());
-            con.setRequestProperty("User-Agent", USER_AGENT);
-            //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
+        con.setUseCaches(false);
+        con.setConnectTimeout(exchange.connectTimeout());
+        con.setReadTimeout(exchange.readTimeout());
+        con.setRequestProperty("User-Agent", USER_AGENT);
+        //con.setRequestProperty("Accept","application/json, text/javascript, */*; q=0.01");
 
-            boolean doPost = command.doPost();
-            if (doPost) {
-                con.setRequestMethod("POST");
-                con.setDoOutput(true);
+        boolean doPost = command.doPost();
+        if (doPost) {
+            con.setRequestMethod("POST");
+            con.setDoOutput(true);
 
-                BaseExch baseExch = exchange.m_baseExch;
-                BaseExch.IPostData postData = baseExch.getPostData(apiEndpoint, command, options);
+            BaseExch baseExch = exchange.m_baseExch;
+            BaseExch.IPostData postData = baseExch.getPostData(apiEndpoint, command, options);
 
-                Map<String, String> headerLines = postData.headerLines();
-                if (headerLines != null) {
-                    for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
-                        con.setRequestProperty(headerLine.getKey(), headerLine.getValue());
-                    }
-                }
-
-                String postStr = postData.postStr();
-                OutputStream os = con.getOutputStream();
-                try {
-                    os.write(postStr.getBytes());
-                    os.flush();
-                } finally {
-                    os.close();
+            Map<String, String> headerLines = postData.headerLines();
+            if (headerLines != null) {
+                for (Map.Entry<String, String> headerLine : headerLines.entrySet()) {
+                    con.setRequestProperty(headerLine.getKey(), headerLine.getValue());
                 }
             }
 
-            con.connect();
-
-            int responseCode = con.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                log(" responseCode: " + responseCode);
+            String postStr = postData.postStr();
+            OutputStream os = con.getOutputStream();
+            try {
+                os.write(postStr.getBytes());
+                os.flush();
+            } finally {
+                os.close();
             }
-
-            InputStream inputStream = con.getInputStream(); //url.openStream();
-                // 502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
-                // 403 Forbidden
-            reader = new InputStreamReader(inputStream);
         }
-        return parseJson(reader); // will close reader inside
+
+        con.connect();
+
+        int responseCode = con.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            log(" responseCode: " + responseCode);
+        }
+
+        InputStream inputStream = con.getInputStream(); //url.openStream();
+        // 502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
+        // 403 Forbidden
+        reader = new InputStreamReader(inputStream);
+        return reader;
     }
 
-    private static Object parseJson(Reader reader) throws IOException, ParseException {
+    private static Object parseJson(Reader inReader) throws IOException, ParseException {
+        Reader reader = COUNT_TRAFFIC ? new CountBytesReader(inReader) : inReader;
         try {
             JSONParser parser = new JSONParser();
             Object obj = parser.parse(reader);
@@ -511,27 +533,32 @@ public class Fetcher {
             @Override public boolean useTestStr() { return USE_ACCOUNT_TEST_STR; }
             @Override public boolean doPost() { return true; }
             @Override public boolean needSsl() { return true; }
+            @Override public boolean singleRequest() { return true; }
         },
         ORDER {
             @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_orderEndpoint; }
             @Override public boolean doPost() { return true; }
             @Override public boolean needSsl() { return true; }
+            @Override public boolean singleRequest() { return true; }
         },
         ORDERS {
             @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_ordersEndpoint; }
             @Override public boolean doPost() { return true; }
             @Override public boolean needSsl() { return true; }
+            @Override public boolean singleRequest() { return true; }
         },
         CANCEL {
             @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_cancelEndpoint; }
             @Override public boolean doPost() { return true; }
             @Override public boolean needSsl() { return true; }
+            @Override public boolean singleRequest() { return true; }
         };
         public String getTestStr(Exchange exchange) { return null; }
         public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return null; }
         public boolean useTestStr() { return false; }
         public boolean doPost() { return false; }
         public boolean needSsl() { return false; }
+        public boolean singleRequest() { return false; }
     } // FetchCommand
 
 
@@ -558,6 +585,36 @@ public class Fetcher {
     private static class NullHostNameVerifier implements HostnameVerifier {
         @Override public boolean verify(String hostname, SSLSession session) {
             return true;
+        }
+    }
+
+    private static class CountBytesReader extends Reader {
+        private final Reader m_reader;
+        private long m_count;
+
+        public CountBytesReader(Reader reader) {
+            m_reader = reader;
+        }
+
+        @Override public int read(char[] cbuf, int off, int len) throws IOException {
+            int read = m_reader.read(cbuf, off, len);
+            if(read > 0) {
+                m_count += read;
+            }
+            return read;
+        }
+
+        @Override public int read() throws IOException {
+            int read = m_reader.read();
+            if(read >= 0) {
+                m_count ++;
+            }
+            return read;
+        }
+
+        @Override public void close() throws IOException {
+            m_reader.close();
+            log("was read " + m_count + " bytes");
         }
     }
 }

@@ -4,8 +4,6 @@ import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.util.Utils;
 
-import java.util.Random;
-
 public class TriTradeData {
     public static final int ID_CHARS_NUM = 6;
 
@@ -269,18 +267,7 @@ public class TriTradeData {
     }
 
     private String generateId(String parentId) {
-        Random rnd = new Random();
-        StringBuilder buf = new StringBuilder(ID_CHARS_NUM + 3);
-        buf.append('{');
-        for (int i = 0; i < ID_CHARS_NUM; i++) {
-            buf.append((char) ('A' + rnd.nextInt(25)));
-        }
-        if (parentId != null) {
-            buf.append('-');
-            buf.append(parentId);
-        }
-        buf.append('}');
-        return buf.toString();
+        return Utils.generateId(parentId, ID_CHARS_NUM);
     }
 
     public void checkState(IterationData iData, TriTradesData triTradesData) throws Exception {

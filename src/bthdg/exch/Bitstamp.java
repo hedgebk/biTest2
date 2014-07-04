@@ -1,12 +1,15 @@
 package bthdg.exch;
 
-import bthdg.*;
+import bthdg.Fetcher;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
 import java.net.URLEncoder;
 import java.util.*;
 
@@ -35,8 +38,6 @@ public class Bitstamp extends BaseExch {
     @Override public Pair[] supportedPairs() { return PAIRS; };
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
     @Override public double minOurPriceStep(Pair pair) { return 0.01; }
-
-    private static void log(String s) { Log.log(s); }
 
     public Bitstamp() {}
 
@@ -160,7 +161,7 @@ public class Bitstamp extends BaseExch {
         double usd = Utils.getDouble(jObj.get("usd_balance"));
         double fee = Utils.getDouble(jObj.get("fee")) / 100;
         double btc = Utils.getDouble(jObj.get("btc_balance"));
-        AccountData ret = new AccountData(Exchange.BITSTAMP.m_name, fee);
+        AccountData ret = new AccountData(Exchange.BITSTAMP, fee);
         ret.setAvailable(Currency.USD, usd);
         ret.setAvailable(Currency.BTC, btc);
         return ret;

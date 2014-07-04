@@ -1,10 +1,8 @@
 package bthdg.exch;
 
 // https://btc-e.com/api/documentation
-
 // code to inspire here: https://github.com/ReAzem/cryptocoin-tradelib/blob/master/modules/btc_e/src/de/andreas_rueckert/trade/site/btc_e/client/BtcEClient.java
 
-import bthdg.Log;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
@@ -119,8 +117,6 @@ public class Btce extends BaseExch {
 
     @Override public int connectTimeout() { return BTCE_CONNECT_TIMEOUT; }
     @Override public int readTimeout() { return BTCE_READ_TIMEOUT; }
-
-    private static void log(String s) { Log.log(s); }
 
     public Btce() {}
 
@@ -271,8 +267,12 @@ public class Btce extends BaseExch {
         return ret;
     }
 
-    public static DeepData parseDeep(Object obj) {
-        return parseDeepInt(obj, Pair.BTC_USD);
+    public static DeepData parseDeep(Object obj, Pair pair) {
+        DeepData deep = parseDeepInt(obj, Pair.BTC_USD);
+        if (JOIN_SMALL_QUOTES) {
+            deep.joinSmallQuotes(Exchange.BTCE, pair);
+        }
+        return deep;
     }
 
     private static DeepData parseDeepInt(Object obj, Pair pair) {
@@ -364,7 +364,7 @@ public class Btce extends BaseExch {
     }
 
     private static AccountData parseFunds(JSONObject funds) {
-        AccountData accountData = new AccountData(Exchange.BTCE.m_name, Double.MAX_VALUE);
+        AccountData accountData = new AccountData(Exchange.BTCE, Double.MAX_VALUE);
         double usd = Utils.getDouble(funds.get("usd"));
         accountData.setAvailable(Currency.USD, usd);
         double btc = Utils.getDouble(funds.get("btc"));

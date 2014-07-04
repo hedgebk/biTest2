@@ -146,7 +146,7 @@ public enum TriTradeState {
                 "; iterations=" + triTradeData.m_iterationsNum );
         triTradeData.log(" @@@@@@   in=" + format5(in) + ";  out=" + format5(out) +
                 "; out-in=" + format5(plus) + " " + startCurrency + ";  gain=" + format5(gain) +
-                "; level=" + triTradeData.level(account) +
+                "; level=" + format5(triTradeData.level(account)) +
                 ";  totalRatio=" + format5(Triplet.s_totalRatio) +
                 "; millis=" + System.currentTimeMillis() +
                 "; count=" + Triplet.s_counter);

@@ -4,6 +4,7 @@ import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** Deep book data */
@@ -26,9 +27,24 @@ public class DeepData {
                 '}';
     }
 
+    public String toString(int num) {
+        return "DeepData{" +
+                "bids=" + subList(m_bids,num) +
+                ", asks=" + subList(m_asks,num) +
+                '}';
+    }
+
+    private List<Deep> subList(List<Deep> list, int num) {
+        if(list.size() <= num) {
+            return list;
+        }
+        return list.subList(0, num);
+    }
+
     public static DeepData create(JSONArray bids, JSONArray asks) {
         List<DeepData.Deep> bids_ = DeepData.Deep.parse(bids);
         List<DeepData.Deep> asks_ = DeepData.Deep.parse(asks);
+        Collections.reverse(asks_); // close to mid first
         return new DeepData(bids_, asks_);
     }
 

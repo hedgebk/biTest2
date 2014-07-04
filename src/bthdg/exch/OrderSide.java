@@ -22,6 +22,7 @@ public enum OrderSide {
         @Override public boolean isBuy() { return true; }
         @Override public RoundingMode getPegRoundMode() { return RoundingMode.FLOOR; }
         @Override public RoundingMode getMktRoundMode() { return RoundingMode.CEILING; }
+        @Override public DeepData.Deep getDeep(DeepData deeps) { return deeps.getAsk(); }
     },
     SELL("S", "sell") {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice <= mktPrice; }
@@ -42,6 +43,7 @@ public enum OrderSide {
         @Override public boolean isBuy() { return false; }
         @Override public RoundingMode getPegRoundMode() { return RoundingMode.CEILING; }
         @Override public RoundingMode getMktRoundMode() { return RoundingMode.FLOOR; }
+        @Override public DeepData.Deep getDeep(DeepData deeps) { return deeps.getBid(); }
     };
 
     public static final double MIN_PRICE_PRECISION = 0.01;
@@ -61,6 +63,7 @@ public enum OrderSide {
     public double mktPrice(TopData top) { return 0; } // ASK > BID
     public double pegPrice(TopData top, Double step, Double minStep) { return 0; }
     public boolean isBuy() { return false; }
+    public DeepData.Deep getDeep(DeepData deeps) { return null; }
     public RoundingMode getPegRoundMode() { return null; }
     public RoundingMode getMktRoundMode() { return null; }
 

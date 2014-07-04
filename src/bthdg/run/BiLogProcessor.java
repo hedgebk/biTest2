@@ -21,11 +21,11 @@ import java.util.regex.Pattern;
 public class BiLogProcessor {
     private static final String LOG_FILE = "logs\\runner.log";
 
-//    public static final String EXCH1 = "BTCN";      // 5
-//    public static final String EXCH2 = "OKCOIN";
+    public static final String EXCH1 = "BTCN";      // 5
+    public static final String EXCH2 = "OKCOIN";
 
-    public static final String EXCH1 = "OKCOIN";    // 9.7
-    public static final String EXCH2 = "HUOBI";
+//    public static final String EXCH1 = "OKCOIN";    // 9.7
+//    public static final String EXCH2 = "HUOBI";
 
 //    public static final String EXCH1 = "BTCN";        // 5.2
 //    public static final String EXCH2 = "HUOBI";
@@ -44,24 +44,24 @@ public class BiLogProcessor {
     private static Map<String, BiLogData> s_starts = new HashMap<String, BiLogData>(); // exch->start_BiLogData
     private static BiLogData s_data;
     private static String s_lastPair;
+    private static boolean s_isNotThreeLogged;
 
     private static final int XFACTOR = 1;
     private static final int WIDTH = 1620 * XFACTOR * 16;
     public static final int HEIGHT = 900 * XFACTOR;
     public static final Color LIGHT_RED = new Color(255, 0, 0, 70);
     public static final Color LIGHT_BLUE = new Color(0, 0, 255, 70);
+    private static final boolean PAINT_BALANCE_CALCULATION = false;
 
     public static void main(String[] args) {
         System.out.println("Started");
         long millis = Utils.logStartTimeMemory();
-
         try {
             importFromFile();
             paintChart();
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
     }
 
@@ -97,6 +97,7 @@ public class BiLogProcessor {
                         if(!line.contains("SocketTimeoutException")
                                 && !line.contains("SocketException")
                                 && !line.contains("UnknownHostException")
+                                && !line.contains(".parseDeep()")
                                 && !line.contains("\tat ")
                                 && !line.contains("Unexpected token END OF FILE")
                                 && line.length() > 0) {
@@ -240,10 +241,16 @@ public class BiLogProcessor {
 
         private static void record() {
             if (s_tops.size() != 3) {
-                System.out.println("not 3 tops");
+                if (!s_isNotThreeLogged) {
+                    System.out.println("not 3 tops");
+                    s_isNotThreeLogged = true;
+                }
             }
             if (s_pairs.size() != 3) {
-                System.out.println("not 3 tops");
+                if (!s_isNotThreeLogged) {
+                    System.out.println("not 3 pairs");
+                    s_isNotThreeLogged = true;
+                }
             }
             s_timePoints.add(s_data);
             s_data = null;
@@ -540,11 +547,15 @@ public class BiLogProcessor {
 
             double balance = balance1 + balance2;
 
-            String b1 = roundStr(balance1) + "=" +
-                    (up ? roundStr(e1b) + "-" + roundStr(s1a) : roundStr(s1b) + "-" + roundStr(e1a));
+            String b1 = roundStr(balance1);
+            if(PAINT_BALANCE_CALCULATION) {
+                b1 += "=" + (up ? roundStr(e1b) + "-" + roundStr(s1a) : roundStr(s1b) + "-" + roundStr(e1a));
+            }
             g.drawString(b1, x1, yu + 60);
-            String b2 = roundStr(balance2) + "=" +
-                    (up ? roundStr(s2b) + "-" + roundStr(e2a) : roundStr(e2b) + "-" + roundStr(s2a));
+            String b2 = roundStr(balance2);
+            if(PAINT_BALANCE_CALCULATION) {
+                b2 += "=" + (up ? roundStr(s2b) + "-" + roundStr(e2a) : roundStr(e2b) + "-" + roundStr(s2a));
+            }
             g.drawString(b2, x1, yu + 80);
             String b = roundStr(balance);
             g.setColor((balance > 0) ? Color.green : Color.red);

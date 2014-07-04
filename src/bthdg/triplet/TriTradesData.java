@@ -404,7 +404,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                     return true;
                 } else {
                     String orderId = order.m_orderId;
-                    CancelOrderData coData = Fetcher.calcelOrder(Triplet.s_exchange, orderId, order.m_pair);
+                    CancelOrderData coData = Fetcher.cancelOrder(Triplet.s_exchange, orderId, order.m_pair);
                     String error = coData.m_error;
                     if (error == null) {
                         order.cancel();

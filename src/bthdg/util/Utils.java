@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -237,6 +238,50 @@ public class Utils {
 
     public static String capitalize(String str) {
         return Character.toUpperCase(str.charAt(0)) + str.substring(1);
+    }
+
+    public static <P,R> List<R> runAndSync(P[] params, final IRunnable<P,R> runnable) throws InterruptedException {
+        final List<R> list = new ArrayList<R>(params.length);
+        final AtomicInteger count = new AtomicInteger();
+        for (int i = 0, paramsLength = params.length; i < paramsLength; i++) {
+            final int indx = i;
+            final P param = params[i];
+            synchronized (count) {
+                count.incrementAndGet();
+                list.add(null);
+            }
+            new Thread() {
+                @Override public void run() {
+                    R ret = runnable.run(param);
+                    synchronized (count) {
+                        count.decrementAndGet();
+                        list.set(indx, ret);
+                        count.notify();
+                    }
+                }
+            }.start();
+        }
+        synchronized (count) {
+            if( count.get() > 0 ) {
+                count.wait();
+            }
+        }
+        return list;
+    }
+
+    public static String generateId(String parentId, int charsNum) {
+        Random rnd = new Random();
+        StringBuilder buf = new StringBuilder(charsNum + 3);
+        buf.append('{');
+        for (int i = 0; i < charsNum; i++) {
+            buf.append((char) ('A' + rnd.nextInt(25)));
+        }
+        if (parentId != null) {
+            buf.append('-');
+            buf.append(parentId);
+        }
+        buf.append('}');
+        return buf.toString();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,4 +529,8 @@ public class Utils {
             }
         }
     } // AverageCounter
+
+    public interface IRunnable <P,R> {
+        R run(P param);
+    }
 }

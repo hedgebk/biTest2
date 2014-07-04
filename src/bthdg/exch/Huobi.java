@@ -1,7 +1,6 @@
 package bthdg.exch;
 
 import bthdg.Fetcher;
-import bthdg.Log;
 import bthdg.util.Md5;
 import bthdg.util.Post;
 import bthdg.util.Utils;
@@ -32,8 +31,6 @@ public class Huobi extends BaseExch {
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
     @Override public double minOurPriceStep(Pair pair) { return 0.01; }
-
-    private static void log(String s) { Log.log(s); }
 
     public static void main(String[] args) {
         try {

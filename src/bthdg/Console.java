@@ -96,28 +96,76 @@ public class Console {
     }
 
     private static void doOrders(String line) throws Exception {
-        // orers [LTC_CNH]
+        // orders [LTC_CNH | all]
+        OrdersData od = null;
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
         if(s_exchange.requirePairForOrders()) {
             if (tokensNum == 2) {
                 tok.nextToken(); // skip 'orders'
                 String pairName = tok.nextToken();
-                Pair pair = Pair.resolvePair(pairName, s_exchange);
-                if (pair == null) {
-                    System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                if(pairName.equals("all")) {
+                    od = fetchAllOrders();
                 } else {
-                    OrdersData od = Fetcher.fetchOrders(s_exchange, pair);
-                    onOrders(od);
+                    Pair pair = Pair.resolvePair(pairName, s_exchange);
+                    if (pair == null) {
+                        System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                    } else {
+                        od = Fetcher.fetchOrders(s_exchange, pair);
+                    }
                 }
             } else {
-                System.err.println("invalid 'orders' command: use followed format: orders pair. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                System.err.println("no pair specified - fetching per pair orders...");
+                od = fetchAllOrders();
             }
         } else {
-            OrdersData od = Fetcher.fetchOrders(s_exchange);
+            od = Fetcher.fetchOrders(s_exchange);
+        }
+        if(od != null) {
             onOrders(od);
         }
     }
+
+    private static OrdersData fetchAllOrders() throws Exception {
+        OrdersData ordersData = new OrdersData();
+        for (Pair pair : s_exchange.supportedPairs()) {
+            OrdersData od = Fetcher.fetchOrders(s_exchange, pair);
+            if(od.m_error != null) {
+                return od;
+            }
+            if (ordersData.m_ords == null) {
+                ordersData.m_ords = new HashMap<String, OrdersData.OrdData>();
+            }
+            ordersData.m_ords.putAll(od.m_ords);
+        }
+        return ordersData;
+    }
+
+    /*
+        private static void cancelLiveOrders() throws Exception {
+        OrdersData od = fetchOrders(Exchange.BTCE, null);
+        log("ordersData=" + od);
+        String error = od.m_error;
+        if (error == null) {
+            for (OrdersData.OrdData ord : od.m_ords.values()) {
+                String orderId = ord.m_orderId;
+                log(" next order to cancel: " + orderId);
+                CancelOrderData coData = cancelOrder(Exchange.BTCE, orderId, null);
+                log("  cancel order data: " + coData);
+                String error2 = coData.m_error;
+                if (error2 == null) {
+                    String orderId2 = coData.m_orderId;
+                    log("   orderId: " + orderId2);
+                } else {
+                    log("   error: " + error);
+                }
+            }
+        } else {
+            log("error: " + error);
+        }
+    }
+
+     */
 
     private static void onOrders(OrdersData od) {
         System.out.println("ordersData=" + od);
@@ -244,7 +292,7 @@ public class Console {
                 if (pair == null) {
                     System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
                 } else {
-                    CancelOrderData coData = Fetcher.calcelOrder(s_exchange, orderId, pair);
+                    CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, pair);
                     System.out.println("cancel order '" + orderId + "' result: " + coData);
                 }
             } else {
@@ -254,7 +302,7 @@ public class Console {
             if (tokensNum >= 2) {
                 tok.nextToken();
                 String orderId = tok.nextToken();
-                CancelOrderData coData = Fetcher.calcelOrder(s_exchange, orderId, null);
+                CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, null);
                 System.out.println("cancel order '" + orderId + "' result: " + coData);
             } else {
                 System.err.println("invalid 'cancel' command: use followed format: cancel orderId");

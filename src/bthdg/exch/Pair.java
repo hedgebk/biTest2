@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 public enum Pair {
+    ALL(0, null, null), // special holder
     LTC_USD(1, Currency.LTC, Currency.USD),
     LTC_BTC(2, Currency.LTC, Currency.BTC),
     BTC_USD(3, Currency.BTC, Currency.USD),

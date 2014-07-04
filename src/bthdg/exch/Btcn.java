@@ -1,7 +1,6 @@
 package bthdg.exch;
 
 import bthdg.Fetcher;
-import bthdg.Log;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 import org.json.simple.JSONArray;
@@ -30,6 +29,7 @@ public class Btcn extends BaseExch {
     private static String SECRET;
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
     public static boolean LOG_PARSE = true;
+    private static boolean JOIN_SMALL_QUOTES = false;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH };
@@ -45,7 +45,7 @@ public class Btcn extends BaseExch {
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.BTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         0.001);
-        put(Pair.LTC_CNH, "0.##",     0.01,             0.02,            "0.0##",       0.001,          0.01);
+        put(Pair.LTC_CNH, "0.##",     0.01,             0.01,            "0.0##",       0.001,          0.01);
         put(Pair.LTC_BTC, "0.####",   0.0001,           0.0001,          "0.0###",      0.001,          0.01);
     }
 
@@ -81,8 +81,6 @@ public class Btcn extends BaseExch {
 
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
-
-    private static void log(String s) { Log.log(s); }
 
     public static void main(String[] args) {
         try {
@@ -174,8 +172,12 @@ public class Btcn extends BaseExch {
         return new TopData(bid, ask, last);
     }
 
-    public static DeepData parseDeep(Object jObj) {
-        return parseDeepInt(jObj);
+    public static DeepData parseDeep(Object jObj, Pair pair) {
+        DeepData deep = parseDeepInt(jObj);
+        if (JOIN_SMALL_QUOTES) {
+            deep.joinSmallQuotes(Exchange.BTCE, pair);
+        }
+        return deep;
     }
 
     private static DeepData parseDeepInt(Object obj) {
@@ -379,7 +381,7 @@ log("postStr="+postStr);
     }
 
     private static AccountData parseFunds(JSONObject balance) {
-        AccountData accountData = new AccountData(Exchange.BTCN.m_name, Double.MAX_VALUE);
+        AccountData accountData = new AccountData(Exchange.BTCN, Double.MAX_VALUE);
         setBalance(balance, accountData, "btc", Currency.BTC);
         setBalance(balance, accountData, "ltc", Currency.LTC);
         setBalance(balance, accountData, "cny", Currency.CNH);

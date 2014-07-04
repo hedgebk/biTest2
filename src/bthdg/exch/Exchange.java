@@ -25,7 +25,7 @@ public enum Exchange {
              null, null, null
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Bitstamp.parseTop(jObj); }
-        @Override public DeepData parseDeep(Object jObj) { return Bitstamp.parseDeep(jObj); }
+        @Override public DeepData parseDeep(Object jObj, Pair pair) { return Bitstamp.parseDeep(jObj); }
         @Override public TradesData parseTrades(Object jObj, Pair pair) { return Bitstamp.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Bitstamp.parseAccount(jObj); }
         @Override public String deepTestStr() { return Bitstamp.deepTestStr(); }
@@ -41,7 +41,7 @@ public enum Exchange {
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btce.parseTops(jObj, pairs); }
-        @Override public DeepData parseDeep(Object jObj) { return Btce.parseDeep(jObj); }
+        @Override public DeepData parseDeep(Object jObj, Pair pair) { return Btce.parseDeep(jObj, pair); }
         @Override public DeepsData parseDeeps(Object jObj, Pair[] pairs) { return Btce.parseDeeps(jObj, pairs); }
         @Override public TradesData parseTrades(Object jObj, Pair pair) { return Btce.parseTrades(jObj, pair); }
         @Override public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return Btce.parseTrades(jObj, pairs); }
@@ -87,7 +87,7 @@ public enum Exchange {
         @Override public void init(Properties keys) { Btcn.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btcn.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btcn.parseTops(jObj, pairs); }
-        @Override public DeepData parseDeep(Object jObj) { return Btcn.parseDeep(jObj); }
+        @Override public DeepData parseDeep(Object jObj, Pair pair) { return Btcn.parseDeep(jObj, pair); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return Btcn.parseAccount(jObj); }
@@ -108,7 +108,7 @@ public enum Exchange {
         @Override public void init(Properties keys) { OkCoin.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return OkCoin.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return OkCoin.parseTops(jObj, pairs); }
-        @Override public DeepData parseDeep(Object jObj) { return OkCoin.parseDeep(jObj); }
+        @Override public DeepData parseDeep(Object jObj, Pair pair) { return OkCoin.parseDeep(jObj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return OkCoin.parseAccount(jObj); }
@@ -128,10 +128,17 @@ public enum Exchange {
         @Override public void init(Properties keys) { Huobi.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
-        @Override public DeepData parseDeep(Object jObj) { return Huobi.parseDeep(jObj); }
+        @Override public DeepData parseDeep(Object jObj, Pair pair) { return Huobi.parseDeep(jObj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return Huobi.parseAccount(jObj); }
+    },
+    BTER("Bter", null, "", 12, 0.00001, false,       // https://bter.com/api
+           null, null, // XXXX like "btc"
+           null, null, // XXXX like "btc"
+           "", "",
+           null, null,
+           null, null, null) {
     },
     ;
 
@@ -205,7 +212,7 @@ public enum Exchange {
 
     public TopData parseTop(Object jObj, Pair pair) { throw new RuntimeException("parseTop not implemented on " + this ); }
     public TopsData parseTops(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTops not implemented on " + this ); }
-    public DeepData parseDeep(Object jObj) { throw new RuntimeException("parseDeep not implemented on " + this ); }
+    public DeepData parseDeep(Object jObj, Pair pair) { throw new RuntimeException("parseDeep not implemented on " + this ); }
     public DeepsData parseDeeps(Object jObj, Pair[] pairs) { throw new RuntimeException("parseDeeps not implemented on " + this ); }
     public TradesData parseTrades(Object jObj, Pair pair) { throw new RuntimeException("parseTrades not implemented on " + this ); }
     public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTrades not implemented on " + this ); }
@@ -268,6 +275,16 @@ public enum Exchange {
             }
         }
         return startsWith;
+    }
+
+    public static Exchange getExchange(String exchName) {
+        for (Exchange exchange : Exchange.values()) {
+            String name = exchange.name();
+            if (name.equalsIgnoreCase(exchName)) {
+                return exchange;
+            }
+        }
+        throw new RuntimeException("no exchange with name '" + exchName + "'");
     }
 
     public boolean supportsCurrency(Currency currency) {
