@@ -21,5 +21,4 @@ public class IterationHolder {
         }
         liveOrdersMgr.queryLiveOrders( exchange, pair, callback );
     }
-
 }

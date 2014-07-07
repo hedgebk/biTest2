@@ -46,6 +46,29 @@ public class OkCoin extends BaseExch {
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
     }
 
+    private static Map<Long, String> ERROR_CODES = new HashMap<Long, String>();
+
+    static {
+        add(10000, "Required parameter can not be null");
+        add(10001, "Requests are too frequent");
+        add(10002, "System Error");
+        add(10003, "Restricted list request, please try again later");
+        add(10004, "IP restriction");
+        add(10005, "Key does not exist");
+        add(10006, "User does not exist");
+        add(10007, "Signatures do not match");
+        add(10008, "Illegal parameter");
+        add(10009, "Order does not exist");
+        add(10010, "Insufficient balance");
+        add(10011, "Order is less than minimum trade amount");
+        add(10012, "Unsupported symbol (not btc_cny or ltc_cny)");
+        add(10013, "This interface only accepts https requests");
+    }
+
+    private static void add(long code, String str) {
+        ERROR_CODES.put(code, str);
+    }
+
     @Override protected DecimalFormat priceFormat(Pair pair) { return s_priceFormatMap.get(pair); }
     @Override protected DecimalFormat amountFormat(Pair pair) { return s_amountFormatMap.get(pair); }
     @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
@@ -249,9 +272,9 @@ public class OkCoin extends BaseExch {
             long orderId = Utils.getLong(jObj.get("order_id"));
             return new PlaceOrderData(orderId);
         } else {
-            String error = (String) jObj.get("errorCode");
-            log(" error: " + error);
-            return new PlaceOrderData(error); // order is not placed
+            Long error = (Long) jObj.get("errorCode");
+            String desr = ERROR_CODES.get(error);
+            log(" error: " + error + ": " + desr);            return new PlaceOrderData(error); // order is not placed
         }
     }
 
@@ -421,23 +444,9 @@ avg_rate - The average transaction price
     		*/
 
 // error codes:
-//    10001 - Too frequent user requests
+//add(10001 - Too frequent user requests
 //	          # too much api request, 2s interval
 //            # TODO need to check whether the order was placed or not
 //            print ("# too frequent api request, pls retry after 2s interval")
 
-//    error codes =   { 10000 : 'Required parameter can not be null',
-//                      10001 : 'Requests are too frequent',
-//                      10002 : 'System Error',
-//                      10003 : 'Restricted list request, please try again later',
-//                      10004 : 'IP restriction',
-//                      10005 : 'Key does not exist',
-//                      10006 : 'User does not exist',
-//                      10007 : 'Signatures do not match',
-//                      10008 : 'Illegal parameter',
-//                      10009 : 'Order does not exist',
-//                      10010 : 'Insufficient balance',
-//                      10011 : 'Order is less than minimum trade amount',
-//                      10012 : 'Unsupported symbol (not btc_cny or ltc_cny)',
-//                      10013 : 'This interface only accepts https requests' }
 }

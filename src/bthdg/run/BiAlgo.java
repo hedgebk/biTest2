@@ -4,9 +4,11 @@ import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.exch.Currency;
+import bthdg.util.Sync;
 import bthdg.util.Utils;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -15,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   - fold all if no inet connection; restart fine on connectivity
  */
 class BiAlgo implements Runner.IAlgo {
-    private static final double START_LEVEL = 0.0001; // 0.0003;
+    private static final double START_LEVEL = 0.00006; // 0.0003;
     private static final long MOVING_AVERAGE = Utils.toMillis(4, 28); // TODO: make exchange_pair dependent
     private static final long MIN_ITERATION_TIME = 2500;
     private static final double USE_ACCT_FUNDS = 0.95;
@@ -30,13 +32,17 @@ class BiAlgo implements Runner.IAlgo {
     private Runnable m_stopRunnable;
     private int m_maxExchNameLen; // for formatting
     private Map<Exchange, AccountData> m_startAccountMap = new HashMap<Exchange, AccountData>();
-    private Map<Exchange, AccountData> m_accountMap = new HashMap<Exchange, AccountData>();
+    Map<Exchange, AccountData> m_accountMap = new HashMap<Exchange, AccountData>();
     private static final int MAX_PLACE_ORDER_REPEAT = 2;
     private static int s_notEnoughFundsCounter;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
     @Override public void stop(Runnable runnable) { m_stopRunnable = runnable; }
+
+    static {
+        Fetcher.SIMULATE_ORDER_EXECUTION = false;
+    }
 
     public BiAlgo() {}
 
@@ -81,15 +87,14 @@ class BiAlgo implements Runner.IAlgo {
     }
 
     private void runIteration(IterationHolder ih) throws Exception {
-        runBfrMkt(ih);
+        runBfrMkt(ih, this); // check open orders state if any
 
+        // load mkt data
         doInParallel("getMktData", new IExchangeRunnable() {
             @Override public void run(Exchange exchange) throws Exception {
 //                TopData topData = Fetcher.fetchTop(exchange, m_pair);
-
                 DeepData deeps = Fetcher.fetchDeep(exchange, PAIR);
                 TopData topData = deeps.getTopDataAdapter();
-
                 m_mdStorage.put(exchange, PAIR, deeps, topData);
             }
         });
@@ -103,14 +108,18 @@ class BiAlgo implements Runner.IAlgo {
         runForPairs(ih);
     }
 
-    private void runBfrMkt(IterationHolder ih) {
+    private List<AtomicBoolean> runBfrMkt(IterationHolder ih, BiAlgo biAlgo) {
+        List<AtomicBoolean> ret = null;
         for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
             try {
-                exchPairsData.runBfrMkt(ih);
+                AtomicBoolean stat = exchPairsData.runBfrMkt(ih, biAlgo);
+                ret = Sync.addSync(ret, stat);
             } catch (Exception e) {
                 err("runBfrMkt failed: " + exchPairsData + " :" + e, e);
             }
         }
+        Sync.wait(ret);
+        return ret;
     }
 
     private void runForPairs(IterationHolder ih) {
@@ -203,8 +212,7 @@ class BiAlgo implements Runner.IAlgo {
         return m_maxExchNameLen;
     }
 
-    private static OrderData.OrderPlaceStatus placeOrderToExchange(AccountData account, OrderData orderData, OrderState state) throws Exception {
-        Exchange exchange = account.m_exchange;
+    public static OrderData.OrderPlaceStatus placeOrderToExchange(Exchange exchange, OrderData orderData, OrderState state) throws Exception {
         int repeatCounter = MAX_PLACE_ORDER_REPEAT;
         while( true ) {
             OrderData.OrderPlaceStatus ret;
@@ -263,7 +271,6 @@ class BiAlgo implements Runner.IAlgo {
         private final Exchange[] m_exchanges;
         private final boolean m_doTrade;
         private final Utils.AverageCounter m_diffAverageCounter;
-        private final List<TimeDiff> m_timeDiffs = new ArrayList<TimeDiff>();
         private final List<BiAlgoData> m_live = new ArrayList<BiAlgoData>();
 
         public String name() { return m_exchangesPair.name(); }
@@ -294,10 +301,9 @@ class BiAlgo implements Runner.IAlgo {
             double avgDiff = m_diffAverageCounter.add(diff);
             double diffDiff = diff - avgDiff;
             log(name() + " diff=" + e1.roundPriceStr(diff, PAIR) + // TODO: introduce roundPriceStrPlus - to add some precision
-                    ", avgDiff="+ e1.roundPriceStr(avgDiff, PAIR) +
-                    ", diffDiff="+ e1.roundPriceStr(diffDiff, PAIR) +
-                    ", bidAskDiff="+ e1.roundPriceStr(bidAskDiff, PAIR));
-            m_timeDiffs.add(new TimeDiff(System.currentTimeMillis(), diff));
+                    ", avgDiff=" + e1.roundPriceStr(avgDiff, PAIR) +
+                    ", diffDiff=" + e1.roundPriceStr(diffDiff, PAIR) +
+                    ", bidAskDiff=" + e1.roundPriceStr(bidAskDiff, PAIR));
 
             BiPoint mktPoint = new BiPoint(mdPoint1, mdPoint2, avgDiff, diffDiff, bidAskDiff);
 
@@ -313,8 +319,8 @@ class BiAlgo implements Runner.IAlgo {
         }
 
         private void checkForEnd(IterationHolder ih, BiAlgoData data, BiPoint mktPoint) throws Exception {
-            if(((mktPoint.m_diffDiff > 0) && data.m_up)
-               || ((mktPoint.m_diffDiff < 0) && !data.m_up)) { // look for opposite difDiffs
+            if ((mktPoint.aboveAverage() && data.m_up)
+                    || (!mktPoint.aboveAverage() && !data.m_up)) { // look for opposite difDiffs
                 double gain = mktPoint.gain();
                 double midMid = mktPoint.midMid();
                 double level = gain / midMid;
@@ -331,6 +337,13 @@ class BiAlgo implements Runner.IAlgo {
         }
 
         private void checkForNew(IterationHolder ih, BiPoint mktPoint) throws Exception {
+            boolean up = !mktPoint.aboveAverage();
+            BiAlgoData live = firstLive(up);
+            if (live != null) {
+                log("@@ do not start many on the same direction (up=" + up + "): " + live);
+                return;
+            }
+
             double gain = mktPoint.gain();
             double midMid = mktPoint.midMid();
             double level = gain / midMid;
@@ -345,6 +358,15 @@ class BiAlgo implements Runner.IAlgo {
                     open(ih, mktPoint, null);
                 }
             }
+        }
+
+        private BiAlgoData firstLive(boolean up) {
+            for( BiAlgoData live : m_live ) {
+                if( live.m_up == up ) {
+                    return live;
+                }
+            }
+            return null;
         }
 
         private void open(IterationHolder ih, BiPoint mktPoint, BiAlgoData baData) throws Exception {
@@ -412,6 +434,11 @@ class BiAlgo implements Runner.IAlgo {
                 OrderData orderData2 = new OrderData(PAIR, side2, price2, amount);
                 log("orderData2=" + orderData2);
 
+                TopData top1 = mdPoint1.m_topData;
+                log("top1=" + top1);
+                TopData top2 = mdPoint2.m_topData;
+                log("top2=" + top2);
+
                 OrderDataExchange ode1 = new OrderDataExchange(orderData1, exchange1);
                 OrderDataExchange ode2 = new OrderDataExchange(orderData2, exchange2);
 
@@ -420,10 +447,9 @@ class BiAlgo implements Runner.IAlgo {
                     m_live.add(biAlgoData);
                     biAlgoData.placeOpenOrders(ih);
                 } else {
-                    baData.placeCloseOrders(ih, ode1, ode2);
+                    baData.placeCloseOrders(ih, mktPoint, ode1, ode2);
                 }
             }
-
             log(".....................................");
         }
 
@@ -446,18 +472,18 @@ class BiAlgo implements Runner.IAlgo {
 
             double available1 = account1.available(currency1);
             double available2 = account2.available(currency2);
-            log("available1=" + available1 + " " + currency1 + ";  available2=" + available2 + " " + currency2);
+            log("available1=" + Utils.format5(available1) + " " + currency1 + ";  available2=" + Utils.format5(available2) + " " + currency2);
             if (currency1 != baseCurrency) {
                 MktDataPoint mdPoint1 = mktPoint.m_mdPoint1;
                 double mid = mdPoint1.m_topData.getMid();
                 available1 = available1 / mid;
-                log(" converted available1=" + available1 + " " + baseCurrency);
+                log(" converted available1=" + Utils.format5(available1) + " " + baseCurrency);
             }
             if (currency2 != baseCurrency) {
                 MktDataPoint mdPoint2 = mktPoint.m_mdPoint2;
                 double mid = mdPoint2.m_topData.getMid();
                 available2 = available2 / mid;
-                log(" converted available2=" + available2 + " " + baseCurrency);
+                log(" converted available2=" + Utils.format5(available2) + " " + baseCurrency);
             }
 
             double minAvailable = Math.min(available1, available2);
@@ -486,7 +512,7 @@ log("FOR NOW amount HACKED to=" + amount);
 
         private void onEnd(IterationHolder ih, BiAlgoData data, BiPoint end) throws Exception {
             boolean startUp = data.m_up;
-            BiPoint start = data.m_startPoint;
+            BiPoint start = data.m_openPoint;
             boolean endUp = !end.aboveAverage();
             double balance1 = startUp
                     ? -start.m_mdPoint1.m_topData.m_ask + end.m_mdPoint1.m_topData.m_bid
@@ -512,16 +538,41 @@ log("FOR NOW amount HACKED to=" + amount);
             log("***********************************************");
         }
 
-        public void runBfrMkt(IterationHolder ih) {
-//            for(BiAlgoData data : m_live){
-//                BiAlgoState state = data.m_state;
-//                if(state.isPending()) {
-//
-//                }
-//
-//            }
+        public AtomicBoolean runBfrMkt(final IterationHolder ih, final BiAlgo biAlgo) {
+            List<AtomicBoolean> ret = null;
+            for (BiAlgoData data : m_live) {
+                log(name() + " live: " + data);
+                BiAlgoData.BiAlgoState state = data.m_state;
+                if (state.isPending()) { // need to check order state
+                    AtomicBoolean stat = data.checkLiveOrderState(ih, biAlgo);
+                    ret = Sync.addSync(ret, stat);
+                }
+            }
+            // if finished - remove from live
+            final AtomicBoolean out = new AtomicBoolean(false);
+            Sync.waitInThreadIfNeeded(ret, new Runnable() {
+                @Override public void run() {
+                    List<BiAlgoData> toRemove = null;
+                    for (BiAlgoData data : m_live) {
+                        BiAlgoData.BiAlgoState state = data.m_state;
+                        if (state == BiAlgoData.BiAlgoState.CLOSE) {
+                            log(name() + " reached CLOSE - to remove from live: " + data);
+                            if( toRemove == null ) {
+                                toRemove = new ArrayList<BiAlgoData>();
+                            }
+                            toRemove.add(data);
+                        }
+                    }
+                    if(toRemove != null) {
+                        log(name() + "  toRemove: " + toRemove);
+                        m_live.removeAll(toRemove);
+                        log(name() + "   remained live: " + m_live);
+                    }
+                    Sync.setAndNotify(out);
+                }
+            });
+            return out;
         }
-
     }
 
     // pre-calculated top data relations
@@ -532,10 +583,12 @@ log("FOR NOW amount HACKED to=" + amount);
         // cached
         final double m_diffDiff;
         final double m_bidAskDiff;
+        final long m_time;
 
         public boolean aboveAverage() { return (m_diffDiff > 0); }
 
         public BiPoint(MktDataPoint mdPoint1, MktDataPoint mdPoint2, double avgDiff, double diffDiff, double bidAskDiff) {
+            m_time = System.currentTimeMillis();
             m_mdPoint1 = mdPoint1;
             m_mdPoint2 = mdPoint2;
             m_avgDiff = avgDiff;
@@ -551,16 +604,6 @@ log("FOR NOW amount HACKED to=" + amount);
             double mid1 = m_mdPoint1.m_topData.getMid();
             double mid2 = m_mdPoint2.m_topData.getMid();
             return (mid1 + mid2) / 2;
-        }
-    }
-
-    public static class TimeDiff {
-        public final long m_millis;
-        public final double m_diff;
-
-        public TimeDiff(long millis, double diff) {
-            m_millis = millis;
-            m_diff = diff;
         }
     }
 

@@ -1,6 +1,7 @@
 package bthdg.util;
 
 import bthdg.Deserializer;
+import bthdg.Log;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
@@ -241,31 +242,45 @@ public class Utils {
     }
 
     public static <P,R> List<R> runAndSync(P[] params, final IRunnable<P,R> runnable) throws InterruptedException {
+        Log.log("runAndSync params: " + Arrays.toString(params));
         final List<R> list = new ArrayList<R>(params.length);
         final AtomicInteger count = new AtomicInteger();
         for (int i = 0, paramsLength = params.length; i < paramsLength; i++) {
             final int indx = i;
             final P param = params[i];
+            Log.log("params["+i+"]: " + param);
             synchronized (count) {
-                count.incrementAndGet();
+                int val = count.incrementAndGet();
+                Log.log(" count incremented to " + val);
                 list.add(null);
             }
             new Thread() {
                 @Override public void run() {
+                    Log.log("params["+indx+"] thread started " + param);
                     R ret = runnable.run(param);
+                    Log.log("params["+indx+"] runnable finished " + param);
                     synchronized (count) {
-                        count.decrementAndGet();
+                        int val = count.decrementAndGet();
+                        Log.log(" count decremented to " + val);
                         list.set(indx, ret);
-                        count.notify();
+                        if(val == 0) {
+                            Log.log("  count notify");
+                            count.notify();
+                        }
                     }
                 }
             }.start();
         }
         synchronized (count) {
-            if( count.get() > 0 ) {
+            int val = count.get();
+            Log.log("  count value " + val);
+            if( val > 0 ) {
+                Log.log("   wait on count...");
                 count.wait();
+                Log.log("   wait on count finished");
             }
         }
+        Log.log("    returning " + list);
         return list;
     }
 

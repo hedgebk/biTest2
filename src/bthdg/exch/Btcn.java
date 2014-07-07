@@ -68,9 +68,9 @@ public class Btcn extends BaseExch {
 
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
-        distributeRatio.put(Currency.BTC, 0.3);
+        distributeRatio.put(Currency.BTC, 0.4);
         distributeRatio.put(Currency.CNH, 0.4);
-        distributeRatio.put(Currency.LTC, 0.3);
+        distributeRatio.put(Currency.LTC, 0.2);
         FundMap.s_map.put(Exchange.BTCN, distributeRatio);
     }
 

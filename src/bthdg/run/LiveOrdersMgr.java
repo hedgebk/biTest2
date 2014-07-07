@@ -1,6 +1,7 @@
 package bthdg.run;
 
 import bthdg.Fetcher;
+import bthdg.Log;
 import bthdg.exch.Exchange;
 import bthdg.exch.OrdersData;
 import bthdg.exch.Pair;
@@ -12,6 +13,9 @@ import java.util.Map;
 
 public class LiveOrdersMgr {
     public Map<Exchange,Map<Pair,OrdersDataWrapper>> m_ordersMap; // = new HashMap<Exchange,Map<Pair,OrdersData>>();
+
+    private static void log(String s) { Log.log(s); }
+    private static void err(String s, Exception e) { Log.err(s, e); }
 
     public void queryLiveOrders( Exchange exchange, Pair pair, ILiveOrdersCallback callback ) {
         OrdersDataWrapper odw = getOrdersDataWrapper(exchange, pair);
@@ -41,7 +45,12 @@ public class LiveOrdersMgr {
         if(m_ordersMap == null) {
             m_ordersMap = new HashMap<Exchange, Map<Pair, OrdersDataWrapper>>();
         }
-        return m_ordersMap.get(exchange);
+        Map<Pair, OrdersDataWrapper> ret = m_ordersMap.get(exchange);
+        if(ret == null) {
+            ret = new HashMap<Pair, OrdersDataWrapper>();
+            m_ordersMap.put(exchange, ret);
+        }
+        return ret;
     }
 
     private static class OrdersDataWrapper {
@@ -57,6 +66,7 @@ public class LiveOrdersMgr {
         }
 
         private synchronized void notifyCallbacks() {
+            log("notifyCallbacks...");
             for (ILiveOrdersCallback callback : m_callbacks) {
                 callback.onLiveOrders(m_ordersData);
             }
@@ -65,17 +75,19 @@ public class LiveOrdersMgr {
         }
 
         public void query(ILiveOrdersCallback callback) {
+            log("LiveOrdersMgr.query");
             OrdersData ordersData = null;
             synchronized(this) {
                 if( m_ordersData != null ) { // already queried
                     ordersData = m_ordersData;
+                    log("already queried: " + m_ordersData);
+                    callback.onLiveOrders(ordersData);
+                    log(" notify callback immediately");
                 } else {
                     runFetcher(callback);
                 }
             }
-            if(ordersData != null) {
-                callback.onLiveOrders(ordersData);
-            }
+            log("LiveOrdersMgr.query finished");
         }
 
         private void runFetcher(ILiveOrdersCallback callback) {
@@ -88,9 +100,12 @@ public class LiveOrdersMgr {
                     @Override public void run() {
                         OrdersData ordersData;
                         try {
+                            log("fetchOrders() m_exchange="+m_exchange + ", m_pair="+m_pair);
                             ordersData = Fetcher.fetchOrders(m_exchange, m_pair);
+                            log(" ordersData="+ordersData);
                         } catch (Exception e) {
                             ordersData = new OrdersData("fetchOrders error: " + e);
+                            log(" error ordersData="+ordersData);
                             e.printStackTrace();
                         }
                         synchronized(this) {
@@ -100,6 +115,7 @@ public class LiveOrdersMgr {
                     }
                 };
                 m_fetcher.start();
+                log(" callback stored, started fetchOrders thread");
             }
         }
     }
