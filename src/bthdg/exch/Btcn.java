@@ -30,6 +30,8 @@ public class Btcn extends BaseExch {
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
     public static boolean LOG_PARSE = false;
     public static boolean JOIN_SMALL_QUOTES = false;
+    public static final int CONNECT_TIMEOUT = 8000;
+    public static final int READ_TIMEOUT = 12000;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH };
@@ -59,6 +61,8 @@ public class Btcn extends BaseExch {
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
     }
 
+    @Override public int connectTimeout() { return CONNECT_TIMEOUT; }
+    @Override public int readTimeout() { return READ_TIMEOUT; }
     @Override protected DecimalFormat priceFormat(Pair pair) { return s_priceFormatMap.get(pair); }
     @Override protected DecimalFormat amountFormat(Pair pair) { return s_amountFormatMap.get(pair); }
     @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
@@ -260,7 +264,7 @@ public class Btcn extends BaseExch {
             case ORDERS: {
 //                Name 	   Value   Required Description
 //                openonly 	boolean 	NO 	Default is 'true'. Only open orders are returned.
-//                market 	string 	    NO 	Default to “BTCCNY”. [ BTCCNY | LTCCNY | LTCBTC | ALL]
+//                market 	string 	    NO 	Default to ï¿½BTCCNYï¿½. [ BTCCNY | LTCCNY | LTCBTC | ALL]
 //                limit 	integer 	NO 	Limit the number of transactions, default value is 1000.
 //                offset 	integer 	NO 	Start index used for pagination, default value is 0.
 //                {"method":"getOrders","params":[],"id":1}
@@ -273,7 +277,7 @@ public class Btcn extends BaseExch {
             case CANCEL: {
 //                Name 	    Value 	Required 	Description
 //                id 	    number 	YES 	    The order id to cancel.
-//                market 	string 	NO      	Default to “BTCCNY”. [ BTCCNY | LTCCNY | LTCBTC ]
+//                market 	string 	NO      	Default to ï¿½BTCCNYï¿½. [ BTCCNY | LTCCNY | LTCBTC ]
                 Pair pair = options.getPair();
                 String orderId = options.getOrderId();
                 String nonce = getNextNonce();
@@ -357,11 +361,11 @@ log("postStr="+postStr);
 //        {"id":"1",
 //         "result":{
 //            "balance":{
-//                "cny":{"amount_integer":"0","amount":"0.00000","symbol":"¥","amount_decimal":5,"currency":"CNY"},
+//                "cny":{"amount_integer":"0","amount":"0.00000","symbol":"ï¿½","amount_decimal":5,"currency":"CNY"},
 //                "ltc":{"amount_integer":"0","amount":"0.00000000","symbol":"?","amount_decimal":8,"currency":"LTC"},
 //                "btc":{"amount_integer":"0","amount":"0.00000000","symbol":"?","amount_decimal":8,"currency":"BTC"}},
 //            "frozen":{
-//                "cny":{"amount_integer":"0","amount":"0.00000","symbol":"¥","amount_decimal":5,"currency":"CNY"},
+//                "cny":{"amount_integer":"0","amount":"0.00000","symbol":"ï¿½","amount_decimal":5,"currency":"CNY"},
 //                "ltc":{"amount_integer":"0","amount":"0.00000000","symbol":"?","amount_decimal":8,"currency":"LTC"},
 //                "btc":{"amount_integer":"0","amount":"0.00000000","symbol":"?","amount_decimal":8,"currency":"BTC"}},
 //            "profile":{

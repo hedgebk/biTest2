@@ -18,6 +18,8 @@ public class OkCoin extends BaseExch {
     private static String PARTNER;
     public static boolean LOG_PARSE = false;
     public static boolean JOIN_SMALL_QUOTES = false;
+    public static final int CONNECT_TIMEOUT = 8000;
+    public static final int READ_TIMEOUT = 12000;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
@@ -70,6 +72,8 @@ public class OkCoin extends BaseExch {
         ERROR_CODES.put(code, str);
     }
 
+    @Override public int connectTimeout() { return CONNECT_TIMEOUT; }
+    @Override public int readTimeout() { return READ_TIMEOUT; }
     @Override protected DecimalFormat priceFormat(Pair pair) { return s_priceFormatMap.get(pair); }
     @Override protected DecimalFormat amountFormat(Pair pair) { return s_amountFormatMap.get(pair); }
     @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
@@ -395,7 +399,7 @@ public class OkCoin extends BaseExch {
     		map.put("amount", "0.01");
     		//amount=1.0&partner=2088101568338364&rate=680&symbol=btc_cny&type=buy
     		String signString = "amount=0.01&partner=3283163&rate=1411.99&symbol=btc_cny&type=buy80CE60C9CF0CCAEDAE86A56CC7A31AB4";
-    		map.put("sign", md5(signString).toUpperCase());//签�??需�?大写
+    		map.put("sign", md5(signString).toUpperCase());//签�??需�?大写
     		String reslut = HttpUtil.http(url, map);
     		System.out.println(reslut);
 

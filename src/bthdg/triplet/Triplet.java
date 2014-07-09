@@ -44,7 +44,7 @@ public class Triplet {
                 Triplet.s_exchange = Exchange.BTCE;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 7;
                 Triplet.START_TRIANGLES_PER_ITERATION = 2;
-                Triplet.LVL_PLUS = 0.12; // min target level plus
+                Triplet.LVL_PLUS = 0.10; // min target level plus
                 Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%

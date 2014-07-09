@@ -91,6 +91,9 @@ public class BiAlgoData {
         if(noErrors) {
             log("all order placed: " + placeRes);
             setState(okState);
+        } else {
+            log("some ERROR detected: order place res: " + placeRes);
+            setState(BiAlgoState.ERROR);
         }
     }
 

@@ -22,15 +22,15 @@ import java.util.Properties;
 
 /**
  * todo:
- *  - make delay between runs mkt data related - distance to nearest order driven
- *  - support DROP ?
- *  - count all downloaded traffic
- *  - add pause for servlet to redeploy new version and continue as is
- *  - use PEG/PEG_MID as close orders
- *  - save state to file for restarts - serialize
- *  - calculate requests/minute-do not cross the limit 600 request per 10 minutes
- *  - check fading moving average
- *  - simulate trade at MKT price fast (instantaneously)
+ * - make delay between runs mkt data related - distance to nearest order driven
+ * - support DROP ?
+ * - count all downloaded traffic
+ * - add pause for servlet to redeploy new version and continue as is
+ * - use PEG/PEG_MID as close orders
+ * - save state to file for restarts - serialize
+ * - calculate requests/minute-do not cross the limit 600 request per 10 minutes
+ * - check fading moving average
+ * - simulate trade at MKT price fast (instantaneously)
  */
 public class Fetcher {
     public static boolean SIMULATE_ORDER_EXECUTION = true;
@@ -160,15 +160,15 @@ public class Fetcher {
     }
 
     private static void printDeeps(DeepData deep1, DeepData deep2) {
-        for( int i = 0; i < 5; i++ ) {
+        for (int i = 0; i < 5; i++) {
             DeepData.Deep bid1 = deep1.m_bids.get(i);
             DeepData.Deep ask1 = deep1.m_asks.get(i);
             DeepData.Deep bid2 = deep2.m_bids.get(i);
             DeepData.Deep ask2 = deep2.m_asks.get(i);
-            log(format(bid1.m_size) +"@"+ format(bid1.m_price) +"  " +
-                               format(ask1.m_size) +"@"+ format(ask1.m_price) +"      " +
-                               format(bid2.m_size) +"@"+ format(bid2.m_price) +"  " +
-                               format(ask2.m_size) +"@"+ format(ask2.m_price) +"  ");
+            log(format(bid1.m_size) + "@" + format(bid1.m_price) + "  " +
+                    format(ask1.m_size) + "@" + format(ask1.m_price) + "      " +
+                    format(bid2.m_size) + "@" + format(bid2.m_price) + "  " +
+                    format(ask2.m_size) + "@" + format(ask2.m_price) + "  ");
         }
     }
 
@@ -199,7 +199,10 @@ public class Fetcher {
 
     public static OrdersData fetchOrders(Exchange exchange, final Pair pair) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.ORDERS, new FetchOptions() {
-            @Override public Pair getPair() { return pair; }
+            @Override
+            public Pair getPair() {
+                return pair;
+            }
         });
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
@@ -212,7 +215,10 @@ public class Fetcher {
         Object jObj;
         try {
             jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
-                @Override public OrderData getOrderData() { return order; }
+                @Override
+                public OrderData getOrderData() {
+                    return order;
+                }
             });
         } catch (IOException e) {
             String error = "place order error: " + e;
@@ -230,8 +236,15 @@ public class Fetcher {
 
     public static CancelOrderData cancelOrder(Exchange exchange, final String orderId, final Pair pair) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.CANCEL, new FetchOptions() {
-            @Override public String getOrderId() { return orderId; }
-            @Override public Pair getPair() { return pair; }
+            @Override
+            public String getOrderId() {
+                return orderId;
+            }
+
+            @Override
+            public Pair getPair() {
+                return pair;
+            }
         });
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
@@ -248,7 +261,7 @@ public class Fetcher {
         }
         AccountData accountData = exchange.parseAccount(jObj);
 //        log("accountData=" + accountData);
-        if(accountData != null) {
+        if (accountData != null) {
             if (accountData.m_fee == Double.MAX_VALUE) {
                 accountData.m_fee = exchange.m_baseFee;
             }
@@ -267,9 +280,9 @@ public class Fetcher {
         return map.get(pair);
     }
 
-    public static Map<Pair,TradesData> fetchTrades(Exchange exchange, Pair... pairs) throws Exception {
+    public static Map<Pair, TradesData> fetchTrades(Exchange exchange, Pair... pairs) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.TRADES, new PairsFetchOptions(pairs));
-        Map<Pair,TradesData> trades = exchange.parseTrades(jObj, pairs);
+        Map<Pair, TradesData> trades = exchange.parseTrades(jObj, pairs);
         return trades;
     }
 
@@ -325,7 +338,7 @@ public class Fetcher {
     }
 
     public static TopsData fetchTops(Exchange exchange, Pair... pairs) throws Exception {
-        if(exchange.supportsMultiplePairsRequest()) {
+        if (exchange.supportsMultiplePairsRequest()) {
             PairsFetchOptions options = new PairsFetchOptions(pairs);
             Object jObj = fetch(exchange, FetchCommand.TOP, options);
             TopsData topData = exchange.parseTops(jObj, pairs);
@@ -333,7 +346,7 @@ public class Fetcher {
         }
         // aggregate
         TopsData topsData = new TopsData();
-        Map<String,OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
+        Map<String, OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
         log("fetching per-pair tops");
         for (Pair pair : pairs) {
             TopData topData = fetchTop(exchange, pair);
@@ -359,6 +372,7 @@ public class Fetcher {
     }
 
     private static Object fetch(Exchange exchange, FetchCommand command, FetchOptions options) throws Exception {
+        long start = System.currentTimeMillis();
         long delay = START_REPEAT_DELAY;
         for (int attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt++) {
             try {
@@ -366,6 +380,10 @@ public class Fetcher {
                 if (exchange.retryFetch(obj)) { // this is to handle "error":"invalid sign"
                     log("  retry fetch attempt: " + obj);
                     continue;
+                }
+                if (MUTE_SOCKET_TIMEOUTS && (attempt > 1)) {
+                    long end = System.currentTimeMillis();
+                    log(" loaded with " + attempt + " attempt, in " + Utils.millisToDHMSStr(end - start));
                 }
                 return obj;
             } catch (Exception e) {
@@ -387,10 +405,10 @@ public class Fetcher {
             String str = command.getTestStr(exchange);
             reader = new StringReader(str);
         } else {
-            if(command.singleRequest()) {
-                 synchronized (exchange) { // one live request for exchange
-                     reader = fetchInt(exchange, command, options);
-                 }
+            if (command.singleRequest()) {
+                synchronized (exchange) { // one live request for exchange
+                    reader = fetchInt(exchange, command, options);
+                }
             } else {
                 reader = fetchInt(exchange, command, options);
             }
@@ -418,8 +436,8 @@ public class Fetcher {
             BaseExch.initSsl();
         }
 
-        if(isHttps) {
-            HttpsURLConnection scon = (HttpsURLConnection)con;
+        if (isHttps) {
+            HttpsURLConnection scon = (HttpsURLConnection) con;
             scon.setHostnameVerifier(new NullHostNameVerifier());
         }
 
@@ -513,77 +531,222 @@ public class Fetcher {
 
     public enum FetchCommand {
         TOP {
-            @Override public String getTestStr(Exchange exchange) { return exchange.m_topTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.apiTopEndpoint(options); }
-            @Override public boolean useTestStr() { return USE_TOP_TEST_STR; }
+            @Override
+            public String getTestStr(Exchange exchange) {
+                return exchange.m_topTestStr;
+            }
+
+            @Override
+            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+                return exchange.apiTopEndpoint(options);
+            }
+
+            @Override
+            public boolean useTestStr() {
+                return USE_TOP_TEST_STR;
+            }
         },
         DEEP {
-            @Override public String getTestStr(Exchange exchange) { return exchange.deepTestStr(); }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.apiDeepEndpoint(options); }
-            @Override public boolean useTestStr() { return USE_DEEP_TEST_STR; }
+            @Override
+            public String getTestStr(Exchange exchange) {
+                return exchange.deepTestStr();
+            }
+
+            @Override
+            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+                return exchange.apiDeepEndpoint(options);
+            }
+
+            @Override
+            public boolean useTestStr() {
+                return USE_DEEP_TEST_STR;
+            }
         },
         TRADES {
-            @Override public String getTestStr(Exchange exchange) { return exchange.m_tradesTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.apiTradesEndpoint(options); }
-            @Override public boolean useTestStr() { return USE_TRADES_TEST_STR; }
+            @Override
+            public String getTestStr(Exchange exchange) {
+                return exchange.m_tradesTestStr;
+            }
+
+            @Override
+            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+                return exchange.apiTradesEndpoint(options);
+            }
+
+            @Override
+            public boolean useTestStr() {
+                return USE_TRADES_TEST_STR;
+            }
         },
         ACCOUNT {
-            @Override public String getTestStr(Exchange exchange) { return exchange.m_accountTestStr; }
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_accountEndpoint; }
-            @Override public boolean useTestStr() { return USE_ACCOUNT_TEST_STR; }
-            @Override public boolean doPost() { return true; }
-            @Override public boolean needSsl() { return true; }
-            @Override public boolean singleRequest() { return true; }
+            @Override
+            public String getTestStr(Exchange exchange) {
+                return exchange.m_accountTestStr;
+            }
+
+            @Override
+            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+                return exchange.m_accountEndpoint;
+            }
+
+            @Override
+            public boolean useTestStr() {
+                return USE_ACCOUNT_TEST_STR;
+            }
+
+            @Override
+            public boolean doPost() {
+                return true;
+            }
+
+            @Override
+            public boolean needSsl() {
+                return true;
+            }
+
+            @Override
+            public boolean singleRequest() {
+                return true;
+            }
         },
         ORDER {
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_orderEndpoint; }
-            @Override public boolean doPost() { return true; }
-            @Override public boolean needSsl() { return true; }
-            @Override public boolean singleRequest() { return true; }
+            @Override
+            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+                return exchange.m_orderEndpoint;
+            }
+
+            @Override
+            public boolean doPost() {
+                return true;
+            }
+
+            @Override
+            public boolean needSsl() {
+                return true;
+            }
+
+            @Override
+            public boolean singleRequest() {
+                return true;
+            }
         },
         ORDERS {
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_ordersEndpoint; }
-            @Override public boolean doPost() { return true; }
-            @Override public boolean needSsl() { return true; }
-            @Override public boolean singleRequest() { return true; }
+            @Override
+            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+                return exchange.m_ordersEndpoint;
+            }
+
+            @Override
+            public boolean doPost() {
+                return true;
+            }
+
+            @Override
+            public boolean needSsl() {
+                return true;
+            }
+
+            @Override
+            public boolean singleRequest() {
+                return true;
+            }
         },
         CANCEL {
-            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return exchange.m_cancelEndpoint; }
-            @Override public boolean doPost() { return true; }
-            @Override public boolean needSsl() { return true; }
-            @Override public boolean singleRequest() { return true; }
+            @Override
+            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+                return exchange.m_cancelEndpoint;
+            }
+
+            @Override
+            public boolean doPost() {
+                return true;
+            }
+
+            @Override
+            public boolean needSsl() {
+                return true;
+            }
+
+            @Override
+            public boolean singleRequest() {
+                return true;
+            }
         };
-        public String getTestStr(Exchange exchange) { return null; }
-        public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) { return null; }
-        public boolean useTestStr() { return false; }
-        public boolean doPost() { return false; }
-        public boolean needSsl() { return false; }
-        public boolean singleRequest() { return false; }
+
+        public String getTestStr(Exchange exchange) {
+            return null;
+        }
+
+        public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+            return null;
+        }
+
+        public boolean useTestStr() {
+            return false;
+        }
+
+        public boolean doPost() {
+            return false;
+        }
+
+        public boolean needSsl() {
+            return false;
+        }
+
+        public boolean singleRequest() {
+            return false;
+        }
     } // FetchCommand
 
 
     public static class FetchOptions {
-        public Pair[] getPairs() { return null; }
-        public OrderData getOrderData() { return null; }
-        public Pair getPair() { return null; }
-        public String getOrderId() { return null; }
+        public Pair[] getPairs() {
+            return null;
+        }
+
+        public OrderData getOrderData() {
+            return null;
+        }
+
+        public Pair getPair() {
+            return null;
+        }
+
+        public String getOrderId() {
+            return null;
+        }
     }
 
     private static class PairFetchOptions extends FetchOptions {
         private final Pair m_pair;
-        public PairFetchOptions(Pair pair) { m_pair = pair; }
-        @Override public Pair[] getPairs() { return new Pair[]{m_pair}; }
+
+        public PairFetchOptions(Pair pair) {
+            m_pair = pair;
+        }
+
+        @Override
+        public Pair[] getPairs() {
+            return new Pair[]{m_pair};
+        }
     }
 
     private static class PairsFetchOptions extends FetchOptions {
         private final Pair[] pairs;
-        public PairsFetchOptions(Pair... pairs) { this.pairs = pairs; }
-        @Override public Pair[] getPairs() { return pairs; }
+
+        public PairsFetchOptions(Pair... pairs) {
+            this.pairs = pairs;
+        }
+
+        @Override
+        public Pair[] getPairs() {
+            return pairs;
+        }
     }
 
     /* Host name verifier that does not perform nay checks. */
     private static class NullHostNameVerifier implements HostnameVerifier {
-        @Override public boolean verify(String hostname, SSLSession session) {
+        @Override
+        public boolean verify(String hostname, SSLSession session) {
             return true;
         }
     }
@@ -596,23 +759,26 @@ public class Fetcher {
             m_reader = reader;
         }
 
-        @Override public int read(char[] cbuf, int off, int len) throws IOException {
+        @Override
+        public int read(char[] cbuf, int off, int len) throws IOException {
             int read = m_reader.read(cbuf, off, len);
-            if(read > 0) {
+            if (read > 0) {
                 m_count += read;
             }
             return read;
         }
 
-        @Override public int read() throws IOException {
+        @Override
+        public int read() throws IOException {
             int read = m_reader.read();
-            if(read >= 0) {
-                m_count ++;
+            if (read >= 0) {
+                m_count++;
             }
             return read;
         }
 
-        @Override public void close() throws IOException {
+        @Override
+        public void close() throws IOException {
             m_reader.close();
             log("was read " + m_count + " bytes");
         }

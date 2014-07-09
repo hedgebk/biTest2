@@ -22,7 +22,8 @@ import java.util.Map;
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
 // - check fading moving average
 public class PaintChart extends BaseChartPaint {
-    private static VaryProfile PROFILE = VaryProfile.NONE;
+    private static VaryProfile PROFILE = null;
+//    private static VaryProfile PROFILE = VaryProfile.NONE;
 //    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_1;
 //    private static VaryProfile PROFILE = VaryProfile.DROP;
 //    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_2;
@@ -47,7 +48,9 @@ public class PaintChart extends BaseChartPaint {
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_ITBIT;      // 1d  1.3
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_ITBIT;
 
-    private static Vary VARY = Vary.NONE;
+//    private static Vary VARY = Vary.NONE;
+//    private static Vary VARY = Vary.MOVING_AVERAGE_LEN;
+    private static Vary VARY = Vary.EXPECTED_GAIN;
 //    private static Vary VARY = Vary.MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN;
 //    private static Vary VARY = Vary.DROP;
     public static int STEP_RATIO =     1; // >1 to less accurate calc
@@ -796,7 +799,7 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      132 * 60 + 12, 9.225, -0.05 ),
         BTCE_ITBIT(Exchange.BTCE, Exchange.ITBIT,              310 * 60 + 7,  3.825,  0.195 ),
 
-        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,              2 * 60 + 50, 0.575, -0.165 ),
+        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,              3 * 60 + 19, 0.775,   -0.165 ),
         ;
 
         public final Exchange m_exch1;

@@ -1,9 +1,6 @@
 package bthdg.run;
 
-import bthdg.exch.Exchange;
-import bthdg.exch.OrderData;
-import bthdg.exch.OrderSide;
-import bthdg.exch.Pair;
+import bthdg.exch.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,7 +9,7 @@ public class IterationHolder {
     private final int m_count;
     private LiveOrdersMgr m_liveOrdersMgr;
     private Map<String, Double> m_lockedMap;
-    private Map<BiAlgo.ExchangesPair, Integer> m_tradesCountMap;
+    private Map<ExchangesPair, Integer> m_tradesCountMap;
 
     public IterationHolder(int count) {
         m_count = count;
@@ -64,10 +61,10 @@ public class IterationHolder {
         return exchange + ":" + side;
     }
 
-    public void addTradePlaced(BiAlgo.ExchangesPair exchangesPair) {
+    public void addTradePlaced(ExchangesPair exchangesPair) {
         Integer count;
         if(m_tradesCountMap == null) {
-            m_tradesCountMap = new HashMap<BiAlgo.ExchangesPair, Integer>();
+            m_tradesCountMap = new HashMap<ExchangesPair, Integer>();
             count = 0;
         } else {
             count = m_tradesCountMap.get(exchangesPair);
@@ -76,7 +73,7 @@ public class IterationHolder {
         m_tradesCountMap.put(exchangesPair, count);
     }
 
-    public int getTradePlaced(BiAlgo.ExchangesPair exchangesPair) {
+    public int getTradePlaced(ExchangesPair exchangesPair) {
         if(m_tradesCountMap != null) {
             Integer count = m_tradesCountMap.get(exchangesPair);
             if (count != null) {
