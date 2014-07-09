@@ -208,9 +208,11 @@ public class AccountData {
         for (Currency currency : m_funds.keySet()) {
             double value = getAllValue(currency);
             if (value > 0.000000001) {
-                double rate = tops.rate(exchange, currency, curr);
-                value = value / rate;
-                allValue += value;
+                Double rate = tops.rate(exchange, currency, curr);
+                if(rate != null) { // if can convert
+                    value = value / rate;
+                    allValue += value;
+                }
             }
 
         }

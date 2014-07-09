@@ -447,6 +447,10 @@ public class OrderData {
         return roundAmountStr(exchange, m_amount);
     }
 
+    public double getBalance() {
+        return m_price * (m_side.isBuy() ? -1 : 1);
+    }
+
     public enum OrderPlaceStatus {
         OK,
         ERROR,

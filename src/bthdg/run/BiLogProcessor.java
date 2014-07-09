@@ -465,126 +465,131 @@ public class BiLogProcessor {
 
         double totalRatio = 1;
         double totalBalance = 0;
+        int runsNum = 0;
         List<StartEndData> startEnds = s_startEndsMap.get(PAIR);
-        for (StartEndData startEnd : startEnds) {
-            BiLogData start = startEnd.m_start;
-            BiLogData end = startEnd.m_end;
+        if(startEnds != null) {
+            runsNum = startEnds.size();
+            for (StartEndData startEnd : startEnds) {
+                BiLogData start = startEnd.m_start;
+                BiLogData end = startEnd.m_end;
 
-            long millis1 = start.m_time;
-            long millis2 = end.m_time;
+                long millis1 = start.m_time;
+                long millis2 = end.m_time;
 
-            int x1 = timeAxe.getPoint(millis1);
-            int x2 = timeAxe.getPoint(millis2);
+                int x1 = timeAxe.getPoint(millis1);
+                int x2 = timeAxe.getPoint(millis2);
 
-            PairData pd1 = start.m_pairs.get(PAIR);
-            PairData pd2 = end.m_pairs.get(PAIR);
+                PairData pd1 = start.m_pairs.get(PAIR);
+                PairData pd2 = end.m_pairs.get(PAIR);
 
-            Double diff1 = pd1.getDiff();
-            Double diff2 = pd2.getDiff();
+                Double diff1 = pd1.getDiff();
+                Double diff2 = pd2.getDiff();
 
-            int y1 = priceDiffAxe.getPointReverse(diff1);
-            int y2 = priceDiffAxe.getPointReverse(diff2);
+                int y1 = priceDiffAxe.getPointReverse(diff1);
+                int y2 = priceDiffAxe.getPointReverse(diff2);
 
-            g.setPaint(Color.green);
-            g.drawLine(x1, y1, x2, y2);
+                g.setPaint(Color.green);
+                g.drawLine(x1, y1, x2, y2);
 
-            Double avgDiff1 = pd1.getAvgDiff();
-            Double avgDiff2 = pd2.getAvgDiff();
+                Double avgDiff1 = pd1.getAvgDiff();
+                Double avgDiff2 = pd2.getAvgDiff();
 
-            double diffDiff1 = diff1 - avgDiff1;
-            double diffDiff2 = diff2 - avgDiff2;
+                double diffDiff1 = diff1 - avgDiff1;
+                double diffDiff2 = diff2 - avgDiff2;
 
-            Double bidAskDiff1 = pd1.getBidAskDiff();
-            Double bidAskDiff2 = pd2.getBidAskDiff();
+                Double bidAskDiff1 = pd1.getBidAskDiff();
+                Double bidAskDiff2 = pd2.getBidAskDiff();
 
-            boolean aboveAverage = (diffDiff1 > 0);
-            Double plus1 = aboveAverage ? diff1 - bidAskDiff1 / 2 : diff1 + bidAskDiff1 / 2;
-            Double plus2 = (diffDiff2 > 0) ? diff2 - bidAskDiff2 / 2 : diff2 + bidAskDiff2 / 2;
+                boolean aboveAverage = (diffDiff1 > 0);
+                Double plus1 = aboveAverage ? diff1 - bidAskDiff1 / 2 : diff1 + bidAskDiff1 / 2;
+                Double plus2 = (diffDiff2 > 0) ? diff2 - bidAskDiff2 / 2 : diff2 + bidAskDiff2 / 2;
 
-            int y1p = priceDiffAxe.getPointReverse(plus1);
-            int y2p = priceDiffAxe.getPointReverse(plus2);
+                int y1p = priceDiffAxe.getPointReverse(plus1);
+                int y2p = priceDiffAxe.getPointReverse(plus2);
 
-            g.setPaint(Color.gray);
-            g.drawLine(x1, y1p, x2, y2p);
+                g.setPaint(Color.gray);
+                g.drawLine(x1, y1p, x2, y2p);
 
-            //------------------------
-            int dy = aboveAverage ? 50 : -50;
-            int dyl = aboveAverage ? 20 : -20;
-            int ys = y1 - dy;
-            g.drawString("" + diff1, x1, ys);
-            String startStr = roundStr(plus1);
-            g.drawString(startStr, x1, ys - dyl);
+                //------------------------
+                int dy = aboveAverage ? 50 : -50;
+                int dyl = aboveAverage ? 20 : -20;
+                int ys = y1 - dy;
+                g.drawString("" + diff1, x1, ys);
+                String startStr = roundStr(plus1);
+                g.drawString(startStr, x1, ys - dyl);
 
-            int ye = y2 + dy;
-            String endStr = "" + diff2;
-            Rectangle2D bounds = g.getFont().getStringBounds(endStr, g.getFontRenderContext());
-            g.drawString(endStr, (float) (x2 - bounds.getWidth()), ye);
-            endStr = roundStr(plus2);
-            bounds = g.getFont().getStringBounds(endStr, g.getFontRenderContext());
-            g.drawString(endStr, (float) (x2 - bounds.getWidth()), ye + dyl);
+                int ye = y2 + dy;
+                String endStr = "" + diff2;
+                Rectangle2D bounds = g.getFont().getStringBounds(endStr, g.getFontRenderContext());
+                g.drawString(endStr, (float) (x2 - bounds.getWidth()), ye);
+                endStr = roundStr(plus2);
+                bounds = g.getFont().getStringBounds(endStr, g.getFontRenderContext());
+                g.drawString(endStr, (float) (x2 - bounds.getWidth()), ye + dyl);
 
-            int yu = (aboveAverage ? ye: ys) - 17;
-            g.drawLine(x1, yu, x2, yu);
+                int yu = (aboveAverage ? ye: ys) - 17;
+                g.drawLine(x1, yu, x2, yu);
 
-            ExchData startTop1 = start.m_tops.get(EXCH1);
-            ExchData startTop2 = start.m_tops.get(EXCH2);
-            ExchData endTop1 = end.m_tops.get(EXCH1);
-            ExchData endTop2 = end.m_tops.get(EXCH2);
+                ExchData startTop1 = start.m_tops.get(EXCH1);
+                ExchData startTop2 = start.m_tops.get(EXCH2);
+                ExchData endTop1 = end.m_tops.get(EXCH1);
+                ExchData endTop2 = end.m_tops.get(EXCH2);
 
-            boolean up = !aboveAverage;
+                boolean up = !aboveAverage;
 
-            Double s1b = startTop1.getBid();
-            Double e1a = endTop1.getAsk();
-            Double s1a = startTop1.getAsk();
-            Double e1b = endTop1.getBid();
-            double balance1 = up ? e1b - s1a : s1b - e1a;
+                Double s1b = startTop1.getBid();
+                Double e1a = endTop1.getAsk();
+                Double s1a = startTop1.getAsk();
+                Double e1b = endTop1.getBid();
+                double balance1 = up ? e1b - s1a : s1b - e1a;
 
-            Double s2b = startTop2.getBid();
-            Double e2a = endTop2.getAsk();
-            Double s2a = startTop2.getAsk();
-            Double e2b = endTop2.getBid();
-            double balance2 = up ? s2b - e2a : e2b - s2a;
+                Double s2b = startTop2.getBid();
+                Double e2a = endTop2.getAsk();
+                Double s2a = startTop2.getAsk();
+                Double e2b = endTop2.getBid();
+                double balance2 = up ? s2b - e2a : e2b - s2a;
 
-            double balance = balance1 + balance2;
+                double balance = balance1 + balance2;
 
-            String b1 = roundStr(balance1);
-            if(PAINT_BALANCE_CALCULATION) {
-                b1 += "=" + (up ? roundStr(e1b) + "-" + roundStr(s1a) : roundStr(s1b) + "-" + roundStr(e1a));
+                String b1 = roundStr(balance1);
+                if(PAINT_BALANCE_CALCULATION) {
+                    b1 += "=" + (up ? roundStr(e1b) + "-" + roundStr(s1a) : roundStr(s1b) + "-" + roundStr(e1a));
+                }
+                g.drawString(b1, x1, yu + 60);
+                String b2 = roundStr(balance2);
+                if(PAINT_BALANCE_CALCULATION) {
+                    b2 += "=" + (up ? roundStr(s2b) + "-" + roundStr(e2a) : roundStr(e2b) + "-" + roundStr(s2a));
+                }
+                g.drawString(b2, x1, yu + 80);
+                String b = roundStr(balance);
+                g.setColor((balance > 0) ? Color.green : Color.red);
+                g.drawString(b, x1, yu + 100);
+
+    //            System.out.println("balance1="+b1);
+    //            System.out.println("balance2="+b2);
+    //            System.out.println("balance ="+b);
+
+                totalBalance += balance;
+
+                Double s1m = (startTop1.getAsk() + startTop1.getBid()) / 2;
+                Double e1m = (endTop1.getAsk() + endTop1.getBid()) / 2;
+                Double m1 = (s1m + e1m) / 2;
+                Double s2m = (startTop2.getAsk() + startTop2.getBid()) / 2;
+                Double e2m = (endTop2.getAsk() + endTop2.getBid()) / 2;
+                Double m2 = (s2m + e2m) / 2;
+                Double mid = (m1 + m2) / 2;
+                double mid2 = BALANCED_ACCT ? mid * 2 : 0;
+
+                double aa = up ? s1a + e2a : e1a + s2a;
+                double bb = up ? e1b + s2b : s1b + e2b;
+                double ratio = (bb + mid2) / (aa  + mid2);
+                totalRatio *= ratio;
             }
-            g.drawString(b1, x1, yu + 60);
-            String b2 = roundStr(balance2);
-            if(PAINT_BALANCE_CALCULATION) {
-                b2 += "=" + (up ? roundStr(s2b) + "-" + roundStr(e2a) : roundStr(e2b) + "-" + roundStr(s2a));
-            }
-            g.drawString(b2, x1, yu + 80);
-            String b = roundStr(balance);
-            g.setColor((balance > 0) ? Color.green : Color.red);
-            g.drawString(b, x1, yu + 100);
-
-//            System.out.println("balance1="+b1);
-//            System.out.println("balance2="+b2);
-//            System.out.println("balance ="+b);
-
-            totalBalance += balance;
-
-            Double s1m = (startTop1.getAsk() + startTop1.getBid()) / 2;
-            Double e1m = (endTop1.getAsk() + endTop1.getBid()) / 2;
-            Double m1 = (s1m + e1m) / 2;
-            Double s2m = (startTop2.getAsk() + startTop2.getBid()) / 2;
-            Double e2m = (endTop2.getAsk() + endTop2.getBid()) / 2;
-            Double m2 = (s2m + e2m) / 2;
-            Double mid = (m1 + m2) / 2;
-            double mid2 = BALANCED_ACCT ? mid * 2 : 0;
-
-            double aa = up ? s1a + e2a : e1a + s2a;
-            double bb = up ? e1b + s2b : s1b + e2b;
-            double ratio = (bb + mid2) / (aa  + mid2);
-            totalRatio *= ratio;
         }
+
         double timeDays = timeAxe.m_max / Utils.ONE_DAY_IN_MILLIS;
         double dayRatio = Math.pow(totalRatio, 1/timeDays);
 
-        System.out.println("runs=" + s_startEndsMap.get(PAIR).size() + ", totalBalance=" + totalBalance +
+        System.out.println("runs=" + runsNum + ", totalBalance=" + totalBalance +
                 ", time=" + Utils.millisToDHMSStr((long) timeAxe.m_max) + ", totalRatio=" + totalRatio +
                 ", timeDays=" + timeDays + "; dayRatio=" + dayRatio);
     }

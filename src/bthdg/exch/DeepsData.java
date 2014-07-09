@@ -35,6 +35,9 @@ public class DeepsData extends HashMap<Pair,DeepData> {
                 if(deepData == null) {
                     throw new RuntimeException("no DeepsData for pair " + pair);
                 }
+                if (deepData.m_bids.isEmpty() || deepData.m_asks.isEmpty()) {
+                    throw new RuntimeException("no bids or asks in DeepsData for pair " + pair + "; deep: " + deepData);
+                }
                 topData = deepData.getTopDataAdapter();
                 put(pair, topData);
             }

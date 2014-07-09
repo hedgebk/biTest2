@@ -85,12 +85,12 @@ public enum OrderState {
                 double minAmountStep = exchange.minAmountStep(pair);
                 String minAmountStepStr = orderData.roundAmountStr(exchange, minAmountStep);
                 if (absAmountDelta > minAmountStep) {
-                    log("  amounts are not equals: " + orderData);
-                    if (orderData.m_status == OrderStatus.PARTIALLY_FILLED) {
-                        log("   looks not OK - reprocessing PARTIALLY_FILLED status: ");
-                        new Exception("TRACE").printStackTrace();
-                        log("   error");
-                    }
+                    log("  amounts are not equals: orderAmount=" + orderAmount + "; liveAmount=" + liveAmount + " absAmountDelta=" + absAmountDelta + "; minAmountStep=" + minAmountStep + " :" + orderData);
+//                    if (orderData.m_status == OrderStatus.PARTIALLY_FILLED) {
+//                        log("   looks not OK - reprocessing PARTIALLY_FILLED status: ");
+//                        new Exception("TRACE").printStackTrace();
+//                        log("   error");
+//                    }
                     double filled = orderData.m_filled;
                     log("   order: amount=" + orderData.roundAmountStr(exchange) + ", filled=" + orderData.roundAmountStr(exchange, filled) +
                             ", remained=" + remainedStr +

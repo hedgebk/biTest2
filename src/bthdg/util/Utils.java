@@ -241,14 +241,14 @@ public class Utils {
         return Character.toUpperCase(str.charAt(0)) + str.substring(1);
     }
 
-    public static <P,R> List<R> runAndSync(P[] params, final IRunnable<P,R> runnable) throws InterruptedException {
+    public static <P, R> List<R> runAndSync(P[] params, final IRunnable<P, R> runnable) throws InterruptedException {
         Log.log("runAndSync params: " + Arrays.toString(params));
         final List<R> list = new ArrayList<R>(params.length);
         final AtomicInteger count = new AtomicInteger();
         for (int i = 0, paramsLength = params.length; i < paramsLength; i++) {
             final int indx = i;
             final P param = params[i];
-            Log.log("params["+i+"]: " + param);
+            Log.log("params[" + i + "]: " + param);
             synchronized (count) {
                 int val = count.incrementAndGet();
                 Log.log(" count incremented to " + val);
@@ -256,14 +256,14 @@ public class Utils {
             }
             new Thread() {
                 @Override public void run() {
-                    Log.log("params["+indx+"] thread started " + param);
+                    Log.log("params[" + indx + "] thread started " + param);
                     R ret = runnable.run(param);
-                    Log.log("params["+indx+"] runnable finished " + param);
+                    Log.log("params[" + indx + "] runnable finished " + param);
                     synchronized (count) {
                         int val = count.decrementAndGet();
                         Log.log(" count decremented to " + val);
                         list.set(indx, ret);
-                        if(val == 0) {
+                        if (val == 0) {
                             Log.log("  count notify");
                             count.notify();
                         }
@@ -274,7 +274,7 @@ public class Utils {
         synchronized (count) {
             int val = count.get();
             Log.log("  count value " + val);
-            if( val > 0 ) {
+            if (val > 0) {
                 Log.log("   wait on count...");
                 count.wait();
                 Log.log("   wait on count finished");

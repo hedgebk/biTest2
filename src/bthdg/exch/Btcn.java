@@ -28,8 +28,8 @@ public class Btcn extends BaseExch {
     private static String KEY;
     private static String SECRET;
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
-    public static boolean LOG_PARSE = true;
-    private static boolean JOIN_SMALL_QUOTES = false;
+    public static boolean LOG_PARSE = false;
+    public static boolean JOIN_SMALL_QUOTES = false;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH };

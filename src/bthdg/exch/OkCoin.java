@@ -16,7 +16,8 @@ import java.util.*;
 public class OkCoin extends BaseExch {
     private static String SECRET;
     private static String PARTNER;
-    public static boolean LOG_PARSE = true;
+    public static boolean LOG_PARSE = false;
+    public static boolean JOIN_SMALL_QUOTES = false;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
@@ -192,11 +193,11 @@ public class OkCoin extends BaseExch {
         return new TopData(bid, ask, last);
     }
 
-    public static DeepData parseDeep(Object jObj) {
-        return parseDeepInt(jObj);
+    public static DeepData parseDeep(Object jObj, Pair pair) {
+        return parseDeepInt(jObj, pair);
     }
 
-    private static DeepData parseDeepInt(Object obj) {
+    private static DeepData parseDeepInt(Object obj, Pair pair) {
         if (LOG_PARSE) {
             log("OkCoin.parseDeep() " + obj);
         }
@@ -204,7 +205,11 @@ public class OkCoin extends BaseExch {
         JSONArray bids = (JSONArray) pairData.get("bids");
         JSONArray asks = (JSONArray) pairData.get("asks");
 
-        return DeepData.create(bids, asks);
+        DeepData deep = DeepData.create(bids, asks);
+        if (JOIN_SMALL_QUOTES) {
+            deep.joinSmallQuotes(Exchange.BTCE, pair);
+        }
+        return deep;
     }
 
     private void acct() throws Exception {

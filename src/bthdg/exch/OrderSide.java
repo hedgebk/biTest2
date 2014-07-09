@@ -1,6 +1,7 @@
 package bthdg.exch;
 
 import java.math.RoundingMode;
+import java.util.List;
 
 public enum OrderSide {
     BUY("B", "buy") {
@@ -23,6 +24,7 @@ public enum OrderSide {
         @Override public RoundingMode getPegRoundMode() { return RoundingMode.FLOOR; }
         @Override public RoundingMode getMktRoundMode() { return RoundingMode.CEILING; }
         @Override public DeepData.Deep getDeep(DeepData deeps) { return deeps.getAsk(); }
+        @Override public List<DeepData.Deep> getDeeps(DeepData deepData) { return deepData.m_bids; }
     },
     SELL("S", "sell") {
         @Override public boolean acceptPrice(double orderPrice, double mktPrice) { return orderPrice <= mktPrice; }
@@ -44,6 +46,7 @@ public enum OrderSide {
         @Override public RoundingMode getPegRoundMode() { return RoundingMode.CEILING; }
         @Override public RoundingMode getMktRoundMode() { return RoundingMode.FLOOR; }
         @Override public DeepData.Deep getDeep(DeepData deeps) { return deeps.getBid(); }
+        @Override public List<DeepData.Deep> getDeeps(DeepData deepData) { return deepData.m_asks; }
     };
 
     public static final double MIN_PRICE_PRECISION = 0.01;
@@ -64,6 +67,7 @@ public enum OrderSide {
     public double pegPrice(TopData top, Double step, Double minStep) { return 0; }
     public boolean isBuy() { return false; }
     public DeepData.Deep getDeep(DeepData deeps) { return null; }
+    public List<DeepData.Deep> getDeeps(DeepData deepData) { return null; }
     public RoundingMode getPegRoundMode() { return null; }
     public RoundingMode getMktRoundMode() { return null; }
 

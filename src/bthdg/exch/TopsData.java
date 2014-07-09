@@ -16,7 +16,7 @@ public class TopsData {
         return topData;
     }
 
-    TopData getInt(Pair pair) {
+    public TopData getInt(Pair pair) {
         return m_map.get(pair);
     }
 
@@ -29,10 +29,10 @@ public class TopsData {
         return converted;
     }
 
-    public double rate(Exchange exchange, Currency from, Currency to) {
-        double rate;
+    public Double rate(Exchange exchange, Currency from, Currency to) {
+        Double rate;
         if (from == to) {
-            rate = 1;
+            rate = 1d;
         } else {
             boolean support = exchange.supportPair(from, to);
             if(support) {
@@ -45,10 +45,13 @@ public class TopsData {
         return rate;
     }
 
-    public double rate(Currency inCurrency, Currency outCurrency) {
+    public Double rate(Currency inCurrency, Currency outCurrency) {
         PairDirection pd = PairDirection.get(inCurrency, outCurrency);
         Pair pair = pd.m_pair;
-        TopData top = get(pair);
+        TopData top = getInt(pair);
+        if(top == null) {
+            return null;
+        }
         double rate = top.getMid();
         if (!pd.isForward()) {
             rate = 1 / rate;

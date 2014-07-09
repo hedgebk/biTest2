@@ -2,11 +2,12 @@ package bthdg;
 
 import bthdg.exch.Bitstamp;
 import bthdg.exch.Btce;
-import bthdg.servlet.MemcacheStorage;
 
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Properties;
+
+//import bthdg.servlet.MemcacheStorage;
 
 public class Config {
     public static boolean s_configured = false;
@@ -28,7 +29,7 @@ public class Config {
 
     public static boolean configured() throws IOException {
         if(!s_configured) {
-            String config = MemcacheStorage.getConfig();
+            String config = null; //MemcacheStorage.getConfig();
             if(config != null) {
                 return load(config);
             }

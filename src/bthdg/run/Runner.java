@@ -57,6 +57,7 @@ public class Runner {
         }
         synchronized (counter) {
             if(counter.get() != 0) {
+                log("waiting until all stop");
                 counter.wait();
             }
             log("all reported that stopped");

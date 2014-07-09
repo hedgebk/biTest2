@@ -9,16 +9,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Sync {
     public static void waitInThreadIfNeeded(final List<AtomicBoolean> sync, final Runnable callback) {
         // check if anything is pending first
-        for (AtomicBoolean obj : sync) {
-            synchronized (obj) {
-                boolean flag = obj.get();
-                if (!flag) {
-                    waitInThread(sync, callback);
-                    return;
+        if(sync != null) {
+            for (AtomicBoolean obj : sync) {
+                synchronized (obj) {
+                    boolean flag = obj.get();
+                    if (!flag) {
+                        waitInThread(sync, callback);
+                        return;
+                    }
                 }
             }
         }
-        callback.run(); // nothing to wait
         callback.run(); // nothing to wait
     }
 

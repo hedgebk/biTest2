@@ -13,6 +13,7 @@ public enum OrderStatus {
     CANCELLED,
     ERROR;
 
+    /** submitted but not yet fully executed: SUBMITTED or PARTIALLY_FILLED */
     public boolean isActive() {
         return (this == SUBMITTED) || (this == PARTIALLY_FILLED);
     }
