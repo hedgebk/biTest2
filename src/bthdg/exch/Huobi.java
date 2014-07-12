@@ -16,6 +16,7 @@ public class Huobi extends BaseExch {
     private static String SECRET;
     private static String KEY;
     public static boolean LOG_PARSE = false;
+    public static boolean JOIN_SMALL_QUOTES = false;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
@@ -68,12 +69,12 @@ public class Huobi extends BaseExch {
 
     private void run() {
         try {
+            Fetcher.LOG_JOBJ = true;
 //            TopData topData = Fetcher.fetchTop(Exchange.HUOBI, Pair.BTC_CNH);
 //            log("huobi:   " + topData);
-            Fetcher.LOG_JOBJ = true;
-            DeepData deepData = Fetcher.fetchDeep(Exchange.HUOBI, Pair.BTC_CNH);
-            log("deepData: " + deepData);
-//            acct();
+//            DeepData deepData = Fetcher.fetchDeep(Exchange.HUOBI, Pair.BTC_CNH);
+//            log("deepData: " + deepData);
+            acct();
 //            AccountData account = Fetcher.fetchAccount(Exchange.HUOBI);
 //            log("account: " + account);
         } catch (Exception e) {
@@ -120,12 +121,12 @@ public class Huobi extends BaseExch {
         return new TopData(bid, ask, last);
     }
 
-    public static DeepData parseDeep(Object jObj) {
-        return parseDeepInt(jObj);
+    public static DeepData parseDeep(Object jObj, Pair pair) {
+        return parseDeepInt(jObj, pair);
     }
 
     // {"asks":[["90.8",0.5],...],"bids":[["86.06",79.243],...]]
-    private static DeepData parseDeepInt(Object obj) {
+    private static DeepData parseDeepInt(Object obj, Pair pair) {
         if (LOG_PARSE) {
             log("HUOBI.parseDeep() " + obj);
         }
@@ -133,16 +134,14 @@ public class Huobi extends BaseExch {
         JSONArray bids = (JSONArray) pairData.get("bids");
         JSONArray asks = (JSONArray) pairData.get("asks");
 
-        return DeepData.create(bids, asks);
+        DeepData deeps = DeepData.create(bids, asks);
+        if (JOIN_SMALL_QUOTES) {
+            deeps.joinSmallQuotes(Exchange.BTCE, pair);
+        }
+        return deeps;
     }
 
     private void acct() throws Exception {
-//        var time = parseInt((new Date()).getTime() / 1000);
-//        var data = {method: 'get_account_info',
-//                    access_key: config.access_key,
-//                    created: time};
-//        data.sign = md5('access_key=' + config.access_key + '&created='+ data.created +'&method='+ data.method +'&secret_key=' + config.secret_key + '');
-
         String method = "get_account_info";
 
         long time = System.currentTimeMillis() / 1000;
@@ -154,15 +153,6 @@ public class Huobi extends BaseExch {
         sArray.put("created", created);
       	sArray.put("secret_key", SECRET);
         String str = Post.createHttpPostString(sArray, true);
-
-//        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
-//        postParams.add(new Post.NameValue("access_key", KEY));
-//        postParams.add(new Post.NameValue("created", created));
-//        postParams.add(new Post.NameValue("method", method));
-//        postParams.add(new Post.NameValue("secret_key", SECRET));
-//        String str = Post.buildPostQueryString(postParams);
-
-        //String str = "access_key=" + KEY + "&created=" + created + "&method=" + method + "&secret_key=" + SECRET;
 
         String sign = Md5.getMD5String(str);
         sign = sign.toLowerCase();
@@ -178,29 +168,79 @@ public class Huobi extends BaseExch {
 
         String json = loadJsonStr(null, postData);
         log("Loaded json: " + json);
-
-//  for now : json: {"code":66
-        // invalid access code
-
     }
 
     // https://github.com/peatio/bitbot-huobi/blob/master/spec/fixtures/vcr_cassettes/authorized/success/account.yml
-//    public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
-//        Map<String,String> sArray = new HashMap<String, String>();
-//      	sArray.put("partner", PARTNER);
-//        String sign = buildMysign(sArray, SECRET);
-//
-//        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
-//        postParams.add(new Post.NameValue("partner", PARTNER));
-//        postParams.add(new Post.NameValue("sign", sign));
-//        final String postData = Post.buildPostQueryString(postParams);
-//        return new IPostData() {
-//            @Override public String postStr() { return postData; }
-//            @Override public Map<String, String> headerLines() { return null; }
-//        };
-//    }
+    @Override public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
+        String method = getMethod(command);
+
+        long time = System.currentTimeMillis() / 1000;
+        String created = Long.toString(time);
+
+        Map<String,String> sArray = new HashMap<String, String>();
+        sArray.put("method", method);
+        sArray.put("access_key", KEY);
+        sArray.put("created", created);
+        sArray.put("secret_key", SECRET);
+        String str = Post.createHttpPostString(sArray, true);
+
+        String sign = Md5.getMD5String(str);
+        sign = sign.toLowerCase();
+
+        List<Post.NameValue>    postParams = new ArrayList<Post.NameValue>();
+        postParams.add(new Post.NameValue("method", method));
+        postParams.add(new Post.NameValue("access_key", KEY));
+        postParams.add(new Post.NameValue("created", created));
+        postParams.add(new Post.NameValue("sign", sign));
+        final String postData = Post.buildPostQueryString(postParams);
+
+        return new IPostData() {
+            @Override public String postStr() { return postData; }
+            @Override public Map<String, String> headerLines() { return null; }
+        };
+    }
+
+    private String getMethod(Fetcher.FetchCommand command) {
+        if(command == Fetcher.FetchCommand.ACCOUNT) {
+            return "get_account_info";
+        }
+        throw new RuntimeException("Huobi: not supported yet command: " + command.name());
+    }
 
     public static AccountData parseAccount(Object obj) {
-        return null;  //To change body of created methods use File | Settings | File Templates.
+        //{"total":"0.00",
+        // "net_asset":"0.00",
+        // "available_cny_display":"0.00",
+        // "available_btc_display":"0.0000",
+        // "frozen_cny_display":"0.00",
+        // "frozen_btc_display":"0.0000",
+        // "loan_cny_display":"0.00",
+        // "loan_btc_display":"0.0000"}
+
+        // {"time":1405122528,"code":66,"msg":"qwerty"}
+
+        JSONObject jObj = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("OkCoin.parseAccount() " + jObj);
+        }
+
+        Long code = (Long) jObj.get("code");
+        if (code != null) {
+            String msg = (String) jObj.get("msg");
+            throw new RuntimeException("Account request error: code=" + code + ": " + msg);
+        }
+
+        AccountData accountData = new AccountData(Exchange.HUOBI, Double.MAX_VALUE);
+        double btc = Utils.getDouble(jObj.get("available_btc_display"));
+        accountData.setAvailable(Currency.BTC, btc);
+        double cny = Utils.getDouble(jObj.get("available_cny_display"));
+        accountData.setAvailable(Currency.CNH, cny);
+
+        double btcLocked = Utils.getDouble(jObj.get("frozen_btc_display"));
+        accountData.setAllocated(Currency.BTC, btcLocked);
+        double cnyLocked = Utils.getDouble(jObj.get("frozen_cny_display"));
+        accountData.setAllocated(Currency.CNH, cnyLocked);
+
+        return accountData;
     }
 }

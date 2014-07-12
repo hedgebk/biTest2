@@ -93,7 +93,6 @@ public class BiAlgoData {
             setState(okState);
         } else {
             log("some ERROR detected: order place res: " + placeRes);
-            setState(BiAlgoState.ERROR);
         }
     }
 
@@ -117,18 +116,17 @@ public class BiAlgoData {
     }
 
     public AtomicBoolean checkLiveOrderState(IterationHolder ih, BiAlgo biAlgo) {
-        boolean isOpen = m_state.isOpen();
+        Boolean isOpen = m_state.isOpen();
         log("checkLiveOrderState (isOpen=" + isOpen + ") on " + this);
         List<AtomicBoolean> ret = null;
-        OrderDataExchange ode1 = isOpen ? m_openOde1 : m_closeOde1;
-        log(" ode1: " + ode1);
-        OrderDataExchange ode2 = isOpen ? m_openOde2 : m_closeOde2;
-        log(" ode2: " + ode2);
-        AtomicBoolean stat1 = checkLiveOrderState(ih, ode1, biAlgo);
-        ret = Sync.addSync(ret, stat1);
-        AtomicBoolean stat2 = checkLiveOrderState(ih, ode2, biAlgo);
-        ret = Sync.addSync(ret, stat2);
 
+        OrderDataExchange[] odes = new OrderDataExchange[] {m_openOde1, m_closeOde1, m_openOde2, m_closeOde2};
+        for(OrderDataExchange ode: odes) {
+            if(ode != null) {
+                AtomicBoolean stat = checkLiveOrderState(ih, ode, biAlgo);
+                ret = Sync.addSync(ret, stat);
+            }
+        }
         if (ret != null) {
             final AtomicBoolean sync = new AtomicBoolean(false);
             Sync.waitInThreadIfNeeded(ret, new Runnable() {
@@ -144,13 +142,12 @@ public class BiAlgoData {
 
     private AtomicBoolean checkLiveOrderState(final IterationHolder ih, OrderDataExchange ode, final BiAlgo biAlgo) {
         AtomicBoolean ret = null;
-        log("checkLiveOrderState: " + ode);
         final OrderData orderData = ode.m_orderData;
         OrderStatus status = orderData.m_status;
-        log(" status: " + status);
         if (status.isActive()) {
+            log("checkLiveOrderState: " + ode);
             final Exchange exchange = ode.m_exchange;
-            log("queryLiveOrders: " + exchange + ", " + m_pair);
+            log(" queryLiveOrders: " + exchange + ", " + m_pair);
             ret = new AtomicBoolean(false);
             final AtomicBoolean finalRet = ret;
             ih.queryLiveOrders(exchange, m_pair, new LiveOrdersMgr.ILiveOrdersCallback() {
@@ -268,14 +265,27 @@ public class BiAlgoData {
         return false;
     }
 
+    public OrderData getFirstActiveLive() {
+        Boolean isOpen = m_state.isOpen();
+        if(isOpen != null) {
+            OrderDataExchange ode1 = isOpen ? m_openOde1 : m_closeOde1;
+            OrderDataExchange ode2 = isOpen ? m_openOde2 : m_closeOde2;
+            for(OrderDataExchange ode: new OrderDataExchange[]{ode1, ode2}) {
+                OrderData od = ode.m_orderData;
+                if(od.isActive()) {
+                    return od;
+                }
+            }
+        }
+        return null;
+    }
+
     public enum BiAlgoState {
         NEW,
         OPEN_PLACED {
             @Override public boolean isPending() { return true; }
             @Override public Boolean isOpen() { return true; }
-            @Override public void checkState(BiAlgoData biAlgoData) {
-                checkPlacedState(biAlgoData, OPEN, SOME_OPEN, true);
-            }
+            @Override public void checkState(BiAlgoData biAlgoData) { checkPlacedState(biAlgoData, OPEN, SOME_OPEN, true); }
         },
         SOME_OPEN {
             @Override public boolean isPending() { return true; }
@@ -288,20 +298,18 @@ public class BiAlgoData {
         CLOSE_PLACED {
             @Override public boolean isPending() { return true; }
             @Override public Boolean isOpen() { return false; }
-            @Override public void checkState(BiAlgoData biAlgoData) {
-                checkPlacedState(biAlgoData, CLOSE, SOME_CLOSE, false);
-            }
+            @Override public void checkState(BiAlgoData biAlgoData) { checkPlacedState(biAlgoData, CLOSE, SOME_CLOSE, false); }
         },
         SOME_CLOSE {
             @Override public boolean isPending() { return true; }
             @Override public Boolean isOpen() { return false; }
-            @Override public void checkState(BiAlgoData biAlgoData) {
-                checkSomeDone(biAlgoData, CLOSE, false);
-            }
+            @Override public void checkState(BiAlgoData biAlgoData) { checkSomeDone(biAlgoData, CLOSE, false); }
         },
         CLOSE,
         CANCEL,
-        ERROR;
+        ERROR {
+            @Override public void checkState(BiAlgoData biAlgoData) { /*noop*/ }
+        };
 
         private static void checkSomeDone(BiAlgoData biAlgoData, BiAlgoState filledState, boolean opening) {
             OrderDataExchange ode1 = opening ? biAlgoData.m_openOde1 : biAlgoData.m_closeOde1;

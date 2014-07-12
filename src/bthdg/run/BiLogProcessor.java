@@ -94,15 +94,16 @@ public class BiLogProcessor {
                     if (line.contains("diffDiff=")) {
                         state = tryPair(line);
                     } else {
-                        if(!line.contains("SocketTimeoutException")
-                                && !line.contains("SocketException")
-                                && !line.contains("UnknownHostException")
-                                && !line.contains(".parseDeep()")
-                                && !line.contains("\tat ")
-                                && !line.contains("Unexpected token END OF FILE")
-                                && line.length() > 0) {
-                            System.out.println("waiting top but got: " + line);
-                        }
+                        state = tryIterationTook(line);
+//                        if(!line.contains("SocketTimeoutException")
+//                                && !line.contains("SocketException")
+//                                && !line.contains("UnknownHostException")
+//                                && !line.contains(".parseDeep()")
+//                                && !line.contains("\tat ")
+//                                && !line.contains("Unexpected token END OF FILE")
+//                                && line.length() > 0) {
+//                            System.out.println("waiting top but got: " + line);
+//                        }
                     }
                 }
                 return state;
@@ -112,22 +113,22 @@ public class BiLogProcessor {
             @Override public State process(String line) {
                 State state = tryPair(line);
                 if(state == null) {
-                    if( s_lastPair != null ) { // we have pair line matched
-                        BiLogData lastPairStart = s_starts.get(s_lastPair);
-                        state = (lastPairStart == null) ? tryOpen(line) : tryClose(line); // try OPEN/CLOSE
-                    }
-                    if(state == null) {
+//                    if( s_lastPair != null ) { // we have pair line matched
+//                        BiLogData lastPairStart = s_starts.get(s_lastPair);
+//                        state = (lastPairStart == null) ? tryOpen(line) : tryClose(line); // try OPEN/CLOSE
+//                    }
+//                    if(state == null) {
                         state = tryIterationTook(line);
-                        if(state == null) {
-                            if(!line.contains(", midMid=")
-                                    && !line.contains("iteration took")
-                                    && !line.contains("%%%%%%")) {
-                                System.out.println("nothing in context of PAIR for line: " + line);
-                            }
-                        } else {
-                            s_lastPair = null; // pair line and no OPEN/CLOSE processed
-                        }
-                    }
+//                        if(state == null) {
+//                            if(!line.contains(", midMid=")
+//                                    && !line.contains("iteration took")
+//                                    && !line.contains("%%%%%%")) {
+//                                System.out.println("nothing in context of PAIR for line: " + line);
+//                            }
+//                        } else {
+//                            s_lastPair = null; // pair line and no OPEN/CLOSE processed
+//                        }
+//                    }
                 }
                 return state;
             }
@@ -192,13 +193,13 @@ public class BiLogProcessor {
                 }
 
                 s_pairs.put(pair, new PairData(pair, diffStr, avgDiffStr, diffDiffStr, bidAskDiffStr));
-                s_lastPair = pair;
+//                s_lastPair = pair;
 
                 return PAIR;
             }
-            if(line.contains("bidAskDiff=")) {
-                System.out.println("non matched PAIR line: " + line);
-            }
+//            if(line.contains("bidAskDiff=")) {
+//                System.out.println("non matched PAIR line: " + line);
+//            }
             return null;
         }
 

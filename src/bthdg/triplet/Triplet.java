@@ -40,12 +40,12 @@ import java.util.*;
 public class Triplet {
     private enum Preset {
         BTCE{
-            @Override void apply() {
+            @Override void apply(Properties keys) {
                 Triplet.s_exchange = Exchange.BTCE;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 7;
                 Triplet.START_TRIANGLES_PER_ITERATION = 2;
-                Triplet.LVL_PLUS = 0.10; // min target level plus
-                Triplet.WAIT_MKT_ORDER_STEPS = 1;
+                Triplet.LVL_PLUS = Double.parseDouble(keys.getProperty("btce.lvl_plus"));; // min target level plus
+                Triplet.WAIT_MKT_ORDER_STEPS = 2;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%
                 Triplet.MKT_OFFSET_LEVEL_DELTA = 0.11;
@@ -93,11 +93,11 @@ public class Triplet {
             }
         },
         BTCN {
-            @Override void apply() {
+            @Override void apply(Properties keys) {
                 Triplet.s_exchange = Exchange.BTCN;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 3;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
-                Triplet.LVL_PLUS = 0.08; // min target level plus
+                Triplet.LVL_PLUS = Double.parseDouble(keys.getProperty("btcn.lvl_plus"));; // min target level plus
                 Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
@@ -107,7 +107,7 @@ public class Triplet {
                 Triplet.PREFER_LIQUID_PAIRS = false; // prefer start from LTC_BTC, BTC_USD, LTC_USD
                 Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
                 Triplet.LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
-                Triplet.USE_DEEP = false;
+                Triplet.USE_DEEP = true;
 
                 Triplet.PAIRS = new Pair[]{Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH};
 
@@ -117,7 +117,7 @@ public class Triplet {
             }
         };
 
-        void apply(){}
+        void apply(Properties keys){}
     }
 
     public static Preset PRESET;
@@ -125,7 +125,6 @@ public class Triplet {
     public static int NUMBER_OF_ACTIVE_TRIANGLES = 7;
     public static int START_TRIANGLES_PER_ITERATION = 3;
 
-    public static double LVL = 100.602408; // commission level - note - complex percents here
     public static double LVL_PLUS = 0.014; // min target level plus
     public static final double LVL_INCREASE_RATE = 0.3;
     public static final double LVL_DECREASE_RATE = 0.2;
@@ -181,6 +180,7 @@ public class Triplet {
     public static Map<Currency,Double> s_startValuate = new HashMap<Currency, Double>();
     static boolean s_stopRequested;
     static int s_notEnoughFundsCounter;
+    static long s_start;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -196,7 +196,8 @@ public class Triplet {
         Btce.BTCE_DEEP_ORDERS_IN_REQUEST = LOAD_ORDERS_NUM;
 
         try {
-            applyPresets(args);
+            Properties keys = BaseExch.loadKeys();
+            applyPresets(args, keys);
 
             if (TRY_WITH_MKT_OFFSET && (WAIT_MKT_ORDER_STEPS < 1)) {
                 System.out.println("WARNING: TRY_WITH_MKT_OFFSET used but WAIT_MKT_ORDER_STEPS=" + WAIT_MKT_ORDER_STEPS);
@@ -210,15 +211,15 @@ public class Triplet {
 
             try {
                 TopsData tops = null;
-                AccountData account = init(tAgg);
+                AccountData account = init(tAgg, keys);
 
-                long start = System.currentTimeMillis();
+                s_start = System.currentTimeMillis();
                 int counter = 1;
                 TriTradesData td = new TriTradesData(account);
                 while (true) {
                     log("============================================== iteration " + (counter++) +
                             "; active " + td.m_triTrades.size() +
-                            "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - start) +
+                            "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - s_start) +
                             "; date=" + new Date() );
                     IterationData iData = new IterationData(tAgg, tops);
                     td.checkState(iData); // <<---------------------------------------------------------------------<<
@@ -263,7 +264,7 @@ public class Triplet {
         }
     }
 
-    private static void applyPresets(String[] args) {
+    private static void applyPresets(String[] args, Properties keys) {
         if (args.length == 0) {
             PRESET = Preset.BTCE; // use btce by def
         } else {
@@ -284,7 +285,7 @@ public class Triplet {
                     throw new RuntimeException("exchange '" + name + "' not supported by Triplet");
             }
         }
-        PRESET.apply();
+        PRESET.apply(keys);
     }
 
     private static AccountData syncAccountIfNeeded(AccountData account) throws Exception {
@@ -303,8 +304,7 @@ public class Triplet {
         return account;
     }
 
-    private static AccountData init(TradesAggregator tAgg) throws Exception {
-        Properties keys = BaseExch.loadKeys();
+    private static AccountData init(TradesAggregator tAgg, Properties keys) throws Exception {
         Btce.init(keys);
         Btcn.init(keys);
 
@@ -335,6 +335,10 @@ public class Triplet {
     }
 
     public static String valuateStr(AccountData account, TopsData tops) {
+        long millis = System.currentTimeMillis();
+        long takes = millis - s_start;
+        long pow = Utils.ONE_DAY_IN_MILLIS / takes;
+
         StringBuffer buf = new StringBuffer();
         for (Currency currency : VALUATE_CURRENCIES) {
             if (s_exchange.supportsCurrency(currency)) {
@@ -343,7 +347,10 @@ public class Triplet {
                 double rate = valuate / startValuate;
                 double valuateSleep = s_startAccount.evaluate(tops, currency, s_exchange);
                 double rateSleep = valuateSleep / startValuate;
-                String result = "; valuate" + Utils.capitalize(currency.m_name) + "=" + Utils.format5(rate) + " (" + Utils.format5(rateSleep) + ")";
+                double r = valuate / valuateSleep;
+                double d = Math.pow(r, pow);
+                String result = "; valuate" + Utils.capitalize(currency.m_name) + "=" + Utils.format5(rate) + " (" + Utils.format5(rateSleep) + ") " +
+                        Utils.format5(r) + " " + Utils.format5(d) + "/d";
                 buf.append(result);
             }
         }

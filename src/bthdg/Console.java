@@ -28,6 +28,7 @@ public class Console {
             Btce.init(keys);
             OkCoin.init(keys);
             Btcn.init(keys);
+            Huobi.init(keys);
 
             new ConsoleReader() {
                 @Override protected void beforeLine() {

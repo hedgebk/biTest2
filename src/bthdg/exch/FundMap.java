@@ -49,30 +49,30 @@ public class FundMap {
 
         System.out.println("from=" + from);
         double fromValueHave = account.getAllValue(from);
-        System.out.println(" fromValueHave=" + fromValueHave + " " + from);
         Double fromWeight = distributeRatio.get(from);
-        System.out.println(" fromWeight=" + fromWeight);
         double fromValuate = valuateMap.get(from);
-        System.out.println(" fromValuate=" + fromValuate + " " + from);
         double fromExpected = fromWeight * fromValuate;
-        System.out.println(" fromExpected=" + fromExpected + " " + from);
         double fromExtra = fromValueHave - fromExpected;
-        System.out.println(" fromExtra=" + fromExtra + " " + from);
+        System.out.println(" ValueHave=" + fromValueHave + " " + from +
+                "; Weight=" + fromWeight +
+                "; Valuate=" + fromValuate + " " + from +
+                "; Expected=" + fromExpected + " " + from +
+                "; Extra=" + fromExtra + " " + from);
         if (fromExtra > 0) {
             double fromExtraConverted = tops.convert(from, to, fromExtra, exchange);
-            System.out.println(" fromExtraConverted=" + fromExtraConverted + " " + to);
+            System.out.println(" ExtraConverted=" + fromExtraConverted + " " + to);
 
             System.out.println("to=" + to);
             double toValueHave = account.getAllValue(to);
-            System.out.println(" toValueHave=" + toValueHave + " " + to);
             Double toWeight = distributeRatio.get(to);
-            System.out.println(" toWeight=" + toWeight);
             double toValuate = valuateMap.get(to);
-            System.out.println(" toValuate=" + toValuate + " " + to);
             double toExpected = toWeight * toValuate;
-            System.out.println(" toExpected=" + toExpected + " " + to);
             double toNeed = toExpected - toValueHave;
-            System.out.println(" toNeed=" + toNeed + " " + to);
+            System.out.println(" ValueHave=" + toValueHave + " " + to +
+                    " Weight=" + toWeight +
+                    " Valuate=" + toValuate + " " + to +
+                    " Expected=" + toExpected + " " + to  +
+                    " Need=" + toNeed + " " + to);
 
             if (toNeed > 0) {
                 double amount = Math.min(fromExtraConverted, toNeed);

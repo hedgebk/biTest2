@@ -128,7 +128,7 @@ public enum Exchange {
         @Override public void init(Properties keys) { Huobi.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
-        @Override public DeepData parseDeep(Object jObj, Pair pair) { return Huobi.parseDeep(jObj); }
+        @Override public DeepData parseDeep(Object jObj, Pair pair) { return Huobi.parseDeep(jObj, pair); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return Huobi.parseAccount(jObj); }

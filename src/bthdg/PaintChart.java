@@ -22,9 +22,9 @@ import java.util.Map;
 // - CALC COMMISSION BASED ON each TRADE - not by average trade price
 // - check fading moving average
 public class PaintChart extends BaseChartPaint {
-    private static VaryProfile PROFILE = null;
+//    private static VaryProfile PROFILE = null;
 //    private static VaryProfile PROFILE = VaryProfile.NONE;
-//    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_1;
+    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_1;
 //    private static VaryProfile PROFILE = VaryProfile.DROP;
 //    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_2;
 
@@ -799,7 +799,7 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      132 * 60 + 12, 9.225, -0.05 ),
         BTCE_ITBIT(Exchange.BTCE, Exchange.ITBIT,              310 * 60 + 7,  3.825,  0.195 ),
 
-        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,              3 * 60 + 19, 0.775,   -0.165 ),
+        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,             10 * 60 + 51, 1.234, -0.165 ),
         ;
 
         public final Exchange m_exch1;

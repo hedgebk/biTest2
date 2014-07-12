@@ -87,8 +87,9 @@ public abstract class BaseExch {
     public List<Post.NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {return null;};
     public Map<String, String> getHeaders(String postData) throws Exception { return new HashMap<String, String>(); }
     protected static void log(String s) { Log.log(s); }
-
+    protected static void err(String s, Exception e) { Log.err(s, e); }
     public static void initSsl() throws NoSuchAlgorithmException, KeyManagementException {
+
         if(!Config.s_runOnServer && !s_sslInitialized) {
             // btce ssl certificate fix
             X509TrustManager tm = new X509TrustManager() {

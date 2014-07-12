@@ -56,7 +56,7 @@ public class OkCoin extends BaseExch {
         add(10001, "Requests are too frequent");
         add(10002, "System Error");
         add(10003, "Restricted list request, please try again later");
-        add(10004, "IP restriction");
+        add(10004, "IP restriction. not request the resource");
         add(10005, "Key does not exist");
         add(10006, "User does not exist");
         add(10007, "Signatures do not match");
@@ -66,6 +66,8 @@ public class OkCoin extends BaseExch {
         add(10011, "Order is less than minimum trade amount");
         add(10012, "Unsupported symbol (not btc_cny or ltc_cny)");
         add(10013, "This interface only accepts https requests");
+        add(10014, "Single price shall ≤ 0 or ≥ 1000000");
+        add(10015, "Single price and the latest transaction price deviation is too large");
     }
 
     private static void add(long code, String str) {
@@ -281,9 +283,9 @@ public class OkCoin extends BaseExch {
             long orderId = Utils.getLong(jObj.get("order_id"));
             return new PlaceOrderData(orderId);
         } else {
-            Long error = (Long) jObj.get("errorCode");
-            String desr = ERROR_CODES.get(error);
-            log(" error: " + error + ": " + desr);            return new PlaceOrderData(error); // order is not placed
+            String msg = parseError(jObj);
+            log(msg);
+            return new PlaceOrderData(msg); // order is not placed
         }
     }
 
@@ -366,9 +368,9 @@ public class OkCoin extends BaseExch {
             }
             return new OrdersData(ords);
         } else {
-            String error = Utils.getString(jObj.get("errorCode"));
-            log(" error: " + error);
-            return new OrdersData(error); // orders error
+            String msg = parseError(jObj);
+            log(msg);
+            return new OrdersData(msg); // orders error
         }
     }
 
@@ -379,15 +381,28 @@ public class OkCoin extends BaseExch {
         if (LOG_PARSE) {
             log("OkCoin.parseCancelOrders() " + jObj);
         }
-        Boolean result = (Boolean) jObj.get("result");
-        if( result ) {
-            String orderId = Utils.getString(jObj.get("order_id"));
-            return new CancelOrderData(orderId, null);
-        } else {
-            String error = (String) jObj.get("errorCode");
-            log(" error: " + error);
-            return new CancelOrderData(error); // TODO - we have 'invalid parameter: order_id' here
+        try {
+            Boolean result = (Boolean) jObj.get("result");
+            if( result ) {
+                String orderId = Utils.getString(jObj.get("order_id"));
+                return new CancelOrderData(orderId, null);
+            } else { // we may try to cancel already filled order
+                String msg = parseError(jObj);
+                log(msg);
+                return new CancelOrderData(msg);
+            }
+        } catch (Exception e) {
+            String msg = "OkCoin.parseCancelOrders error: " + e;
+            err(msg, e);
+            log(" jObj=" + jObj);
+            return new CancelOrderData(msg);
         }
+    }
+
+    private static String parseError(JSONObject jObj) {
+        Long errorCode = Utils.getLong(jObj.get("errorCode"));
+        String error = ERROR_CODES.get(errorCode);
+        return "errorCode: " + errorCode + ": " + error;
     }
 
     /*String url = " https://www.okcoin.com/api/trade.do";

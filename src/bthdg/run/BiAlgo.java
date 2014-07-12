@@ -17,18 +17,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   - fold all if no inet connection; restart fine on connectivity
  */
 class BiAlgo implements Runner.IAlgo {
-    private static final double START_LEVEL = 0.0001;
     private static final long MOVING_AVERAGE = Utils.toMillis(3, 19); // TODO: make exchange_pair dependent
     private static final long MIN_ITERATION_TIME = 2500;
     private static final double USE_ACCT_FUNDS = 0.95;
-    public static final int CANCEL_DEEP_PRICE_INDEX = 9;
     public static final int MAX_TRADES_PER_ITERATION = 1;
-    public static final int MAX_LIVE_PER_DIRECTION = 4;
+    public static final int MAX_LIVE_PER_DIRECTION = 6;
+    private static double START_LEVEL;
+    public static int CANCEL_DEEP_PRICE_INDEX;
 
     private final Pair PAIR = Pair.BTC_CNH;
     private final Exchange[] ALL_EXCHANGES = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN/*, Exchange.HUOBI*/};
     private final Exchange[] TRADE_EXCHANGES = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN};
 
+    private long m_startMillis;
     private List<ExchangesPair> m_exchPairs = mkExchPairs();
     private List<ExchangesPairData> m_exchPairsDatas = mkExchPairsDatas();
     MdStorage m_mdStorage = new MdStorage();
@@ -68,11 +69,11 @@ class BiAlgo implements Runner.IAlgo {
     private void runAlgoInt() {
         try {
             runInit();
-            long start = System.currentTimeMillis();
+            m_startMillis = System.currentTimeMillis();
             int iterationCount = 0;
             while (true) {
                 long millis = System.currentTimeMillis();
-                log("iteration " + iterationCount + " -------------------------------------------- elapsed: " + Utils.millisToDHMSStr(millis - start));
+                log("iteration " + iterationCount + " -------------------------------------------- elapsed: " + Utils.millisToDHMSStr(millis - m_startMillis));
                 IterationHolder ih = new IterationHolder(iterationCount);
                 runIteration(ih);
                 sleepIfNeeded(millis);
@@ -90,11 +91,16 @@ class BiAlgo implements Runner.IAlgo {
     }
 
     private void runInit() throws Exception {
+        final Properties keys = BaseExch.loadKeys();
+        START_LEVEL = Double.parseDouble(keys.getProperty("bialgo.start_level"));
+        CANCEL_DEEP_PRICE_INDEX = Integer.parseInt(keys.getProperty("bialgo.cancel_deep_price_index"));
+
+        log(" date=" + new Date() + "; START_LEVEL=" + Utils.format5(START_LEVEL));
+
         final Currency currency1 = PAIR.m_from;
         final Currency currency2 = PAIR.m_to;
-        doInParallel("getAccountData", new IExchangeRunnable() {
+        doInParallel("getAccountInit", new IExchangeRunnable() {
             @Override public void run(Exchange exchange) throws Exception {
-                Properties keys = BaseExch.loadKeys();
                 exchange.init(keys);
                 AccountData accountData = Fetcher.fetchAccount(exchange);
                 m_accountMap.put(exchange, accountData);
@@ -158,6 +164,16 @@ class BiAlgo implements Runner.IAlgo {
         log(" ALL: evaluate" + Utils.capitalize(currency1.m_name) + ": " + Utils.format5(totalStart1) + " -> " + Utils.format5(totalEvaluate1) + " (" + Utils.format5(totalSleep1) + ")" +
                 "; evaluate" + Utils.capitalize(currency2.m_name) + ": " + Utils.format5(totalStart2) + " -> " + Utils.format5(totalEvaluate2) + " (" + Utils.format5(totalSleep2) + ")"
         );
+        double ratio1 = totalEvaluate1 / totalSleep1;
+        double ratio2 = totalEvaluate2 / totalSleep2;
+        long millis = System.currentTimeMillis();
+        long takes = millis - m_startMillis;
+        long pow = Utils.ONE_DAY_IN_MILLIS / takes;
+        double d1 = Math.pow(ratio1, pow);
+        double d2 = Math.pow(ratio2, pow);
+        log("  ratio" + Utils.capitalize(currency1.m_name) + ": " + Utils.format5(ratio1) + " -> " + Utils.format5(d1) + "/d" +
+            "; ratio" + Utils.capitalize(currency2.m_name) + ": " + Utils.format5(ratio2) + " -> " + Utils.format5(d2) + "/d"
+        );
     }
 
     private double evalAllExchStart(Currency currency) {
@@ -213,7 +229,9 @@ class BiAlgo implements Runner.IAlgo {
         }
     }
 
-    private List<AtomicBoolean> runBfrMkt(IterationHolder ih, BiAlgo biAlgo) {
+    private List<AtomicBoolean> runBfrMkt(IterationHolder ih, BiAlgo biAlgo) throws InterruptedException {
+        syncFundsIfNeeded();
+
         List<AtomicBoolean> ret = null;
         for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
             try {
@@ -227,6 +245,29 @@ class BiAlgo implements Runner.IAlgo {
         return ret;
     }
 
+    private void syncFundsIfNeeded() throws InterruptedException {
+        if (s_notEnoughFundsCounter > 2) {
+            log("notEnoughFundsCounter=" + s_notEnoughFundsCounter + ", try sync accounts");
+            for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
+                OrderData orderData = exchPairsData.getFirstActiveLive();
+                if (orderData != null) {
+                    log(" got active live - skip sync accounts: " + orderData);
+                    return;
+                }
+            }
+            doInParallel("SyncAccount", new IExchangeRunnable() {
+                @Override public void run(Exchange exchange) throws Exception {
+                    AccountData current = m_accountMap.get(exchange);
+                    log("Sync account(" + exchange.m_name + "): " + current);
+                    AccountData accountData = Fetcher.fetchAccount(exchange);
+                    m_accountMap.put(exchange, accountData);
+                    log("Synced account(" + exchange.m_name + "): " + accountData );
+                }
+            });
+            s_notEnoughFundsCounter = 0;
+        }
+    }
+
     private void runForPairs(IterationHolder ih) {
         for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
             try {
@@ -236,7 +277,6 @@ class BiAlgo implements Runner.IAlgo {
             }
         }
     }
-
 
     private void logIterationEnd() {
         for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
@@ -380,6 +420,8 @@ class BiAlgo implements Runner.IAlgo {
         private final boolean m_doTrade;
         private final Utils.AverageCounter m_diffAverageCounter;
         private final List<BiAlgoData> m_live = new ArrayList<BiAlgoData>();
+        private int m_runs;
+        private double m_balanceSum;
 
         public String name() { return m_exchangesPair.name(); }
 
@@ -416,10 +458,34 @@ class BiAlgo implements Runner.IAlgo {
             BiPoint mktPoint = new BiPoint(mdPoint1, mdPoint2, avgDiff, diffDiff, bidAskDiff);
 
             checkLiveForEnd(ih, mktPoint);
-
             checkForNew(ih, mktPoint);
-
             checkIfFarFromMarket();
+            checkError();
+        }
+
+        private void checkError() throws Exception {
+            List<BiAlgoData> toRemove = null;
+            for (BiAlgoData data : m_live) {
+                BiAlgoData.BiAlgoState state = data.m_state;
+                if (state == BiAlgoData.BiAlgoState.ERROR) {
+                    data.log("Error state, need cancel: " + data);
+                    boolean cancelled = data.cancel();
+                    data.log(" cancelled: " + cancelled);
+                    if (cancelled) {
+                        if (toRemove == null) {
+                            toRemove = new ArrayList<BiAlgoData>();
+                        }
+                        toRemove.add(data);
+                    } else {
+                        log(name() + "  error: not cancelled: " + data);
+                    }
+                }
+            }
+            if (toRemove != null) {
+                log(name() + "  toRemove: " + toRemove);
+                m_live.removeAll(toRemove);
+                log(name() + "   remained live: " + m_live);
+            }
         }
 
         private void checkIfFarFromMarket() throws Exception {
@@ -666,7 +732,7 @@ class BiAlgo implements Runner.IAlgo {
                         boolean ok = data.cancel();
                         log(name() + "   cancel res: " + ok);
                         if (ok) {
-                            m_live.remove(this);
+                            m_live.remove(data);
                             log(name() + "   remained live: " + m_live);
                         }
                     }
@@ -721,12 +787,19 @@ class BiAlgo implements Runner.IAlgo {
             double minAvailable = Math.min(available1, available2);
             log("minAvailable=" + minAvailable);
 
-            double amount = Math.min(minMktSize, minAvailable * USE_ACCT_FUNDS);
-            log("amount for order=" + amount + " " + baseCurrency);
-
             double minOrderToCreate1 = exchange1.minOrderToCreate(PAIR);
             double minOrderToCreate2 = exchange2.minOrderToCreate(PAIR);
-            log("minOrderToCreate1=" + minOrderToCreate1 + ";   minOrderToCreate2=" + minOrderToCreate2);
+            double minOrderToCreate = Math.max(minOrderToCreate1, minOrderToCreate2);
+            log("minOrderToCreate1=" + minOrderToCreate1 + ";   minOrderToCreate2=" + minOrderToCreate2 + "; max=" + minOrderToCreate);
+
+            double mktSize = minMktSize;
+            if (minMktSize < minOrderToCreate) {
+                log(" mktSize adjusted from minMktSize=" + minMktSize + " to minOrderToCreate=" + minOrderToCreate);
+                mktSize = minOrderToCreate;
+            }
+
+            double amount = Math.min(mktSize, minAvailable * USE_ACCT_FUNDS);
+            log("amount for order=" + amount + " " + baseCurrency);
 
             if (amount >= minOrderToCreate1) {
                 if (amount >= minOrderToCreate2) {
@@ -774,11 +847,9 @@ log("FOR NOW amount HACKED to=" + amount);
             List<AtomicBoolean> ret = null;
             for (BiAlgoData data : m_live) {
                 data.log(name() + " live: " + data);
-                BiAlgoData.BiAlgoState state = data.m_state;
-                if (state.isPending()) { // need to check order state
-                    AtomicBoolean stat = data.checkLiveOrderState(ih, biAlgo);
-                    ret = Sync.addSync(ret, stat);
-                }
+                // need to check order state
+                AtomicBoolean stat = data.checkLiveOrderState(ih, biAlgo);
+                ret = Sync.addSync(ret, stat);
             }
             AtomicBoolean out = null;
             if (ret != null) {
@@ -796,12 +867,13 @@ log("FOR NOW amount HACKED to=" + amount);
                     for (BiAlgoData data : m_live) {
                         BiAlgoData.BiAlgoState state = data.m_state;
                         if (state == BiAlgoData.BiAlgoState.CLOSE) {
+                            m_runs++;
                             data.log(name() + " reached CLOSE - to remove from live: " + data);
                             if (toRemove == null) {
                                 toRemove = new ArrayList<BiAlgoData>();
                             }
                             toRemove.add(data);
-                            logBalance(data);
+                            logTradeBalance(data);
                         }
                     }
                     if (toRemove != null) {
@@ -815,7 +887,7 @@ log("FOR NOW amount HACKED to=" + amount);
             return finalOut;
         }
 
-        private void logBalance(BiAlgoData data) {
+        private void logTradeBalance(BiAlgoData data) {
             double balance1o = data.m_openOde1.getBalance();
             double balance1c = data.m_closeOde1.getBalance();
             double balance1 = balance1o + balance1c;
@@ -823,10 +895,12 @@ log("FOR NOW amount HACKED to=" + amount);
             double balance2c = data.m_closeOde2.getBalance();
             double balance2 = balance2o + balance2c;
             double balance = balance1 + balance2;
+            m_balanceSum += balance;
             data.log(name() +
-                    " balance1=" + balance1o + "+" + balance1c + "=" + balance1 +
+                    " runs=" + m_runs +
+                    "; balance1=" + balance1o + "+" + balance1c + "=" + balance1 +
                     "; balance2=" + balance2o + "+" + balance2c + "=" + balance2 +
-                    "; total balance=" + balance
+                    "; total balance=" + balance + "; balance sum=" + m_balanceSum
             );
             BiAlgo.this.logBalance();
         }
@@ -861,6 +935,13 @@ log("FOR NOW amount HACKED to=" + amount);
                 m_live.removeAll(cancelled);
                 log(name() + "   remained live: " + m_live);
             }
+        }
+
+        public OrderData getFirstActiveLive() {
+            for(BiAlgoData live : m_live) {
+                return live.getFirstActiveLive();
+            }
+            return null;
         }
     }
 
