@@ -97,7 +97,7 @@ public class Triplet {
                 Triplet.s_exchange = Exchange.BTCN;
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 3;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
-                Triplet.LVL_PLUS = Double.parseDouble(keys.getProperty("btcn.lvl_plus"));; // min target level plus
+                Triplet.LVL_PLUS = Double.parseDouble(keys.getProperty("btcn.lvl_plus")); // min target level plus
                 Triplet.WAIT_MKT_ORDER_STEPS = 1;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
@@ -107,7 +107,7 @@ public class Triplet {
                 Triplet.PREFER_LIQUID_PAIRS = false; // prefer start from LTC_BTC, BTC_USD, LTC_USD
                 Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
                 Triplet.LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
-                Triplet.USE_DEEP = true;
+                Triplet.USE_DEEP = false; // all deeps in ano cell is not supported - need to make per-pair calls
 
                 Triplet.PAIRS = new Pair[]{Pair.LTC_BTC, Pair.BTC_CNH, Pair.LTC_CNH};
 

@@ -8,6 +8,7 @@ import org.json.simple.parser.ParseException;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSession;
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -387,7 +388,7 @@ public class Fetcher {
                 }
                 return obj;
             } catch (Exception e) {
-                if (!MUTE_SOCKET_TIMEOUTS || !(e instanceof SocketTimeoutException)) {
+                if (!(MUTE_SOCKET_TIMEOUTS && ((e instanceof SocketTimeoutException) || (e instanceof SSLHandshakeException)))) {
                     log(" loading error (attempt " + attempt + ", currentDelay=" + delay + "ms): " + e);
                     e.printStackTrace();
                 }

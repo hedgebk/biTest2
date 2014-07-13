@@ -784,7 +784,7 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_BTCE(Exchange.BITSTAMP, Exchange.BTCE,         89 * 60 + 39, 1.858, -0.051),
         BITSTAMP_CAMPBX(Exchange.BITSTAMP, Exchange.CAMPBX,     51 * 60 + 51, 1.175,  0.805),
 
-        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,          9 * 60 + 2,  1.255,  1.475),
+        BTCE_BITFINEX(Exchange.BTCE, Exchange.BITFINEX,          8 * 60 + 34, 2.055,  1.475),
         BITSTAMP_BITFINEX(Exchange.BITSTAMP, Exchange.BITFINEX, 74 * 60 + 17, 6.63,  -0.215),
 
         BITSTAMP_HITBTC(Exchange.BITSTAMP, Exchange.HITBTC,     14 * 60 + 39, 0.425,  1.035 ),
@@ -799,7 +799,7 @@ public class PaintChart extends BaseChartPaint {
         BITSTAMP_ITBIT(Exchange.BITSTAMP, Exchange.ITBIT,      132 * 60 + 12, 9.225, -0.05 ),
         BTCE_ITBIT(Exchange.BTCE, Exchange.ITBIT,              310 * 60 + 7,  3.825,  0.195 ),
 
-        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,             10 * 60 + 51, 1.234, -0.165 ),
+        BTCN_OKCOIN(Exchange.BTCN, Exchange.OKCOIN,              2 * 60 + 43, 0.984, -0.165 ),
         ;
 
         public final Exchange m_exch1;

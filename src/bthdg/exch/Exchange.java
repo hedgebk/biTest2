@@ -123,8 +123,10 @@ public enum Exchange {
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
            null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",
-           null, new UrlDef("https://api.huobi.com/api.php"),
-           null, null, null) {
+           null, new UrlDef("https://api.huobi.com/apiv2.php"),
+           new UrlDef("https://api.huobi.com/api.php"),
+           new UrlDef("https://api.huobi.com/api.php"),
+           new UrlDef("https://api.huobi.com/api.php")) {
         @Override public void init(Properties keys) { Huobi.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
@@ -132,6 +134,8 @@ public enum Exchange {
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return Huobi.parseAccount(jObj); }
+        @Override public OrdersData parseOrders(Object jObj) { return Huobi.parseOrders(jObj); }
+        @Override public PlaceOrderData parseOrder(Object jObj) { return Huobi.parseOrder(jObj); }
     },
     BTER("Bter", null, "", 12, 0.00001, false,       // https://bter.com/api
            null, null, // XXXX like "btc"

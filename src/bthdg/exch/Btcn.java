@@ -72,9 +72,9 @@ public class Btcn extends BaseExch {
 
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
-        distributeRatio.put(Currency.BTC, 0.4);
-        distributeRatio.put(Currency.CNH, 0.4);
-        distributeRatio.put(Currency.LTC, 0.2);
+        distributeRatio.put(Currency.BTC, 0.33);
+        distributeRatio.put(Currency.CNH, 0.34);
+        distributeRatio.put(Currency.LTC, 0.33);
         FundMap.s_map.put(Exchange.BTCN, distributeRatio);
     }
 
@@ -264,7 +264,7 @@ public class Btcn extends BaseExch {
             case ORDERS: {
 //                Name 	   Value   Required Description
 //                openonly 	boolean 	NO 	Default is 'true'. Only open orders are returned.
-//                market 	string 	    NO 	Default to �BTCCNY�. [ BTCCNY | LTCCNY | LTCBTC | ALL]
+//                market 	string 	    NO 	Default to 'BTCCNY'. [ BTCCNY | LTCCNY | LTCBTC | ALL]
 //                limit 	integer 	NO 	Limit the number of transactions, default value is 1000.
 //                offset 	integer 	NO 	Start index used for pagination, default value is 0.
 //                {"method":"getOrders","params":[],"id":1}
@@ -277,7 +277,7 @@ public class Btcn extends BaseExch {
             case CANCEL: {
 //                Name 	    Value 	Required 	Description
 //                id 	    number 	YES 	    The order id to cancel.
-//                market 	string 	NO      	Default to �BTCCNY�. [ BTCCNY | LTCCNY | LTCBTC ]
+//                market 	string 	NO      	Default to 'BTCCNY'. [ BTCCNY | LTCCNY | LTCBTC ]
                 Pair pair = options.getPair();
                 String orderId = options.getOrderId();
                 String nonce = getNextNonce();

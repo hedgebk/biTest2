@@ -1,5 +1,7 @@
 package bthdg.exch;
 
+import java.util.Arrays;
+
 public enum Currency {
     USD("usd"),
     BTC("btc"),
@@ -28,7 +30,7 @@ public enum Currency {
                 return curr;
             }
         }
-        throw new RuntimeException("non supported Currency '" + str + "'");
+        throw new RuntimeException("non supported Currency '" + str + "'. supported: " + Arrays.toString(values()) );
     }
 
 }
