@@ -17,17 +17,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   - fold all if no inet connection; restart fine on connectivity
  */
 class BiAlgo implements Runner.IAlgo {
-    private static final long MOVING_AVERAGE = Utils.toMillis(3, 19); // TODO: make exchange_pair dependent
-    private static final long MIN_ITERATION_TIME = 2500;
+    private static final long MOVING_AVERAGE = Utils.toMillis(4, 19); // TODO: make exchange_pair dependent
+    private static final long MIN_ITERATION_TIME = 3000;
     private static final double USE_ACCT_FUNDS = 0.95;
     public static final int MAX_TRADES_PER_ITERATION = 1;
-    public static final int MAX_LIVE_PER_DIRECTION = 6;
+    public static final int MAX_LIVE_PER_DIRECTION = 3;
     private static double START_LEVEL;
     public static int CANCEL_DEEP_PRICE_INDEX;
 
     private final Pair PAIR = Pair.BTC_CNH;
-    private final Exchange[] ALL_EXCHANGES = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN/*, Exchange.HUOBI*/};
-    private final Exchange[] TRADE_EXCHANGES = new Exchange[] {Exchange.BTCN, Exchange.OKCOIN};
+    private final Exchange[] ALL_EXCHANGES = new Exchange[] {/*Exchange.BTCN, */Exchange.OKCOIN, Exchange.HUOBI};
+    private final Exchange[] TRADE_EXCHANGES = new Exchange[] {/*Exchange.BTCN, */Exchange.OKCOIN, Exchange.HUOBI};
 
     private long m_startMillis;
     private List<ExchangesPair> m_exchPairs = mkExchPairs();
@@ -907,7 +907,7 @@ log("FOR NOW amount HACKED to=" + amount);
 
         public void logIterationEnd() {
             if(!m_live.isEmpty()) {
-                log(name() + "   remained live: " + m_live);
+                log(name() + " logIterationEnd: remained live: " + m_live);
                 for(BiAlgoData live : m_live) {
                     live.logIterationEnd();
                 }

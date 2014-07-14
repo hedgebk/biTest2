@@ -45,7 +45,7 @@ public class Triplet {
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 7;
                 Triplet.START_TRIANGLES_PER_ITERATION = 2;
                 Triplet.LVL_PLUS = Double.parseDouble(keys.getProperty("btce.lvl_plus"));; // min target level plus
-                Triplet.WAIT_MKT_ORDER_STEPS = 2;
+                Triplet.WAIT_MKT_ORDER_STEPS = 3;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%
                 Triplet.MKT_OFFSET_LEVEL_DELTA = 0.11;
@@ -98,7 +98,7 @@ public class Triplet {
                 Triplet.NUMBER_OF_ACTIVE_TRIANGLES = 3;
                 Triplet.START_TRIANGLES_PER_ITERATION = 1;
                 Triplet.LVL_PLUS = Double.parseDouble(keys.getProperty("btcn.lvl_plus")); // min target level plus
-                Triplet.WAIT_MKT_ORDER_STEPS = 1;
+                Triplet.WAIT_MKT_ORDER_STEPS = 5;
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
                 Triplet.MKT_OFFSET_LEVEL_DELTA = 0.15;

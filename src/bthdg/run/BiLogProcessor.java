@@ -21,11 +21,11 @@ import java.util.regex.Pattern;
 public class BiLogProcessor {
     private static final String LOG_FILE = "logs\\runner.log";
 
-    public static final String EXCH1 = "BTCN";      // 5
-    public static final String EXCH2 = "OKCOIN";
+//    public static final String EXCH1 = "BTCN";      // 5
+//    public static final String EXCH2 = "OKCOIN";
 
-//    public static final String EXCH1 = "OKCOIN";    // 9.7
-//    public static final String EXCH2 = "HUOBI";
+    public static final String EXCH1 = "OKCOIN";    // 9.7
+    public static final String EXCH2 = "HUOBI";
 
 //    public static final String EXCH1 = "BTCN";        // 5.2
 //    public static final String EXCH2 = "HUOBI";
@@ -403,13 +403,13 @@ public class BiLogProcessor {
         double maxPriceDiff = priceDiffCalc.m_maxValue;
 
         PaintChart.ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        PaintChart.ChartAxe priceDiffAxe = new PaintChart.ChartAxe(minPriceDiff-5, maxPriceDiff, HEIGHT);
+        PaintChart.ChartAxe priceDiffAxe = new PaintChart.ChartAxe(minPriceDiff-4, maxPriceDiff, HEIGHT);
 
         // paint border
         g.setPaint(Color.black);
         g.drawRect(0, 0, WIDTH - 1, HEIGHT - 1);
 
-        int priceDiffStep = 5;
+        int priceDiffStep = 2;
         int priceDiffStart = ((int)minPriceDiff) / priceDiffStep * priceDiffStep;
 
         // paint left axe

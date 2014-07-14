@@ -258,8 +258,8 @@ public class AccountData {
                     double maxAbs = Math.max(Math.abs(value), Math.abs(other));
                     double ratio = diffAbs / maxAbs;
                     if (ratio > FUND_DIFF_RATIO) { // log if more that 1%
-                        s += " fund diff: " + curr + " " + value + " " + other + ", diffAbs=" + diffAbs +
-                                ", maxAbs=" + maxAbs + ", ratio=" + ratio + ";";
+                        s += " fund diff: " + curr + " " + value + " " + other + ", diffAbs=" + Utils.format8(diffAbs)
+                                + ", diffRatio=" + ratio + ";";
                         m_gotFundDiff = true;
                     }
                 }

@@ -47,7 +47,7 @@ public enum Exchange {
         @Override public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { return Btce.parseTrades(jObj, pairs); }
         @Override public AccountData parseAccount(Object jObj) { return Btce.parseAccount(jObj); }
         @Override public PlaceOrderData parseOrder(Object jObj) { return Btce.parseOrder(jObj); }
-        @Override public OrdersData parseOrders(Object jObj) { return Btce.parseOrders(jObj); }
+        @Override public OrdersData parseOrders(Object jObj, Pair pair) { return Btce.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btce.parseCancelOrders(jObj); }
         @Override public boolean retryFetch(Object obj) { return Btce.retryFetch(obj); }
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Btce.fixEndpointForPairs(m_apiTopEndpoint, options); }
@@ -92,7 +92,7 @@ public enum Exchange {
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Btcn.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return Btcn.parseAccount(jObj); }
         @Override public PlaceOrderData parseOrder(Object jObj) { return Btcn.parseOrder(jObj); }
-        @Override public OrdersData parseOrders(Object jObj) { return Btcn.parseOrders(jObj); }
+        @Override public OrdersData parseOrders(Object jObj, Pair pair) { return Btcn.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Btcn.parseCancelOrders(jObj); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
         @Override public boolean requirePairForCancel() { return true; }
@@ -113,7 +113,7 @@ public enum Exchange {
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return OkCoin.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return OkCoin.parseAccount(jObj); }
         @Override public PlaceOrderData parseOrder(Object jObj) { return OkCoin.parseOrder(jObj); }
-        @Override public OrdersData parseOrders(Object jObj) { return OkCoin.parseOrders(jObj); }
+        @Override public OrdersData parseOrders(Object jObj, Pair pair) { return OkCoin.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return OkCoin.parseCancelOrders(jObj); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
         @Override public boolean requirePairForOrders() { return true; }
@@ -124,9 +124,9 @@ public enum Exchange {
            null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",
            null, new UrlDef("https://api.huobi.com/apiv2.php"),
-           new UrlDef("https://api.huobi.com/api.php"),
-           new UrlDef("https://api.huobi.com/api.php"),
-           new UrlDef("https://api.huobi.com/api.php")) {
+           new UrlDef("https://api.huobi.com/apiv2.php"),
+           new UrlDef("https://api.huobi.com/apiv2.php"),
+           new UrlDef("https://api.huobi.com/apiv2.php")) {
         @Override public void init(Properties keys) { Huobi.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
@@ -134,8 +134,12 @@ public enum Exchange {
         @Override public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiTopEndpoint, options); }
         @Override public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return Huobi.fixEndpointForPairs(m_apiDeepEndpoint, options); }
         @Override public AccountData parseAccount(Object jObj) { return Huobi.parseAccount(jObj); }
-        @Override public OrdersData parseOrders(Object jObj) { return Huobi.parseOrders(jObj); }
+        @Override public OrdersData parseOrders(Object jObj, Pair pair) { return Huobi.parseOrders(jObj, pair); }
         @Override public PlaceOrderData parseOrder(Object jObj) { return Huobi.parseOrder(jObj); }
+        @Override public CancelOrderData parseCancelOrder(Object jObj) { return Huobi.parseCancelOrders(jObj); }
+        @Override public Currency baseCurrency() { return Currency.CNH; }
+        @Override public boolean requirePairForOrders() { return true; }
+        @Override public boolean requirePairForCancel() { return true; }
     },
     BTER("Bter", null, "", 12, 0.00001, false,       // https://bter.com/api
            null, null, // XXXX like "btc"
@@ -222,7 +226,7 @@ public enum Exchange {
     public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTrades not implemented on " + this ); }
     public AccountData parseAccount(Object jObj) { throw new RuntimeException("parseAccount not implemented on " + this ); }
     public PlaceOrderData parseOrder(Object jObj) { throw new RuntimeException("parseOrder not implemented on " + this ); }
-    public OrdersData parseOrders(Object jObj) { throw new RuntimeException("parseOrders not implemented on " + this ); }
+    public OrdersData parseOrders(Object jObj, Pair pair) { throw new RuntimeException("parseOrders not implemented on " + this ); }
     public CancelOrderData parseCancelOrder(Object jObj) { throw new RuntimeException("parseCancelOrder not implemented on " + this ); }
     public boolean retryFetch(Object obj) { return false; }
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }

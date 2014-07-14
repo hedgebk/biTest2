@@ -208,7 +208,7 @@ public class Fetcher {
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
         }
-        OrdersData oData = exchange.parseOrders(jObj);
+        OrdersData oData = exchange.parseOrders(jObj, pair);
         return oData;
     }
 

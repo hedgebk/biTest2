@@ -36,7 +36,7 @@ public class OkCoin extends BaseExch {
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.BTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.01);
-        put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.01);
+        put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.1);
     }
 
     protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,
@@ -165,7 +165,7 @@ public class OkCoin extends BaseExch {
         switch (pair) {
             case BTC_CNH: return "btc_cny";
             case LTC_CNH: return "ltc_cny";
-            default: return "?";
+            default: throw new RuntimeException("not supported pair: " + pair);
         }
     }
 

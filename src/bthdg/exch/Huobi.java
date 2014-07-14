@@ -24,10 +24,10 @@ public class Huobi extends BaseExch {
     public static boolean JOIN_SMALL_QUOTES = false;
 
     // supported pairs
-    static final Pair[] PAIRS = {Pair.BTC_CNH };
+    static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH};
 
     // supported currencies
-    private static final Currency[] CURRENCIES = { Currency.BTC, Currency.CNH };
+    private static final Currency[] CURRENCIES = {Currency.BTC, Currency.CNH, Currency.LTC};
 
     private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
     private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
@@ -38,6 +38,7 @@ public class Huobi extends BaseExch {
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.BTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         0.001);
+        put(Pair.LTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         1);
     }
 
     protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,
@@ -50,13 +51,13 @@ public class Huobi extends BaseExch {
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
     }
 
-    @Override public int readTimeout() { return READ_TIMEOUT; };
+    @Override public int readTimeout() { return READ_TIMEOUT; }
     @Override public String getNextNonce() { return null; }
     @Override protected String getCryproAlgo() { return null; }
     @Override protected String getSecret() { return null; }
     @Override protected String getApiEndpoint() { return "https://api.huobi.com/api.php"; }
     @Override public Pair[] supportedPairs() { return PAIRS; }
-    @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
+    @Override public Currency[] supportedCurrencies() { return CURRENCIES; }
 
     @Override protected DecimalFormat priceFormat(Pair pair) { return s_priceFormatMap.get(pair); }
     @Override protected DecimalFormat amountFormat(Pair pair) { return s_amountFormatMap.get(pair); }
@@ -68,8 +69,9 @@ public class Huobi extends BaseExch {
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
         distributeRatio.put(Currency.BTC, 0.5);
+        distributeRatio.put(Currency.LTC, 0.0);
         distributeRatio.put(Currency.CNH, 0.5);
-        FundMap.s_map.put(Exchange.BTCN, distributeRatio);
+        FundMap.s_map.put(Exchange.HUOBI, distributeRatio);
     }
 
     private static Map<Long, String> ERROR_CODES = new HashMap<Long, String>();
@@ -77,15 +79,16 @@ public class Huobi extends BaseExch {
     static {
         add(1,  "Server error");
         add(2,  "Insufficient CNY");
-        add(3,  "Restarting failed");
-        add(4,  "Transaction is over");
+        add(3,  "Restarting failed - transaction has started, you can not start again");
+        add(4,  "Transaction is over - transaction has ended");
         add(10, "Insufficient BTC");
+        add(18, "funding password error");
         add(26, "Order is not existed");
-        add(41, "Unable to modify due to filled order");
+        add(41, "Unable to modify due to filled order, can not be modified");
         add(42, "Order has been cancelled, unable to modify");
         add(44, "Price is too low");
         add(45, "Price is too high");
-        add(46, "Minimum amount is 0.001");
+        add(46, "The small number of transaction, the minimum number 0.001");
         add(47, "Exceed the limit amount");
         add(55, "105% higher than current price, not allowed");
         add(56, "95% lower than current price, not allowed");
@@ -99,6 +102,12 @@ public class Huobi extends BaseExch {
         add(71, "Too many requests");
         add(87, "Buying price cannot exceed 101% of last price when transaction amount is less than 0.1 BTC.");
         add(88, "Selling price cannot below 99% of last price when transaction amount is less than 0.1 BTC.");
+        add(90, "less than the number of transactions 0.1 LTC, please do not sell below the market price of a 1%");
+        add(91, "Invalid currency");
+        add(92, "110% of the purchase price can not be higher than current prices");
+        add(93, "selling price can not be less than 90% of the price of");
+        add(93, "selling price can not be less than 90% of the price of");
+        add(97, "trading capital you have opened your password, please submit funding password parameters");
     }
 
     private static void add(long code, String str) {
@@ -257,16 +266,15 @@ public class Huobi extends BaseExch {
         sArray.put("created", created);
         sArray.put("secret_key", SECRET);
         String str = Post.createHttpPostString(sArray, true);
-
         String sign = Md5.getMD5String(str);
         sign = sign.toLowerCase();
 
         List<Post.NameValue>    postParams = new ArrayList<Post.NameValue>();
         postParams.add(new Post.NameValue("method", method));
         postParams.add(new Post.NameValue("access_key", KEY));
+        addCommandParams(postParams, command, options);
         postParams.add(new Post.NameValue("created", created));
         postParams.add(new Post.NameValue("sign", sign));
-        addCommandParams(postParams, command, options);
         final String postData = Post.buildPostQueryString(postParams);
 
         return new IPostData() {
@@ -276,30 +284,50 @@ public class Huobi extends BaseExch {
     }
 
     private void addCommandParams(List<Post.NameValue> postParams, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
-        if(command == Fetcher.FetchCommand.ORDER) {
+        if (command == Fetcher.FetchCommand.ORDERS) {
+            Pair pair = options.getPair();
+            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
+        } else if (command == Fetcher.FetchCommand.ORDER) {
             OrderData od = options.getOrderData();
             Pair pair = od.m_pair;
+            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
             String priceStr = roundPriceStr(od.m_price, pair);
             postParams.add(new Post.NameValue("price", priceStr));
             String amountStr = roundAmountStr(od.m_amount, pair);
             postParams.add(new Post.NameValue("amount", amountStr));
-        } else if(command == Fetcher.FetchCommand.CANCEL) {
+        } else if (command == Fetcher.FetchCommand.CANCEL) {
+            Pair pair = options.getPair();
+            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
             String orderId = options.getOrderId();
             postParams.add(new Post.NameValue("id", orderId));
         }
     }
 
     private void addCommandParams(Map<String, String> sArray, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
-        if(command == Fetcher.FetchCommand.ORDER) {
+        if (command == Fetcher.FetchCommand.ORDERS) {
+            Pair pair = options.getPair();
+            sArray.put("coin_type", getCoinType(pair));
+        } else if (command == Fetcher.FetchCommand.ORDER) {
             OrderData od = options.getOrderData();
             Pair pair = od.m_pair;
+            sArray.put("coin_type", getCoinType(pair));
             String priceStr = roundPriceStr(od.m_price, pair);
             sArray.put("price", priceStr);
             String amountStr = roundAmountStr(od.m_amount, pair);
             sArray.put("amount", amountStr);
-        } else if(command == Fetcher.FetchCommand.CANCEL) {
+        } else if (command == Fetcher.FetchCommand.CANCEL) {
+            Pair pair = options.getPair();
+            sArray.put("coin_type", getCoinType(pair));
             String orderId = options.getOrderId();
             sArray.put("id", orderId);
+        }
+    }
+
+    private String getCoinType(Pair pair) {
+        switch (pair) {
+            case BTC_CNH: return "1";
+            case LTC_CNH: return "2";
+            default: throw new RuntimeException("not supported pair: " + pair);
         }
     }
 
@@ -314,6 +342,9 @@ public class Huobi extends BaseExch {
             OrderData od = options.getOrderData();
             OrderSide side = od.m_side;
             return (side == OrderSide.BUY) ? "buy" : "sell";
+        }
+        if(command == Fetcher.FetchCommand.CANCEL) {
+            return "cancel_order";
         }
         throw new RuntimeException("Huobi: not supported yet command: " + command.name());
     }
@@ -331,14 +362,15 @@ public class Huobi extends BaseExch {
         // {"time":1405122528,"code":66,"msg":"qwerty"}
 
         JSONObject jObj = (JSONObject) obj;
-//        if (LOG_PARSE) {
-            log("OkCoin.parseAccount() " + jObj);
-//        }
+        if (LOG_PARSE) {
+            log("Huobi.parseAccount() " + jObj);
+        }
 
         Long code = (Long) jObj.get("code");
         if (code != null) {
-            String msg = (String) jObj.get("msg");
-            throw new RuntimeException("Account request error: code=" + code + ": " + msg);
+            String msg = parseError(jObj);
+            log(" error: " + msg);
+            throw new RuntimeException("Account request error: " + msg);
         }
 
         AccountData accountData = new AccountData(Exchange.HUOBI, Double.MAX_VALUE);
@@ -359,47 +391,43 @@ public class Huobi extends BaseExch {
         return accountData;
     }
 
-    public static OrdersData parseOrders(Object obj) {
-        JSONArray jArr = (JSONArray) obj;
+    public static OrdersData parseOrders(Object obj, Pair pair) {
 //        if (LOG_PARSE) {
-            log("OkCoin.parseOrders() " + jArr);
+            log("Huobi.parseOrders() " + obj);
 //        }
+        if (obj instanceof JSONArray) {
+            // [{"id":26843461,"order_amount":"0.0166","processed_amount":"0.0000","order_time":1405284471,"type":2,"order_price":"3865.10"}]
+            JSONArray orders = (JSONArray) obj;
+            int size = orders.size();
+            Map<String, OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
+            for (int i = 0; i < size; i++) {
+                JSONObject order = (JSONObject) orders.get(i);
+                String orderId = ((Long) order.get("id")).toString();
+                double orderAmount = Utils.getDouble(order.get("order_amount"));
+                double filled = Utils.getDouble(order.get("processed_amount"));
+                double remainedAmount = orderAmount - filled;
+                double rate = Utils.getDouble(order.get("order_price"));
+                Long type = (Long) order.get("type");
+                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, null, pair, getOrderSide(type));
+                ords.put(orderId, ord);
+            }
+            return new OrdersData(ords);
+        } else if (obj instanceof JSONObject) {
+            JSONObject jObj = (JSONObject) obj;
+            String msg = parseError(jObj);
+            log(" error: " + msg);
+            return new OrdersData(msg);
+        } else {
+            throw new RuntimeException("not expected object class '" + obj.getClass().getName() + "': " + obj);
+        }
+    }
 
-//        Field name	Type	    Description
-//        method	    Required	Request method get_orders
-//        access_key	Required	Access key
-//        created	    Required	Submission time 10 integers timestamp
-//        sign	    Required	MD5 signatures
-
-//        Field name	        Description
-//        id	                Ordersid
-//        type	            buy1 2sell
-//        order_price	        Order price
-//        order_amount	    Order amount
-//        processed_amount	Completed amount
-//        order_time	        Order time
-
-        Map<String,OrdersData.OrdData> ords = new HashMap<String,OrdersData.OrdData>();
-//        for(Pair pair : PAIRS) {
-//            String pairParam = getPairParam(pair);
-//            String key = "order_" + pairParam;
-//            JSONArray orders = (JSONArray) result.get(key);
-//            int size = orders.size();
-//            for(int i = 0; i < size; i++) {
-//                JSONObject order = (JSONObject) orders.get(i);
-////                            "currency": "CNY",
-////                            "date": 1396255376,
-//                String orderId = ((Long) order.get("id")).toString();
-//                String type = (String) order.get("type");
-//                double rate = Utils.getDouble(order.get("price"));
-//                double remainedAmount = Utils.getDouble(order.get("amount"));
-//                double orderAmount = Utils.getDouble(order.get("amount_original"));
-//                String status = Utils.getString(order.get("status"));
-//                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, status, pair, getOrderSide(type));
-//                ords.put(orderId, ord);
-//            }
-//        }
-        return new OrdersData(ords);
+    private static OrderSide getOrderSide(Long type) {
+        return type.equals(1)
+                ? OrderSide.BUY
+                : type.equals(2)
+                    ? OrderSide.SELL
+                    : null;
     }
 
     public static PlaceOrderData parseOrder(Object obj) {
@@ -408,14 +436,42 @@ public class Huobi extends BaseExch {
             log("Huobi.parseOrder() " + jObj);
 //        }
 
-        // {"time":1405207309,"code":2,"msg":"没有足够的人民币"}
-        Long code = (Long) jObj.get("code");
-        if (code == null) {
-            return null;
-        } else {
-            String error = ERROR_CODES.get(code);
-            String msg = "errorCode: " + code + ": " + error;
-            return new PlaceOrderData(msg); // order is not placed
+        // {"id":26843461,"result":"success"}
+        Object result = jObj.get("id");
+        if( result != null ) {
+            long orderId = Utils.getLong(result);
+            return new PlaceOrderData(orderId);
         }
+
+        String msg = parseError(jObj);
+        log(" error: " + msg);
+        return new PlaceOrderData(msg); // order is not placed
+    }
+
+    public static CancelOrderData parseCancelOrders(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
+//        if (LOG_PARSE) {
+        log("Huobi.parseCancelOrders() " + jObj);
+//        }
+
+        // {"result":"success"}
+        Object result = jObj.get("result");
+        if (result != null) {
+            return new CancelOrderData(null, null);
+        } else {
+            String errMsg = parseError(jObj);
+            log(" error: " + errMsg);
+            return new CancelOrderData(errMsg);
+        }
+    }
+
+    private static String parseError(JSONObject jObj) {
+        // {"time":1405207309,"code":2,"msg":"IYTRUTEYW"}
+        Long code = (Long) jObj.get("code");
+        if (code != null) {
+            String error = ERROR_CODES.get(code);
+            return "errorCode: " + code + ": " + error;
+        }
+        return "Unable to parse error. msg: " + jObj;
     }
 }
