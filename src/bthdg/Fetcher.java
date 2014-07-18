@@ -51,6 +51,7 @@ public class Fetcher {
     public static final int REPEAT_DELAY_INCREMENT = 200;
 
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
+    public static boolean LOG_ON_WIRE = false;
     public static boolean LOG_LOADING = true;
     public static boolean LOG_LOADING_TIME = false;
     public static boolean LOG_JOBJ = false;
@@ -479,7 +480,7 @@ public class Fetcher {
 
         int responseCode = con.getResponseCode();
         if (responseCode != HttpURLConnection.HTTP_OK) {
-            log(" responseCode: " + responseCode);
+            log(" ERROR: responseCode: " + responseCode + "; responseMessage=" + con.getResponseMessage());
         }
 
         InputStream inputStream = con.getInputStream(); //url.openStream();
@@ -490,7 +491,22 @@ public class Fetcher {
     }
 
     private static Object parseJson(Reader inReader) throws IOException, ParseException {
-        Reader reader = COUNT_TRAFFIC ? new CountBytesReader(inReader) : inReader;
+        Reader reader0;
+        if (LOG_ON_WIRE) {
+            CharArrayWriter wireData = new CharArrayWriter();
+            char[] arr = new char[128];
+            int read;
+            while ((read = inReader.read(arr)) > 0) {
+                wireData.write(arr, 0, read);
+            }
+            char[] chars = wireData.toCharArray();
+            log("was read " + chars.length + " bytes: " + new String(chars));
+            reader0 = new CharArrayReader(chars);
+        } else {
+            reader0 = inReader;
+        }
+
+        Reader reader = COUNT_TRAFFIC ? new CountBytesReader(reader0) : reader0;
         try {
             JSONParser parser = new JSONParser();
             Object obj = parser.parse(reader);

@@ -2,7 +2,9 @@ package bthdg.run;
 
 import bthdg.exch.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class IterationHolder {
@@ -10,10 +12,11 @@ public class IterationHolder {
     private LiveOrdersMgr m_liveOrdersMgr;
     private Map<String, Double> m_lockedMap;
     private Map<ExchangesPair, Integer> m_tradesCountMap;
+    private ArrayList<Exchange> m_exchangeToCheckBalance;
+    private Map<Exchange, Map<Currency,Double>> m_lockedFundsMap;
 
-    public IterationHolder(int count) {
-        m_count = count;
-    }
+    public IterationHolder(int count) { m_count = count; }
+    public List<Exchange> getExchangesToCheckBalance() { return m_exchangeToCheckBalance; }
 
     public void queryLiveOrders( Exchange exchange, Pair pair, LiveOrdersMgr.ILiveOrdersCallback callback ) {
         LiveOrdersMgr liveOrdersMgr;
@@ -26,13 +29,13 @@ public class IterationHolder {
         liveOrdersMgr.queryLiveOrders( exchange, pair, callback );
     }
 
-    public void lockDeep(OrderDataExchange ode) {
+    public synchronized void lockDeep(OrderDataExchange ode) {
         Exchange exchange = ode.m_exchange;
         OrderData od = ode.m_orderData;
         OrderSide side = od.m_side;
         String key = deepLockKey(exchange, side);
         Double locked;
-        if(m_lockedMap == null) {
+        if (m_lockedMap == null) {
             m_lockedMap = new HashMap<String, Double>();
             locked = 0d;
         } else {
@@ -46,11 +49,11 @@ public class IterationHolder {
         m_lockedMap.put(key, locked);
     }
 
-    public double getDeepLocked(Exchange exchange, OrderSide side) {
-        if(m_lockedMap != null) {
+    public synchronized double getDeepLocked(Exchange exchange, OrderSide side) {
+        if (m_lockedMap != null) {
             String key = deepLockKey(exchange, side);
             Double locked = m_lockedMap.get(key);
-            if(locked != null) {
+            if (locked != null) {
                 return locked;
             }
         }
@@ -61,7 +64,7 @@ public class IterationHolder {
         return exchange + ":" + side;
     }
 
-    public void addTradePlaced(ExchangesPair exchangesPair) {
+    public synchronized void addTradePlaced(ExchangesPair exchangesPair) {
         Integer count;
         if(m_tradesCountMap == null) {
             m_tradesCountMap = new HashMap<ExchangesPair, Integer>();
@@ -81,5 +84,64 @@ public class IterationHolder {
             }
         }
         return 0;
+    }
+
+    public synchronized void addExchangeToCheckBalance(Exchange exchange) {
+        if(m_exchangeToCheckBalance == null) {
+            m_exchangeToCheckBalance = new ArrayList<Exchange>();
+        }
+        m_exchangeToCheckBalance.add(exchange);
+    }
+
+    public synchronized boolean lockAmount(AccountData account, double lockAmount, Currency currency) {
+        if (m_lockedFundsMap == null) {
+            m_lockedFundsMap = new HashMap<Exchange, Map<Currency,Double>>();
+        }
+        Exchange exchange = account.m_exchange;
+        Map<Currency,Double> exchLockedFundsMap = m_lockedFundsMap.get(exchange);
+        if(exchLockedFundsMap == null) {
+            exchLockedFundsMap = new HashMap<Currency, Double>();
+            m_lockedFundsMap.put(exchange, exchLockedFundsMap);
+        }
+        Double locked = exchLockedFundsMap.get(currency);
+        if(locked == null) {
+            locked = 0d;
+        }
+        Double allowedToLock = account.available(currency) - locked;
+        if(allowedToLock >= lockAmount) {
+            locked += lockAmount;
+            exchLockedFundsMap.put(currency, locked);
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized boolean unlockAmount(AccountData account, double unlockAmount, Currency currency) {
+        if (m_lockedFundsMap != null) {
+            Exchange exchange = account.m_exchange;
+            Map<Currency,Double> exchLockedFundsMap = m_lockedFundsMap.get(exchange);
+            if(exchLockedFundsMap != null) {
+                Double locked = exchLockedFundsMap.get(currency);
+                if(locked != null) {
+                    locked -= unlockAmount;
+                    if(locked != 0) {
+                        exchLockedFundsMap.put(currency, locked);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public synchronized Double getLocked(Exchange exchange, Currency currency) {
+        if (m_lockedFundsMap != null) {
+            Map<Currency,Double> exchLockedFundsMap = m_lockedFundsMap.get(exchange);
+            if(exchLockedFundsMap != null) {
+                Double locked = exchLockedFundsMap.get(currency);
+                return locked;
+            }
+        }
+        return null;
     }
 }

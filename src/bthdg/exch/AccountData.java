@@ -247,7 +247,14 @@ public class AccountData {
     }
 
     public void compareFunds(AccountData account) {
-        String s = "";
+        StringBuilder sb = getFundsDiff(account);
+        if (sb != null) {
+            log("warning " + sb + "\n acct1=" + account + "\n acct2=" + this);
+        }
+    }
+
+    private StringBuilder getFundsDiff(AccountData account) {
+        StringBuilder sb = null;
         for (Map.Entry<Currency, Double> entry : m_funds.entrySet()) {
             Currency curr = entry.getKey();
             Double value = entry.getValue();
@@ -258,15 +265,16 @@ public class AccountData {
                     double maxAbs = Math.max(Math.abs(value), Math.abs(other));
                     double ratio = diffAbs / maxAbs;
                     if (ratio > FUND_DIFF_RATIO) { // log if more that 1%
-                        s += " fund diff: " + curr + " " + value + " " + other + ", diffAbs=" + Utils.format8(diffAbs)
-                                + ", diffRatio=" + ratio + ";";
+                        if (sb == null) {
+                            sb = new StringBuilder();
+                        }
+                        sb.append(" fund diff: " + curr + " " + value + " " + other + ", diffAbs=" + Utils.format8(diffAbs)
+                                + ", diffRatio=" + ratio + ";");
                         m_gotFundDiff = true;
                     }
                 }
             }
         }
-        if (s.length() > 0) {
-            log("warning " + s + "\n acct1=" + account + "\n acct2=" + this);
-        }
+        return sb;
     }
 }

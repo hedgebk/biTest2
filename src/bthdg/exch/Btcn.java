@@ -298,7 +298,7 @@ public class Btcn extends BaseExch {
                 .replace("\"", "") // do not send " symbol in signature
                 .replace("true", "1")  // send 1 instead of true in signature
                 .replace("false", ""); // do not send false in signature
-log("PostParams="+params);
+        //log("PostParams="+params);
         // todo: check: use encode() instead if getSignature() ?
         //String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
 
@@ -307,7 +307,7 @@ log("PostParams="+params);
         String basicAuth = "Basic " + DatatypeConverter.printBase64Binary(userPass.getBytes());
 
         final String postStr = "{\"method\": \"" + method + "\",\"params\":[" + methodParams + "],\"id\": " + nonce + "}";
-log("postStr="+postStr);
+        //log("postStr="+postStr);
         final Map<String, String> headerLines = new HashMap<String, String>();
         headerLines.put("Json-Rpc-Tonce", nonce);
         headerLines.put("Authorization", basicAuth);

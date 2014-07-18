@@ -12,7 +12,9 @@ import java.text.DecimalFormat;
 import java.util.*;
 
 /** https://www.okcoin.com/about/publicApi.do
- * https://www.okcoin.com/t-1000097.html */
+ * https://www.okcoin.com/t-1000097.html
+ * webSocket https://www.okcoin.cn/about/webSocket.do
+ *           http://docs.oracle.com/javaee/7/tutorial/doc/websocket003.htm */
 public class OkCoin extends BaseExch {
     private static String SECRET;
     private static String PARTNER;

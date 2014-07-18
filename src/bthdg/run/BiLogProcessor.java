@@ -36,6 +36,7 @@ public class BiLogProcessor {
     private static final boolean LOG_TOP = false;
     private static final boolean LOG_PAIR = false;
 
+    private static double s_level = 0.0003;
     private static long s_time;
     private static Map<String, PairData> s_pairs;
     private static Map<String, ExchData> s_tops;
@@ -51,6 +52,7 @@ public class BiLogProcessor {
     public static final int HEIGHT = 900 * XFACTOR;
     public static final Color LIGHT_RED = new Color(255, 0, 0, 70);
     public static final Color LIGHT_BLUE = new Color(0, 0, 255, 70);
+    public static final Color LIGHT_ORANGE = new Color(200, 100, 0, 90);
     private static final boolean PAINT_BALANCE_CALCULATION = false;
 
     public static void main(String[] args) {
@@ -85,6 +87,11 @@ public class BiLogProcessor {
         START {
             @Override public State process(String line) {
                 return tryStart(line);
+            }
+        },
+        ITERATION {
+            @Override public State process(String line) {
+                return tryIteration(line);
             }
         },
         TOP {
@@ -138,12 +145,25 @@ public class BiLogProcessor {
         private static State tryIterationTook(String line) {
             if(line.contains("iteration took")) {
                 record();
-                return START;
+                return ITERATION;
             }
             return null;
         }
 
         private static State tryStart(String line) {
+            //  date=Tue Jul 15 18:45:23 EEST 2014; START_LEVEL=0.00032
+            if (line.contains("START_LEVEL=")) {
+                Matcher matcher = START_LEVEL.matcher(line);
+                if(matcher.matches()) {
+                    String level = matcher.group(1); // 0.00032
+                    s_level = Double.parseDouble(level);
+                    System.out.println("Got START_LEVEL=" + s_level);
+                    return START;
+                }
+            }
+            return tryIteration(line);
+        }
+        private static State tryIteration(String line) {
             if (line.contains("iteration ")) {
                 // iteration 66 ---------------------- elapsed: 3min 18sec 38ms
                 Matcher matcher = ELAPSED.matcher(line);
@@ -259,7 +279,8 @@ public class BiLogProcessor {
             s_pairs = null;
         }
 
-        public static final Pattern ELAPSED = Pattern.compile("iteration .* elapsed\\: (.*)"); // (\d+)min (\d+)sec (\d+)ms
+        public static final Pattern START_LEVEL = Pattern.compile(".*START_LEVEL=(.*)"); // date=Tue Jul 15 18:45:23 EEST 2014; START_LEVEL=0.00032
+        public static final Pattern ELAPSED = Pattern.compile("iteration .* elapsed\\: (.*)");
         public static final Pattern TOP_ = Pattern.compile("(\\w+).*Top\\{bid\\=([\\d,]+\\.\\d+), ask\\=([\\d,]+\\.\\d+), last\\=([\\d,]+\\.\\d+)\\}");
         public static final Pattern PAIR_ = Pattern.compile("(\\w+) diff=(-?\\d+.*), avgDiff=(-?\\d+.*), diffDiff=(-?\\d+.*), bidAskDiff=(-?\\d+.*)");
 
@@ -341,6 +362,10 @@ public class BiLogProcessor {
 
         private double parse(String str) {
             return Double.parseDouble(str.replace(",",""));
+        }
+
+        public double getMid() {
+            return (getBid() + getAsk())/2;
         }
     }
 
@@ -433,6 +458,7 @@ public class BiLogProcessor {
             int x = timeAxe.getPoint(millis);
 
             PairData pd = timePoint.m_pairs.get(PAIR);
+            Map<String, ExchData> tops = timePoint.m_tops;
             if (pd != null) {
                 Double diff = pd.getDiff();
                 int y = priceDiffAxe.getPointReverse(diff);
@@ -441,16 +467,33 @@ public class BiLogProcessor {
                     g.setPaint(LIGHT_RED);
                     g.drawLine(x0, y0, x, y);
                 }
-                y0 = y;
 
+                // -------------
                 Double avgDiff = pd.getAvgDiff();
                 int ya = priceDiffAxe.getPointReverse(avgDiff);
                 if (x0 != -1) {
                     g.setPaint(LIGHT_BLUE);
                     g.drawLine(x0, y0a, x, ya);
                 }
-                y0a = ya;
 
+                // +-s_level
+                ExchData top1 = tops.get(EXCH1);
+                ExchData top2 = tops.get(EXCH2);
+
+                double mid1 = top1.getMid();
+                double mid2 = top2.getMid();
+                double mid = (mid1 + mid2) / 2;
+                double levelDelta = mid * s_level;
+
+                int yad = priceDiffAxe.getPointReverse(avgDiff + levelDelta);
+                int dy = yad - ya;
+                if (x0 != -1) {
+                    g.setPaint(LIGHT_ORANGE);
+                    g.drawLine(x0, y0a + dy, x, ya + dy);
+                    g.drawLine(x0, y0a - dy, x, ya - dy);
+                }
+
+                // -------------
                 Double bidAskDiff = pd.getBidAskDiff();
                 double diffDiff = diff - avgDiff;
                 Double plus = (diffDiff > 0) ? diff - bidAskDiff / 2 : diff + bidAskDiff / 2;
@@ -459,6 +502,9 @@ public class BiLogProcessor {
                     g.setPaint(Color.orange);
                     g.drawLine(x0, y0p, x, yp);
                 }
+
+                y0 = y;
+                y0a = ya;
                 y0p = yp;
             }
             x0 = x;

@@ -101,10 +101,10 @@ public enum Exchange {
            null, "https://www.okcoin.cn/api/ticker.do?symbol=XXXX", // XXXX like "ltc_cny"
            null, "https://www.okcoin.cn/api/depth.do?symbol=XXXX", // XXXX like "ltc_cny"
            "", "",
-           null, new UrlDef("https://www.okcoin.com/api/userinfo.do"),
-           new UrlDef("https://www.okcoin.com/api/trade.do"),
-           new UrlDef("https://www.okcoin.com/api/getorder.do"),
-           new UrlDef("https://www.okcoin.com/api/cancelorder.do")) {
+           null, new UrlDef("https://www.okcoin.cn/api/userinfo.do"),
+           new UrlDef("https://www.okcoin.cn/api/trade.do"),
+           new UrlDef("https://www.okcoin.cn/api/getorder.do"),
+           new UrlDef("https://www.okcoin.cn/api/cancelorder.do")) {
         @Override public void init(Properties keys) { OkCoin.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return OkCoin.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return OkCoin.parseTops(jObj, pairs); }

@@ -80,6 +80,7 @@ class BiAlgo implements Runner.IAlgo {
                 iterationCount++;
                 if(m_stopRunnable != null) {
                     cancelAll();
+                    logBalance();
                     m_stopRunnable.run();
                     break;
                 }
@@ -216,8 +217,28 @@ class BiAlgo implements Runner.IAlgo {
 
         runForPairs(ih);
 
+//        сheckBalancesIfNeeded(ih);
+
         logIterationEnd();
     }
+
+//    private void сheckBalancesIfNeeded(IterationHolder ih) throws InterruptedException {
+//        List<Exchange> exchngs = ih.getExchangesToCheckBalance();
+//        if (exchngs != null) {
+//            log("need to check balance of exchanges: " + exchngs);
+//
+//            doInParallel("checkAccountBalances", new IExchangeRunnable() {
+//                @Override public void run(Exchange exchange) throws Exception {
+//                    AccountData current = m_accountMap.get(exchange);
+//                    log("check account(" + exchange.m_name + "): " + current);
+//                    AccountData accountData = Fetcher.fetchAccount(exchange);
+//                    m_accountMap.put(exchange, accountData);
+//                    log("Synced account(" + exchange.m_name + "): " + accountData );
+//                    current.compareFunds(accountData);
+//                }
+//            });
+//        }
+//    }
 
     private void cancelAll() {
         for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
@@ -271,7 +292,7 @@ class BiAlgo implements Runner.IAlgo {
     private void runForPairs(IterationHolder ih) {
         for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
             try {
-                exchPairsData.run(ih);
+                exchPairsData.runForPair(ih);
             } catch (Exception e) {
                 err("runForPair failed: " + exchPairsData + " :" + e, e);
             }
@@ -432,7 +453,7 @@ class BiAlgo implements Runner.IAlgo {
             m_exchanges = m_exchangesPair.toArray();
         }
 
-        public void run(IterationHolder ih) throws Exception {
+        public void runForPair(IterationHolder ih) throws Exception {
             // TODO: introduce exchangesPair.priceFormatter - since precisions can be different on exchanges
             Exchange e1 = m_exchangesPair.m_exchange1;
             Exchange e2 = m_exchangesPair.m_exchange2;
@@ -690,7 +711,7 @@ class BiAlgo implements Runner.IAlgo {
             log("account2=" + account2);
 
             Double amount = start
-                    ? getOpenAmount(up, mktPoint, minSize)
+                    ? getOpenAmount(ih, up, mktPoint, minSize)
                     : getCloseAmount(baData);
 
             if (amount != null) {
@@ -756,7 +777,7 @@ class BiAlgo implements Runner.IAlgo {
             return baData.m_amount;
         }
 
-        private Double getOpenAmount(boolean up, BiPoint mktPoint, double minMktSize) {
+        private Double getOpenAmount(IterationHolder ih, boolean up, BiPoint mktPoint, double minMktSize) {
             Currency currency1 = PAIR.currencyFrom(up);
             Currency currency2 = PAIR.currencyFrom(!up);
             Currency baseCurrency = PAIR.currencyFrom(false);
@@ -785,27 +806,66 @@ class BiAlgo implements Runner.IAlgo {
             }
 
             double minAvailable = Math.min(available1, available2);
-            log("minAvailable=" + minAvailable);
+            log("minAvailable=" + Utils.format5(minAvailable));
 
             double minOrderToCreate1 = exchange1.minOrderToCreate(PAIR);
             double minOrderToCreate2 = exchange2.minOrderToCreate(PAIR);
             double minOrderToCreate = Math.max(minOrderToCreate1, minOrderToCreate2);
-            log("minOrderToCreate1=" + minOrderToCreate1 + ";   minOrderToCreate2=" + minOrderToCreate2 + "; max=" + minOrderToCreate);
+            log("minOrderToCreate1=" + Utils.format5(minOrderToCreate1) +
+                    ";   minOrderToCreate2=" + Utils.format5(minOrderToCreate2) +
+                    "; max=" + Utils.format5(minOrderToCreate));
 
             double mktSize = minMktSize;
             if (minMktSize < minOrderToCreate) {
-                log(" mktSize adjusted from minMktSize=" + minMktSize + " to minOrderToCreate=" + minOrderToCreate);
+                log(" mktSize adjusted from minMktSize=" + Utils.format5(minMktSize) + " to minOrderToCreate=" + Utils.format5(minOrderToCreate));
                 mktSize = minOrderToCreate;
             }
 
             double amount = Math.min(mktSize, minAvailable * USE_ACCT_FUNDS);
-            log("amount for order=" + amount + " " + baseCurrency);
+            log("amount for order=" + Utils.format5(amount) + " " + baseCurrency);
+
+double capValue = Math.max(minOrderToCreate1, minOrderToCreate2) * 2;
+if(amount > capValue) {
+    amount = capValue;
+    log("FOR NOW amount CAPPED to=" + Utils.format5(capValue));
+}
 
             if (amount >= minOrderToCreate1) {
                 if (amount >= minOrderToCreate2) {
-amount = Math.max(minOrderToCreate1, minOrderToCreate2);
-log("FOR NOW amount HACKED to=" + amount);
-                    return amount;
+
+//                    double lockAmount1 = amount;
+//                    log(" lockAmount1=" + Utils.format5(lockAmount1) + " " + baseCurrency);
+//                    if (currency1 != baseCurrency) {
+//                        MktDataPoint mdPoint1 = mktPoint.m_mdPoint1;
+//                        double mid = mdPoint1.m_topData.getMid();
+//                        lockAmount1 = lockAmount1 * mid;
+//                        log("  converted lockAmount1=" + Utils.format5(lockAmount1) + " " + currency1);
+//                    }
+//
+//                    double lockAmount2 = amount;
+//                    log(" lockAmount2=" + Utils.format5(lockAmount2) + " " + baseCurrency);
+//                    if (currency2 != baseCurrency) {
+//                        MktDataPoint mdPoint2 = mktPoint.m_mdPoint2;
+//                        double mid = mdPoint2.m_topData.getMid();
+//                        lockAmount2 = lockAmount2 * mid;
+//                        log("  converted lockAmount2=" + Utils.format5(lockAmount2) + " " + currency2);
+//                    }
+//
+//                    if (ih.lockAmount(account1, lockAmount1, currency1)) {
+//                        if (ih.lockAmount(account2, lockAmount2, currency2)) {
+
+                            return amount;
+
+//                        } else {
+//                            log("unable to lock " + lockAmount2 + " " + currency2 + " on " + account2 + ", locked=" + ih.getLocked(exchange2, currency2));
+//                            boolean unlocked = ih.unlockAmount(account1, lockAmount1, currency1);
+//                            if (!unlocked) {
+//                                log("ERROR: unable to unlock " + lockAmount1 + " " + currency1 + " on " + account1 + ", locked=" + ih.getLocked(exchange1, currency1));
+//                            }
+//                        }
+//                    } else {
+//                        log("unable to lock " + lockAmount1 + " " + currency1 + " on " + account1 + ", locked=" + ih.getLocked(exchange1, currency1));
+//                    }
                 } else {
                     log("amount=" + amount + " not reached minOrderToCreate2=" + minOrderToCreate2);
                 }

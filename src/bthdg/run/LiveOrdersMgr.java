@@ -24,16 +24,16 @@ public class LiveOrdersMgr {
 
     private OrdersDataWrapper getOrdersDataWrapper(Exchange exchange, Pair pair) {
         boolean perPair = exchange.requirePairForOrders();
-        if(pair == Pair.ALL) {
-            if( perPair) {
+        if (pair == Pair.ALL) {
+            if (perPair) {
                 throw new RuntimeException("exchange " + exchange + " do not supports ALL orders request - use per-pair");
             }
             throw new RuntimeException("ALL-pairs orders request not implemented yet");
         }
-        Map<Pair,OrdersDataWrapper> map = getOrdersMap(exchange);
-        synchronized (map)  {
+        Map<Pair, OrdersDataWrapper> map = getOrdersMap(exchange);
+        synchronized (map) {
             OrdersDataWrapper odw = map.get(pair);
-            if(odw == null) {
+            if (odw == null) {
                 odw = new OrdersDataWrapper(exchange, pair);
                 map.put(pair, odw);
             }

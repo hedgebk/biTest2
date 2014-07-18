@@ -167,6 +167,9 @@ public class BiAlgoData {
                     } catch (Exception e) {
                         err("orderData.checkState error: " + e, e);
                     }
+                    if(orderData.isFilled()) { // order becomes filled - mark to check account
+                        ih.addExchangeToCheckBalance(exchange);
+                    }
                     Sync.setAndNotify(finalRet);
                 }
             });
