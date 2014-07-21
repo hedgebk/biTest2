@@ -11,6 +11,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URLEncoder;
+import java.text.DecimalFormat;
 import java.util.*;
 
 // SEE HERE
@@ -20,6 +21,7 @@ import java.util.*;
 //
 public class Bitstamp extends BaseExch {
     public static final String CRYPTO_ALGO = "HmacSHA256";
+    private static final boolean LOG_PARSE = true;
     private static String SECRET;
     private static String KEY;
     private static String CLIENT_ID;
@@ -27,7 +29,7 @@ public class Bitstamp extends BaseExch {
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_USD};
     // supported currencies
-    private static final Currency[] CURRENCIES = { Currency.USD, Currency.BTC };
+    private static final Currency[] CURRENCIES = {Currency.USD, Currency.BTC};
 
     private static String s_bitstampDeepTestStr = null;
 
@@ -35,9 +37,43 @@ public class Bitstamp extends BaseExch {
     @Override protected String getCryproAlgo() { return CRYPTO_ALGO; }
     @Override protected String getSecret() { return SECRET; }
     @Override protected String getApiEndpoint() { return "https://www.bitstamp.net/api/balance/"; }
-    @Override public Pair[] supportedPairs() { return PAIRS; };
-    @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
-    @Override public double minOurPriceStep(Pair pair) { return 0.01; }
+    @Override public Pair[] supportedPairs() { return PAIRS; }
+    @Override public Currency[] supportedCurrencies() { return CURRENCIES; }
+
+    private static final Map<Pair, DecimalFormat> s_amountFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minAmountStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, DecimalFormat> s_priceFormatMap = new HashMap<Pair, DecimalFormat>();
+    private static final Map<Pair, Double> s_minExchPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
+    private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
+
+    static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
+        put(Pair.BTC_USD, "0.##",     0.01,             0.02,            "0.0#######",  0.00000001,     0.01);
+    }
+
+    protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,
+                              String amountFormat, double minAmountStep, double minOrderToCreate) {
+        s_amountFormatMap.put(pair, mkFormat(amountFormat));
+        s_minAmountStepMap.put(pair, minAmountStep);
+        s_priceFormatMap.put(pair, mkFormat(priceFormat));
+        s_minExchPriceStepMap.put(pair, minExchPriceStep);
+        s_minOurPriceStepMap.put(pair, minOurPriceStep);
+        s_minOrderToCreateMap.put(pair, minOrderToCreate);
+    }
+
+    @Override protected DecimalFormat priceFormat(Pair pair) { return s_priceFormatMap.get(pair); }
+    @Override protected DecimalFormat amountFormat(Pair pair) { return s_amountFormatMap.get(pair); }
+    @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
+    @Override public double minExchPriceStep(Pair pair) { return s_minExchPriceStepMap.get(pair); }
+    @Override public double minAmountStep(Pair pair) { return s_minAmountStepMap.get(pair); }
+    @Override public double minOrderToCreate(Pair pair) { return s_minOrderToCreateMap.get(pair); }
+
+    @Override public void initFundMap() {
+        Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
+        distributeRatio.put(Currency.BTC, 0.5);
+        distributeRatio.put(Currency.USD, 0.5);
+        FundMap.s_map.put(Exchange.BITSTAMP, distributeRatio);
+    }
 
     public Bitstamp() {}
 
@@ -50,7 +86,7 @@ public class Bitstamp extends BaseExch {
         }
     }
 
-    public List<Post.NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
+    @Override public List<Post.NameValue> getPostParams(String nonce, Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
         String encoded = encode(nonce.getBytes(), CLIENT_ID.getBytes(), KEY.getBytes());
         String signature = encoded.toUpperCase();
 
@@ -58,6 +94,23 @@ public class Bitstamp extends BaseExch {
         postParams.add(new Post.NameValue("key", URLEncoder.encode(KEY)));
         postParams.add(new Post.NameValue("nonce", URLEncoder.encode(nonce)));
         postParams.add(new Post.NameValue("signature", URLEncoder.encode(signature)));
+        switch (command) {
+            case ORDER:
+                OrderData order = options.getOrderData();
+                Pair pair = order.m_pair;
+
+                String amountStr = roundAmountStr(order.m_amount, pair);
+                postParams.add(new Post.NameValue("amount", amountStr));
+
+                String priceStr = roundPriceStr(order.m_price, pair);
+                postParams.add(new Post.NameValue("price", priceStr));
+                break;
+            case CANCEL: {
+                String orderId = options.getOrderId();
+                postParams.add(new Post.NameValue("id", orderId));
+                break;
+            }
+        }
         return postParams;
     }
 
@@ -87,6 +140,10 @@ public class Bitstamp extends BaseExch {
 
         String json = loadJsonStr(headerLines, query);
         log("Loaded json: " + json);
+    }
+
+    @Override protected String encodeHexString(byte[] hash) {
+        return Utils.encodeHexString064x(hash);
     }
 
     public static String topTestStr() {
@@ -140,7 +197,7 @@ public class Bitstamp extends BaseExch {
 
     public static TradesData parseTrades(Object object) {
 //        log("BITSTAMP.parseTrades() " + object);
-        JSONArray array = (JSONArray)object;
+        JSONArray array = (JSONArray) object;
         int len = array.size();
         List<TradeData> trades = new ArrayList<TradeData>(len);
         for (int i = 0; i < len; i++) {
@@ -199,6 +256,82 @@ public class Bitstamp extends BaseExch {
         return false;
     }
 
+    public static Exchange.UrlDef fixEndpointForSide(Exchange.UrlDef apiOrderEndpoint, Fetcher.FetchOptions options) {
+        OrderSide side = options.getOrderData().m_side;
+        return apiOrderEndpoint.replace("XXXX", side.m_name); // XXXX ->  buy | sell
+    }
+
+    public static OrdersData parseOrders(Object obj, Pair pair) {
+        // parseOrders obj=[{"id":30113196,"amount":"0.01000000","price":"523.56","datetime":"2014-07-20 22:41:18","type":0}]
+        if (LOG_PARSE) {
+            log("BITSTAMP.parseOrders() " + obj);
+        }
+        JSONArray orders = (JSONArray) obj;
+
+        Map<String,OrdersData.OrdData> ords = new HashMap<String,OrdersData.OrdData>();
+        int size = orders.size();
+        for(int i = 0; i < size; i++) {
+            JSONObject order = (JSONObject) orders.get(i);
+            String orderId = ((Long) order.get("id")).toString();
+            String type = order.get("type").toString();
+            double rate = Utils.getDouble(order.get("price"));
+            double remainedAmount = Utils.getDouble(order.get("amount"));
+            OrdersData.OrdData ord = new OrdersData.OrdData(orderId, 0, remainedAmount, rate, -1l, null, pair, getOrderSide(type));
+            ords.put(orderId, ord);
+        }
+        return new OrdersData(ords);
+    }
+
+    public static PlaceOrderData parseOrder(Object obj) {
+//        parseOrder obj={"id":30113196,"amount":"0.01","price":"523.56","datetime":"2014-07-20 22:41:17.425558","type":0}
+// BITSTAMP.parseOrder() {"error":{"__all__":["You need $188.71 to open that order. You have only $148.41 available. Check your account balance for details."]}}
+        if (LOG_PARSE) {
+            log("BITSTAMP.parseOrder() " + obj);
+        }
+        JSONObject jObj = (JSONObject) obj;
+        Object error = jObj.get("error");
+        if(error != null) {
+            JSONObject jError = (JSONObject) error;
+            JSONArray errors = (JSONArray) jError.get("__all__");
+            int size = errors.size();
+            StringBuffer sb = new StringBuffer();
+            for(int i = 0; i < size; i++) {
+                String errorStr = (String) errors.get(i);
+                if(sb.length() > 0) {
+                    sb.append("; ");
+                }
+                sb.append(errorStr);
+            }
+            return new PlaceOrderData(sb.toString());
+        } else {
+            Long id = (Long) jObj.get("id");
+            if (id != null) {
+                double remains = Utils.getDouble(jObj.get("amount"));
+                return new PlaceOrderData(id, remains, 0, null);
+            } else {
+                throw new RuntimeException("parseOrder error on Bitstamp : " + jObj);
+            }
+        }
+    }
+
+    public static CancelOrderData parseCancelOrders(Object obj) {
+//        parseCancelOrders obj=true
+//        parseCancelOrders obj={"error":"Order not found"}
+        if (LOG_PARSE) {
+            log("BITSTAMP.parseCancelOrders() " + obj);
+        }
+        if(obj instanceof Boolean) {
+            Boolean success = (Boolean) obj;
+            return new CancelOrderData(null, null);
+        } else {
+            JSONObject jObj = (JSONObject) obj;
+            String error = (String) jObj.get("error");
+            log(" error: " + error);
+            return new CancelOrderData(error);
+
+        }
+// Returns 'true' if order has been found and canceled.
+    }
 }
 
 
@@ -221,5 +354,3 @@ public class Bitstamp extends BaseExch {
 //    ticker_url = { "method": "GET", "url": "https://www.bitstamp.net/api/ticker/" }
 //        buy_url = { "method": "POST", "url": "https://www.bitstamp.net/api/buy/" }
 //        sell_url = { "method": "POST", "url": "https://www.bitstamp.net/api/sell/" }
-//        #order_url = { "method": "POST", "url": "https://data.mtgox.com/api/1/generic/private/order/result" }
-//        #open_orders_url = { "method": "POST", "url": "https://data.mtgox.com/api/1/generic/private/orders" }

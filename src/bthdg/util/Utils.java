@@ -39,6 +39,11 @@ public class Utils {
         return hex;
     }
 
+    public static String encodeHexString064x(byte[] hash) {
+        String old = String.format("%064x", new BigInteger(1, hash));
+        return old;
+    }
+
     public static String millisToDHMSStr(long millis) {
         StringBuilder res = new StringBuilder();
         long millisec = millis % 1000;

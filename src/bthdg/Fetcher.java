@@ -426,6 +426,9 @@ public class Fetcher {
     private static Reader fetchInt(Exchange exchange, FetchCommand command, FetchOptions options) throws Exception {
         Reader reader;
         Exchange.UrlDef apiEndpoint = command.getApiEndpoint(exchange, options);
+        if (apiEndpoint == null) {
+            log("no API endpoint specified for exchange " + exchange + "; for command " + command);
+        }
         String location = apiEndpoint.m_location;
         if (LOG_LOADING) {
             log("loading from " + location + "...  ");
@@ -629,7 +632,7 @@ public class Fetcher {
         ORDER {
             @Override
             public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
-                return exchange.m_orderEndpoint;
+                return exchange.apiOrderEndpoint(options);
             }
 
             @Override

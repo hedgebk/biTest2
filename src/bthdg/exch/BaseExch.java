@@ -116,8 +116,12 @@ public abstract class BaseExch {
             mac.update(b);
         }
         byte[] hash = mac.doFinal();
-        String encoded = Utils.encodeHexString(hash);
+        String encoded = encodeHexString(hash);
         return encoded;
+    }
+
+    protected String encodeHexString(byte[] hash) {
+        return Utils.encodeHexString(hash);
     }
 
     protected final Mac initMac() throws NoSuchAlgorithmException, UnsupportedEncodingException, InvalidKeyException {

@@ -23,14 +23,14 @@ import java.util.Map;
 // - check fading moving average
 public class PaintChart extends BaseChartPaint {
 //    private static VaryProfile PROFILE = null;
-//    private static VaryProfile PROFILE = VaryProfile.NONE;
-    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_1;
+    private static VaryProfile PROFILE = VaryProfile.NONE;
+//    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_1;
 //    private static VaryProfile PROFILE = VaryProfile.DROP;
 //    private static VaryProfile PROFILE = VaryProfile.AVG_GAIN_2;
 
-    public static final ExchangePair PAIR = ExchangePair.BTCN_OKCOIN;       // 1d  236     2d  51     7d  11      14d  34
+//    public static final ExchangePair PAIR = ExchangePair.BTCN_OKCOIN;       // 1d  236     2d  51     7d  11      14d  34
 
-//    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;     // 1d  1.49     2d  1.42
+    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_BTCE;     // 1d  1.49     2d  1.42
 //    public static final ExchangePair PAIR = ExchangePair.BITSTAMP_CAMPBX;   // 1d  1
 
 //    public static final ExchangePair PAIR = ExchangePair.BTCE_BITFINEX;     // 1d  1.4      2d  1.22

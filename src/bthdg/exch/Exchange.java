@@ -22,13 +22,19 @@ public enum Exchange {
              null, "https://www.bitstamp.net/api/order_book/",
              Bitstamp.tradesTestStr(), "https://www.bitstamp.net/api/transactions/?time=minute",
              Bitstamp.accountTestStr(), new UrlDef("https://www.bitstamp.net/api/balance/"),
-             null, null, null
+            new UrlDef("https://www.bitstamp.net/api/XXXX/"), // xxx - buy | sell
+            new UrlDef("https://www.bitstamp.net/api/open_orders/"),
+            new UrlDef("https://www.bitstamp.net/api/cancel_order/")
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Bitstamp.parseTop(jObj); }
         @Override public DeepData parseDeep(Object jObj, Pair pair) { return Bitstamp.parseDeep(jObj); }
         @Override public TradesData parseTrades(Object jObj, Pair pair) { return Bitstamp.parseTrades(jObj); }
         @Override public AccountData parseAccount(Object jObj) { return Bitstamp.parseAccount(jObj); }
         @Override public String deepTestStr() { return Bitstamp.deepTestStr(); }
+        @Override public OrdersData parseOrders(Object jObj, Pair pair) { return Bitstamp.parseOrders(jObj, pair); }
+        @Override public PlaceOrderData parseOrder(Object jObj) { return Bitstamp.parseOrder(jObj); }
+        @Override public CancelOrderData parseCancelOrder(Object jObj) { return Bitstamp.parseCancelOrders(jObj); }
+        @Override public UrlDef apiOrderEndpoint(Fetcher.FetchOptions options) { return Bitstamp.fixEndpointForSide(m_orderEndpoint, options); }
     },
     BTCE("btce", new Btce(), "btceUSD", 2, 0.002, true,
           Btce.topTestStr(), "https://btc-e.com/api/3/ticker/XXXX", // XXXX like "btc_usd-ltc_btc" // old? : "https://btc-e.com/api/2/btc_usd/ticker"
@@ -218,20 +224,21 @@ public enum Exchange {
         m_cancelEndpoint = cancelEndpoint;
     }
 
-    public TopData parseTop(Object jObj, Pair pair) { throw new RuntimeException("parseTop not implemented on " + this ); }
-    public TopsData parseTops(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTops not implemented on " + this ); }
-    public DeepData parseDeep(Object jObj, Pair pair) { throw new RuntimeException("parseDeep not implemented on " + this ); }
-    public DeepsData parseDeeps(Object jObj, Pair[] pairs) { throw new RuntimeException("parseDeeps not implemented on " + this ); }
-    public TradesData parseTrades(Object jObj, Pair pair) { throw new RuntimeException("parseTrades not implemented on " + this ); }
-    public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTrades not implemented on " + this ); }
-    public AccountData parseAccount(Object jObj) { throw new RuntimeException("parseAccount not implemented on " + this ); }
-    public PlaceOrderData parseOrder(Object jObj) { throw new RuntimeException("parseOrder not implemented on " + this ); }
-    public OrdersData parseOrders(Object jObj, Pair pair) { throw new RuntimeException("parseOrders not implemented on " + this ); }
-    public CancelOrderData parseCancelOrder(Object jObj) { throw new RuntimeException("parseCancelOrder not implemented on " + this ); }
+    public TopData parseTop(Object jObj, Pair pair) { throw new RuntimeException("parseTop not implemented on " + this + "; jObj=" + jObj ); }
+    public TopsData parseTops(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTops not implemented on " + this + "; jObj=" + jObj ); }
+    public DeepData parseDeep(Object jObj, Pair pair) { throw new RuntimeException("parseDeep not implemented on " + this + "; jObj=" + jObj ); }
+    public DeepsData parseDeeps(Object jObj, Pair[] pairs) { throw new RuntimeException("parseDeeps not implemented on " + this + "; jObj=" + jObj ); }
+    public TradesData parseTrades(Object jObj, Pair pair) { throw new RuntimeException("parseTrades not implemented on " + this + "; jObj=" + jObj ); }
+    public Map<Pair, TradesData> parseTrades(Object jObj, Pair[] pairs) { throw new RuntimeException("parseTrades not implemented on " + this + "; jObj=" + jObj ); }
+    public AccountData parseAccount(Object jObj) { throw new RuntimeException("parseAccount not implemented on " + this + "; jObj=" + jObj ); }
+    public PlaceOrderData parseOrder(Object jObj) { throw new RuntimeException("parseOrder not implemented on " + this + "; jObj=" + jObj ); }
+    public OrdersData parseOrders(Object jObj, Pair pair) { throw new RuntimeException("parseOrders not implemented on " + this + "; jObj=" + jObj); }
+    public CancelOrderData parseCancelOrder(Object jObj) { throw new RuntimeException("parseCancelOrder not implemented on " + this + "; jObj=" + jObj ); }
     public boolean retryFetch(Object obj) { return false; }
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
     public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return m_apiDeepEndpoint; }
     public UrlDef apiTradesEndpoint(Fetcher.FetchOptions options) { return m_apiTradesEndpoint; }
+    public UrlDef apiOrderEndpoint(Fetcher.FetchOptions options) { return m_orderEndpoint; }
 
     public double minExchPriceStep(Pair pair) { return m_baseExch.minExchPriceStep(pair); }
     public double minOurPriceStep(Pair pair) { return m_baseExch.minOurPriceStep(pair); }

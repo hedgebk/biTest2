@@ -26,6 +26,7 @@ public class Console {
         try {
             Properties keys = BaseExch.loadKeys();
             Btce.init(keys);
+            Bitstamp.init(keys);
             OkCoin.init(keys);
             Btcn.init(keys);
             Huobi.init(keys);
