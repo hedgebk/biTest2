@@ -49,8 +49,8 @@ public class Triplet {
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.11; // mkt - 10%
                 Triplet.MKT_OFFSET_LEVEL_DELTA = 0.11;
-                Triplet.ITERATIONS_SLEEP_TIME = 2100; // sleep between iterations
-                Triplet.MIN_SLEEP_TIME = 300; // min sleep between iterations
+                Triplet.ITERATIONS_SLEEP_TIME = 2600; // sleep between iterations
+                Triplet.MIN_SLEEP_TIME = 350; // min sleep between iterations
                 Triplet.PREFER_LIQUID_PAIRS = true; // prefer start from LTC_BTC, BTC_USD, LTC_USD
                 Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02
                 Triplet.LIQUIDITY_PAIRS_LEVEL_DELTA = 0.02;
@@ -102,7 +102,7 @@ public class Triplet {
                 Triplet.TRY_WITH_MKT_OFFSET = false;
                 Triplet.MKT_OFFSET_PRICE_MINUS = 0.15; // mkt - 10%
                 Triplet.MKT_OFFSET_LEVEL_DELTA = 0.15;
-                Triplet.ITERATIONS_SLEEP_TIME = 3100; // sleep between iterations
+                Triplet.ITERATIONS_SLEEP_TIME = 3500; // sleep between iterations
                 Triplet.MIN_SLEEP_TIME = 1500; // min sleep between iterations
                 Triplet.PREFER_LIQUID_PAIRS = false; // prefer start from LTC_BTC, BTC_USD, LTC_USD
                 Triplet.LOWER_LEVEL_FOR_LIQUIDITY_PAIRS = false; // LTC_BTC, BTC_USD, LTC_USD: level -= 0.02

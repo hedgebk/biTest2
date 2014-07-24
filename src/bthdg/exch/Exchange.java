@@ -285,7 +285,7 @@ public enum Exchange {
                 startsWith.add(exchange);
                 return startsWith;
             }
-            if (name.startsWith(exchName)) {
+            if (name.contains(exchName)) {
                 startsWith.add(exchange);
             }
         }

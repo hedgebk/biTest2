@@ -79,12 +79,12 @@ public class Console {
 
     private static void switchExchange(String line) {
         String exchName = line.substring(2).toUpperCase();
-        List<Exchange> startsWith = Exchange.resolveExchange(exchName);
-        if (startsWith.size() > 1) {
-            System.err.println("multiple exchanges starts with '" + exchName + "' : " + startsWith);
+        List<Exchange> resolved = Exchange.resolveExchange(exchName);
+        if (resolved.size() > 1) {
+            System.err.println("multiple exchanges contain '" + exchName + "' : " + resolved);
         } else {
-            if (startsWith.size() == 1) {
-                s_exchange = startsWith.get(0);
+            if (resolved.size() == 1) {
+                s_exchange = resolved.get(0);
                 String name = s_exchange.name();
                 if (name.equalsIgnoreCase(exchName)) {
                     System.err.println(" current exchange is changed successfully to " + name);

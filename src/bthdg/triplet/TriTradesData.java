@@ -328,6 +328,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         String pegName = tradePeg.name();
         double level = peg1.level();
         if (pegMax > level) {
+            double need = peg1.m_need;
             OrderData order = triTrade.m_order;
             double orderPrice = order.m_price;
             double pegPrice = peg1.calcPegPrice(tops);
@@ -348,11 +349,18 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 triTrade.log("  peg to live (" + pegName + "): pegMax=" + pegMax + "; tradePegMax=" + tradePeg.m_max +
                         "; priceDif=" + order.roundPriceStr(Triplet.s_exchange, priceDif) + ", pegPrice=" + pegPrice + "; order=" + order);
             } else {
-                triTrade.log("   peg order should be moved (" + pegName + "). orderPrice=" + orderPrice +
-                        ", pegPrice=" + pegPrice + "; priceDif=" + Utils.format8(priceDif) +
-                        "; minOurPriceStep=" + Utils.format8(minOurPriceStep) +
-                        "; minExchPriceStep=" + Utils.format8(minExchPriceStep)
-                );
+                if( (pegPrice <= orderPrice && orderPrice <= need) || (pegPrice >= orderPrice && orderPrice >= need) ) {
+                    toLive = true;
+                    triTrade.log("  peg to live (" + pegName + ") price between peg and need: pegPrice=" + pegPrice + "; orderPrice=" + orderPrice +
+                            "; need=" + need + "; order=" + order);
+                } else {
+                    triTrade.log("   peg order should be moved (" + pegName + "). orderPrice=" + orderPrice +
+                                    ", pegPrice=" + pegPrice + "; need=" + need +
+                                    "; priceDif=" + Utils.format8(priceDif) +
+                                    "; minOurPriceStep=" + Utils.format8(minOurPriceStep) +
+                                    "; minExchPriceStep=" + Utils.format8(minExchPriceStep)
+                    );
+                }
             }
         } else {
             triTrade.log("   peg order should be REmoved (" + pegName + "). max=" + pegMax +
@@ -375,7 +383,7 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
                 : tradePeg.mktRatio3(tops, m_account); // commission is applied to ratio
         double ratio = ratio1 * ratio2 * ratio3;
         if (header != null) {
-            triTrade.log(header + "() ratio1=" + ratio1 + "; ratio2=" + ratio2 + "; ratio3=" + ratio3 + "; ratio=" + ratio);
+            triTrade.log(header + "() ratio1=" + Utils.format8(ratio1) + "; ratio2=" + Utils.format8(ratio2) + "; ratio3=" + Utils.format8(ratio3) + "; ratio=" + Utils.format8(ratio));
         }
         return ratio;
     }
