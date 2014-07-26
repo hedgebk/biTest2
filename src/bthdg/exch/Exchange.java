@@ -1,9 +1,13 @@
 package bthdg.exch;
 
 import bthdg.Fetcher;
+import bthdg.util.Utils;
 
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 // to support others ?
 // https://www.kraken.com
@@ -304,8 +308,7 @@ public enum Exchange {
 
     public boolean supportsCurrency(Currency currency) {
         Currency[] currencies = supportedCurrencies();
-        int indx = Arrays.binarySearch(currencies, currency);
-        return (indx >= 0);
+        return Utils.contains(currencies, currency);
     }
 
     public void init(Properties keys) {}

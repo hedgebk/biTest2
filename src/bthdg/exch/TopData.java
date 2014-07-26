@@ -133,6 +133,14 @@ public class TopData {
         }
     }
 
+    public boolean isOutsideBibAsk(double price) {
+        return (price < m_bid) || (m_ask < price);
+    }
+
+    public boolean isInsideBidAsk(double price) {
+        return (m_ask > price) && (price > m_bid);
+    }
+
     public static class TopDataEx extends TopData {
         public final double m_mid;
 

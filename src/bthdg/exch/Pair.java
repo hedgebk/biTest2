@@ -39,6 +39,10 @@ public enum Pair {
         m_to = to;
     }
 
+    public Currency[] toArray() {
+        return new Currency[]{m_from, m_to};
+    }
+
     public String getName(Direction direction) {
         return (direction == Direction.FORWARD) ? m_from + "->" + m_to : m_to + "->" + m_from;
     }

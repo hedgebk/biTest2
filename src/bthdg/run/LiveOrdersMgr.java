@@ -115,7 +115,7 @@ public class LiveOrdersMgr {
                     }
                 };
                 m_fetcher.start();
-                log(" callback stored, started fetchOrders thread");
+//                log(" callback stored, started fetchOrders thread");
             }
         }
     }

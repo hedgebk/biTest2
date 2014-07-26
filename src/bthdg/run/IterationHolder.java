@@ -2,9 +2,7 @@ package bthdg.run;
 
 import bthdg.exch.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class IterationHolder {
@@ -12,11 +10,9 @@ public class IterationHolder {
     private LiveOrdersMgr m_liveOrdersMgr;
     private Map<String, Double> m_lockedMap;
     private Map<ExchangesPair, Integer> m_tradesCountMap;
-    private ArrayList<Exchange> m_exchangeToCheckBalance;
     private Map<Exchange, Map<Currency,Double>> m_lockedFundsMap;
 
     public IterationHolder(int count) { m_count = count; }
-    public List<Exchange> getExchangesToCheckBalance() { return m_exchangeToCheckBalance; }
 
     public void queryLiveOrders( Exchange exchange, Pair pair, LiveOrdersMgr.ILiveOrdersCallback callback ) {
         LiveOrdersMgr liveOrdersMgr;
@@ -26,7 +22,7 @@ public class IterationHolder {
             }
             liveOrdersMgr = m_liveOrdersMgr;
         }
-        liveOrdersMgr.queryLiveOrders( exchange, pair, callback );
+        liveOrdersMgr.queryLiveOrders(exchange, pair, callback);
     }
 
     public synchronized void lockDeep(OrderDataExchange ode) {
@@ -84,13 +80,6 @@ public class IterationHolder {
             }
         }
         return 0;
-    }
-
-    public synchronized void addExchangeToCheckBalance(Exchange exchange) {
-        if(m_exchangeToCheckBalance == null) {
-            m_exchangeToCheckBalance = new ArrayList<Exchange>();
-        }
-        m_exchangeToCheckBalance.add(exchange);
     }
 
     public synchronized boolean lockAmount(AccountData account, double lockAmount, Currency currency) {

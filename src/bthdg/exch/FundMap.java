@@ -7,11 +7,16 @@ import java.util.TreeMap;
 public class FundMap {
     public static final Map<Exchange,Map<Currency,Double>> s_map = new HashMap<Exchange,Map<Currency,Double>>();
 
-    public static void test(AccountData account, TopsData tops, Exchange exchange) {
-        Map<Currency, Double> distributeRatio = distributeRatio(exchange);
+    public static OrderData test(AccountData account, TopsData tops, Exchange exchange) {
+        Map<Currency, Double> ratioMap = distributeRatio(exchange);
+        Currency[] currencies = exchange.supportedCurrencies();
 
+        return test(account, tops, exchange, ratioMap, currencies);
+    }
+
+    public static OrderData test(AccountData account, TopsData tops, Exchange exchange, Map<Currency, Double> ratioMap, Currency[] currencies) {
         Map<Currency, Double> valuateMap = new HashMap<Currency, Double>();
-        for (Currency inCurrency : exchange.supportedCurrencies()) {
+        for (Currency inCurrency : currencies) {
             double valuate = account.evaluate(tops, inCurrency, exchange);
             valuateMap.put(inCurrency, valuate);
         }
@@ -21,9 +26,9 @@ public class FundMap {
 
         TreeMap<Double, Currency> difMap = new TreeMap<Double, Currency>();
         TreeMap<Double, Currency> difMapBtc = new TreeMap<Double, Currency>();
-        for (Currency currencyIn : exchange.supportedCurrencies()) {
+        for (Currency currencyIn : currencies) {
             double inValue = account.getAllValue(currencyIn);
-            Double weight = distributeRatio.get(currencyIn);
+            Double weight = ratioMap.get(currencyIn);
             double convertedBtc = (currencyIn == currencyOut)
                     ? inValue :
                     tops.convert(currencyIn, currencyOut, inValue, exchange);
@@ -49,7 +54,7 @@ public class FundMap {
 
         System.out.println("from=" + from);
         double fromValueHave = account.getAllValue(from);
-        Double fromWeight = distributeRatio.get(from);
+        Double fromWeight = ratioMap.get(from);
         double fromValuate = valuateMap.get(from);
         double fromExpected = fromWeight * fromValuate;
         double fromExtra = fromValueHave - fromExpected;
@@ -64,7 +69,7 @@ public class FundMap {
 
             System.out.println("to=" + to);
             double toValueHave = account.getAllValue(to);
-            Double toWeight = distributeRatio.get(to);
+            Double toWeight = ratioMap.get(to);
             double toValuate = valuateMap.get(to);
             double toExpected = toWeight * toValuate;
             double toNeed = toExpected - toValueHave;
@@ -108,6 +113,7 @@ public class FundMap {
                         OrderData orderData = new OrderData(pair, side, limitPrice, roundAmount);
                         System.out.println("confirm orderData=" + orderData);
                         System.out.println("order " + side.m_name + " " + roundAmount + " " + pair.m_to + " for " + pair.m_from + " @ mkt");
+                        return orderData;
                     } else {
                         System.out.println("not support direction " + from + " -> " + to);
                     }
@@ -120,6 +126,7 @@ public class FundMap {
         } else {
             System.out.println("ERROR: fromExtra < 0");
         }
+        return null;
     }
 
     public static Map<Currency, Double> distributeRatio(Exchange exchange) {

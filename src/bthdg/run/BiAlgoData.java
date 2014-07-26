@@ -1,12 +1,12 @@
 package bthdg.run;
 
-import bthdg.Fetcher;
 import bthdg.IIterationContext;
 import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.util.Sync;
 import bthdg.util.Utils;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -16,6 +16,7 @@ public class BiAlgoData {
     public final String m_id;
     public final Pair m_pair;
     public final boolean m_up;
+    private final ExchangesPair m_exchangesPair;
     public BiAlgoState m_state = BiAlgoState.NEW;
     public final BiAlgo.BiPoint m_openPoint;
     private BiAlgo.BiPoint m_closePoint;
@@ -30,8 +31,9 @@ public class BiAlgoData {
     void log(String s) { Log.log(m_id + " " + s); }
     private void err(String s, Exception e) { Log.err(m_id + " " + s, e); }
 
-    public BiAlgoData(boolean up, Pair pair, BiAlgo.BiPoint mktPoint, double amount, OrderDataExchange ode1, OrderDataExchange ode2) {
+    public BiAlgoData(ExchangesPair exchangesPair, boolean up, Pair pair, BiAlgo.BiPoint mktPoint, double amount, OrderDataExchange ode1, OrderDataExchange ode2) {
         m_id = generateId(null);
+        m_exchangesPair = exchangesPair;
         m_up = up;
         m_pair = pair;
         m_openPoint = mktPoint;
@@ -65,7 +67,7 @@ public class BiAlgoData {
             @Override public OrderData.OrderPlaceStatus run(OrderDataExchange ode) {
                 try {
                     log("placeOrder: " + ode);
-                    OrderData.OrderPlaceStatus orderPlaceStatus = BiAlgo.placeOrder(ode.m_account, ode.m_exchange, ode.m_orderData, OrderState.LIMIT_PLACED);
+                    OrderData.OrderPlaceStatus orderPlaceStatus = BiAlgo.placeOrder(ode.m_account, ode.m_orderData, OrderState.LIMIT_PLACED);
                     log("placeOrder res: " + orderPlaceStatus);
                     return orderPlaceStatus;
                 } catch (Exception e) {
@@ -120,7 +122,7 @@ public class BiAlgoData {
         log("checkLiveOrderState (isOpen=" + isOpen + ") on " + this);
         List<AtomicBoolean> ret = null;
 
-        OrderDataExchange[] odes = new OrderDataExchange[] {m_openOde1, m_closeOde1, m_openOde2, m_closeOde2};
+        OrderDataExchange[] odes = getOrderDataExchanges();
         for(OrderDataExchange ode: odes) {
             if(ode != null) {
                 AtomicBoolean stat = checkLiveOrderState(ih, ode, biAlgo);
@@ -167,9 +169,6 @@ public class BiAlgoData {
                     } catch (Exception e) {
                         err("orderData.checkState error: " + e, e);
                     }
-                    if(orderData.isFilled()) { // order becomes filled - mark to check account
-                        ih.addExchangeToCheckBalance(exchange);
-                    }
                     Sync.setAndNotify(finalRet);
                 }
             });
@@ -192,44 +191,26 @@ public class BiAlgoData {
     public boolean cancel() throws Exception {
         log("cancel data: " + this);
         boolean ok = true;
-        OrderData odo1 = m_openOde1.m_orderData;
-        if (odo1.m_status.isActive()) {
-            ok &= cancelOrder(m_openOde1);
-        }
-        OrderData odo2 = m_openOde2.m_orderData;
-        if (odo2.m_status.isActive()) {
-            ok &= cancelOrder(m_openOde2);
-        }
-        if (m_closeOde1 != null) {
-            OrderData odc1 = m_closeOde1.m_orderData;
-            if (odc1.m_status.isActive()) {
-                ok &= cancelOrder(m_closeOde1);
+
+        OrderDataExchange[] odes = getOrderDataExchanges();
+        for( OrderDataExchange ode: odes ) {
+            if (ode != null) {
+                OrderData od = ode.m_orderData;
+                if (od.m_status.isActive()) {
+                    ok &= cancelOrder(ode);
+                }
             }
         }
-        if (m_closeOde2 != null) {
-            OrderData odc2 = m_closeOde2.m_orderData;
-            if (odc2.m_status.isActive()) {
-                ok &= cancelOrder(m_closeOde2);
-            }
-        }
-        if(ok) {
-            setState(BiAlgoState.CANCEL);
-        }
+
+        setState(ok ? BiAlgoState.CANCEL : BiAlgoState.CANCELING);
         return ok;
     }
 
-    private boolean cancelOrder(OrderDataExchange orderData) throws Exception {
-        log("cancel order: " + orderData);
-        Exchange exchange = orderData.m_exchange;
-        OrderData od = orderData.m_orderData;
-        String orderId = od.m_orderId;
-        Pair pair = od.m_pair;
-        CancelOrderData coData = Fetcher.cancelOrder(exchange, orderId, pair);
-        String error = coData.m_error;
+    private boolean cancelOrder(OrderDataExchange ode) throws Exception {
+        log("cancel order: " + ode);
+        OrderData od = ode.m_orderData;
+        String error = BiAlgo.cancelOrder(ode.m_account, od);
         if (error == null) {
-            od.cancel();
-            AccountData account = orderData.m_account;
-            account.releaseOrder(od, exchange);
             return true;
         } else {
             log("error in cancel order: " + error + "; " + od);
@@ -245,9 +226,8 @@ public class BiAlgoData {
 
         Boolean isOpen = m_state.isOpen();
         if(isOpen != null) {
-            OrderDataExchange ode1 = isOpen ? m_openOde1 : m_closeOde1;
-            OrderDataExchange ode2 = isOpen ? m_openOde2 : m_closeOde2;
-            for(OrderDataExchange o: new OrderDataExchange[]{ode1, ode2}) {
+            OrderDataExchange[] orderDataExchanges = getOrderDataExchanges(isOpen);
+            for(OrderDataExchange o: orderDataExchanges) {
                 Exchange exchange = o.m_exchange;
                 if(exch == exchange) {
                     OrderData orderData = o.m_orderData;
@@ -271,9 +251,8 @@ public class BiAlgoData {
     public OrderData getFirstActiveLive() {
         Boolean isOpen = m_state.isOpen();
         if(isOpen != null) {
-            OrderDataExchange ode1 = isOpen ? m_openOde1 : m_closeOde1;
-            OrderDataExchange ode2 = isOpen ? m_openOde2 : m_closeOde2;
-            for(OrderDataExchange ode: new OrderDataExchange[]{ode1, ode2}) {
+            OrderDataExchange[] orderDataExchanges = getOrderDataExchanges(isOpen);
+            for(OrderDataExchange ode: orderDataExchanges) {
                 OrderData od = ode.m_orderData;
                 if(od.isActive()) {
                     return od;
@@ -281,6 +260,28 @@ public class BiAlgoData {
             }
         }
         return null;
+    }
+
+    private OrderDataExchange[] getOrderDataExchanges() {
+        return new OrderDataExchange[] {m_openOde1, m_closeOde1, m_openOde2, m_closeOde2};
+    }
+
+    private OrderDataExchange[] getOrderDataExchanges(Boolean isOpen) {
+        OrderDataExchange ode1 = isOpen ? m_openOde1 : m_closeOde1;
+        OrderDataExchange ode2 = isOpen ? m_openOde2 : m_closeOde2;
+        return new OrderDataExchange[]{ode1, ode2};
+    }
+
+    public boolean hasLiveExchOrder() {
+        OrderDataExchange[] odes = getOrderDataExchanges();
+        for (OrderDataExchange ode : odes) {
+            if (ode != null) {
+                if (ode.m_orderData.isActive()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public enum BiAlgoState {
@@ -309,10 +310,31 @@ public class BiAlgoData {
             @Override public void checkState(BiAlgoData biAlgoData) { checkSomeDone(biAlgoData, CLOSE, false); }
         },
         CLOSE,
+        CANCELING {
+            @Override public void checkState(BiAlgoData biAlgoData) { checkAllDone(biAlgoData); }
+        },
         CANCEL,
         ERROR {
             @Override public void checkState(BiAlgoData biAlgoData) { /*noop*/ }
         };
+
+        private static void checkAllDone(BiAlgoData biAlgoData) {
+            OrderDataExchange[] odes = biAlgoData.getOrderDataExchanges();
+            biAlgoData.log("checkAllDone() odes=" + Arrays.asList(odes));
+            boolean hasActive = false;
+            for(OrderDataExchange ode: odes) {
+                if(ode != null) {
+                    if( ode.m_orderData.m_status.isActive() ) {
+                        biAlgoData.log(" got active order=" + ode);
+                        hasActive = true;
+                    }
+                }
+            }
+            if(!hasActive) {
+                biAlgoData.log(" no more active orders - setting CANCELLED");
+                biAlgoData.setState(CANCEL);
+            }
+        }
 
         private static void checkSomeDone(BiAlgoData biAlgoData, BiAlgoState filledState, boolean opening) {
             OrderDataExchange ode1 = opening ? biAlgoData.m_openOde1 : biAlgoData.m_closeOde1;

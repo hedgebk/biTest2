@@ -8,6 +8,12 @@ import java.util.Set;
 public class TopsData {
     public HashMap<Pair,TopData> m_map = new HashMap<Pair,TopData>(Pair.values().length);
 
+    public TopsData() {}
+
+    public TopsData(Pair pair, TopData topData) {
+        put(pair, topData);
+    }
+
     public TopData get(Pair pair) {
         TopData topData = getInt(pair);
         if (topData == null) {

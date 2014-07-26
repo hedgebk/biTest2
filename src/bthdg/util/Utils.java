@@ -304,6 +304,15 @@ public class Utils {
         return buf.toString();
     }
 
+    public static <R> boolean contains(R[] arr, R item) {
+        for(R r: arr) {
+            if(r.equals(item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static abstract class DoubleAverageCalculator<O> {
         private double m_sum;

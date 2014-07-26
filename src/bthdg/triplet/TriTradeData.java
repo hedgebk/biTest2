@@ -199,7 +199,7 @@ public class TriTradeData {
                     "; mid=" + midStr);
 
             if (attempt < Triplet.WAIT_MKT_ORDER_STEPS) {
-                if ((topData.m_ask > zeroProfitPrice) && (zeroProfitPrice > topData.m_bid)) {
+                if (topData.isInsideBidAsk(zeroProfitPrice)) {
                     boolean betweenMidMkt = side.isBuy()
                             ? ((mid > zeroProfitPrice) && (zeroProfitPrice > mktPrice))
                             : ((mid < zeroProfitPrice) && (zeroProfitPrice < mktPrice));

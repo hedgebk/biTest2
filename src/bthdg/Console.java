@@ -394,7 +394,7 @@ public class Console {
     }
 
     private static boolean confirmLmtPrice(double limitPrice, TopData top) throws IOException {
-        if( (limitPrice > top.m_ask) || (top.m_bid > limitPrice) ) { // ASK > BID
+        if( top.isOutsideBibAsk(limitPrice) ) { // ASK > BID
             System.err.println("order price " + limitPrice + " is out of market " + top + "; please confirm");
             if(confirm()) {
                 System.err.println("order price confirmed");
