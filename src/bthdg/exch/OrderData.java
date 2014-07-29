@@ -451,6 +451,10 @@ public class OrderData {
         return m_price * (m_side.isBuy() ? -1 : 1);
     }
 
+    public OrderData split(double splitAmount) {
+        return new OrderData(m_pair, m_side, m_price, splitAmount);
+    }
+
     public enum OrderPlaceStatus {
         OK,
         ERROR,

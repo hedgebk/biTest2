@@ -245,7 +245,7 @@ public class Console {
             s +=  Utils.padRight(Utils.padLeft(Utils.format5(valuate), 9), 29) + " | ";
         }
         System.out.println(s);
-        FundMap.test(account, tops, s_exchange);
+        FundMap.test(account, tops, s_exchange, 0.95);
     }
 
     private static void printHelp() {

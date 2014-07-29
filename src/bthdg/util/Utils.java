@@ -2,6 +2,7 @@ package bthdg.util;
 
 import bthdg.Deserializer;
 import bthdg.Log;
+import bthdg.exch.Exchange;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
@@ -25,6 +26,9 @@ public class Utils {
 
     public static String format8(double value) { return X_YYYYYYYY.format(value); }
     public static String format5(double value) { return X_YYYYY.format(value); }
+
+    private static void log(String s) { Log.log(s); }
+    private static void err(String s, Exception e) { Log.err(s, e); }
 
     public static String encodeHexString(byte[] hash) {
         String hex = String.format("%0128x", new BigInteger(1, hash));
@@ -246,13 +250,13 @@ public class Utils {
         return Character.toUpperCase(str.charAt(0)) + str.substring(1);
     }
 
-    public static <P, R> List<R> runAndSync(P[] params, final IRunnable<P, R> runnable) throws InterruptedException {
+    public static <Param, Return> List<Return> runAndSync(Param[] params, final IRunnable<Param, Return> runnable) throws InterruptedException {
         Log.log("runAndSync params: " + Arrays.toString(params));
-        final List<R> list = new ArrayList<R>(params.length);
+        final List<Return> list = new ArrayList<Return>(params.length);
         final AtomicInteger count = new AtomicInteger();
         for (int i = 0, paramsLength = params.length; i < paramsLength; i++) {
             final int indx = i;
-            final P param = params[i];
+            final Param param = params[i];
             Log.log("params[" + i + "]: " + param);
             synchronized (count) {
                 int val = count.incrementAndGet();
@@ -262,7 +266,7 @@ public class Utils {
             new Thread() {
                 @Override public void run() {
                     Log.log("params[" + indx + "] thread started " + param);
-                    R ret = runnable.run(param);
+                    Return ret = runnable.run(param);
                     Log.log("params[" + indx + "] runnable finished " + param);
                     synchronized (count) {
                         int val = count.decrementAndGet();
@@ -287,6 +291,48 @@ public class Utils {
         }
         Log.log("    returning " + list);
         return list;
+    }
+
+    public static void doInParallel(String name, Exchange[] exchanges, final IExchangeRunnable eRunnable) throws InterruptedException {
+        int length = exchanges.length;
+        if (length == 1) { // optimize - no need threads
+            try {
+                eRunnable.run(exchanges[0]);
+            } catch (Exception e) {
+                err("runForOnExch error: " + e, e);
+            }
+            return;
+        }
+        final AtomicInteger counter = new AtomicInteger(length);
+        for (int i = length - 1; i >= 0; i--) {
+            final Exchange exchange = exchanges[i];
+            Runnable r = new Runnable() {
+                @Override public void run() {
+                    try {
+                        eRunnable.run(exchange);
+                    } catch (Exception e) {
+                        err("runForOnExch error: " + e, e);
+                    } finally {
+                        synchronized (counter) {
+                            int value = counter.decrementAndGet();
+                            if (value == 0) {
+                                counter.notifyAll();
+                            }
+                        }
+                    }
+                }
+            };
+            new Thread(r, exchange.name() + "_" + name).start();
+        }
+        synchronized (counter) {
+            if(counter.get() != 0) {
+                counter.wait();
+            }
+        }
+    }
+
+    public interface IExchangeRunnable {
+        void run(Exchange exchange) throws Exception;
     }
 
     public static String generateId(String parentId, int charsNum) {

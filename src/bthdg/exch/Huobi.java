@@ -37,7 +37,7 @@ public class Huobi extends BaseExch {
     private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
-        put(Pair.BTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         0.001);
+        put(Pair.BTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         0.01);
         put(Pair.LTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         1);
     }
 

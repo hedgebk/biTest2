@@ -286,6 +286,7 @@ public class Triplet {
             }
         }
         PRESET.apply(keys);
+        log("loaded LVL_PLUS=" + LVL_PLUS);
     }
 
     private static AccountData syncAccountIfNeeded(AccountData account) throws Exception {
@@ -337,7 +338,7 @@ public class Triplet {
     public static String valuateStr(AccountData account, TopsData tops) {
         long millis = System.currentTimeMillis();
         long takes = millis - s_start;
-        long pow = Utils.ONE_DAY_IN_MILLIS / takes;
+        double pow = ((double)Utils.ONE_DAY_IN_MILLIS) / takes;
 
         StringBuffer buf = new StringBuffer();
         for (Currency currency : VALUATE_CURRENCIES) {
@@ -354,6 +355,7 @@ public class Triplet {
                 buf.append(result);
             }
         }
+buf.append("; pow="+Utils.format5(pow));
         return buf.toString();
     }
 

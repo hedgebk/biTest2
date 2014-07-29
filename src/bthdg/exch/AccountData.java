@@ -277,4 +277,19 @@ public class AccountData {
         }
         return sb;
     }
+
+    public String cancelOrder(OrderData od) throws Exception {
+        Pair pair = od.m_pair;
+        String orderId = od.m_orderId;
+        CancelOrderData coData = Fetcher.cancelOrder(m_exchange, orderId, pair);
+        String error = coData.m_error;
+        if (error == null) {
+            od.cancel();
+            releaseOrder(od, m_exchange);
+            return null;
+        } else {
+            return error;
+        }
+    }
+
 }

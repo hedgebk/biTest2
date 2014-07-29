@@ -1,7 +1,6 @@
 package bthdg.run;
 
 import bthdg.Fetcher;
-import bthdg.IIterationContext;
 import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.exch.Currency;
@@ -10,7 +9,6 @@ import bthdg.util.Utils;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * - save open orders/state on stop; read/restore state on start
@@ -43,8 +41,13 @@ class BiAlgo implements Runner.IAlgo {
     Map<Exchange, AccountData> m_accountMap = new HashMap<Exchange, AccountData>();
     private static final int MAX_PLACE_ORDER_REPEAT = 2;
     private static int s_notEnoughFundsCounter;
-    private Set<Exchange> m_checkBalancedExchanges = new HashSet<Exchange>();
-    private Map<Exchange, OrderData> m_balanceOrders = new HashMap<Exchange, OrderData>();
+
+    private BalancedMgr m_balancer = new BalancedMgr() {
+        protected Pair getPair() { return PAIR; }
+        protected AccountData getAccount(Exchange exchange) { return m_accountMap.get(exchange); }
+        protected TopData getTop(Exchange exchange, Pair pair) { return m_mdStorage.get(exchange, pair).topData(); }
+        protected boolean hasLiveExchOrder(Exchange exch) { return BiAlgo.this.hasLiveExchOrder(exch); }
+    };
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
@@ -61,7 +64,7 @@ class BiAlgo implements Runner.IAlgo {
     }
 
     public BiAlgo() {
-        Collections.addAll(m_checkBalancedExchanges, ALL_EXCHANGES);
+        Collections.addAll(m_balancer.m_checkBalancedExchanges, ALL_EXCHANGES);
     }
 
     @Override public void runAlgo() {
@@ -79,7 +82,7 @@ class BiAlgo implements Runner.IAlgo {
             int iterationCount = 0;
             while (true) {
                 long millis = System.currentTimeMillis();
-                log("iteration " + iterationCount + " -------------------------------------------- elapsed: " + Utils.millisToDHMSStr(millis - m_startMillis));
+                log("iteration " + iterationCount + " -------------------------------------------- elapsed: " + Utils.millisToDHMSStr(millis - m_startMillis) + "; date=" + new Date());
                 IterationHolder ih = new IterationHolder(iterationCount);
                 runIteration(ih);
                 sleepIfNeeded(millis);
@@ -103,12 +106,16 @@ class BiAlgo implements Runner.IAlgo {
         CANCEL_DEEP_PRICE_INDEX = Integer.parseInt(keys.getProperty("bialgo.cancel_deep_price_index"));
         MIN_ORDER_CAP_RATIO = Integer.parseInt(keys.getProperty("bialgo.cap_ratio"));
 
-        log(" date=" + new Date() + "; START_LEVEL=" + Utils.format5(START_LEVEL));
+        log(" date=" + new Date() +
+                "; START_LEVEL=" + Utils.format5(START_LEVEL) +
+                "; CANCEL_DEEP_PRICE_INDEX=" + CANCEL_DEEP_PRICE_INDEX +
+                "; MIN_ORDER_CAP_RATIO=" + MIN_ORDER_CAP_RATIO);
 
         final Currency currency1 = PAIR.m_from;
         final Currency currency2 = PAIR.m_to;
-        doInParallel("getAccountInit", new IExchangeRunnable() {
-            @Override public void run(Exchange exchange) throws Exception {
+        doInParallel("getAccountInit", new Utils.IExchangeRunnable() {
+            @Override
+            public void run(Exchange exchange) throws Exception {
                 exchange.init(keys);
                 AccountData accountData = Fetcher.fetchAccount(exchange);
                 m_accountMap.put(exchange, accountData);
@@ -121,8 +128,8 @@ class BiAlgo implements Runner.IAlgo {
                 double evaluate2 = accountData.evaluate(tops, currency2, exchange);
                 putStartValuate(exchange, currency2, evaluate2);
                 log("Start account(" + exchange.m_name + "): " + accountData +
-                        "; evaluate" + Utils.capitalize(currency1.m_name) + ": " + Utils.format5(evaluate1) +
-                        "; evaluate" + Utils.capitalize(currency2.m_name) + ": " + Utils.format5(evaluate2)
+                                "; evaluate" + Utils.capitalize(currency1.m_name) + ": " + Utils.format5(evaluate1) +
+                                "; evaluate" + Utils.capitalize(currency2.m_name) + ": " + Utils.format5(evaluate2)
                 );
             }
         });
@@ -174,7 +181,7 @@ class BiAlgo implements Runner.IAlgo {
         double ratio2 = totalEvaluate2 / totalSleep2;
         long millis = System.currentTimeMillis();
         long takes = millis - m_startMillis;
-        long pow = Utils.ONE_DAY_IN_MILLIS / takes;
+        double pow = ((double)Utils.ONE_DAY_IN_MILLIS) / takes;
         double d1 = Math.pow(ratio1, pow);
         double d2 = Math.pow(ratio2, pow);
         log("  ratio" + Utils.capitalize(currency1.m_name) + ": " + Utils.format5(ratio1) + " -> " + Utils.format5(d1) + "/d" +
@@ -205,7 +212,7 @@ class BiAlgo implements Runner.IAlgo {
         runBfrMkt(ih, this); // check open orders state if any
 
         // load mkt data
-        doInParallel("getMktData", new IExchangeRunnable() {
+        doInParallel("getMktData", new Utils.IExchangeRunnable() {
             @Override public void run(Exchange exchange) throws Exception {
 //                TopData topData = Fetcher.fetchTop(exchange, m_pair);
                 DeepData deeps = Fetcher.fetchDeep(exchange, PAIR);
@@ -222,166 +229,22 @@ class BiAlgo implements Runner.IAlgo {
 
         runForPairs(ih);
 
-        сheckBalanced(ih);
+        m_balancer.сheckBalanced(ih);
 //        сheckBalancesIfNeeded(ih);
 
         logIterationEnd();
     }
 
-    private void сheckBalanced(IterationHolder ih) throws InterruptedException {
-        List<AtomicBoolean> syncList = null;
-        final List<Exchange> toRemove = new ArrayList<Exchange>();
-        for(Map.Entry<Exchange, OrderData> entry: m_balanceOrders.entrySet()) {
-            final Exchange exchange = entry.getKey();
-            final OrderData od = entry.getValue();
-            log(" queryLiveOrders: " + exchange + ", to check order state " + od);
-            final AtomicBoolean sync = new AtomicBoolean(false);
-            ih.queryLiveOrders(exchange, PAIR, new LiveOrdersMgr.ILiveOrdersCallback() {
-                @Override public void onLiveOrders(final OrdersData ordersData) {
-                    log("onLiveOrders: " + exchange);
-                    String orderId = od.m_orderId;
-                    log(" orderId: " + orderId);
-                    OrdersData.OrdData ordData = ordersData.m_ords.get(orderId);
-                    log("  live order state: " + ordData);
-                    AccountData accountData = m_accountMap.get(exchange);
-                    try {
-                        od.checkState(new IIterationContext.BaseIterationContext() {
-                            @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception {
-                                return ordersData;
-                            }
-                        }, exchange, accountData, null, null);
-                    } catch (Exception e) {
-                        err("orderData.checkState error: " + e, e);
-                    }
-
-                    boolean done = checkBalancedOrderStatus(accountData, od, exchange);
-                    if (done) {
-                        toRemove.add(exchange);
-                    }
-                    Sync.setAndNotify(sync);
-                }
-            });
-            syncList = Sync.addSync(syncList, sync);
-        }
-        Sync.wait(syncList);
-
-        if(!toRemove.isEmpty()) {
-            log(" removing processed balanced order for exch: " + toRemove);
-            for (Exchange exchange : toRemove) {
-                m_balanceOrders.remove(exchange);
-            }
-        }
-
-        сheckForNewBalancedOrder();
-    }
-
-    private boolean checkBalancedOrderStatus(AccountData accountData, OrderData od, Exchange exchange) {
-        if (od.m_status == OrderStatus.FILLED) {
-            log("   balanced order FILLED: " + od);
-        } else if (od.m_status == OrderStatus.SUBMITTED) {
-            MktDataHolder mdh = m_mdStorage.get(exchange, PAIR);
-            TopData topData = mdh.topData();
-            double price = od.m_price;
-            String baStr = "[b:" + topData.m_bid + "; a:" + topData.m_ask + "]";
-            if (topData.isOutsideBibAsk(price)) {
-                log("price " + price + " is outside of market " + baStr + " for order " + od);
-                log(" cancelOrder: " + od);
-                try {
-                    String error = BiAlgo.cancelOrder(accountData, od);
-                    if (error == null) {
-                        log("  cancelOrder OK");
-                    } else {
-                        log("  error in cancel order: " + error + "; " + od);
-                    }
-                } catch (Exception e) {
-                    err("  error in cancel order: " + e + "; " + od, e);
-                }
-            } else {
-                log("   balanced order " + price + " is within market " + baStr + " - wait more: " + od);
-                return false;
-            }
-        } else {
-            log("unsupported status: " + od.m_status + " for order " + od);
-        }
-        return true;
-    }
-
-    private void сheckForNewBalancedOrder() throws InterruptedException {
-        if(!m_checkBalancedExchanges.isEmpty()) {
-            log("сheckForNewBalancedOrder for " + m_checkBalancedExchanges);
-            List<Exchange> list = null;
-            for (Exchange exch : m_checkBalancedExchanges) {
-                OrderData od = m_balanceOrders.get(exch);
-                if (od != null) {
-                    log("exch " + exch + " skipped since has already balance order: " + od);
-                } else {
-                    boolean has = hasLiveExchOrder(exch);
-                    if (has) {
-                        log("exch " + exch + " skipped since has live orders");
-                    } else {
-                        log("exch " + exch + " can be checked - NO live orders");
-                        if (list == null) {
-                            list = new ArrayList<Exchange>();
-                        }
-                        list.add(exch);
-                    }
-                }
-            }
-            if(list != null) {
-                log(" check balanced for exchanges: " + list);
-                doInParallel("сheckBalanced", list.toArray(new Exchange[list.size()]), new IExchangeRunnable() {
-                    @Override public void run(Exchange exchange) throws Exception {
-                        сheckBalancedExch(exchange);
-                    }
-                });
-            }
-        }
-    }
-
     private boolean hasLiveExchOrder(Exchange exch) {
         for (ExchangesPairData epd : m_exchPairsDatas) {
-            if( Utils.contains(epd.m_exchanges, exch) ) {
+            if (Utils.contains(epd.m_exchanges, exch)) {
                 boolean hasLive = epd.hasLiveExchOrder();
-                if(hasLive) {
+                if (hasLive) {
                     return true;
                 }
             }
         }
         return false;
-    }
-
-    private void сheckBalancedExch(Exchange exchange) throws Exception {
-        log(" check balanced for exchange: " + exchange + " -------------------------------");
-
-        Map<Currency, Double> ratioMap = new HashMap<Currency, Double>();
-        ratioMap.put(PAIR.m_from, 0.5);
-        ratioMap.put(PAIR.m_to, 0.5);
-        Currency[] currencies = PAIR.toArray();
-
-        AccountData account = m_accountMap.get(exchange);
-        MktDataHolder mktData = m_mdStorage.get(exchange, PAIR);
-        TopData top = mktData.topData();
-        TopsData tops = new TopsData(PAIR, top);
-        OrderData od = FundMap.test(account, tops, exchange, ratioMap, currencies);
-        if (od == null) {
-            log(" no need balance exch " + exchange);
-            m_checkBalancedExchanges.remove(exchange);
-            return;
-        }
-        log(" to sync we need place peg order on exch " + exchange + ": " + od);
-
-        od.m_amount = 0.01;
-        log("  order size capped to 0.01: " + od);
-
-        OrderData.OrderPlaceStatus ops = placeOrder(account, od, OrderState.LIMIT_PLACED);
-        if (ops == OrderData.OrderPlaceStatus.OK) {
-            m_balanceOrders.put(exchange, od);
-            log("Balanced order placed fine: " + od + "; exch=" + exchange);
-        } else if (ops == OrderData.OrderPlaceStatus.ERROR) {
-            log("ERROR placing Balanced order: " + od + "; exch=" + exchange);
-        } else  {
-            log("ERROR: not supported OrderPlaceStatus: " + ops);
-        }
     }
 
     private void cancelAll() {
@@ -420,7 +283,7 @@ class BiAlgo implements Runner.IAlgo {
                     return;
                 }
             }
-            doInParallel("SyncAccount", new IExchangeRunnable() {
+            doInParallel("SyncAccount", new Utils.IExchangeRunnable() {
                 @Override public void run(Exchange exchange) throws Exception {
                     AccountData current = m_accountMap.get(exchange);
                     log("Sync account(" + exchange.m_name + "): " + current);
@@ -447,48 +310,11 @@ class BiAlgo implements Runner.IAlgo {
         for (ExchangesPairData exchPairsData : m_exchPairsDatas) {
             exchPairsData.logIterationEnd();
         }
+        m_balancer.logIterationEnd();
     }
 
-    private void doInParallel(String name, final IExchangeRunnable eRunnable) throws InterruptedException {
-        doInParallel(name, ALL_EXCHANGES, eRunnable);
-    }
-
-    private void doInParallel(String name, Exchange[] exchanges, final IExchangeRunnable eRunnable) throws InterruptedException {
-        int length = exchanges.length;
-        if (length == 1) { // optimize - no need threads
-            try {
-                eRunnable.run(exchanges[0]);
-            } catch (Exception e) {
-                err("runForOnExch error: " + e, e);
-            }
-            return;
-        }
-        final AtomicInteger counter = new AtomicInteger(length);
-        for (int i = length - 1; i >= 0; i--) {
-            final Exchange exchange = exchanges[i];
-            Runnable r = new Runnable() {
-                @Override public void run() {
-                    try {
-                        eRunnable.run(exchange);
-                    } catch (Exception e) {
-                        err("runForOnExch error: " + e, e);
-                    } finally {
-                        synchronized (counter) {
-                            int value = counter.decrementAndGet();
-                            if (value == 0) {
-                                counter.notifyAll();
-                            }
-                        }
-                    }
-                }
-            };
-            new Thread(r, exchange.name() + "_" + name).start();
-        }
-        synchronized (counter) {
-            if(counter.get() != 0) {
-                counter.wait();
-            }
-        }
+    private void doInParallel(String name, final Utils.IExchangeRunnable eRunnable) throws InterruptedException {
+        Utils.doInParallel(name, ALL_EXCHANGES, eRunnable);
     }
 
     private List<ExchangesPairData> mkExchPairsDatas() {
@@ -590,21 +416,6 @@ class BiAlgo implements Runner.IAlgo {
         }
     }
 
-    public static String cancelOrder(AccountData account, OrderData od) throws Exception {
-        Pair pair = od.m_pair;
-        Exchange exchange = account.m_exchange;
-        String orderId = od.m_orderId;
-        CancelOrderData coData = Fetcher.cancelOrder(exchange, orderId, pair);
-        String error = coData.m_error;
-        if (error == null) {
-            od.cancel();
-            account.releaseOrder(od, exchange);
-            return null;
-        } else {
-            return error;
-        }
-    }
-
     private class ExchangesPairData {
         public final ExchangesPair m_exchangesPair;
         private final Exchange[] m_exchanges;
@@ -658,8 +469,8 @@ class BiAlgo implements Runner.IAlgo {
         private void checkError() throws Exception {
             List<BiAlgoData> toRemove = null;
             for (BiAlgoData data : m_live) {
-                BiAlgoData.BiAlgoState state = data.m_state;
-                if (state == BiAlgoData.BiAlgoState.ERROR) {
+                BiAlgoState state = data.m_state;
+                if (state == BiAlgoState.ERROR) {
                     data.log("Error state, need cancel: " + data);
                     boolean cancelled = data.cancel();
                     data.log(" cancelled: " + cancelled);
@@ -682,18 +493,22 @@ class BiAlgo implements Runner.IAlgo {
         }
 
         private void addCheckBalancedExchanges() {
-            m_checkBalancedExchanges.add(m_exchangesPair.m_exchange1);
-            m_checkBalancedExchanges.add(m_exchangesPair.m_exchange2);
+            m_balancer.addCheckBalancedExchanges(m_exchangesPair.m_exchange1);
+            m_balancer.addCheckBalancedExchanges(m_exchangesPair.m_exchange2);
         }
 
         private void checkIfFarFromMarket() throws Exception {
             List<BiAlgoData> toRemove = null;
+            List<BiAlgoData> toAdd = null;
             for (BiAlgoData data : m_live) {
-                BiAlgoData.BiAlgoState state = data.m_state;
-                boolean someOpen = (state == BiAlgoData.BiAlgoState.SOME_OPEN);
-                if (someOpen || (state == BiAlgoData.BiAlgoState.SOME_CLOSE)) {
-                    if( checkIfFarFromMarket(data, someOpen) ) {
+                BiAlgoState state = data.m_state;
+                boolean isOpen = (state == BiAlgoState.OPEN_PLACED) || (state == BiAlgoState.SOME_OPEN);
+                boolean isClose = (state == BiAlgoState.CLOSE_PLACED) || (state == BiAlgoState.SOME_CLOSE);
+                if (isOpen || isClose) {
+                    if( checkIfFarFromMarket(data, isOpen) ) {
                         data.log("FarFromMarket: " + data);
+                        BiAlgoData split = trySplit(data, isOpen);
+
                         boolean cancelled = data.cancel();
                         data.log("cancelled: " + cancelled);
                         if (cancelled) {
@@ -701,6 +516,14 @@ class BiAlgo implements Runner.IAlgo {
                                 toRemove = new ArrayList<BiAlgoData>();
                             }
                             toRemove.add(data);
+                            data.log(" added to remove: " + data);
+                            if(split != null) {
+                                if (toAdd == null) {
+                                    toAdd = new ArrayList<BiAlgoData>();
+                                }
+                                toAdd.add(split);
+                                data.log(" added to add: " + split);
+                            }
                         } else {
                             data.log("error: unable to cancel all orders: " + cancelled);
                         }
@@ -712,12 +535,41 @@ class BiAlgo implements Runner.IAlgo {
                 log(name() + "  toRemove: " + toRemove);
                 m_live.removeAll(toRemove);
                 log(name() + "   remained live: " + m_live);
-//todo - start account balance task;
+            }
+            if (toAdd != null) {
+                log(name() + "  toAdd: " + toAdd);
+                m_live.addAll(toAdd);
+                log(name() + "   gained live: " + m_live);
             }
         }
 
-        private boolean checkIfFarFromMarket(BiAlgoData data, boolean someOpen) {
-            return someOpen
+        private BiAlgoData trySplit(BiAlgoData data, boolean isOpen) {
+            OrderDataExchange[] odes = data.getOrderDataExchanges(isOpen);
+            double splitAmount = Double.MAX_VALUE;
+            for (OrderDataExchange ode : odes) {
+                OrderData od = ode.m_orderData;
+                OrderStatus status = od.m_status;
+                Exchange exchange = ode.m_exchange;
+                if ((status != OrderStatus.FILLED) && (status != OrderStatus.PARTIALLY_FILLED)) {
+                    log("can not split [" + exchange + "]. orders: " + Arrays.asList(odes));
+                    return null; // can not split.
+                }
+                double filled = od.m_filled;
+                double minOrderToCreate = exchange.minOrderToCreate(PAIR);
+                if (filled < minOrderToCreate) {
+                    log("can not split [" + exchange + "] (filled(" + filled + ") < minOrderToCreate(" + minOrderToCreate + ")). orders: " + Arrays.asList(odes));
+                    return null; // can not split.
+                }
+                splitAmount = Math.min(splitAmount, filled);
+            }
+            log("can split; splitAmount=" + splitAmount + "; orders: " + Arrays.asList(odes));
+            BiAlgoData split = data.split(splitAmount);
+            split.logIterationEnd();
+            return split;
+        }
+
+        private boolean checkIfFarFromMarket(BiAlgoData data, boolean isOpen) {
+            return isOpen
                 ? checkIfFarFromMarket(data.m_openOde1, data.m_openOde2)
                 : checkIfFarFromMarket(data.m_closeOde1, data.m_closeOde2);
         }
@@ -759,7 +611,7 @@ class BiAlgo implements Runner.IAlgo {
                 double price1 = deep1.m_price;
                 double price2 = deep2.m_price;
                 if (((price1 <= price) && (price <= price2)) || ((price1 >= price) && (price >= price2))) {
-                    log("price " + price + " is between deeps " + i + " and " + (i + 1) + ": deep1=" + deep1 + "; deep2=" + deep2);
+                    log(m_exchangesPair.name() + " price " + price + " is between deeps " + i + " and " + (i + 1) + ": deep1=" + deep1 + "; deep2=" + deep2);
                     priceIndex = i;
                     break;
                 }
@@ -769,7 +621,7 @@ class BiAlgo implements Runner.IAlgo {
 
         private void checkLiveForEnd(IterationHolder ih, BiPoint mktPoint) throws Exception {
             for (BiAlgoData data : m_live) {
-                if (data.m_state == BiAlgoData.BiAlgoState.OPEN) {
+                if (data.m_state == BiAlgoState.OPEN) {
                     checkForEnd(ih, data, mktPoint);
                 }
             }
@@ -928,7 +780,7 @@ class BiAlgo implements Runner.IAlgo {
                         baData.placeCloseOrders(ih, mktPoint, ode1, ode2);
                         data = baData;
                     }
-                    if (data.m_state == BiAlgoData.BiAlgoState.ERROR) {
+                    if (data.m_state == BiAlgoState.ERROR) {
                         log(name() + "   place orders error, canceling: " + data);
                         boolean cancelled = data.cancel();
                         log(name() + "   cancel res: " + cancelled);
@@ -1089,13 +941,12 @@ class BiAlgo implements Runner.IAlgo {
             for (BiAlgoData data : m_live) {
                 data.log(name() + " live: " + data);
                 // need to check order state
-                AtomicBoolean stat = data.checkLiveOrderState(ih, biAlgo);
-                ret = Sync.addSync(ret, stat);
+                AtomicBoolean sync = data.checkLiveOrderState(ih, biAlgo);
+                ret = Sync.addSync(ret, sync);
             }
             AtomicBoolean out = null;
             if (ret != null) {
-                // if finished - remove from live
-                out = removeFinished(ret);
+                out = removeFinished(ret); // remove from live if finished
             }
             return out;
         }
@@ -1106,15 +957,22 @@ class BiAlgo implements Runner.IAlgo {
                 @Override public void run() {
                     List<BiAlgoData> toRemove = null;
                     for (BiAlgoData data : m_live) {
-                        BiAlgoData.BiAlgoState state = data.m_state;
-                        if (state == BiAlgoData.BiAlgoState.CLOSE) {
+                        BiAlgoState state = data.m_state;
+                        BiAlgoData candidate = null;
+                        if (state == BiAlgoState.CLOSE) {
                             m_runs++;
                             data.log(name() + " reached CLOSE - to remove from live: " + data);
+                            candidate = data;
+                            logTradeBalance(data);
+                        } else if (state == BiAlgoState.CANCEL) {
+                            data.log(name() + " reached CANCEL - to remove from live: " + data);
+                            candidate = data;
+                        }
+                        if (candidate != null) {
                             if (toRemove == null) {
                                 toRemove = new ArrayList<BiAlgoData>();
                             }
                             toRemove.add(data);
-                            logTradeBalance(data);
                         }
                     }
                     if (toRemove != null) {
@@ -1159,9 +1017,9 @@ class BiAlgo implements Runner.IAlgo {
             log("cancelAll() on " + name());
             List<BiAlgoData> cancelled = null;
             for (BiAlgoData data : m_live) {
-                BiAlgoData.BiAlgoState state = data.m_state;
-                boolean someOpen = (state == BiAlgoData.BiAlgoState.SOME_OPEN);
-                if (someOpen || (state == BiAlgoData.BiAlgoState.SOME_CLOSE)) {
+                BiAlgoState state = data.m_state;
+                boolean someOpen = (state == BiAlgoState.SOME_OPEN);
+                if (someOpen || (state == BiAlgoState.SOME_CLOSE)) {
                     log(" cancelAll() for " + data);
                     boolean ok = data.cancel();
                     if (ok) {
@@ -1174,8 +1032,11 @@ class BiAlgo implements Runner.IAlgo {
             }
             if (cancelled != null) {
                 m_live.removeAll(cancelled);
-                log(name() + "   remained live: " + m_live);
+                if (!m_live.isEmpty()) {
+                    log(name() + "   ERROR: after cancelAll remained live: " + m_live);
+                }
             }
+            m_balancer.cancelAll();
         }
 
         public OrderData getFirstActiveLive() {
@@ -1186,12 +1047,15 @@ class BiAlgo implements Runner.IAlgo {
         }
 
         public boolean hasLiveExchOrder() {
-            for(BiAlgoData live : m_live) {
-                if( live.hasLiveExchOrder() ) {
-                    return true;
-                }
-            }
-            return false;
+// todo: for now allow only in no live pairs, later count total orders qty and check with acct
+            return !m_live.isEmpty();
+
+//            for(BiAlgoData live : m_live) {
+//                if( live.hasLiveExchOrder() ) {
+//                    return true;
+//                }
+//            }
+//            return false;
         }
     }
 
@@ -1225,9 +1089,5 @@ class BiAlgo implements Runner.IAlgo {
             double mid2 = m_mdPoint2.m_topData.getMid();
             return (mid1 + mid2) / 2;
         }
-    }
-
-    private interface IExchangeRunnable {
-        void run(Exchange exchange) throws Exception;
     }
 }
