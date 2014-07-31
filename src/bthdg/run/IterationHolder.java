@@ -14,7 +14,7 @@ public class IterationHolder {
 
     public IterationHolder(int count) { m_count = count; }
 
-    public void queryLiveOrders( Exchange exchange, Pair pair, LiveOrdersMgr.ILiveOrdersCallback callback ) {
+    public void queryLiveOrders( Exchange exchange, Pair pair, LiveOrdersMgr.ILiveOrdersCallback callback ) throws Exception {
         LiveOrdersMgr liveOrdersMgr;
         synchronized (this) {
             if( m_liveOrdersMgr == null ) {

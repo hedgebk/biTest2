@@ -4,6 +4,8 @@ import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.exch.Currency;
+import bthdg.run.BalancedMgr;
+import bthdg.run.LiveOrdersMgr;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 
@@ -182,6 +184,8 @@ public class Triplet {
     static int s_notEnoughFundsCounter;
     static long s_start;
 
+//    private static BalancedMgr s_balancer;
+
     public static void main(String[] args) {
         System.out.println("Started");
 
@@ -215,13 +219,19 @@ public class Triplet {
 
                 s_start = System.currentTimeMillis();
                 int counter = 1;
-                TriTradesData td = new TriTradesData(account);
+                final TriTradesData td = new TriTradesData(account);
+
+//                s_balancer = new BalancedMgr() {
+//                    protected AccountData getAccount(Exchange exchange) { return td.m_account; }
+//                    protected boolean hasLiveExchOrder(Exchange exch) { return td.hasLiveExchOrder(); }
+//                };
+
                 while (true) {
                     log("============================================== iteration " + (counter++) +
                             "; active " + td.m_triTrades.size() +
                             "; time=" + Utils.millisToDHMSStr(System.currentTimeMillis() - s_start) +
                             "; date=" + new Date() );
-                    IterationData iData = new IterationData(tAgg, tops);
+                    final IterationData iData = new IterationData(tAgg, tops);
                     td.checkState(iData); // <<---------------------------------------------------------------------<<
 
                     int size = td.m_triTrades.size();
@@ -235,6 +245,21 @@ public class Triplet {
                         sleep += sleep / 2; // no trades - sleep more
 
                         decreaseLevelPenalty(td.m_account); // decrease penalty level on empty iterations
+
+                        BalancedMgr.IBalancedHelper helper = new BalancedMgr.IBalancedHelper() {
+                            @Override public void queryLiveOrders(Exchange exchange, Pair pair, LiveOrdersMgr.ILiveOrdersCallback callback) throws Exception {
+                                OrdersData liveOrders = iData.getLiveOrders(exchange);
+                                callback.onLiveOrders(liveOrders);
+                            }
+
+                            @Override public TopsData getTops(Exchange exchange) throws Exception {
+                                return iData.getTops();
+                            }
+
+                            @Override public Map<Currency, Double> getRatioMap() {
+                                return FundMap.getDistributeRatio(s_exchange);
+                            }
+                        };
                     } else {
                         if (size > 1) {
                             sleep /= 2;
@@ -246,6 +271,7 @@ public class Triplet {
                             }
                         }
                     }
+//s_balancer.сheckBalanced(helper);
                     if(iData.isNoSleep()) {
                         System.out.println(" @@ isNoSleep requested");
                         sleep = MIN_SLEEP_TIME;

@@ -17,7 +17,7 @@ public class LiveOrdersMgr {
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
 
-    public void queryLiveOrders( Exchange exchange, Pair pair, ILiveOrdersCallback callback ) {
+    public void queryLiveOrders( Exchange exchange, Pair pair, ILiveOrdersCallback callback ) throws Exception {
         OrdersDataWrapper odw = getOrdersDataWrapper(exchange, pair);
         odw.query(callback);
     }
@@ -65,7 +65,7 @@ public class LiveOrdersMgr {
             m_pair = pair;
         }
 
-        private synchronized void notifyCallbacks() {
+        private synchronized void notifyCallbacks() throws Exception {
             log("notifyCallbacks...");
             for (ILiveOrdersCallback callback : m_callbacks) {
                 callback.onLiveOrders(m_ordersData);
@@ -74,7 +74,7 @@ public class LiveOrdersMgr {
             m_callbacks = null;
         }
 
-        public void query(ILiveOrdersCallback callback) {
+        public void query(ILiveOrdersCallback callback) throws Exception {
             log("LiveOrdersMgr.query");
             OrdersData ordersData = null;
             synchronized(this) {
@@ -111,7 +111,12 @@ public class LiveOrdersMgr {
                         synchronized(this) {
                             m_ordersData = ordersData;
                         }
-                        notifyCallbacks();
+                        try {
+                            notifyCallbacks();
+                        } catch (Exception e) {
+                            log(" error notifyCallbacks="+e);
+                            e.printStackTrace();
+                        }
                     }
                 };
                 m_fetcher.start();
@@ -122,7 +127,7 @@ public class LiveOrdersMgr {
 
 
     public interface ILiveOrdersCallback {
-        void onLiveOrders(OrdersData ordersData);
+        void onLiveOrders(OrdersData ordersData) throws Exception;
     }
 
 }

@@ -10,7 +10,7 @@ public class FundMap {
     public static final Map<Exchange,Map<Currency,Double>> s_map = new HashMap<Exchange,Map<Currency,Double>>();
 
     public static OrderData test(AccountData account, TopsData tops, Exchange exchange, double amountPart) {
-        Map<Currency, Double> ratioMap = distributeRatio(exchange);
+        Map<Currency, Double> ratioMap = getDistributeRatio(exchange);
         Currency[] currencies = exchange.supportedCurrencies();
 
         return test(account, tops, exchange, ratioMap, currencies, amountPart);
@@ -90,23 +90,28 @@ public class FundMap {
                         System.out.println(" amount*" + amountPart + "=" + Utils.format5(amount) + " " + to);
                     }
 
-                    double minOrderSize = exchange.minOrderToCreate(pair);
-                    if (amount >= minOrderSize) { // do not move very small amounts
-                        boolean forward = pd.isForward();
-                        OrderSide side = pd.getSide();
-                        System.out.println(" forward=" + forward + ";  side=" + side);
+                    boolean forward = pd.isForward();
+                    OrderSide side = pd.getSide();
+                    System.out.println(" forward=" + forward + ";  side=" + side);
 
-                        TopData top = tops.get(pair);
-                        System.out.println("top=" + top);
-                        double step = exchange.minOurPriceStep(pair);
-                        double exchPriceStep = exchange.minExchPriceStep(pair);
-                        System.out.println("minOurPriceStep=" + step + "; minExchPriceStep=" + exchPriceStep);
-                        double limitPrice = side.pegPrice(top, step, exchPriceStep);
-                        System.out.println("price(peg)=" + limitPrice);
-                        if (!forward) {
-                            amount = amount / limitPrice;
-                            System.out.println("!forward -> amount corrected=" + exchange.roundAmountStr(amount, pair) + " " + from);
-                        }
+                    TopData top = tops.get(pair);
+                    System.out.println("top=" + top);
+                    double step = exchange.minOurPriceStep(pair);
+                    double exchPriceStep = exchange.minExchPriceStep(pair);
+                    Currency baseCurrency = pair.currencyFrom(false);
+                    System.out.println("minOurPriceStep=" + exchange.roundAmountStr(step, pair) +
+                                       "; minExchPriceStep=" + exchange.roundAmountStr(exchPriceStep, pair) + " (" + baseCurrency + ")");
+                    double limitPrice = side.pegPrice(top, step, exchPriceStep);
+                    System.out.println("price(peg)=" + exchange.roundPriceStr(limitPrice, pair));
+                    if (!forward) {
+                        amount = amount / limitPrice;
+                        System.out.println("!forward -> amount corrected=" + exchange.roundAmountStr(amount, pair) + " " + from);
+                    }
+
+                    double minOrderSize = exchange.minOrderToCreate(pair);
+                    System.out.println(" minOrderSize=" + minOrderSize + " " + baseCurrency);
+
+                    if (amount >= minOrderSize) { // do not move very small amounts
                         double roundAmount = exchange.roundAmount(amount, pair);
                         String roundAmountStr = exchange.roundAmountStr(roundAmount, pair);
                         System.out.println("roundAmount=" + roundAmountStr);
@@ -130,7 +135,7 @@ public class FundMap {
         return null;
     }
 
-    public static Map<Currency, Double> distributeRatio(Exchange exchange) {
+    public static Map<Currency, Double> getDistributeRatio(Exchange exchange) {
         Map<Currency, Double> distributeRatio = s_map.get(exchange);
         if (distributeRatio == null) {
             throw new RuntimeException("no funds distributeRatio defined for exchange " + exchange);

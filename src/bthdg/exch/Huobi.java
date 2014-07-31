@@ -15,6 +15,7 @@ import java.util.*;
 // https://www.huobi.com/help/index.php?a=api_help_v2
 //  https://api.huobi.com/apiv2.php
 // HUOBI allows only 1 request in 1 second.
+// websocket: https://www.huobi.com/help/index.php?a=socket_help
 public class Huobi extends BaseExch {
     private static final int READ_TIMEOUT = 10000;
 

@@ -122,7 +122,7 @@ public class BiAlgoData {
         placeOrders(ih, ode, BiAlgoState.CLOSE_PLACED);
     }
 
-    public AtomicBoolean checkLiveOrderState(IterationHolder ih, BiAlgo biAlgo) {
+    public AtomicBoolean checkLiveOrderState(IterationHolder ih, BiAlgo biAlgo) throws Exception {
         Boolean isOpen = m_state.isOpen();
         log("checkLiveOrderState (isOpen=" + isOpen + ") on " + this);
         List<AtomicBoolean> ret = null;
@@ -147,7 +147,7 @@ public class BiAlgoData {
         return null;
     }
 
-    private AtomicBoolean checkLiveOrderState(final IterationHolder ih, OrderDataExchange ode, final BiAlgo biAlgo) {
+    private AtomicBoolean checkLiveOrderState(final IterationHolder ih, OrderDataExchange ode, final BiAlgo biAlgo) throws Exception {
         AtomicBoolean ret = null;
         final OrderData orderData = ode.m_orderData;
         OrderStatus status = orderData.m_status;
@@ -158,7 +158,8 @@ public class BiAlgoData {
             ret = new AtomicBoolean(false);
             final AtomicBoolean finalRet = ret;
             ih.queryLiveOrders(exchange, m_pair, new LiveOrdersMgr.ILiveOrdersCallback() {
-                @Override public void onLiveOrders(final OrdersData ordersData) {
+                @Override
+                public void onLiveOrders(final OrdersData ordersData) {
                     log("onLiveOrders: " + exchange + ", " + m_pair + ": " + ordersData);
                     String orderId = orderData.m_orderId;
                     log(" orderId: " + orderId);
@@ -167,7 +168,8 @@ public class BiAlgoData {
                     AccountData accountData = biAlgo.m_accountMap.get(exchange);
                     try {
                         orderData.checkState(new IIterationContext.BaseIterationContext() {
-                            @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception {
+                            @Override
+                            public OrdersData getLiveOrders(Exchange exchange) throws Exception {
                                 return ordersData;
                             }
                         }, exchange, accountData, null, null);

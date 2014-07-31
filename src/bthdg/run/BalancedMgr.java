@@ -17,26 +17,31 @@ public abstract class BalancedMgr {
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
 
-    protected abstract Pair getPair();
     protected abstract AccountData getAccount(Exchange exchange);
-    protected abstract TopData getTop(Exchange exchange, Pair pair);
     protected abstract boolean hasLiveExchOrder(Exchange exch);
 
-    void сheckBalanced(IterationHolder ih) throws InterruptedException {
+    public void сheckBalanced(IBalancedHelper ih) throws Exception {
         checkBalancedOrders(ih);
-        checkForNewBalancedOrder();
+        checkForNewBalancedOrder(ih);
     }
 
-    private void checkBalancedOrders(IterationHolder ih) {
+    public interface IBalancedHelper {
+        void queryLiveOrders(Exchange exchange, Pair pair, LiveOrdersMgr.ILiveOrdersCallback iLiveOrdersCallback) throws Exception;
+        TopsData getTops(Exchange exchange) throws Exception;
+        Map<Currency,Double> getRatioMap();
+    }
+
+    private void checkBalancedOrders(final IBalancedHelper ih) throws Exception {
         List<AtomicBoolean> syncList = null;
         final List<Exchange> toRemove = new ArrayList<Exchange>();
         for(Map.Entry<Exchange, OrderData> entry: m_balanceOrders.entrySet()) {
             final Exchange exchange = entry.getKey();
             final OrderData od = entry.getValue();
+            Pair pair = od.m_pair;
             log(" queryLiveOrders: " + exchange + ", to check order state " + od);
             final AtomicBoolean sync = new AtomicBoolean(false);
-            ih.queryLiveOrders(exchange, getPair(), new LiveOrdersMgr.ILiveOrdersCallback() {
-                @Override public void onLiveOrders(final OrdersData ordersData) {
+            ih.queryLiveOrders(exchange, pair, new LiveOrdersMgr.ILiveOrdersCallback() {
+                @Override public void onLiveOrders(final OrdersData ordersData) throws Exception {
                     log("onLiveOrders: " + exchange);
                     String orderId = od.m_orderId;
                     log(" orderId: " + orderId);
@@ -52,7 +57,7 @@ public abstract class BalancedMgr {
                     } catch (Exception e) {
                         err("orderData.checkState error: " + e, e);
                     }
-                    boolean done = checkBalancedOrderStatus(accountData, od, exchange);
+                    boolean done = checkBalancedOrderStatus(ih, accountData, od, exchange);
                     if (done) {
                         toRemove.add(exchange);
                     }
@@ -72,12 +77,13 @@ public abstract class BalancedMgr {
     }
 
     /** @return true if DONE and need to remove from balance map */
-    private boolean checkBalancedOrderStatus(AccountData accountData, OrderData od, Exchange exchange) {
+    private boolean checkBalancedOrderStatus(IBalancedHelper ih, AccountData accountData, OrderData od, Exchange exchange) throws Exception {
         if (od.m_status == OrderStatus.FILLED) {
             log("   balanced order FILLED: " + od);
         } else if ((od.m_status == OrderStatus.SUBMITTED) || (od.m_status == OrderStatus.PARTIALLY_FILLED)) {
-            Pair pair = getPair();
-            TopData topData = getTop(exchange, pair);
+            Pair pair = od.m_pair;
+            TopsData tops = ih.getTops(exchange);
+            TopData topData = tops.get(pair);
             double price = od.m_price;
             String baStr = "[b:" + topData.m_bid + "; a:" + topData.m_ask + "]";
             if (topData.isOutsideBibAsk(price)) {
@@ -105,8 +111,8 @@ public abstract class BalancedMgr {
         return true;
     }
 
-    private void checkForNewBalancedOrder() throws InterruptedException {
-        if(!m_checkBalancedExchanges.isEmpty()) {
+    private void checkForNewBalancedOrder(final IBalancedHelper ih) throws InterruptedException {
+        if (!m_checkBalancedExchanges.isEmpty()) {
             log("checkForNewBalancedOrder for " + m_checkBalancedExchanges);
             List<Exchange> list = null;
             for (Exchange exch : m_checkBalancedExchanges) {
@@ -126,30 +132,26 @@ public abstract class BalancedMgr {
                     }
                 }
             }
-            if(list != null) {
+            if (list != null) {
                 log(" check balanced for exchanges: " + list);
                 Utils.doInParallel("сheckBalanced", list.toArray(new Exchange[list.size()]), new Utils.IExchangeRunnable() {
-                    @Override
-                    public void run(Exchange exchange) throws Exception {
-                        сheckBalancedExch(exchange);
+                    @Override public void run(Exchange exchange) throws Exception {
+                        сheckBalancedExch(ih, exchange);
                     }
                 });
             }
         }
     }
 
-    private void сheckBalancedExch(Exchange exchange) throws Exception {
+    private void сheckBalancedExch(IBalancedHelper ih, Exchange exchange) throws Exception {
         log(" check balanced for exchange: " + exchange + " -------------------------------");
 
-        Map<Currency, Double> ratioMap = new HashMap<Currency, Double>();
-        Pair pair = getPair();
-        ratioMap.put(pair.m_from, 0.5);
-        ratioMap.put(pair.m_to, 0.5);
-        Currency[] currencies = pair.toArray();
+        Map<Currency, Double> ratioMap = ih.getRatioMap();
+        Set<Currency> keys = ratioMap.keySet();
+        Currency[] currencies = keys.toArray(new Currency[keys.size()]);
 
         AccountData account = getAccount(exchange);
-        TopData top = getTop(exchange, pair);
-        TopsData tops = new TopsData(pair, top);
+        TopsData tops = ih.getTops(exchange);
         OrderData od = FundMap.test(account, tops, exchange, ratioMap, currencies, 0.96);
         if (od == null) {
             log(" no need balance exch " + exchange);
@@ -157,6 +159,7 @@ public abstract class BalancedMgr {
             return;
         }
 
+        Pair pair = od.m_pair;
         double minOrdSize = exchange.minOrderToCreate(pair);
         if (od.m_amount < minOrdSize) {
             log(" no need balance exch " + exchange + ", amount(" + exchange.roundAmountStr(od.m_amount, pair) + ") < minOrdSize(" + minOrdSize + ")");

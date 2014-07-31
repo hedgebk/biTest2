@@ -900,6 +900,10 @@ log("     NOT better: max=" + max + ", bestMax=" + bestMax);
         Log.log(s);
     }
 
+    public boolean hasLiveExchOrder() {
+        return !m_triTrades.isEmpty();
+    }
+
     private static class SortByBracketDistance implements Comparator<OnePegCalcData> {
         private final TopsData tops;
 

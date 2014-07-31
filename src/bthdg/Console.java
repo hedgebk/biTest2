@@ -221,7 +221,7 @@ public class Console {
         for (Currency currencyIn : supportedCurrencies) {
             double inValue = account.getAllValue(currencyIn);
             String str = Utils.padLeft(Utils.format5(inValue), 9) + " " + currencyIn + " ";
-            Map<Currency, Double> distributeRatio = FundMap.distributeRatio(s_exchange);
+            Map<Currency, Double> distributeRatio = FundMap.getDistributeRatio(s_exchange);
             Double rate = distributeRatio.get(currencyIn);
             for (Currency currencyOut : supportedCurrencies) {
                 double converted = (currencyIn == currencyOut)

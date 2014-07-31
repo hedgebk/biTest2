@@ -208,7 +208,7 @@ class BiAlgo implements Runner.IAlgo {
         eMap.put(currency, evaluate);
     }
 
-    private void runIteration(IterationHolder ih) throws Exception {
+    private void runIteration(final IterationHolder ih) throws Exception {
         runBfrMkt(ih, this); // check open orders state if any
 
         // load mkt data
@@ -229,7 +229,26 @@ class BiAlgo implements Runner.IAlgo {
 
         runForPairs(ih);
 
-        m_balancer.сheckBalanced(ih);
+
+        BalancedMgr.IBalancedHelper helper = new BalancedMgr.IBalancedHelper() {
+            @Override public void queryLiveOrders(Exchange exchange, Pair pair, LiveOrdersMgr.ILiveOrdersCallback callback) throws Exception {
+                ih.queryLiveOrders(exchange, pair, callback);
+            }
+
+            @Override public TopsData getTops(Exchange exchange) throws Exception {
+                TopData topData = m_mdStorage.get(exchange, PAIR).topData();
+                TopsData tops = new TopsData(PAIR, topData);
+                return tops;
+            }
+
+            @Override public Map<Currency, Double> getRatioMap() {
+                Map<Currency, Double> ratioMap = new HashMap<Currency, Double>();
+                ratioMap.put(PAIR.m_from, 0.5);
+                ratioMap.put(PAIR.m_to, 0.5);
+                return ratioMap;
+            }
+        };
+        m_balancer.сheckBalanced(helper);
 //        сheckBalancesIfNeeded(ih);
 
         logIterationEnd();
@@ -936,7 +955,7 @@ class BiAlgo implements Runner.IAlgo {
             log("***********************************************");
         }
 
-        public AtomicBoolean runBfrMkt(final IterationHolder ih, final BiAlgo biAlgo) {
+        public AtomicBoolean runBfrMkt(final IterationHolder ih, final BiAlgo biAlgo) throws Exception {
             List<AtomicBoolean> ret = null;
             for (BiAlgoData data : m_live) {
                 data.log(name() + " live: " + data);

@@ -23,7 +23,8 @@ import java.util.*;
 /**
  * https://github.com/agent462/chinashop/tree/master/lib/chinashop
  * ## Private API   http://btcchina.org/api-trade-documentation-en
- * ## Public API    http://btcchina.org/api-market-data-documentation-en       */
+ * ## Public API    http://btcchina.org/api-market-data-documentation-en
+ * websocket  http://btcchina.org/websocket-api-market-data-documentation-en   */
 public class Btcn extends BaseExch {
     private static String KEY;
     private static String SECRET;

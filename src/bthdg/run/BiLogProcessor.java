@@ -280,7 +280,7 @@ public class BiLogProcessor {
         }
 
         public static final Pattern START_LEVEL = Pattern.compile(".*START_LEVEL=(.*); CANCEL_DEEP_PRICE_INDEX.*"); // date=Tue Jul 15 18:45:23 EEST 2014; START_LEVEL=0.00032
-        public static final Pattern ELAPSED = Pattern.compile("iteration .* elapsed\\: (.*)");
+        public static final Pattern ELAPSED = Pattern.compile("iteration .* elapsed\\: (.*); date.*");
         public static final Pattern TOP_ = Pattern.compile("(\\w+).*Top\\{bid\\=([\\d,]+\\.\\d+), ask\\=([\\d,]+\\.\\d+), last\\=([\\d,]+\\.\\d+)\\}");
         public static final Pattern PAIR_ = Pattern.compile("(\\w+) diff=(-?\\d+.*), avgDiff=(-?\\d+.*), diffDiff=(-?\\d+.*), bidAskDiff=(-?\\d+.*)");
 
