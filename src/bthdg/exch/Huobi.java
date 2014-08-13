@@ -451,19 +451,21 @@ public class Huobi extends BaseExch {
 
     public static CancelOrderData parseCancelOrders(Object obj) {
         JSONObject jObj = (JSONObject) obj;
-//        if (LOG_PARSE) {
-        log("Huobi.parseCancelOrders() " + jObj);
-//        }
+        if (LOG_PARSE) {
+            log("Huobi.parseCancelOrders() " + jObj);
+        }
 
-        // {"result":"success"}
+        // {"result":"success"} | "result":"fail"
         Object result = jObj.get("result");
         if (result != null) {
-            return new CancelOrderData(null, null);
-        } else {
-            String errMsg = parseError(jObj);
-            log(" error: " + errMsg);
-            return new CancelOrderData(errMsg);
+            Long code = (Long) jObj.get("code");
+            if (result.equals("success")) {
+                return new CancelOrderData(null, null);
+            }
         }
+        String errMsg = parseError(jObj);
+        log(" error: " + errMsg);
+        return new CancelOrderData(errMsg);
     }
 
     private static String parseError(JSONObject jObj) {

@@ -94,10 +94,10 @@ public class Btce extends BaseExch {
 
     @Override public void initFundMap() {
         Map<Currency,Double> distributeRatio = new HashMap<Currency, Double>();
-        distributeRatio.put(Currency.USD, 0.23);
-        distributeRatio.put(Currency.BTC, 0.18);
-        distributeRatio.put(Currency.EUR, 0.20);
-        distributeRatio.put(Currency.LTC, 0.15);
+        distributeRatio.put(Currency.USD, 0.22);
+        distributeRatio.put(Currency.BTC, 0.17);
+        distributeRatio.put(Currency.EUR, 0.19);
+        distributeRatio.put(Currency.LTC, 0.18);
         distributeRatio.put(Currency.PPC, 0.03);
         distributeRatio.put(Currency.NMC, 0.04);
         distributeRatio.put(Currency.NVC, 0.04);
