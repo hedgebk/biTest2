@@ -16,6 +16,9 @@ import java.util.List;
 
 public class WSClient {
 
+//  !!!!!!  https://github.com/BTCChina/btcchina-websocket-api-java/blob/master/WebsocketClient.java
+//           http://btcchina.org/websocket-api-market-data-documentation-en
+
     public static final String URL = "wss://real.okcoin.cn:10440/websocket/okcoinapi";
     public static final String SUBSCRIBE_BTCCNY_TICKER = "{'event':'addChannel','channel':'ok_btccny_ticker'}";
     public static final String SUBSCRIBE_BTCCNY_DEPTH = "{'event':'addChannel','channel':'ok_btccny_depth'}";
@@ -50,7 +53,7 @@ public class WSClient {
 
     public static void main(String[] args) {
         try {
-            SocketIO socket = new SocketIO("http://hq.huobi.com:80/");
+            final SocketIO socket = new SocketIO("http://hq.huobi.com:80/");
             socket.connect(new IOCallback() {
                 @Override public void onMessage(JSONObject json, IOAcknowledge ack) {
                     try {
@@ -75,7 +78,14 @@ public class WSClient {
 
                 @Override public void onConnect() {
                     System.out.println("Connection established");
+//String str = "[{\"version\":1,\"msgType\":\"reqSymbolList\",\"requestIndex\":1405141205513}]";
+//String str = "[{\"version\":1,\"msgType\":\"reqSymbolDetail\",\"symbolIdList\":[\"btccny\",\"ltccny\"],\"requestIndex\":1405141205513}]";
+String str = "[{\"version\":1,\"msgType\":\"reqMsgSubscribe\",\"symbolIdList\":[\"btccny\",\"ltccny\"],\"requestIndex\":1405141205513}]";
+//String str = "[{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqMarketDepthTop\",\"requestIndex\":1405131205513}]";
+System.out.println("str to emit: " + str);
+socket.emit("request", str);
                 }
+//{[{"symbolId":"btccny","pushType":数组,"period":k线周期数组,"percent":深度百分比数组}]}
 
                 @Override public void on(String event, IOAcknowledge ack, Object... args) {
                     System.out.println("Server triggered event '" + event + "'; args=" + args );
@@ -85,9 +95,9 @@ public class WSClient {
             });
 //            socket.send("{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqMarketDepthTop\",\"requestIndex\":1405131204513}");
 
-            String str = "{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqMarketDepthTop\",\"requestIndex\":1405131204513}";
-            System.out.println("str to emit: " + str);
-            socket.emit("request", str);
+//            String str = "{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqMarketDepthTop\",\"requestIndex\":1405131204513}";
+//            System.out.println("str to emit: " + str);
+//            socket.emit("request", str);
 
 //            socket.emit("request", "{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqTimeLine\",\"requestIndex\":1405131204513}");
 

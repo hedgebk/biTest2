@@ -10,13 +10,11 @@
           <root url="file://$MODULE_DIR$/web" relative="/" />
         </webroots>
       </configuration>
-      <facet type="google-app-engine" name="Google App Engine">
-        <configuration>
-          <password>dfd9dfcbdfd8dfcbdfdedfc5dfccdfcc</password>
-          <sdk-home-path>C:/Java/appengine-java-sdk-1.8.9</sdk-home-path>
-          <email>dmitrycar@gmail.com</email>
-        </configuration>
-      </facet>
+    </facet>
+    <facet type="google-app-engine" name="Google App Engine">
+      <configuration>
+        <sdk-home-path>C:/Java/appengine-java-sdk-1.8.9</sdk-home-path>
+      </configuration>
     </facet>
   </component>
   <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_6" inherit-compiler-output="true">
@@ -25,7 +23,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/src/bthdg/servlet" />
     </content>
-    <orderEntry type="jdk" jdkName="1.7" jdkType="JavaSDK" />
+    <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="lib" level="project" />
   </component>

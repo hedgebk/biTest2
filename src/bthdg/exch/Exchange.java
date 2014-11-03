@@ -11,13 +11,12 @@ import java.util.Properties;
 
 // to support others ?
 // https://www.kraken.com
-// https://vircurex.com
+// https://vircurex.com		https://vircurex.com/welcome/api
 // ? www.itbit.com
 //    http://docs.itbit.apiary.io/
 //    https://www.itbit.com/api/feeds/ticker/XBTUSD
 // ? bitcoin-central.net
 // crypto-trade.com ?
-// huobi ? https://github.com/xiaojay/huobi/blob/master/huobi.py
 // check more exchnages examples here https://github.com/mobnetic/BitcoinChecker/tree/master/DataModule/src/com/mobnetic/coinguardian/model/market
 //   https://github.com/timmolter/XChange
 public enum Exchange {
@@ -74,13 +73,13 @@ public enum Exchange {
            null, null, "", "", null, null, null, null, null),
 // read some spec: https://github.com/timmolter/XChange/blob/develop/xchange-bitfinex/api-specification.txt
 //  sign https://github.com/timmolter/XChange/blob/develop/xchange-bitfinex/src/main/java/com/xeiam/xchange/bitfinex/v1/service/BitfinexHmacPostBodyDigest.java
-    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.0015, true,
+    BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.0015, true, // https://www.bitfinex.com/pages/api
            null, null,
            null, null, "", "", null, null, null, null, null),
     HITBTC("HitBtc", null, "hitbtcUSD", 6, 0.00085, true,
            null, null,
            null, null, "", "", null, null, null, null, null),
-    LAKEBTC("LakeBtc", null, "lakeUSD", 7, 0.003, true,
+    LAKEBTC("LakeBtc", null, "lakeUSD", 7, 0.00175, true, // https://www.LakeBTC.com/api_v1/
            null, null,
            null, null, "", "", null, null, null, null, null),
     ITBIT("ItBit", null, "itbitUSD", 8, 0.0017, true,
@@ -129,7 +128,7 @@ public enum Exchange {
         @Override public boolean requirePairForOrders() { return true; }
         @Override public boolean requirePairForCancel() { return true; }
     },
-    HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false,
+    HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false, // https://github.com/xiaojay/huobi/blob/master/huobi.py
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
            null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",

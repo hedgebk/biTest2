@@ -829,12 +829,19 @@ class IOConnection implements IOCallback {
 
         }
 
-        public void emitX(SocketIO socket, String event, IOAcknowledge ack,
-                        Object arg) {
+        public void emitX(SocketIO socket, String event, IOAcknowledge ack, Object arg) {
                 try {
                         JSONObject json = new JSONObject().put("name", event).put("args", arg);
-                        IOMessage message = new IOMessage(IOMessage.TYPE_EVENT,
-                                        socket.getNamespace(), json.toString());
+                    String jsonStr = json.toString();
+logger.warning("jsonStr="+jsonStr);
+                    jsonStr = jsonStr.replace("\"[","[");
+logger.warning("jsonStr1="+jsonStr);
+                    jsonStr = jsonStr.replace("]\"","]");
+logger.warning("jsonStr2="+jsonStr);
+                    jsonStr = jsonStr.replace("\\\"","\"");
+logger.warning("jsonStr3="+jsonStr);
+                    IOMessage message = new IOMessage(IOMessage.TYPE_EVENT,
+                                        socket.getNamespace(), jsonStr);
                         synthesizeAck(message, ack);
                     String str = message.toString();
 logger.warning("message str="+str);
