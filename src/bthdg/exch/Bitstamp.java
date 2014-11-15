@@ -26,6 +26,11 @@ public class Bitstamp extends BaseExch {
     private static String KEY;
     private static String CLIENT_ID;
 
+// TODO - need to incorporate:
+//  min trade = 5 usd
+//  a fee of 0.111 will be charged as 0.12.
+//   As our fees are calculated to two decimal places, all fees which might exceed this limitation are rounded up.
+//    The rounding up is executed in such a way, that the second decimal digit is always one digit value higher than it was before the rounding up.
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_USD};
     // supported currencies

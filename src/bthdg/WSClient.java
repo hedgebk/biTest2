@@ -1,59 +1,36 @@
 package bthdg;
 
+import bthdg.ws.BitstampWs;
 import io.socket.IOAcknowledge;
 import io.socket.IOCallback;
 import io.socket.SocketIO;
 import io.socket.SocketIOException;
-import org.glassfish.tyrus.client.ClientManager;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import javax.websocket.*;
-import java.io.IOException;
-import java.net.URI;
+import javax.net.ssl.SSLContext;
 import java.util.Arrays;
 import java.util.List;
 
 public class WSClient {
 
+    // http://download.finance.yahoo.com/d/quotes.csv?s=USDCNY=X&f=snl1d1t1ab
+    // http://finance.yahoo.com/webservice/v1/symbols/allcurrencies/quote
+
 //  !!!!!!  https://github.com/BTCChina/btcchina-websocket-api-java/blob/master/WebsocketClient.java
 //           http://btcchina.org/websocket-api-market-data-documentation-en
 
-    public static final String URL = "wss://real.okcoin.cn:10440/websocket/okcoinapi";
-    public static final String SUBSCRIBE_BTCCNY_TICKER = "{'event':'addChannel','channel':'ok_btccny_ticker'}";
-    public static final String SUBSCRIBE_BTCCNY_DEPTH = "{'event':'addChannel','channel':'ok_btccny_depth'}";
-
-    public static void _main(String[] args) {
-        try {
-            ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
-            ClientManager client = ClientManager.createClient();
-            Session session = client.connectToServer(new Endpoint() {
-                @Override public void onOpen(Session session, EndpointConfig config) {
-                    System.out.println("onOpen");
-                    try {
-                        session.addMessageHandler(new MessageHandler.Whole<String>() {
-                            @Override public void onMessage(String message) {
-                                System.out.println("Received message: " + message);
-                            }
-                        });
-//                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_TICKER);
-                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_DEPTH);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }, cec, new URI(URL));
-            System.out.println("session isOpen="+session.isOpen() + "; session="+session);
-            Thread.sleep(15000);
-            System.out.println("done");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public static void main(String[] args) {
+//        OkCoinWs.main(args);
+//        HuobiWs.main(args);
+//        BtcnWs.main(args);
+        BitstampWs.main(args);
     }
 
-    public static void main(String[] args) {
+    public static void x_main(String[] args) {
         try {
-            final SocketIO socket = new SocketIO("http://hq.huobi.com:80/");
+            final SocketIO socket = new SocketIO("https://plug.coinsetter.com:3000");
+            socket.setDefaultSSLSocketFactory(SSLContext.getDefault());
             socket.connect(new IOCallback() {
                 @Override public void onMessage(JSONObject json, IOAcknowledge ack) {
                     try {
@@ -78,32 +55,19 @@ public class WSClient {
 
                 @Override public void onConnect() {
                     System.out.println("Connection established");
-//String str = "[{\"version\":1,\"msgType\":\"reqSymbolList\",\"requestIndex\":1405141205513}]";
-//String str = "[{\"version\":1,\"msgType\":\"reqSymbolDetail\",\"symbolIdList\":[\"btccny\",\"ltccny\"],\"requestIndex\":1405141205513}]";
-String str = "[{\"version\":1,\"msgType\":\"reqMsgSubscribe\",\"symbolIdList\":[\"btccny\",\"ltccny\"],\"requestIndex\":1405141205513}]";
-//String str = "[{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqMarketDepthTop\",\"requestIndex\":1405131205513}]";
-System.out.println("str to emit: " + str);
-socket.emit("request", str);
+//                    System.out.println("str to emit: " + str);
+//                    socket.emit("request", str);
+                    socket.emit("last room", "");
                 }
-//{[{"symbolId":"btccny","pushType":数组,"period":k线周期数组,"percent":深度百分比数组}]}
 
                 @Override public void on(String event, IOAcknowledge ack, Object... args) {
-                    System.out.println("Server triggered event '" + event + "'; args=" + args );
+                    System.out.println("Server triggered event '" + event + "'; args=" + args);
                     List<Object> array = Arrays.asList(args);
-                    System.out.println(" array=" + array );
+                    System.out.println(" array=" + array);
                 }
             });
-//            socket.send("{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqMarketDepthTop\",\"requestIndex\":1405131204513}");
 
-//            String str = "{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqMarketDepthTop\",\"requestIndex\":1405131204513}";
-//            System.out.println("str to emit: " + str);
-//            socket.emit("request", str);
-
-//            socket.emit("request", "{\"symbolId\":\"btccny\",\"version\":1,\"msgType\":\"reqTimeLine\",\"requestIndex\":1405131204513}");
-
-//            socket.emit("request", "{\"version\":1,\"msgType\":\"reqSymbolList\"}");
-//            socket.send("{\"version\":1,\"msgType\":\"reqSymbolList\"}");
-            Thread.sleep(15000);
+            Thread.sleep(150000);
             System.out.println("done");
         } catch (Exception e) {
             e.printStackTrace();
