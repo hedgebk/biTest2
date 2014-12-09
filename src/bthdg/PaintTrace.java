@@ -1,5 +1,6 @@
 package bthdg;
 
+import bthdg.duplet.DuTradeData;
 import bthdg.exch.OrderSide;
 import bthdg.exch.TradeData;
 import bthdg.util.Utils;
@@ -48,7 +49,7 @@ public class PaintTrace extends BaseChartPaint {
             public void run(Connection connection) throws SQLException {
                 System.out.println("selecting ticks");
                 List<TraceData> ticks = selectTraces(connection, fromMillis);
-                List<TradeData> trades = selectTrades(connection, fromMillis);
+                List<DuTradeData> trades = selectTrades(connection, fromMillis);
 
                 drawTraces(ticks, trades);
                 System.out.println("--- Complete ---");
@@ -101,9 +102,9 @@ public class PaintTrace extends BaseChartPaint {
         return ticks;
     }
 
-    private static List<TradeData> selectTrades(Connection connection, long fromMillis) throws SQLException {
+    private static List<DuTradeData> selectTrades(Connection connection, long fromMillis) throws SQLException {
         long three = System.currentTimeMillis();
-        List<TradeData> trades = new ArrayList<TradeData>();
+        List<DuTradeData> trades = new ArrayList<DuTradeData>();
         PreparedStatement statement = connection.prepareStatement(
                         "SELECT stamp, exch, side, price, amount, crossId, forkId " +
                         " FROM TraceTrade " +
@@ -125,7 +126,7 @@ public class PaintTrace extends BaseChartPaint {
                     long crossId = result.getLong(6);
                     long forkId = result.getLong(7);
 
-                    TradeData trade = new TradeData(amount, price, stamp, -1, null, OrderSide.getByCode(side), exchId, crossId, forkId);
+                    DuTradeData trade = new DuTradeData(amount, price, stamp, -1, null, OrderSide.getByCode(side), exchId, crossId, forkId);
                     trades.add(trade);
                 }
                 System.out.println(trades.size() + " trades read in " + Utils.millisToDHMSStr(System.currentTimeMillis() - four));
@@ -138,9 +139,9 @@ public class PaintTrace extends BaseChartPaint {
         return trades;
     }
 
-    private static void drawTraces(List<TraceData> traces, List<TradeData> trades) {
-        Utils.DoubleMinMaxCalculator<TradeData> priceCalc0 = new Utils.DoubleMinMaxCalculator<TradeData>() {
-            public Double getValue(TradeData trade) {return trade.m_price;};
+    private static void drawTraces(List<TraceData> traces, List<DuTradeData> trades) {
+        Utils.DoubleMinMaxCalculator<DuTradeData> priceCalc0 = new Utils.DoubleMinMaxCalculator<DuTradeData>() {
+            public Double getValue(DuTradeData trade) {return trade.m_price;};
         };
         priceCalc0.calculate(trades);
 
@@ -230,7 +231,7 @@ public class PaintTrace extends BaseChartPaint {
         writeAndShowImage(image);
     }
 
-    private static void paintPoints(List<TraceData> traces, List<TradeData> trades,
+    private static void paintPoints(List<TraceData> traces, List<DuTradeData> trades,
                                     PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
                                     PaintChart.ChartAxe priceDiffAxe, Graphics2D g, int diffYoffset) {
         Utils.AverageCounter diffAverageCounter = new Utils.AverageCounter(MOVING_AVERAGE);
@@ -311,20 +312,20 @@ public class PaintTrace extends BaseChartPaint {
         }
 
         // collect my trades
-        Map<Long, TreeMap<Long, TradeData[]>> forksTrades = new HashMap<Long, TreeMap<Long, TradeData[]>>();
-        for (TradeData trade : trades) {
+        Map<Long, TreeMap<Long, DuTradeData[]>> forksTrades = new HashMap<Long, TreeMap<Long, DuTradeData[]>>();
+        for (DuTradeData trade : trades) {
             OrderSide orderSide = trade.m_orderSide;
             if (orderSide != null) {
                 long forkId = trade.m_forkId;
-                TreeMap<Long, TradeData[]> forkTrades = forksTrades.get(forkId);
+                TreeMap<Long, DuTradeData[]> forkTrades = forksTrades.get(forkId);
                 if (forkTrades == null) {
-                    forkTrades = new TreeMap<Long, TradeData[]>();
+                    forkTrades = new TreeMap<Long, DuTradeData[]>();
                     forksTrades.put(forkId, forkTrades);
                 }
                 long crossId = trade.m_crossId;
-                TradeData[] crossTrades = forkTrades.get(crossId);
+                DuTradeData[] crossTrades = forkTrades.get(crossId);
                 if (crossTrades == null) {
-                    crossTrades = new TradeData[2];
+                    crossTrades = new DuTradeData[2];
                     forkTrades.put(crossId, crossTrades);
                 }
                 int indx = (orderSide.isBuy() ? 0 : 1);
@@ -337,9 +338,9 @@ public class PaintTrace extends BaseChartPaint {
         }
 
         // paint my trades
-        for (TreeMap<Long, TradeData[]> forkTrades : forksTrades.values()) {
-            Map.Entry<Long, TradeData[]> openEntry = forkTrades.firstEntry();
-            Map.Entry<Long, TradeData[]> closeEntry = (forkTrades.size() > 1) ? forkTrades.lastEntry() : null;
+        for (TreeMap<Long, DuTradeData[]> forkTrades : forksTrades.values()) {
+            Map.Entry<Long, DuTradeData[]> openEntry = forkTrades.firstEntry();
+            Map.Entry<Long, DuTradeData[]> closeEntry = (forkTrades.size() > 1) ? forkTrades.lastEntry() : null;
             paintBox(g, timeAxe, priceAxe, openEntry, closeEntry);
             XY p1 = paintCross(g, timeAxe, priceAxe, priceDiffAxe, openEntry, diffAverageMap, true);
             XY p2 = paintCross(g, timeAxe, priceAxe, priceDiffAxe, closeEntry, diffAverageMap, false);
@@ -359,13 +360,13 @@ public class PaintTrace extends BaseChartPaint {
     }
 
     private static void paintBox(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
-                                 Map.Entry<Long, TradeData[]> openEntry, Map.Entry<Long, TradeData[]> closeEntry) {
-        Utils.DoubleMinMaxCalculator<TradeData> priceCalc = new Utils.DoubleMinMaxCalculator<TradeData>() {
-            public Double getValue(TradeData trade) {return trade.m_price;};
+                                 Map.Entry<Long, DuTradeData[]> openEntry, Map.Entry<Long, DuTradeData[]> closeEntry) {
+        Utils.DoubleMinMaxCalculator<DuTradeData> priceCalc = new Utils.DoubleMinMaxCalculator<DuTradeData>() {
+            public Double getValue(DuTradeData trade) {return trade.m_price;};
         };
 
-        Utils.LongMinMaxCalculator<TradeData> timeCalc = new Utils.LongMinMaxCalculator<TradeData>() {
-            @Override public Long getValue(TradeData trade) { return trade.m_timestamp; }
+        Utils.LongMinMaxCalculator<DuTradeData> timeCalc = new Utils.LongMinMaxCalculator<DuTradeData>() {
+            @Override public Long getValue(DuTradeData trade) { return trade.m_timestamp; }
         };
 
         processEntry(openEntry, priceCalc, timeCalc);
@@ -386,11 +387,11 @@ public class PaintTrace extends BaseChartPaint {
         g.drawLine(x2, 0, x2, WIDTH * 2);
     }
 
-    private static void processEntry(Map.Entry<Long, TradeData[]> entry,
-                                     Utils.DoubleMinMaxCalculator<TradeData> priceCalc,
-                                     Utils.LongMinMaxCalculator<TradeData> timeCalc) {
+    private static void processEntry(Map.Entry<Long, DuTradeData[]> entry,
+                                     Utils.DoubleMinMaxCalculator<DuTradeData> priceCalc,
+                                     Utils.LongMinMaxCalculator<DuTradeData> timeCalc) {
         if (entry != null) {
-            TradeData[] trades = entry.getValue();
+            DuTradeData[] trades = entry.getValue();
             priceCalc.calculate(trades[0]);
             priceCalc.calculate(trades[1]);
             timeCalc.calculate(trades[0]);
@@ -432,7 +433,7 @@ public class PaintTrace extends BaseChartPaint {
     }
 
     private static XY paintCross(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, PaintChart.ChartAxe priceDiffAxe,
-                                   Map.Entry<Long, TradeData[]> entry, TreeMap<Long, Double> diffAverageMap, boolean isOpenCross) {
+                                   Map.Entry<Long, DuTradeData[]> entry, TreeMap<Long, Double> diffAverageMap, boolean isOpenCross) {
         if(entry != null) {
             TradeData[] crossTrades = entry.getValue();
             TradeData buyTrade = crossTrades[0];

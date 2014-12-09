@@ -1,6 +1,9 @@
 package bthdg;
 
-import bthdg.ws.BitstampWs;
+import bthdg.exch.Pair;
+import bthdg.ws.ITradesListener;
+import bthdg.ws.IWs;
+import bthdg.ws.OkCoinWs;
 import io.socket.IOAcknowledge;
 import io.socket.IOCallback;
 import io.socket.SocketIO;
@@ -21,10 +24,25 @@ public class WSClient {
 //           http://btcchina.org/websocket-api-market-data-documentation-en
 
     public static void main(String[] args) {
-//        OkCoinWs.main(args);
+        IWs ws1 = OkCoinWs.create();
 //        HuobiWs.main(args);
 //        BtcnWs.main(args);
-        BitstampWs.main(args);
+//        BitstampWs.main(args);
+
+        ws1.subscribeTrades(Pair.BTC_CNH, new ITradesListener() {
+            @Override public void onTrade() {
+
+            }
+        });
+
+        try {
+            Thread thread = Thread.currentThread();
+            synchronized (thread) {
+                thread.wait();
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void x_main(String[] args) {
