@@ -149,4 +149,43 @@ public class BaseChartPaint extends DbReady {
         g.drawLine(x - d, y - d, x + d, y + d);
         g.drawLine(x - d, y + d, x + d, y - d);
     }
+
+    public static class Tick {
+        public final int m_src;
+        public final long m_stamp;
+        public final double m_price;
+        public final double m_volume;
+
+        public Tick(long stamp, double price, int src, double volume) {
+            m_stamp = stamp;
+            m_price = price;
+            m_src = src;
+            m_volume = volume;
+        }
+    }
+
+    public static class ChartAxe {
+        public final double m_min;
+        public final double m_max;
+        public final int m_size;
+        public final double m_scale;
+
+        public ChartAxe(double min, double max, int size) {
+            m_min = min;
+            m_max = max;
+            m_size = size;
+            double diff = max - min;
+            m_scale = diff / size;
+        }
+
+        public int getPoint(double value) {
+            double offset = value - m_min;
+            return (int) (offset / m_scale);
+        }
+
+        public int getPointReverse(double value) {
+            int point = getPoint(value);
+            return m_size - 1 - point;
+        }
+    }
 }

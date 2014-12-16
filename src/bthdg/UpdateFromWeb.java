@@ -9,13 +9,11 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 // http://api.bitcoincharts.com/v1/csv/
 public class UpdateFromWeb extends DbReady {
     private static final String DELETE_TICKS_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp = ?";
-    public static final String MAX_TIMESTAMP_SQL = "SELECT MAX(stamp) FROM Ticks WHERE src = ?";
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -98,27 +96,5 @@ public class UpdateFromWeb extends DbReady {
             e.printStackTrace();
         }
         return ticksInserted;
-    }
-
-    static long getMaxTimestamp(Connection connection, Exchange exchange) throws SQLException {
-        int exchangeId = exchange.m_databaseId;
-        PreparedStatement statement = connection.prepareStatement(MAX_TIMESTAMP_SQL);
-        try {
-            statement.setInt(1, exchangeId);
-            ResultSet result = statement.executeQuery();
-            try {
-                if (!result.next()) {
-                    System.out.println("no ticks for '"+exchange.m_name+"'");
-                    return 0;
-                }
-                long timestamp = result.getLong(1);
-                System.out.println("MAX timestamp on '"+exchange.m_name+"' = " + timestamp + " ("+new java.util.Date(timestamp)+")");
-                return timestamp;
-            } finally {
-                result.close();
-            }
-        } finally {
-            statement.close();
-        }
     }
 }

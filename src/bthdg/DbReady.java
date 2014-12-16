@@ -14,6 +14,7 @@ import java.text.ParseException;
 
 public class DbReady {
 
+    public static final String MAX_TIMESTAMP_SQL = "SELECT MAX(stamp) FROM Ticks WHERE src = ?";
     private static final String DELETE_TICKS_BETWEEN_SQL = "DELETE FROM Ticks WHERE src = ? AND stamp > ? AND stamp < ?";
     public static final int IMPORT_DAYS = 1 * 30;
     private static final int LOG_IMPORT_STAT_DELAY = 15000; // log import stat each X ms
@@ -26,8 +27,8 @@ public class DbReady {
 //        startAndInitDb();
 //        dropTicks(Exchange.BTCE,     "0", "-13d");
 //        dropTicks(Exchange.BITSTAMP, "0", "-100d");
-        dropTicks(Exchange.OKCOIN, "0", "-600d");
-        dropTicks(Exchange.BTCN, "0", "-600d");
+//        dropTicks(Exchange.OKCOIN, "0", "-600d");
+//        dropTicks(Exchange.BTCN, "0", "-600d");
         importFromFiles();
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
@@ -40,7 +41,7 @@ public class DbReady {
                 Statement statement = connection.createStatement();
                 try {
                     int ret;
-                    ret = statement.executeUpdate("DROP TABLE Ticks");
+                    ret = statement.executeUpdate("DROP TABLE IF EXISTS Ticks");
                     System.out.println("--- DROP TABLE Ticks  returns " + ret);
 
                     ret = statement.executeUpdate(
@@ -180,8 +181,8 @@ public class DbReady {
     }
 
     protected static void dropTicks(final Exchange exchange, final String from, final String to) {
-        final long fromMillis = Utils.toMillis(from);
-        final long toMillis = Utils.toMillis(to);
+        final long fromMillis = Utils.toMillisFromNow(from);
+        final long toMillis = Utils.toMillisFromNow(to);
 
         goWithDb(new IDbRunnable() {
             public void run(Connection connection) throws SQLException {
@@ -214,8 +215,8 @@ public class DbReady {
     private static void importFromFiles(Connection connection) {
         try {
             connection.setAutoCommit(false); // for fast inserts/updates
-//            importExchange(connection, Exchange.BTCE);
-//            importExchange(connection, Exchange.BITSTAMP);
+            importExchange(connection, Exchange.BTCE);
+            importExchange(connection, Exchange.BITSTAMP);
 //            importExchange(connection, Exchange.BITFINEX);
 //            importExchange(connection, Exchange.CAMPBX);
 //            importExchange(connection, Exchange.HITBTC);
@@ -386,6 +387,28 @@ public class DbReady {
         String ret = sb.toString();
         sb.setLength(0); // clear buffer for further usage
         return ret;
+    }
+
+    public static long getMaxTimestamp(Connection connection, Exchange exchange) throws SQLException {
+        int exchangeId = exchange.m_databaseId;
+        PreparedStatement statement = connection.prepareStatement(MAX_TIMESTAMP_SQL);
+        try {
+            statement.setInt(1, exchangeId);
+            ResultSet result = statement.executeQuery();
+            try {
+                if (!result.next()) {
+                    System.out.println("no ticks for '"+exchange.m_name+"'");
+                    return 0;
+                }
+                long timestamp = result.getLong(1);
+                System.out.println("MAX timestamp on '"+exchange.m_name+"' = " + timestamp + " ("+new java.util.Date(timestamp)+")");
+                return timestamp;
+            } finally {
+                result.close();
+            }
+        } finally {
+            statement.close();
+        }
     }
 
     public interface IDbRunnable {

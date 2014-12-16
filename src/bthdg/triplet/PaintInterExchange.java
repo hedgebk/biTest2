@@ -29,7 +29,7 @@ public class PaintInterExchange extends BaseChartPaint {
         System.out.println("Started");
         long millis = Utils.logStartTimeMemory();
 
-        long fromMillis = (args.length > 0) ? Utils.toMillis(args[0]) : /*0*/ Utils.toMillis("-36h");
+        long fromMillis = (args.length > 0) ? Utils.toMillisFromNow(args[0]) : /*0*/ Utils.toMillisFromNow("-36h");
         paint(fromMillis);
 
         System.out.println("done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));

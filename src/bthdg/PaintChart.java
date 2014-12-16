@@ -716,47 +716,8 @@ public class PaintChart extends BaseChartPaint {
         return ticks;
     }
 
-    public static class Tick {
-        private final int m_src;
-        public final long m_stamp;
-        public final double m_price;
-        private final double m_volume;
-
-        public Tick(long stamp, double price, int src, double volume) {
-            m_stamp = stamp;
-            m_price = price;
-            m_src = src;
-            m_volume = volume;
-        }
-    }
-
     private static class TickList extends ArrayList<Tick> {}
     public static class PriceDiffList extends ArrayList<Double> {}
-
-    public static class ChartAxe {
-        public final double m_min;
-        public final double m_max;
-        private final int m_size;
-        private final double m_scale;
-
-        public ChartAxe(double min, double max, int size) {
-            m_min = min;
-            m_max = max;
-            m_size = size;
-            double diff = max - min;
-            m_scale = diff / size;
-        }
-
-        public int getPoint(double value) {
-            double offset = value - m_min;
-            return (int) (offset / m_scale);
-        }
-
-        public int getPointReverse(double value) {
-            int point = getPoint(value);
-            return m_size - 1 - point;
-        }
-    }
 
     public enum Vary {
         NONE, MOVING_AVERAGE_LEN, EXPECTED_GAIN, DROP, MOVING_AVERAGE_LEN_AND_EXPECTED_GAIN;
