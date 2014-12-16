@@ -87,7 +87,12 @@ public class PaintOsc extends BaseChartPaint {
         long maxBarTimestamp = (maxTimestamp / BAR_SIZE + 1) * BAR_SIZE;
 
         Bar[] bars = calBars(ticks, minBarTimestamp, maxBarTimestamp);
-        List<Osc> oscs = calOsc(ticks, minBarTimestamp, maxBarTimestamp);
+        OscCalculator calc = new OscCalculator(BAR_SIZE);
+        for (Tick tick : ticks) {
+            calc.update(tick);
+        }
+        List<Osc> oscs = calc.ret();
+        List<Osc> fine = calc.fine();
 
         long timeDiff = maxBarTimestamp - minBarTimestamp;
         double priceDiff = maxPrice - minPrice;
@@ -134,6 +139,7 @@ public class PaintOsc extends BaseChartPaint {
 
         // paint ocs
         paintOscs(oscs, oscAxe, timeAxe, g);
+        paintFine(fine, oscAxe, timeAxe, g);
 
         g.dispose();
 
@@ -190,14 +196,6 @@ public class PaintOsc extends BaseChartPaint {
             bar.update(tick);
         }
         return bars;
-    }
-
-    private static List<Osc> calOsc(List<Tick> ticks, long minBarTimestamp, long maxBarTimestamp) {
-        OscCalculator calc = new OscCalculator(BAR_SIZE);
-        for (Tick tick : ticks) {
-            calc.update(tick);
-        }
-        return calc.ret();
     }
 
     private static void paintPoints(List<Tick> ticks, ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
@@ -274,6 +272,23 @@ public class PaintOsc extends BaseChartPaint {
             prevRight = right;
             prevVal1Y = val1Y;
             prevVal2Y = val2Y;
+        }
+    }
+
+    private static void paintFine(List<Osc> fine, ChartAxe oscAxe, ChartAxe timeAxe, Graphics2D g) {
+        for (Osc fin : fine) {
+            long startTime = fin.m_startTime;
+            int x = timeAxe.getPoint(startTime);
+
+            double val1 = fin.m_val1;
+            int val1Y = oscAxe.getPointReverse(val1);
+            double val2 = fin.m_val2;
+            int val2Y = oscAxe.getPointReverse(val2);
+
+            g.setPaint(Color.gray);
+            g.drawLine(x, val1Y, x, val1Y);
+            g.setPaint(Color.lightGray);
+            g.drawLine(x, val2Y, x, val2Y);
         }
     }
 
@@ -373,7 +388,7 @@ public class PaintOsc extends BaseChartPaint {
         private List<Double> stoch1s = new ArrayList<Double>();
 
         private List<Osc> ret = new ArrayList<Osc>();
-        private long m_closeStamp;
+        private List<Osc> fine = new ArrayList<Osc>();
 
         public OscCalculator(long barSize) {
             m_barSize = barSize;
@@ -386,58 +401,81 @@ public class PaintOsc extends BaseChartPaint {
             }
             if (stamp < m_currBarEnd) { // one more tick in current bar
                 m_close = tick.m_price;
-                m_closeStamp = stamp;
+                update(stamp, false);
             } else { // bar fully defined
-                if (m_prevBarClose != null) {
-                    finishBar();
-                }
+                update(stamp, true);
                 startNewBar(stamp, m_close, tick.m_price);
             }
         }
 
-        private void finishBar() {
-            if (m_gains.size() == LEN1) {
-                m_gains.remove(0);
-                m_losss.remove(0);
+        private void update(long stamp, boolean finishBar) {
+            if (m_prevBarClose == null) {
+                return;
             }
             double change = m_close - m_prevBarClose;
             double gain = (change > 0) ? change : 0d;
             double loss = (change < 0) ? -change : 0d;
+            Double avgGain = null;
+            Double avgLoss = null;
             if (m_avgGain == null) {
-                m_gains.add(gain);
-                m_losss.add(loss);
-                if (m_gains.size() == LEN1) {
-                    m_avgGain = avg(m_gains);
-                    m_avgLoss = avg(m_losss);
+                if(finishBar) {
+                    m_gains.add(gain);
+                    m_losss.add(loss);
+                    if (m_gains.size() == LEN1) {
+                        avgGain = avg(m_gains);
+                        avgLoss = avg(m_losss);
+                    }
+                } else {
+                    return;
                 }
             } else {
-                m_avgGain = (m_avgGain * (LEN1 - 1) + gain) / LEN1;
-                m_avgLoss = (m_avgLoss * (LEN1 - 1) + loss) / LEN1;
+                avgGain = (m_avgGain * (LEN1 - 1) + gain) / LEN1;
+                avgLoss = (m_avgLoss * (LEN1 - 1) + loss) / LEN1;
             }
-            if (m_avgGain != null) {
-                double rsi = (m_avgLoss == 0) ? 100 : 100 - (100 / (1 + m_avgGain / m_avgLoss));
-                if (rsis.size() == LEN2) {
-                    rsis.remove(0);
+            if(finishBar) {
+                m_avgGain = avgGain;
+                m_avgLoss = avgLoss;
+            }
+            if (avgGain != null) {
+                double rsi = (avgLoss == 0) ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+                if (rsis.size() < LEN2) {
+                    rsis.add(rsi);
+                } else if (rsis.size() == LEN2) {
+                    rsis.set(LEN2 - 1, rsi);
                 }
-                rsis.add(rsi);
                 if (rsis.size() == LEN2) {
                     double highest = max(rsis);
                     double lowest = min(rsis);
-                    double stoch = (rsi - lowest) / (highest - lowest);
-                    if (stochs.size() == K) {
-                        stochs.remove(0);
+                    if(finishBar) {
+                        rsis.remove(0);
                     }
-                    stochs.add(stoch);
+                    double stoch = (rsi - lowest) / (highest - lowest);
+                    if (stochs.size() < K) {
+                        stochs.add(stoch);
+                    } else if (stochs.size() == K) {
+                        stochs.set(K - 1, stoch);
+                    }
                     if (stochs.size() == K) {
                         double stoch1 = avg(stochs);
-                        if (stoch1s.size() == D) {
-                            stoch1s.remove(0);
+                        if(finishBar) {
+                            stochs.remove(0);
                         }
-                        stoch1s.add(stoch1);
+                        if (stoch1s.size() < D) {
+                            stoch1s.add(stoch1);
+                        } else if (stoch1s.size() == D) {
+                            stoch1s.set(D - 1, stoch1);
+                        }
                         if (stoch1s.size() == D) {
                             double stoch2 = avg(stoch1s);
-                            Osc osc = new Osc(m_currBarStart, stoch1, stoch2);
-                            ret.add(osc);
+                            if(finishBar) {
+                                stoch1s.remove(0);
+
+                                Osc osc = new Osc(m_currBarStart, stoch1, stoch2);
+                                ret.add(osc);
+                            } else {
+                                Osc osc = new Osc(stamp, stoch1, stoch2);
+                                fine.add(osc);
+                            }
                         }
                     }
                 }
@@ -445,10 +483,12 @@ public class PaintOsc extends BaseChartPaint {
         }
 
         public List<Osc> ret() {
-            if (m_prevBarClose != null) {
-                finishBar();
-            }
+            update(0, true);
             return ret;
+        }
+
+        public List<Osc> fine() {
+            return fine;
         }
 
         private void startNewBar(long stamp, Double prevBarClose, double close) {
@@ -456,7 +496,6 @@ public class PaintOsc extends BaseChartPaint {
             m_currBarEnd = m_currBarStart + m_barSize;
             m_prevBarClose = prevBarClose;
             m_close = close;
-            m_closeStamp = stamp;
         }
     }
 }
