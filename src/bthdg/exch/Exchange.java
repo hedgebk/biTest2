@@ -10,11 +10,13 @@ import java.util.Map;
 import java.util.Properties;
 
 // to support others ?
+// goc.io
 // https://www.kraken.com
 // https://vircurex.com		https://vircurex.com/welcome/api
 // ? www.itbit.com
 //    http://docs.itbit.apiary.io/
 //    https://www.itbit.com/api/feeds/ticker/XBTUSD
+// netagio.com
 // ? bitcoin-central.net
 // crypto-trade.com ?
 // check more exchnages examples here https://github.com/mobnetic/BitcoinChecker/tree/master/DataModule/src/com/mobnetic/coinguardian/model/market

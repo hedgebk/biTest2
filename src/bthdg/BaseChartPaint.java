@@ -150,7 +150,7 @@ public class BaseChartPaint extends DbReady {
         g.drawLine(x - d, y + d, x + d, y - d);
     }
 
-    public static class Tick {
+    public static class Tick implements Comparable<Long> {
         public final int m_src;
         public final long m_stamp;
         public final double m_price;
@@ -161,6 +161,19 @@ public class BaseChartPaint extends DbReady {
             m_price = price;
             m_src = src;
             m_volume = volume;
+        }
+
+        @Override public int compareTo(Long other) {
+            return Long.compare(m_stamp, other);
+        }
+
+        @Override public String toString() {
+            return "Tick[" +
+                    "m_src=" + m_src +
+                    ", m_stamp=" + m_stamp +
+                    ", m_price=" + m_price +
+                    ", m_volume=" + m_volume +
+                    ']';
         }
     }
 
