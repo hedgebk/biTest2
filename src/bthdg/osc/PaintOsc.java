@@ -20,27 +20,29 @@ import java.util.Collections;
 import java.util.List;
 
 public class PaintOsc extends BaseChartPaint {
-    private static final int BAR_NUM = 110;
-    private static final long BAR_SIZE = Utils.toMillis("20m");
+    private static final long TIME_FRAME = Utils.toMillis("30d");
+    private static final long BAR_SIZE = Utils.toMillis("1m");
     private static final Exchange EXCHANGE = Exchange.BTCN;
     private static final Color TRANSP_GRAY = new Color(100,100,100,50);
 
     // chart area
     public static final int X_FACTOR = 1; // more points
-    private static final int WIDTH = 15000;
-    public static final int HEIGHT = 600;
+    private static final int WIDTH = 2000;
+    public static final int HEIGHT = 800;
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
     public static final int K = 3;
     public static final int D = 3;
     private static final int MARK_DIAMETER = 5;
     public static final BasicStroke TR_STROKE = new BasicStroke(3);
+    public static final int OFFSET_BAR_PARTS = 10;
+    public static final boolean PAINT = false;
 
     public static void main(String[] args) {
         System.out.println("Started");
         long millis = System.currentTimeMillis();
         System.out.println("timeMills: " + millis);
-        System.out.println("BAR_SIZE: " + BAR_SIZE + " ms; ="+Utils.millisToDHMSStr(BAR_SIZE));
+        System.out.println("BAR_SIZE: " + BAR_SIZE + " ms; =" + Utils.millisToDHMSStr(BAR_SIZE));
         long maxMemory = Runtime.getRuntime().maxMemory();
         System.out.println("maxMemory: " + maxMemory + ", k:" + (maxMemory /= 1024) + ": m:" + (maxMemory /= 1024));
 
@@ -57,9 +59,8 @@ public class PaintOsc extends BaseChartPaint {
                 long timestamp = getMaxTimestamp(connection, EXCHANGE);
                 System.out.println("max timestamp="+timestamp);
 
-                long timeFrame = BAR_SIZE * BAR_NUM;
-                System.out.println("timeFrame: " + timeFrame + " ms; =" + Utils.millisToDHMSStr(timeFrame));
-                long start = timestamp - timeFrame;
+                System.out.println("timeFrame: " + TIME_FRAME + " ms; =" + Utils.millisToDHMSStr(TIME_FRAME));
+                long start = timestamp - TIME_FRAME;
 
                 System.out.println("selecting ticks");
                 List<PaintChart.Tick> ticks = selectTicks(connection, now, timestamp, start, EXCHANGE);
@@ -121,6 +122,9 @@ public class PaintOsc extends BaseChartPaint {
 
         // paint left axe
         paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, WIDTH);
+        g.setColor(Color.DARK_GRAY);
+        g.drawLine(0, HEIGHT * 2 / 10, WIDTH, HEIGHT * 2 / 10);
+        g.drawLine(0, HEIGHT * 8 / 10, WIDTH, HEIGHT * 8 / 10);
         // paint left axe labels
         paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, X_FACTOR);
 
@@ -151,18 +155,28 @@ public class PaintOsc extends BaseChartPaint {
 
 //        List<Osc> forBars = calcForBars(ticks, minBarTimestamp, maxBarTimestamp, 0);
 //        List<Osc> forBars = new ArrayList<Osc>();
-        Color[] colors = new Color[]{Color.CYAN, Color.GREEN, Color.GRAY, Color.BLUE, Color.MAGENTA, Color.PINK, Color.YELLOW, Color.ORANGE};
-        long step = BAR_SIZE / 4;
-        int colorIndex = 0;
+        Color[] colors = new Color[]{Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN, Color.ORANGE};
+        long step = BAR_SIZE / OFFSET_BAR_PARTS;
+        int index = 0;
         double cummCumm = 0;
         for (long offset = 0; offset < BAR_SIZE; offset += step) {
             List<Osc> forBars2 = calcForBars(ticks, minBarTimestamp, maxBarTimestamp, offset);
-            Color color = colors[(colorIndex++) % colors.length];
+            Color color = colors[(index++) % colors.length];
             double cumm = paintOscs(forBars2, oscAxe, timeAxe, g, color, ticks, priceAxe);
+            System.out.println("cumm = " + cumm);
             cummCumm += cumm;
 //            forBars.addAll(forBars2);
         }
+        cummCumm /= index;
         System.out.println("cummCumm = " + cummCumm);
+
+        double timeFrameDays = ((double) TIME_FRAME) / Utils.ONE_DAY_IN_MILLIS;
+        System.out.println("timeFrameDays = " + timeFrameDays);
+
+        double pow = 1.0 / timeFrameDays;
+        double aDay = Math.pow(cummCumm, pow);
+        System.out.println("/day = " + aDay);
+
 //        Collections.sort(forBars);
 //        paintOscs(forBars, oscAxe, timeAxe, g, 0);
 
@@ -183,27 +197,27 @@ public class PaintOsc extends BaseChartPaint {
     }
 
     private static List<Osc> calcForBars(List<Tick> ticks, long minBarTimestamp, long maxBarTimestamp, long timeOffset) {
-        List<Tick> closeTicks = new ArrayList<Tick>();
-        for (long barStartTime = minBarTimestamp + BAR_SIZE + timeOffset; barStartTime < maxBarTimestamp; barStartTime += BAR_SIZE) {
-            int tickIndex = binarySearch(ticks, barStartTime - 1, false);
-            Tick tick = ticks.get(tickIndex);
-//            {
-//                long tickTime = tick.m_stamp;
-//                if (tickTime >= barStartTime) {
-//                    throw new RuntimeException("tickTime<minOscTime");
-//                }
-//            }
-            closeTicks.add(tick);
-        }
 //        System.out.println("----------------------------------------------------------------------");
         OscCalculator calc = new OscCalculator(BAR_SIZE);
-        calc.setBarsMillisOffset(timeOffset /*minBarTimestamp - minBarTimestamp / BAR_SIZE * BAR_SIZE*/);
-        for (int i = 0; i < closeTicks.size(); i++) {
-            Tick closeTick = closeTicks.get(i);
-            boolean newBarStarted = calc.update(closeTick);
-            if (!newBarStarted) {
-                throw new RuntimeException("newBar NOT Started. closeTicks index=" + i);
+        calc.setBarsMillisOffset(timeOffset);
+
+        int i = 0;
+        for (long barStartTime = minBarTimestamp + timeOffset; barStartTime < maxBarTimestamp; barStartTime += BAR_SIZE) {
+            long barEndTime = barStartTime + BAR_SIZE; // excluding time
+            int tickIndex = binarySearch(ticks, barEndTime - 1, false);
+            Tick tick = ticks.get(tickIndex);
+            long tickTime = tick.m_stamp;
+//            System.out.println(i + ": barStartTime=" + barStartTime + "; barEndTime=" + barEndTime + "; tickIndex=" + tickIndex + "; tick=" + tick);
+            if (tickTime < barStartTime) {
+                // no tick in this bar
+                //throw new RuntimeException("tickTime<barStartTime");
+            } else {
+                boolean newBarStarted = calc.update(tick);
+                if (!newBarStarted) {
+                    throw new RuntimeException("newBar NOT Started. closeTicks index=" + i + "; tick=" + tick);
+                }
             }
+            i++;
         }
         return calc.ret();
     }
@@ -360,7 +374,7 @@ public class PaintOsc extends BaseChartPaint {
     }
 
     private static double paintOscs(List<Osc> oscs, ChartAxe oscAxe, ChartAxe timeAxe, Graphics2D g, Color color, List<Tick> ticks, ChartAxe priceAxe) {
-        System.out.println("------------------------------------------------");
+//        System.out.println("------------------------------------------------");
         Integer prevRight = null;
         Integer prevVal1Y = null;
         Integer prevVal2Y = null;
@@ -383,9 +397,10 @@ public class PaintOsc extends BaseChartPaint {
                 boolean goUp = prevVal1 <= prevVal2 && val1 > val2;
                 boolean goDown = prevVal1 >= prevVal2 && val1 < val2;
                 if (goUp || goDown) {
-                    g.setPaint(color);
-                    g.drawLine(right, 0, right, HEIGHT);
-
+                    if(PAINT) {
+                        g.setPaint(color);
+                        g.drawLine(right, 0, right, HEIGHT);
+                    }
                     int thisTickIndex = binarySearch(ticks, barEndTime, true);
                     if(thisTickIndex < ticks.size()) {
                         Tick thisTick = ticks.get(thisTickIndex);
@@ -401,15 +416,19 @@ public class PaintOsc extends BaseChartPaint {
                             double prevPrice = prevTick.m_price;
                             int prevY = priceAxe.getPointReverse(prevPrice);
 
-                            Stroke stroke = g.getStroke();
-                            g.setStroke(TR_STROKE);
-                            g.drawLine(prevBarRight, prevY, right, thisY);
-                            g.setStroke(stroke);
 
                             double priceDiff = (side == OrderSide.BUY) ? thisPrice - prevPrice : prevPrice - thisPrice;
                             double ratio =  (side == OrderSide.BUY) ? thisPrice / prevPrice : prevPrice / thisPrice;
                             cumm *= ratio;
-                            System.out.println(priceDiff + "\t" + ratio + "\t" + cumm);
+//                            System.out.println(priceDiff + "\t" + ratio + "\t" + cumm);
+
+                            if(PAINT) {
+                                g.setPaint(priceDiff > 0 ? Color.GREEN : Color.RED);
+                                Stroke stroke = g.getStroke();
+                                g.setStroke(TR_STROKE);
+                                g.drawLine(prevBarRight, prevY, right, thisY);
+                                g.setStroke(stroke);
+                            }
                         }
                         side = goUp ? OrderSide.BUY : OrderSide.SELL;
                         tradeOsc = osc;
@@ -420,13 +439,15 @@ public class PaintOsc extends BaseChartPaint {
             int val1Y = oscAxe.getPointReverse(val1);
             int val2Y = oscAxe.getPointReverse(val2);
 
-            g.setPaint(color);
-            g.drawRect(right - MARK_DIAMETER / 2, val1Y - MARK_DIAMETER / 2, MARK_DIAMETER, MARK_DIAMETER);
-            g.drawRect(right - MARK_DIAMETER / 2, val2Y - MARK_DIAMETER / 2, MARK_DIAMETER, MARK_DIAMETER);
-            g.drawLine(right, val1Y, right, val2Y);
-            if (prevRight != null) {
-                g.drawLine(prevRight, prevVal1Y, right, val1Y);
-                g.drawLine(prevRight, prevVal2Y, right, val2Y);
+            if(PAINT) {
+                g.setPaint(color);
+                g.drawRect(right - MARK_DIAMETER / 2, val1Y - MARK_DIAMETER / 2, MARK_DIAMETER, MARK_DIAMETER);
+                g.drawRect(right - MARK_DIAMETER / 2, val2Y - MARK_DIAMETER / 2, MARK_DIAMETER, MARK_DIAMETER);
+                g.drawLine(right, val1Y, right, val2Y);
+                if (prevRight != null) {
+                    g.drawLine(prevRight, prevVal1Y, right, val1Y);
+                    g.drawLine(prevRight, prevVal2Y, right, val2Y);
+                }
             }
             prevRight = right;
             prevVal1Y = val1Y;
