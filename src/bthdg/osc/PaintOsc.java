@@ -20,14 +20,14 @@ import java.util.Collections;
 import java.util.List;
 
 public class PaintOsc extends BaseChartPaint {
-    private static final long TIME_FRAME = Utils.toMillis("30d");
-    private static final long BAR_SIZE = Utils.toMillis("1m");
+    private static final long TIME_FRAME = Utils.toMillis("3d");
+    private static final long BAR_SIZE = Utils.toMillis("20m");
     private static final Exchange EXCHANGE = Exchange.BTCN;
     private static final Color TRANSP_GRAY = new Color(100,100,100,50);
 
     // chart area
     public static final int X_FACTOR = 1; // more points
-    private static final int WIDTH = 2000;
+    private static final int WIDTH = 20000;
     public static final int HEIGHT = 800;
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
@@ -36,7 +36,8 @@ public class PaintOsc extends BaseChartPaint {
     private static final int MARK_DIAMETER = 5;
     public static final BasicStroke TR_STROKE = new BasicStroke(3);
     public static final int OFFSET_BAR_PARTS = 10;
-    public static final boolean PAINT = false;
+    public static final boolean PAINT = true;
+    private static final boolean DBL_CONFIRM_IN_MIDDLE = false;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -204,7 +205,7 @@ public class PaintOsc extends BaseChartPaint {
         int i = 0;
         for (long barStartTime = minBarTimestamp + timeOffset; barStartTime < maxBarTimestamp; barStartTime += BAR_SIZE) {
             long barEndTime = barStartTime + BAR_SIZE; // excluding time
-            int tickIndex = binarySearch(ticks, barEndTime - 1, false);
+            int tickIndex = binarySearch(ticks, barEndTime - 1, false); // tick before
             Tick tick = ticks.get(tickIndex);
             long tickTime = tick.m_stamp;
 //            System.out.println(i + ": barStartTime=" + barStartTime + "; barEndTime=" + barEndTime + "; tickIndex=" + tickIndex + "; tick=" + tick);
@@ -379,13 +380,18 @@ public class PaintOsc extends BaseChartPaint {
         Integer prevVal1Y = null;
         Integer prevVal2Y = null;
 
+        boolean lastCrossUp = false;
+        boolean lastCrossDown = false;
         double cumm = 1.0;
         OrderSide side = null;
         Osc tradeOsc = null;
         Osc prevOsc = null;
+        int indx = 0;
+        boolean waitingDblConfirm = false;
         for (Osc osc : oscs) {
+            boolean needDblConfirm = false;
             long startTime = osc.m_startTime;
-            long barEndTime = startTime + BAR_SIZE;
+            long barEndTime = startTime + BAR_SIZE - 1;
             int right = timeAxe.getPoint(barEndTime);
 
             double val1 = osc.m_val1;
@@ -394,55 +400,85 @@ public class PaintOsc extends BaseChartPaint {
             if (prevOsc != null) {
                 double prevVal1 = prevOsc.m_val1;
                 double prevVal2 = prevOsc.m_val2;
-                boolean goUp = prevVal1 <= prevVal2 && val1 > val2;
-                boolean goDown = prevVal1 >= prevVal2 && val1 < val2;
-                if (goUp || goDown) {
+                boolean crossUp = (prevVal1 <= prevVal2) && (val1 > val2);
+                boolean crossDown = (prevVal1 >= prevVal2) && (val1 < val2);
+                if (crossUp || crossDown) {
                     if(PAINT) {
                         g.setPaint(color);
                         g.drawLine(right, 0, right, HEIGHT);
                     }
-                    int thisTickIndex = binarySearch(ticks, barEndTime, true);
+                    int thisTickIndex = binarySearch(ticks, barEndTime, true); // nearest tick at right
                     if(thisTickIndex < ticks.size()) {
-                        Tick thisTick = ticks.get(thisTickIndex);
-                        double thisPrice = thisTick.m_price;
-                        int thisY = priceAxe.getPointReverse(thisPrice);
-
                         if( side != null ) {
-                            long prevTime = tradeOsc.m_startTime;
-                            long prevBarEndTime = prevTime + BAR_SIZE;
+                            long prevStartTime = tradeOsc.m_startTime;
+                            long prevBarEndTime = prevStartTime + BAR_SIZE - 1;
                             int prevBarRight = timeAxe.getPoint(prevBarEndTime);
                             int prevTickIndex = binarySearch(ticks, prevBarEndTime, true);
                             Tick prevTick = ticks.get(prevTickIndex);
                             double prevPrice = prevTick.m_price;
-                            int prevY = priceAxe.getPointReverse(prevPrice);
 
+                            Tick thisTick = ticks.get(thisTickIndex);
+                            double thisPrice = thisTick.m_price;
 
                             double priceDiff = (side == OrderSide.BUY) ? thisPrice - prevPrice : prevPrice - thisPrice;
                             double ratio =  (side == OrderSide.BUY) ? thisPrice / prevPrice : prevPrice / thisPrice;
                             cumm *= ratio;
-//                            System.out.println(priceDiff + "\t" + ratio + "\t" + cumm);
+                            side = null;
+// System.out.println("indx="+indx+" prev["+prevStartTime+"; "+prevBarEndTime+"; "+prevBarRight+"; "+prevTickIndex+"] this["+startTime+"; "+barEndTime+"; "+right+"; "+thisTickIndex+"]");
 
                             if(PAINT) {
-                                g.setPaint(priceDiff > 0 ? Color.GREEN : Color.RED);
+                                int thisY = priceAxe.getPointReverse(thisPrice);
+                                int prevY = priceAxe.getPointReverse(prevPrice);
+
+                                g.setPaint((priceDiff > 0) ? Color.GREEN : Color.RED);
                                 Stroke stroke = g.getStroke();
                                 g.setStroke(TR_STROKE);
-                                g.drawLine(prevBarRight, prevY, right, thisY);
+                                g.drawLine(prevBarRight+4, prevY, right-4, thisY);
                                 g.setStroke(stroke);
                             }
                         }
-                        side = goUp ? OrderSide.BUY : OrderSide.SELL;
-                        tradeOsc = osc;
+                        if (DBL_CONFIRM_IN_MIDDLE && ((val1 > 0.2) && (val1 < 0.8)) && ((val2 > 0.2) && (val2 < 0.8))) {
+                            // cross in the middle - need 2 points to confirm
+//System.out.println("DBL_CONFIRM_IN_MIDDLE");
+//System.out.println("indx="+indx+" DBL_CONFIRM_IN_MIDDLE this["+startTime+"; "+barEndTime+"; "+right+"; "+thisTickIndex+"]");
+                            needDblConfirm = false;
+                            waitingDblConfirm = true;
+                        } else {
+//System.out.println("indx="+indx+" gotStartTrade this["+startTime+"; "+barEndTime+"; "+right+"; "+thisTickIndex+"]");
+                            side = crossUp ? OrderSide.BUY : OrderSide.SELL;
+                            tradeOsc = osc;
+                            waitingDblConfirm = false;
+                        }
+                    }
+                } else {
+                    if (waitingDblConfirm) {
+                        boolean up = prevVal1 < val1;
+                        boolean down = prevVal1 > val1;
+                        if ((lastCrossUp && up) || (lastCrossDown && down)) {
+//System.out.println("indx="+indx+" confirmedStartTrade this["+startTime+"; "+barEndTime+"; "+right+"]");
+                            side = up ? OrderSide.BUY : OrderSide.SELL;
+                            tradeOsc = osc;
+                        }
+                        waitingDblConfirm = false;
                     }
                 }
+                lastCrossUp = crossUp;
+                lastCrossDown = crossDown;
             }
-
             int val1Y = oscAxe.getPointReverse(val1);
             int val2Y = oscAxe.getPointReverse(val2);
 
             if(PAINT) {
+//                String cross = lastCrossUp ? " crossUp" : lastCrossDown ? " crossDown" : "";
+//                String confirm = needDblConfirm ? " needConfirm" : "";
+//                String val1Str = String.format("%1$,.3f", val1);
+//                String val2Str = String.format("%1$,.3f", val2);
+
                 g.setPaint(color);
                 g.drawRect(right - MARK_DIAMETER / 2, val1Y - MARK_DIAMETER / 2, MARK_DIAMETER, MARK_DIAMETER);
+//                g.drawString(val1Str + cross, right + MARK_DIAMETER / 2, val1Y);
                 g.drawRect(right - MARK_DIAMETER / 2, val2Y - MARK_DIAMETER / 2, MARK_DIAMETER, MARK_DIAMETER);
+//                g.drawString(val2Str + confirm, right + MARK_DIAMETER / 2, val2Y);
                 g.drawLine(right, val1Y, right, val2Y);
                 if (prevRight != null) {
                     g.drawLine(prevRight, prevVal1Y, right, val1Y);
@@ -453,6 +489,7 @@ public class PaintOsc extends BaseChartPaint {
             prevVal1Y = val1Y;
             prevVal2Y = val2Y;
             prevOsc = osc;
+            indx++;
         }
         return cumm;
     }
