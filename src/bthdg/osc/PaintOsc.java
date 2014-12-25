@@ -20,7 +20,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class PaintOsc extends BaseChartPaint {
-    private static final long TIME_FRAME = Utils.toMillis("6h");
+    private static final long TIME_FRAME = Utils.toMillis("25d");
     private static final long BAR_SIZE = Utils.toMillis("1m");
     private static final Exchange EXCHANGE = Exchange.BTCN;
 //    private static final Exchange EXCHANGE = Exchange.OKCOIN;
@@ -42,7 +42,7 @@ public class PaintOsc extends BaseChartPaint {
     private static final int MARK_DIAMETER = 5;
     public static final BasicStroke TR_STROKE = new BasicStroke(3);
     public static final int OFFSET_BAR_PARTS = 10;
-    public static final boolean PAINT = true;
+    public static final boolean PAINT = false;
     private static final boolean DBL_CONFIRM_IN_MIDDLE = false;
     private static final boolean STICK_TOP_BOTTOM = false;
     private static final double STICK_TOP_BOTTOM_LEVEL = 0.05;
@@ -158,7 +158,7 @@ public class PaintOsc extends BaseChartPaint {
         List<Osc> oscs = calc.ret();
         paintOscs(oscs, oscAxe, timeAxe, g, Color.GRAY/*MAGENTA*/, ticks, priceAxe);
         List<Osc> fine = calc.fine();
-        paintFine(fine, oscAxe, timeAxe, g);
+        paintFine(fine, oscAxe, timeAxe, g, ticks, priceAxe);
 
 //        List<Osc> cont = calcCont(ticks);
 //        paintFine(cont, oscAxe, timeAxe, g);
@@ -166,7 +166,7 @@ public class PaintOsc extends BaseChartPaint {
 //        List<Osc> forBars = calcForBars(ticks, minBarTimestamp, maxBarTimestamp, 0);
 //        List<Osc> forBars = new ArrayList<Osc>();
 
-//        calcAndPaint(ticks, minBarTimestamp, maxBarTimestamp, timeAxe, priceAxe, oscAxe, g);
+        calcAndPaint(ticks, minBarTimestamp, maxBarTimestamp, timeAxe, priceAxe, oscAxe, g);
 
 //        Collections.sort(forBars);
 //        paintOscs(forBars, oscAxe, timeAxe, g, 0);
@@ -201,14 +201,10 @@ public class PaintOsc extends BaseChartPaint {
 //            forBars.addAll(forBars2);
         }
         cummCumm /= index;
-        System.out.println("cummCumm = " + cummCumm);
-
         double timeFrameDays = ((double) TIME_FRAME) / Utils.ONE_DAY_IN_MILLIS;
-        System.out.println("timeFrameDays = " + timeFrameDays);
-
         double pow = 1.0 / timeFrameDays;
         double aDay = Math.pow(cummCumm, pow);
-        System.out.println("/day = " + aDay);
+        System.out.println("cummCumm = " + cummCumm + "timeFrameDays = " + timeFrameDays + " /day = " + aDay);
     }
 
     private static List<Osc> calcForBars(List<Tick> ticks, long minBarTimestamp, long maxBarTimestamp, long timeOffset) {
@@ -402,9 +398,11 @@ public class PaintOsc extends BaseChartPaint {
                 double low = bar.m_low;
                 int lowY = priceAxe.getPointReverse(low);
 
-                g.setPaint(TRANSP_GRAY);
-                g.drawLine(left, 0, left, HEIGHT);
-                g.fillRect(left, highY, right - left, lowY - highY);
+                if (PAINT) {
+                    g.setPaint(TRANSP_GRAY);
+                    g.drawLine(left, 0, left, HEIGHT);
+                    g.fillRect(left, highY, right - left, lowY - highY);
+                }
 
                 g.setPaint(Color.BLUE);
                 if(right-left >= 5) {
@@ -560,39 +558,139 @@ public class PaintOsc extends BaseChartPaint {
         return cumm;
     }
 
-    private static void paintFine(List<Osc> fine, ChartAxe oscAxe, ChartAxe timeAxe, Graphics2D g) {
+    private static void paintFine(List<Osc> fine, ChartAxe oscAxe, ChartAxe timeAxe, Graphics2D g, List<Tick> ticks, ChartAxe priceAxe) {
         Utils.AverageCounter avgCounter1 = new Utils.AverageCounter(BAR_SIZE);
         Utils.AverageCounter avgCounter2 = new Utils.AverageCounter(BAR_SIZE);
         int prevVal1Yavg = 0;
         int prevVal2Yavg = 0;
         Integer prevX = null;
+        FineState state = FineState.NONE;
         for (Osc fin : fine) {
             long startTime = fin.m_startTime;
             int x = timeAxe.getPoint(startTime);
 
             double val1 = fin.m_val1;
             double val2 = fin.m_val2;
-            int val1Y = oscAxe.getPointReverse(val1);
-            int val2Y = oscAxe.getPointReverse(val2);
 
             double val1avg = avgCounter1.add(startTime, val1);
             double val2avg = avgCounter2.add(startTime, val2);
             int val1Yavg = oscAxe.getPointReverse(val1avg);
             int val2Yavg = oscAxe.getPointReverse(val2avg);
 
-            g.setPaint(val1Y > val2Y ? Color.pink : LIGHT_CYAN);
-            g.drawLine(x, val1Y, x, val2Y);
+            if (PAINT) {
+                int val1Y = oscAxe.getPointReverse(val1);
+                int val2Y = oscAxe.getPointReverse(val2);
+                g.setPaint(val1Y > val2Y ? Color.pink : LIGHT_CYAN);
+                g.drawLine(x, val1Y, x, val2Y);
 
-            if (prevX != null) {
-                g.setPaint(DARK_BLUE);
-                g.drawLine(prevX, prevVal1Yavg, x, val1Yavg);
-                g.setPaint(DARK_GREEN);
-                g.drawLine(prevX, prevVal2Yavg, x, val2Yavg);
+                if (prevX != null) {
+                    g.setPaint(DARK_BLUE);
+                    g.drawLine(prevX, prevVal1Yavg, x, val1Yavg);
+                    g.setPaint(DARK_GREEN);
+                    g.drawLine(prevX, prevVal2Yavg, x, val2Yavg);
+                }
             }
 
             prevX = x;
             prevVal1Yavg = val1Yavg;
             prevVal2Yavg = val2Yavg;
+
+            state = state.process(val1avg, val2avg, startTime, ticks, g, timeAxe, priceAxe);
+        }
+        double totalRatio = FineState.s_totalRatio;
+        double timeFrameDays = ((double) TIME_FRAME) / Utils.ONE_DAY_IN_MILLIS;
+        double pow = 1.0 / timeFrameDays;
+        double aDay = Math.pow(totalRatio, pow);
+        System.out.println("fine:  totalRatio = " + totalRatio + "; timeFrameDays = " + timeFrameDays + "; /day = " + aDay);
+    }
+
+    private static final double START_DIFF_LEVEL = 0.01;
+
+    private static enum FineState {
+        NONE {
+            @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
+                double diff = val2avg - val1avg;
+                if (diff > START_DIFF_LEVEL) {
+                    Tick tick = getNextTick(startTime, ticks);
+                    start(tick, OrderSide.SELL, g, timeAxe);
+                    return DOWN;
+                }
+                if (-diff > START_DIFF_LEVEL) {
+                    Tick tick = getNextTick(startTime, ticks);
+                    start(tick, OrderSide.BUY, g, timeAxe);
+                    return UP;
+                }
+                return this;
+            }
+        },
+        UP {
+            @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
+                double diff = val2avg - val1avg;
+                if (diff > START_DIFF_LEVEL) {
+                    Tick tick = getNextTick(startTime, ticks);
+                    finish(tick, g, timeAxe, priceAxe);
+                    return NONE;
+                }
+                return this;
+            }
+        },
+        DOWN {
+            @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
+                double diff = val2avg - val1avg;
+                if (-diff > START_DIFF_LEVEL) {
+                    Tick tick = getNextTick(startTime, ticks);
+                    finish(tick, g, timeAxe, priceAxe);
+                    return NONE;
+                }
+                return this;
+            }
+        };
+
+        private static Tick s_startTick;
+        private static OrderSide s_orderSide;
+        public static double s_totalRatio = 1;
+
+        public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) { return this; }
+
+        private static void start(Tick tick, OrderSide orderSide, Graphics2D g, ChartAxe timeAxe) {
+            s_startTick = tick;
+            s_orderSide = orderSide;
+            if (PAINT) {
+                g.setPaint((orderSide == OrderSide.BUY) ? LIGHT_CYAN : Color.pink);
+                int x = timeAxe.getPoint(tick.m_stamp);
+                g.drawLine(x, 0, x, HEIGHT);
+            }
+        }
+
+        private static void finish(Tick tick, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
+
+            double startPrice = s_startTick.m_price;
+            double finishPrice = tick.m_price;
+            double priceDiff = finishPrice - startPrice;
+            double gain = (s_orderSide == OrderSide.BUY) ? priceDiff : -priceDiff;
+            double ratio = (s_orderSide == OrderSide.BUY) ? finishPrice / startPrice : startPrice / finishPrice;
+            s_totalRatio *= ratio;
+
+            if (PAINT) {
+                g.setPaint((s_orderSide == OrderSide.BUY) ? LIGHT_CYAN : Color.pink);
+                int finishX = timeAxe.getPoint(tick.m_stamp);
+                g.drawLine(finishX, 0, finishX, HEIGHT);
+
+                int startX = timeAxe.getPoint(s_startTick.m_stamp);
+                int startY = priceAxe.getPointReverse(startPrice);
+                int finishY = priceAxe.getPointReverse(finishPrice);
+                g.setPaint((gain > 0) ? Color.green : Color.red);
+                g.drawLine(startX, startY, finishX, finishY);
+            }
+
+            s_startTick = null;
+            s_orderSide = null;
+        }
+
+        private static Tick getNextTick(long startTime, List<Tick> ticks) {
+            int tickIndex = binarySearch(ticks, startTime, true);
+            Tick tick = ticks.get(tickIndex);
+            return tick;
         }
     }
 
