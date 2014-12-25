@@ -20,26 +20,29 @@ import java.util.Collections;
 import java.util.List;
 
 public class PaintOsc extends BaseChartPaint {
-    private static final long TIME_FRAME = Utils.toMillis("25d");
+    private static final long TIME_FRAME = Utils.toMillis("6h");
     private static final long BAR_SIZE = Utils.toMillis("1m");
     private static final Exchange EXCHANGE = Exchange.BTCN;
 //    private static final Exchange EXCHANGE = Exchange.OKCOIN;
 //    private static final Exchange EXCHANGE = Exchange.BTCE;
 //    private static final Exchange EXCHANGE = Exchange.BITSTAMP;
     private static final Color TRANSP_GRAY = new Color(100,100,100,50);
+    private static final Color DARK_GREEN = new Color(0,100,0);
+    private static final Color DARK_BLUE = new Color(0,0,120);
+    private static final Color LIGHT_CYAN = new Color(150, 255, 255);
 
     // chart area
     public static final int X_FACTOR = 1; // more points
     private static final int WIDTH = 10000;
     public static final int HEIGHT = 800;
-    public static final int LEN1 = 10;
-    public static final int LEN2 = 10;
+    public static final int LEN1 = 14;
+    public static final int LEN2 = 14;
     public static final int K = 3;
     public static final int D = 3;
     private static final int MARK_DIAMETER = 5;
     public static final BasicStroke TR_STROKE = new BasicStroke(3);
-    public static final int OFFSET_BAR_PARTS = 2;
-    public static final boolean PAINT = false;
+    public static final int OFFSET_BAR_PARTS = 10;
+    public static final boolean PAINT = true;
     private static final boolean DBL_CONFIRM_IN_MIDDLE = false;
     private static final boolean STICK_TOP_BOTTOM = false;
     private static final double STICK_TOP_BOTTOM_LEVEL = 0.05;
@@ -147,22 +150,44 @@ public class PaintOsc extends BaseChartPaint {
         // paint bars
         paintBars(bars, priceAxe, timeAxe, g);
 
-//        OscCalculator calc = new OscCalculator(BAR_SIZE);
-//        for (Tick tick : ticks) {
-//            calc.update(tick);
-//        }
-//        List<Osc> oscs = calc.ret();
-//        // paint ocs
-//        paintOscs(oscs, oscAxe, timeAxe, g, Color.ORANGE);
-
-//        List<Osc> fine = calc.fine();
-//        paintFine(fine, oscAxe, timeAxe, g);
+        OscCalculator calc = new OscCalculator(BAR_SIZE);
+        calc.setCalcFine(true);
+        for (Tick tick : ticks) {
+            calc.update(tick);
+        }
+        List<Osc> oscs = calc.ret();
+        paintOscs(oscs, oscAxe, timeAxe, g, Color.GRAY/*MAGENTA*/, ticks, priceAxe);
+        List<Osc> fine = calc.fine();
+        paintFine(fine, oscAxe, timeAxe, g);
 
 //        List<Osc> cont = calcCont(ticks);
 //        paintFine(cont, oscAxe, timeAxe, g);
 
 //        List<Osc> forBars = calcForBars(ticks, minBarTimestamp, maxBarTimestamp, 0);
 //        List<Osc> forBars = new ArrayList<Osc>();
+
+//        calcAndPaint(ticks, minBarTimestamp, maxBarTimestamp, timeAxe, priceAxe, oscAxe, g);
+
+//        Collections.sort(forBars);
+//        paintOscs(forBars, oscAxe, timeAxe, g, 0);
+
+        g.dispose();
+
+        try {
+            long millis = System.currentTimeMillis();
+
+            File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
+            ImageIO.write(image, "png", output);
+
+            System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
+
+            Desktop.getDesktop().open(output);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void calcAndPaint(List<Tick> ticks, long minBarTimestamp, long maxBarTimestamp, ChartAxe timeAxe, ChartAxe priceAxe, ChartAxe oscAxe, Graphics2D g) {
         Color[] colors = new Color[]{Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN, Color.ORANGE};
         long step = BAR_SIZE / OFFSET_BAR_PARTS;
         int index = 0;
@@ -184,24 +209,6 @@ public class PaintOsc extends BaseChartPaint {
         double pow = 1.0 / timeFrameDays;
         double aDay = Math.pow(cummCumm, pow);
         System.out.println("/day = " + aDay);
-
-//        Collections.sort(forBars);
-//        paintOscs(forBars, oscAxe, timeAxe, g, 0);
-
-        g.dispose();
-
-        try {
-            long millis = System.currentTimeMillis();
-
-            File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
-            ImageIO.write(image, "png", output);
-
-            System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
-
-            Desktop.getDesktop().open(output);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     private static List<Osc> calcForBars(List<Tick> ticks, long minBarTimestamp, long maxBarTimestamp, long timeOffset) {
@@ -331,7 +338,21 @@ public class PaintOsc extends BaseChartPaint {
         for (Double val : vals) {
             sum += val;
         }
-        return sum / (vals.size()+1);
+        return sum / (vals.size() + 1);
+    }
+
+    private static double fadeAvg(List<Double> vals, Double lastVal) {
+        double ratioStep = 1.0 / (vals.size() + 1);
+        double ratio = 1;
+        double sum = lastVal;
+        double cummRatio = ratio;
+
+        for (Double val : vals) {
+            ratio -= ratioStep;
+            cummRatio += ratio;
+            sum += val * ratio;
+        }
+        return sum / cummRatio;
     }
 
     private static Bar[] calBars(List<Tick> ticks, long minBarTimestamp, long maxBarTimestamp) {
@@ -540,19 +561,38 @@ public class PaintOsc extends BaseChartPaint {
     }
 
     private static void paintFine(List<Osc> fine, ChartAxe oscAxe, ChartAxe timeAxe, Graphics2D g) {
+        Utils.AverageCounter avgCounter1 = new Utils.AverageCounter(BAR_SIZE);
+        Utils.AverageCounter avgCounter2 = new Utils.AverageCounter(BAR_SIZE);
+        int prevVal1Yavg = 0;
+        int prevVal2Yavg = 0;
+        Integer prevX = null;
         for (Osc fin : fine) {
             long startTime = fin.m_startTime;
             int x = timeAxe.getPoint(startTime);
 
             double val1 = fin.m_val1;
-            int val1Y = oscAxe.getPointReverse(val1);
             double val2 = fin.m_val2;
+            int val1Y = oscAxe.getPointReverse(val1);
             int val2Y = oscAxe.getPointReverse(val2);
 
-            g.setPaint(Color.gray);
-            g.drawLine(x, val1Y, x, val1Y);
-            g.setPaint(Color.lightGray);
-            g.drawLine(x, val2Y, x, val2Y);
+            double val1avg = avgCounter1.add(startTime, val1);
+            double val2avg = avgCounter2.add(startTime, val2);
+            int val1Yavg = oscAxe.getPointReverse(val1avg);
+            int val2Yavg = oscAxe.getPointReverse(val2avg);
+
+            g.setPaint(val1Y > val2Y ? Color.pink : LIGHT_CYAN);
+            g.drawLine(x, val1Y, x, val2Y);
+
+            if (prevX != null) {
+                g.setPaint(DARK_BLUE);
+                g.drawLine(prevX, prevVal1Yavg, x, val1Yavg);
+                g.setPaint(DARK_GREEN);
+                g.drawLine(prevX, prevVal2Yavg, x, val2Yavg);
+            }
+
+            prevX = x;
+            prevVal1Yavg = val1Yavg;
+            prevVal2Yavg = val2Yavg;
         }
     }
 
@@ -658,6 +698,7 @@ public class PaintOsc extends BaseChartPaint {
         private List<Osc> ret = new ArrayList<Osc>();
         private List<Osc> fine = new ArrayList<Osc>();
         private long m_barsMillisOffset;
+        private boolean m_calcFine;
 
         public OscCalculator(long barSize) {
             m_barSize = barSize;
@@ -682,22 +723,12 @@ public class PaintOsc extends BaseChartPaint {
         }
 
         private void update(long stamp, boolean finishBar) {
-//            StringBuilder sb = new StringBuilder();
             if (m_prevBarClose == null) {
-//                if(finishBar) {
-//                    sb.append(m_close).append("\t");
-//                }
                 return;
             }
             double change = m_close - m_prevBarClose;
             double gain = (change > 0) ? change : 0d;
             double loss = (change < 0) ? -change : 0d;
-//            if(finishBar) {
-//                sb.append(m_prevBarClose).append("\t");
-//                sb.append(m_close).append("\t");
-//                sb.append(gain).append("\t");
-//                sb.append(loss).append("\t");
-//            }
             Double avgGain = null;
             Double avgLoss = null;
             if ((m_avgGain == null) || !BLEND_AVG) {
@@ -718,41 +749,24 @@ public class PaintOsc extends BaseChartPaint {
                 avgLoss = (m_avgLoss * (LEN1 - 1) + loss) / LEN1;
             }
             if (avgGain != null) {
-                if(finishBar) {
+                if (finishBar) {
                     m_avgGain = avgGain;
                     m_avgLoss = avgLoss;
-//                    sb.append(m_avgGain).append("\t");
-//                    sb.append(m_avgLoss).append("\t");
                 }
                 double rsi = (avgLoss == 0) ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
-//                if(finishBar) {
-//                    sb.append(rsi).append("\t");
-//                }
                 if (rsis.size() == LEN2 - 1) {
                     double highest = max(rsis, rsi);
                     double lowest = min(rsis, rsi);
-//                    if(finishBar) {
-//                        sb.append(highest).append("\t");
-//                        sb.append(lowest).append("\t");
-//                    }
                     double stoch = (rsi - lowest) / (highest - lowest);
-//                    if(finishBar) {
-//                        sb.append(stoch).append("\t");
-//                    }
                     if (stochs.size() == K - 1) {
                         double stoch1 = avg(stochs, stoch);
-//                        if(finishBar) {
-//                            sb.append(stoch1).append("\t");
-//                        }
                         if (stoch1s.size() == D - 1) {
                             double stoch2 = avg(stoch1s, stoch1);
-//                            if(finishBar) {
-//                                sb.append(stoch2).append("\t");
-//                            }
-                            if(finishBar) {
+                            if (finishBar) {
                                 Osc osc = new Osc(m_currBarStart, stoch1, stoch2);
                                 ret.add(osc);
-                            } else {
+                            }
+                            if (m_calcFine) {
                                 Osc osc = new Osc(stamp, stoch1, stoch2);
                                 fine.add(osc);
                             }
@@ -778,9 +792,6 @@ public class PaintOsc extends BaseChartPaint {
                     }
                 }
             }
-//            if (sb.length() > 0) {
-//                System.out.println(sb.toString());
-//            }
         }
 
         public List<Osc> ret() {
@@ -788,9 +799,7 @@ public class PaintOsc extends BaseChartPaint {
             return ret;
         }
 
-        public List<Osc> fine() {
-            return fine;
-        }
+        public List<Osc> fine() { return fine; }
 
         private void startNewBar(long stamp, Double prevBarClose, double close) {
             m_currBarStart = (stamp - m_barsMillisOffset) / m_barSize * m_barSize + m_barsMillisOffset;
@@ -799,8 +808,8 @@ public class PaintOsc extends BaseChartPaint {
             m_close = close;
         }
 
-        public void setBarsMillisOffset(long barsMillisOffset) {
-            m_barsMillisOffset = barsMillisOffset;
-        }
+        public void setBarsMillisOffset(long barsMillisOffset) { m_barsMillisOffset = barsMillisOffset; }
+
+        public void setCalcFine(boolean calcFine) { m_calcFine = calcFine; }
     }
 }
