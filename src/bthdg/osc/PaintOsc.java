@@ -20,39 +20,43 @@ import java.util.Collections;
 import java.util.List;
 
 public class PaintOsc extends BaseChartPaint {
-    private static final long TIME_FRAME = Utils.toMillis("30d");
+    private static final long TIME_FRAME = Utils.toMillis("5h");
     private static final long BAR_SIZE = Utils.toMillis("30s");
     private static final Exchange EXCHANGE = Exchange.BTCN;
 //    private static final Exchange EXCHANGE = Exchange.OKCOIN;
 //    private static final Exchange EXCHANGE = Exchange.BTCE;
 //    private static final Exchange EXCHANGE = Exchange.BITSTAMP;
-    private static final Color TRANSP_GRAY = new Color(100, 100, 100, 50);
-    private static final Color DARK_GREEN = new Color(0, 100, 0);
-    private static final Color DARK_BLUE = new Color(0, 0, 120);
-    private static final Color LIGHT_CYAN = new Color(150, 255, 255);
-    private static final Color TRANSP_LIGHT_CYAN = new Color(150, 255, 255, 100);
 
     // chart area
-    public static final int X_FACTOR = 1; // more points
+    public static final boolean PAINT = true;
     private static final int WIDTH = 30000;
     public static final int HEIGHT = 800;
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
     public static final int K = 3;
     public static final int D = 3;
-    private static final int MARK_DIAMETER = 5;
-    public static final BasicStroke TR_STROKE = new BasicStroke(3);
-    public static final int OFFSET_BAR_PARTS = 4;
-    public static final boolean PAINT = false;
+    public static final int OFFSET_BAR_PARTS = 1;
     private static final boolean DBL_CONFIRM_IN_MIDDLE = false;
     private static final boolean STICK_TOP_BOTTOM = false;
     private static final double STICK_TOP_BOTTOM_LEVEL = 0.05;
     private static final boolean PAINT_VALUES = false;
     private static final boolean BLEND_AVG = true;
 
-    private static final double FINE_START_DIFF_LEVEL = 0.005;
+    private static final double FINE_START_DIFF_LEVEL = 0.02;
     private static final double FINE_START_DIFF_LEVEL_MUL = 6;
-    private static final long FINE_AVG_TIME = BAR_SIZE * 10;
+    private static final long FINE_AVG_TIME = BAR_SIZE * 4;
+    private static final boolean NOT_SAME_DIRECTION_START_STOP = true;
+    private static final long START_STOP_AVG_TIME = BAR_SIZE * 3;
+
+    public static final int X_FACTOR = 1; // more points
+    private static final int MARK_DIAMETER = 5;
+    public static final BasicStroke TR_STROKE = new BasicStroke(3);
+
+    private static final Color TRANSP_GRAY = new Color(100, 100, 100, 50);
+    private static final Color DARK_GREEN = new Color(0, 100, 0);
+    private static final Color DARK_BLUE = new Color(0, 0, 120);
+    private static final Color LIGHT_CYAN = new Color(150, 255, 255);
+    private static final Color TRANSP_LIGHT_CYAN = new Color(150, 255, 255, 100);
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -510,12 +514,12 @@ public class PaintOsc extends BaseChartPaint {
                                     int fontSize = g.getFont().getSize();
                                     String label = String.format("%1$,.4f", priceDiff);
                                     g.drawString(label, right, thisY - fontSize);
-                                    String label2 = String.format("%1$,.5f", ratio);
-                                    g.drawString(label2, right, thisY - 2 * fontSize);
+//                                    String label2 = String.format("%1$,.5f", ratio);
+//                                    g.drawString(label2, right, thisY - 2 * fontSize);
                                     String label3 = String.format("%1$,.5f", cummDiff);
-                                    g.drawString(label3, right, thisY - 3 * fontSize);
-                                    String label4 = String.format("%1$,.5f", cummRatio);
-                                    g.drawString(label4, right, thisY - 4 * fontSize);
+                                    g.drawString(label3, right, thisY - 2 * fontSize);
+//                                    String label4 = String.format("%1$,.5f", cummRatio);
+//                                    g.drawString(label4, right, thisY - 4 * fontSize);
                                 }
                             }
                         }
@@ -582,6 +586,10 @@ public class PaintOsc extends BaseChartPaint {
     private static void paintFine(List<Osc> fine, ChartAxe oscAxe, ChartAxe timeAxe, Graphics2D g, List<Tick> ticks, ChartAxe priceAxe) {
         Utils.AverageCounter avgCounter1 = new Utils.FadingAverageCounter(FINE_AVG_TIME);
         Utils.AverageCounter avgCounter2 = new Utils.FadingAverageCounter(FINE_AVG_TIME);
+        Utils.AverageCounter valCounter1 = new Utils.FadingAverageCounter(START_STOP_AVG_TIME);
+        Utils.AverageCounter valCounter2 = new Utils.FadingAverageCounter(START_STOP_AVG_TIME);
+        int prevVal1Y = 0;
+        int prevVal2Y = 0;
         int prevVal1Yavg = 0;
         int prevVal2Yavg = 0;
         Integer prevX = null;
@@ -590,33 +598,44 @@ public class PaintOsc extends BaseChartPaint {
             long startTime = fin.m_startTime;
             int x = timeAxe.getPoint(startTime);
 
-            double val1 = fin.m_val1;
-            double val2 = fin.m_val2;
+            double fine1 = fin.m_val1;
+            double fine2 = fin.m_val2;
 
-            double val1avg = avgCounter1.add(startTime, val1);
-            double val2avg = avgCounter2.add(startTime, val2);
+            double val1 = valCounter1.add(startTime, fine1);
+            double val2 = valCounter2.add(startTime, fine2);
+            int val1Y = oscAxe.getPointReverse(val1);
+            int val2Y = oscAxe.getPointReverse(val2);
+
+            double val1avg = avgCounter1.add(startTime, fine1);
+            double val2avg = avgCounter2.add(startTime, fine2);
             int val1Yavg = oscAxe.getPointReverse(val1avg);
             int val2Yavg = oscAxe.getPointReverse(val2avg);
 
             if (PAINT) {
-                int val1Y = oscAxe.getPointReverse(val1);
-                int val2Y = oscAxe.getPointReverse(val2);
-                g.setPaint(val1Y > val2Y ? Color.pink : TRANSP_LIGHT_CYAN);
-                g.drawLine(x, val1Y, x, val2Y);
+                int fine1Y = oscAxe.getPointReverse(fine1);
+                int fine2Y = oscAxe.getPointReverse(fine2);
+                g.setPaint(fine1Y > fine2Y ? Color.pink : TRANSP_LIGHT_CYAN);
+                g.drawLine(x, fine1Y, x, fine2Y);
 
                 if (prevX != null) {
                     g.setPaint(DARK_BLUE);
                     g.drawLine(prevX, prevVal1Yavg, x, val1Yavg);
                     g.setPaint(DARK_GREEN);
                     g.drawLine(prevX, prevVal2Yavg, x, val2Yavg);
+
+                    g.setPaint(Color.lightGray);
+                    g.drawLine(prevX, prevVal1Y, x, val1Y);
+                    g.drawLine(prevX, prevVal2Y, x, val2Y);
                 }
             }
 
             prevX = x;
+            prevVal1Y = val1Y;
+            prevVal2Y = val2Y;
             prevVal1Yavg = val1Yavg;
             prevVal2Yavg = val2Yavg;
 
-            state = state.process(val1avg, val2avg, startTime, ticks, g, timeAxe, priceAxe);
+            state = state.process(val1, val2, val1avg, val2avg, startTime, ticks, g, timeAxe, priceAxe, oscAxe);
         }
         double totalRatio = FineState.s_totalRatio;
         double timeFrameDays = ((double) TIME_FRAME) / Utils.ONE_DAY_IN_MILLIS;
@@ -627,38 +646,50 @@ public class PaintOsc extends BaseChartPaint {
 
     private static enum FineState {
         NONE {
-            @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
-                double diff = val2avg - val1avg;
-                if (diff > startLevel(val1avg, val2avg)) {
+            @Override public FineState process(double val1, double val2, double val1avg, double val2avg, long startTime, List<Tick> ticks,
+                                               Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe, ChartAxe oscAxe) {
+                double diffAvg = val2avg - val1avg;
+                double diff = val2 - val1;
+                if ((diffAvg > startLevel(val1avg, val2avg)
+                    && (!NOT_SAME_DIRECTION_START_STOP || (diffAvg + diff > 0)))) {
                     Tick tick = getNextTick(startTime, ticks);
-                    start(tick, OrderSide.SELL, g, timeAxe);
+                    start(tick, OrderSide.SELL, g, timeAxe, oscAxe, val1avg, val2avg);
                     return DOWN;
                 }
-                if (-diff > startLevel(val1avg, val2avg)) {
+                if ((-diffAvg > startLevel(val1avg, val2avg)
+                    && (!NOT_SAME_DIRECTION_START_STOP || (diffAvg + diff < 0)))) {
                     Tick tick = getNextTick(startTime, ticks);
-                    start(tick, OrderSide.BUY, g, timeAxe);
+                    start(tick, OrderSide.BUY, g, timeAxe, oscAxe, val1avg, val2avg);
                     return UP;
                 }
                 return this;
             }
         },
         UP {
-            @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
-                double diff = val2avg - val1avg;
-                if (diff > FINE_START_DIFF_LEVEL) {
+            @Override public FineState process(double val1, double val2, double val1avg, double val2avg, long startTime, List<Tick> ticks,
+                                               Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe, ChartAxe oscAxe) {
+                double diffAvg = val2avg - val1avg;
+                double diff = val2 - val1;
+                boolean reverseDiff = diffAvg > FINE_START_DIFF_LEVEL;
+                boolean notSameDirStop = NOT_SAME_DIRECTION_START_STOP && (diffAvg + diff > FINE_START_DIFF_LEVEL/2);
+                if (reverseDiff || notSameDirStop) {
                     Tick tick = getNextTick(startTime, ticks);
-                    finish(tick, g, timeAxe, priceAxe);
+                    finish(tick, g, timeAxe, priceAxe, oscAxe, reverseDiff, val1avg, val2avg, notSameDirStop, val1, val2);
                     return NONE;
                 }
                 return this;
             }
         },
         DOWN {
-            @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
-                double diff = val2avg - val1avg;
-                if (-diff > FINE_START_DIFF_LEVEL) {
+            @Override public FineState process(double val1, double val2, double val1avg, double val2avg, long startTime, List<Tick> ticks,
+                                               Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe, ChartAxe oscAxe) {
+                double diffAvg = val2avg - val1avg;
+                double diff = val2 - val1;
+                boolean reverseDiff = -diffAvg > FINE_START_DIFF_LEVEL;
+                boolean notSameDirStop = NOT_SAME_DIRECTION_START_STOP && (diffAvg + diff < -FINE_START_DIFF_LEVEL/2);
+                if (reverseDiff || notSameDirStop) {
                     Tick tick = getNextTick(startTime, ticks);
-                    finish(tick, g, timeAxe, priceAxe);
+                    finish(tick, g, timeAxe, priceAxe, oscAxe, reverseDiff, val1avg, val2avg, notSameDirStop, val1, val2);
                     return NONE;
                 }
                 return this;
@@ -677,19 +708,27 @@ public class PaintOsc extends BaseChartPaint {
         public static double s_totalRatio = 1;
         public static double s_totalGain = 0;
 
-        public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) { return this; }
+        public FineState process(double val1, double val2, double val1avg, double val2avg, long startTime, List<Tick> ticks,
+                                 Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe, ChartAxe oscAxe) { return this; }
 
-        private static void start(Tick tick, OrderSide orderSide, Graphics2D g, ChartAxe timeAxe) {
+        private static void start(Tick tick, OrderSide orderSide, Graphics2D g, ChartAxe timeAxe, ChartAxe oscAxe, double val1avg, double val2avg) {
             s_startTick = tick;
             s_orderSide = orderSide;
             if (PAINT) {
                 g.setPaint((orderSide == OrderSide.BUY) ? LIGHT_CYAN : Color.pink);
                 int x = timeAxe.getPoint(tick.m_stamp);
                 g.drawLine(x, 0, x, HEIGHT);
+
+                int val1avgY = oscAxe.getPointReverse(val1avg);
+                int val2avgY = oscAxe.getPointReverse(val2avg);
+                g.setPaint(Color.RED);
+                g.drawRect(x-1, Math.min(val1avgY, val2avgY), 2, Math.abs(val1avgY - val2avgY));
             }
         }
 
-        private static void finish(Tick tick, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
+        private static void finish(Tick tick, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe, ChartAxe oscAxe,
+                                   boolean reverseDiff, double val1avg, double val2avg,
+                                   boolean notSameDirStop, double val1, double val2) {
             double startPrice = s_startTick.m_price;
             double finishPrice = tick.m_price;
             double gain = (s_orderSide == OrderSide.BUY) ? finishPrice - startPrice : startPrice - finishPrice;
@@ -712,14 +751,34 @@ public class PaintOsc extends BaseChartPaint {
                 int fontSize = g.getFont().getSize();
                 String label = String.format("%1$,.4f", gain);
                 g.drawString(label, finishX, finishY + 2 * fontSize);
-                String label2 = String.format("%1$,.5f", ratio);
-                g.drawString(label2, finishX, finishY + 3 * fontSize);
+//                String label2 = String.format("%1$,.5f", ratio);
+//                g.drawString(label2, finishX, finishY + 3 * fontSize);
                 String label3 = String.format("%1$,.5f", s_totalGain);
-                g.drawString(label3, finishX, finishY + 4 * fontSize);
-                String label4 = String.format("%1$,.5f", s_totalRatio);
-                g.drawString(label4, finishX, finishY + 5 * fontSize);
-            }
+                g.drawString(label3, finishX, finishY + 3 * fontSize);
+//                String label4 = String.format("%1$,.5f", s_totalRatio);
+//                g.drawString(label4, finishX, finishY + 5 * fontSize);
 
+                if (reverseDiff) {
+                    int val1avgY = oscAxe.getPointReverse(val1avg);
+                    int val2avgY = oscAxe.getPointReverse(val2avg);
+                    g.setPaint(Color.RED);
+                    g.drawRect(finishX - 1, Math.min(val1avgY, val2avgY), 2, Math.abs(val1avgY - val2avgY));
+                } else if (notSameDirStop) {
+                    int val1Y = oscAxe.getPointReverse(val1);
+                    int val2Y = oscAxe.getPointReverse(val2);
+                    g.setPaint(Color.RED);
+//                    g.drawRect(finishX - 1, Math.min(val1Y, val2Y), 2, Math.abs(val1Y - val2Y));
+                    g.drawLine(finishX, val1Y, finishX + 3, val1Y + 3);
+                    g.drawLine(finishX, val1Y, finishX - 3, val1Y + 3);
+                    g.drawLine(finishX, val2Y, finishX + 3, val2Y - 3);
+                    g.drawLine(finishX, val2Y, finishX - 3, val2Y - 3);
+
+//                    double diffAvg = val2avg - val1avg;
+//                    double diff = val2 - val1;
+//                    String labelX = String.format("diff=%1$,.5f; diffAvg=%2$,.5f", diff, diffAvg);
+//                    g.drawString(labelX, finishX, finishY + 4 * fontSize);
+                }
+            }
             s_startTick = null;
             s_orderSide = null;
         }
