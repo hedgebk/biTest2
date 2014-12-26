@@ -20,20 +20,21 @@ import java.util.Collections;
 import java.util.List;
 
 public class PaintOsc extends BaseChartPaint {
-    private static final long TIME_FRAME = Utils.toMillis("25d");
-    private static final long BAR_SIZE = Utils.toMillis("1m");
+    private static final long TIME_FRAME = Utils.toMillis("30d");
+    private static final long BAR_SIZE = Utils.toMillis("30s");
     private static final Exchange EXCHANGE = Exchange.BTCN;
 //    private static final Exchange EXCHANGE = Exchange.OKCOIN;
 //    private static final Exchange EXCHANGE = Exchange.BTCE;
 //    private static final Exchange EXCHANGE = Exchange.BITSTAMP;
-    private static final Color TRANSP_GRAY = new Color(100,100,100,50);
-    private static final Color DARK_GREEN = new Color(0,100,0);
-    private static final Color DARK_BLUE = new Color(0,0,120);
+    private static final Color TRANSP_GRAY = new Color(100, 100, 100, 50);
+    private static final Color DARK_GREEN = new Color(0, 100, 0);
+    private static final Color DARK_BLUE = new Color(0, 0, 120);
     private static final Color LIGHT_CYAN = new Color(150, 255, 255);
+    private static final Color TRANSP_LIGHT_CYAN = new Color(150, 255, 255, 100);
 
     // chart area
     public static final int X_FACTOR = 1; // more points
-    private static final int WIDTH = 10000;
+    private static final int WIDTH = 30000;
     public static final int HEIGHT = 800;
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
@@ -41,13 +42,17 @@ public class PaintOsc extends BaseChartPaint {
     public static final int D = 3;
     private static final int MARK_DIAMETER = 5;
     public static final BasicStroke TR_STROKE = new BasicStroke(3);
-    public static final int OFFSET_BAR_PARTS = 10;
+    public static final int OFFSET_BAR_PARTS = 4;
     public static final boolean PAINT = false;
     private static final boolean DBL_CONFIRM_IN_MIDDLE = false;
     private static final boolean STICK_TOP_BOTTOM = false;
     private static final double STICK_TOP_BOTTOM_LEVEL = 0.05;
     private static final boolean PAINT_VALUES = false;
     private static final boolean BLEND_AVG = true;
+
+    private static final double FINE_START_DIFF_LEVEL = 0.005;
+    private static final double FINE_START_DIFF_LEVEL_MUL = 6;
+    private static final long FINE_AVG_TIME = BAR_SIZE * 10;
 
     public static void main(String[] args) {
         System.out.println("Started");
@@ -121,42 +126,46 @@ public class PaintOsc extends BaseChartPaint {
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON );
         g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY );
 
-        g.setPaint(new Color(250, 250, 250));
-        g.fillRect(0, 0, WIDTH, HEIGHT);
+        if(PAINT) {
+            g.setPaint(new Color(250, 250, 250));
+            g.fillRect(0, 0, WIDTH, HEIGHT);
 
-        // paint border
-        g.setPaint(Color.black);
-        g.drawRect(0, 0, WIDTH - 1, HEIGHT - 1);
+            // paint border
+            g.setPaint(Color.black);
+            g.drawRect(0, 0, WIDTH - 1, HEIGHT - 1);
 
-        int priceStep = 10;
-        int priceStart = ((int)minPrice) / priceStep * priceStep;
+            int priceStep = 10;
+            int priceStart = ((int)minPrice) / priceStep * priceStep;
 
-        // paint left axe
-        paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, WIDTH);
-        g.setColor(Color.DARK_GRAY);
-        g.drawLine(0, HEIGHT * 2 / 10, WIDTH, HEIGHT * 2 / 10);
-        g.drawLine(0, HEIGHT * 8 / 10, WIDTH, HEIGHT * 8 / 10);
-        // paint left axe labels
-        paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, X_FACTOR);
+            // paint left axe
+            paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, WIDTH);
+            g.setColor(Color.DARK_GRAY);
+            g.drawLine(0, HEIGHT * 2 / 10, WIDTH, HEIGHT * 2 / 10);
+            g.drawLine(0, HEIGHT * 8 / 10, WIDTH, HEIGHT * 8 / 10);
+            // paint left axe labels
+            paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, X_FACTOR);
 
-        // paint time axe labels
-        paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
+            // paint time axe labels
+            paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
-        // paint points
-        paintPoints(ticks, priceAxe, timeAxe, g);
+            // paint points
+            paintPoints(ticks, priceAxe, timeAxe, g);
+        }
 
         //---------------------
         Bar[] bars = calBars(ticks, minBarTimestamp, maxBarTimestamp);
-        // paint bars
-        paintBars(bars, priceAxe, timeAxe, g);
+        if(PAINT) {
+            // paint bars
+            paintBars(bars, priceAxe, timeAxe, g);
+        }
 
         OscCalculator calc = new OscCalculator(BAR_SIZE);
         calc.setCalcFine(true);
         for (Tick tick : ticks) {
             calc.update(tick);
         }
-        List<Osc> oscs = calc.ret();
-        paintOscs(oscs, oscAxe, timeAxe, g, Color.GRAY/*MAGENTA*/, ticks, priceAxe);
+//        List<Osc> oscs = calc.ret();
+//        paintOscs(oscs, oscAxe, timeAxe, g, Color.GRAY/*MAGENTA*/, ticks, priceAxe);
         List<Osc> fine = calc.fine();
         paintFine(fine, oscAxe, timeAxe, g, ticks, priceAxe);
 
@@ -173,22 +182,21 @@ public class PaintOsc extends BaseChartPaint {
 
         g.dispose();
 
-        try {
-            long millis = System.currentTimeMillis();
-
-            File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
-            ImageIO.write(image, "png", output);
-
-            System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
-
-            Desktop.getDesktop().open(output);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (PAINT) {
+            try {
+                long millis = System.currentTimeMillis();
+                File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
+                ImageIO.write(image, "png", output);
+                System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
+                Desktop.getDesktop().open(output);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     private static void calcAndPaint(List<Tick> ticks, long minBarTimestamp, long maxBarTimestamp, ChartAxe timeAxe, ChartAxe priceAxe, ChartAxe oscAxe, Graphics2D g) {
-        Color[] colors = new Color[]{Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN, Color.ORANGE};
+        Color[] colors = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
         long step = BAR_SIZE / OFFSET_BAR_PARTS;
         int index = 0;
         double cummCumm = 0;
@@ -198,7 +206,6 @@ public class PaintOsc extends BaseChartPaint {
             double cumm = paintOscs(forBars2, oscAxe, timeAxe, g, color, ticks, priceAxe);
             System.out.println("cumm = " + cumm);
             cummCumm += cumm;
-//            forBars.addAll(forBars2);
         }
         cummCumm /= index;
         double timeFrameDays = ((double) TIME_FRAME) / Utils.ONE_DAY_IN_MILLIS;
@@ -424,7 +431,8 @@ public class PaintOsc extends BaseChartPaint {
 
         boolean lastCrossUp = false;
         boolean lastCrossDown = false;
-        double cumm = 1.0;
+        double cummDiff = 0.0;
+        double cummRatio = 1.0;
         OrderSide side = null;
         Osc tradeOsc = null;
         Osc prevOsc = null;
@@ -481,20 +489,33 @@ public class PaintOsc extends BaseChartPaint {
                                 double thisPrice = thisTick.m_price;
 
                                 double priceDiff = (side == OrderSide.BUY) ? thisPrice - prevPrice : prevPrice - thisPrice;
+                                cummDiff += priceDiff;
                                 double ratio =  (side == OrderSide.BUY) ? thisPrice / prevPrice : prevPrice / thisPrice;
-                                cumm *= ratio;
+                                cummRatio *= ratio;
                                 side = null;
 // System.out.println("indx="+indx+" prev["+prevStartTime+"; "+prevBarEndTime+"; "+prevBarRight+"; "+prevTickIndex+"] this["+startTime+"; "+barEndTime+"; "+right+"; "+thisTickIndex+"]");
 
-                                if(PAINT) {
+                                if (PAINT) {
                                     int thisY = priceAxe.getPointReverse(thisPrice);
                                     int prevY = priceAxe.getPointReverse(prevPrice);
 
-                                    g.setPaint((priceDiff > 0) ? Color.GREEN : Color.RED);
+                                    boolean positive = (priceDiff > 0);
+                                    g.setPaint(positive ? Color.GREEN : Color.RED);
                                     Stroke stroke = g.getStroke();
                                     g.setStroke(TR_STROKE);
-                                    g.drawLine(prevBarRight+4, prevY, right-4, thisY);
+                                    g.drawLine(prevBarRight + 4, prevY, right - 4, thisY);
                                     g.setStroke(stroke);
+
+                                    g.setPaint(Color.GRAY);
+                                    int fontSize = g.getFont().getSize();
+                                    String label = String.format("%1$,.4f", priceDiff);
+                                    g.drawString(label, right, thisY - fontSize);
+                                    String label2 = String.format("%1$,.5f", ratio);
+                                    g.drawString(label2, right, thisY - 2 * fontSize);
+                                    String label3 = String.format("%1$,.5f", cummDiff);
+                                    g.drawString(label3, right, thisY - 3 * fontSize);
+                                    String label4 = String.format("%1$,.5f", cummRatio);
+                                    g.drawString(label4, right, thisY - 4 * fontSize);
                                 }
                             }
                         }
@@ -555,12 +576,12 @@ public class PaintOsc extends BaseChartPaint {
             prevOsc = osc;
             indx++;
         }
-        return cumm;
+        return cummRatio;
     }
 
     private static void paintFine(List<Osc> fine, ChartAxe oscAxe, ChartAxe timeAxe, Graphics2D g, List<Tick> ticks, ChartAxe priceAxe) {
-        Utils.AverageCounter avgCounter1 = new Utils.AverageCounter(BAR_SIZE);
-        Utils.AverageCounter avgCounter2 = new Utils.AverageCounter(BAR_SIZE);
+        Utils.AverageCounter avgCounter1 = new Utils.FadingAverageCounter(FINE_AVG_TIME);
+        Utils.AverageCounter avgCounter2 = new Utils.FadingAverageCounter(FINE_AVG_TIME);
         int prevVal1Yavg = 0;
         int prevVal2Yavg = 0;
         Integer prevX = null;
@@ -580,7 +601,7 @@ public class PaintOsc extends BaseChartPaint {
             if (PAINT) {
                 int val1Y = oscAxe.getPointReverse(val1);
                 int val2Y = oscAxe.getPointReverse(val2);
-                g.setPaint(val1Y > val2Y ? Color.pink : LIGHT_CYAN);
+                g.setPaint(val1Y > val2Y ? Color.pink : TRANSP_LIGHT_CYAN);
                 g.drawLine(x, val1Y, x, val2Y);
 
                 if (prevX != null) {
@@ -604,18 +625,16 @@ public class PaintOsc extends BaseChartPaint {
         System.out.println("fine:  totalRatio = " + totalRatio + "; timeFrameDays = " + timeFrameDays + "; /day = " + aDay);
     }
 
-    private static final double START_DIFF_LEVEL = 0.01;
-
     private static enum FineState {
         NONE {
             @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
                 double diff = val2avg - val1avg;
-                if (diff > START_DIFF_LEVEL) {
+                if (diff > startLevel(val1avg, val2avg)) {
                     Tick tick = getNextTick(startTime, ticks);
                     start(tick, OrderSide.SELL, g, timeAxe);
                     return DOWN;
                 }
-                if (-diff > START_DIFF_LEVEL) {
+                if (-diff > startLevel(val1avg, val2avg)) {
                     Tick tick = getNextTick(startTime, ticks);
                     start(tick, OrderSide.BUY, g, timeAxe);
                     return UP;
@@ -626,7 +645,7 @@ public class PaintOsc extends BaseChartPaint {
         UP {
             @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
                 double diff = val2avg - val1avg;
-                if (diff > START_DIFF_LEVEL) {
+                if (diff > FINE_START_DIFF_LEVEL) {
                     Tick tick = getNextTick(startTime, ticks);
                     finish(tick, g, timeAxe, priceAxe);
                     return NONE;
@@ -637,7 +656,7 @@ public class PaintOsc extends BaseChartPaint {
         DOWN {
             @Override public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
                 double diff = val2avg - val1avg;
-                if (-diff > START_DIFF_LEVEL) {
+                if (-diff > FINE_START_DIFF_LEVEL) {
                     Tick tick = getNextTick(startTime, ticks);
                     finish(tick, g, timeAxe, priceAxe);
                     return NONE;
@@ -646,9 +665,17 @@ public class PaintOsc extends BaseChartPaint {
             }
         };
 
+        private static double startLevel(double val1avg, double val2avg) {
+            double mid = (val1avg + val2avg) / 2;       // [0   ... 0.5 ... 1  ]
+            double centerToMid = Math.abs(mid - 0.5);   // [0.5 ... 0   ... 0.5]
+            double ratio = FINE_START_DIFF_LEVEL_MUL - ((FINE_START_DIFF_LEVEL_MUL-1)*2) * centerToMid; // [1   ... 3   ... 1  ]
+            return FINE_START_DIFF_LEVEL * ratio;
+        }
+
         private static Tick s_startTick;
         private static OrderSide s_orderSide;
         public static double s_totalRatio = 1;
+        public static double s_totalGain = 0;
 
         public FineState process(double val1avg, double val2avg, long startTime, List<Tick> ticks, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) { return this; }
 
@@ -663,12 +690,11 @@ public class PaintOsc extends BaseChartPaint {
         }
 
         private static void finish(Tick tick, Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe) {
-
             double startPrice = s_startTick.m_price;
             double finishPrice = tick.m_price;
-            double priceDiff = finishPrice - startPrice;
-            double gain = (s_orderSide == OrderSide.BUY) ? priceDiff : -priceDiff;
+            double gain = (s_orderSide == OrderSide.BUY) ? finishPrice - startPrice : startPrice - finishPrice;
             double ratio = (s_orderSide == OrderSide.BUY) ? finishPrice / startPrice : startPrice / finishPrice;
+            s_totalGain += gain;
             s_totalRatio *= ratio;
 
             if (PAINT) {
@@ -681,6 +707,17 @@ public class PaintOsc extends BaseChartPaint {
                 int finishY = priceAxe.getPointReverse(finishPrice);
                 g.setPaint((gain > 0) ? Color.green : Color.red);
                 g.drawLine(startX, startY, finishX, finishY);
+
+                g.setPaint(Color.MAGENTA);
+                int fontSize = g.getFont().getSize();
+                String label = String.format("%1$,.4f", gain);
+                g.drawString(label, finishX, finishY + 2 * fontSize);
+                String label2 = String.format("%1$,.5f", ratio);
+                g.drawString(label2, finishX, finishY + 3 * fontSize);
+                String label3 = String.format("%1$,.5f", s_totalGain);
+                g.drawString(label3, finishX, finishY + 4 * fontSize);
+                String label4 = String.format("%1$,.5f", s_totalRatio);
+                g.drawString(label4, finishX, finishY + 5 * fontSize);
             }
 
             s_startTick = null;

@@ -503,7 +503,7 @@ public class Utils {
     public static class AverageCounter {
         // probably better to have average counter which counts older ticks with lower ratio/weight - fading
         public final TreeMap<Long,Double> m_map; // sorted by time
-        private final long m_limit;
+        protected final long m_limit;
 
         public AverageCounter(long limit) {
             this(limit, new TreeMap<Long, Double>());
@@ -540,13 +540,23 @@ public class Utils {
         }
 
         public double get() {
+            double totalWeight = 0;
             double summ = 0.0;
-            int counter = 0;
-            for(Double value: m_map.values()) {
-                summ += value;
-                counter++;
+
+            Long lastKey = m_map.lastKey();
+
+            for (Map.Entry<Long, Double> entry : m_map.entrySet()) {
+                Long time = entry.getKey();
+                Double value = entry.getValue();
+                Double weight = getWeight(time, lastKey);
+                summ += value * weight;
+                totalWeight += weight;
             }
-            return summ/counter;
+            return summ / totalWeight;
+        }
+
+        protected Double getWeight(Long time, Long lastKey) {
+            return 1.0;
         }
 
         public void serialize(StringBuilder sb) {
@@ -610,6 +620,18 @@ public class Utils {
             }
         }
     } // AverageCounter
+
+    public static class FadingAverageCounter extends AverageCounter {
+        public FadingAverageCounter(long limit) {
+            super(limit);
+        }
+
+        @Override protected Double getWeight(Long time, Long lastKey) {
+            double age = lastKey - time;
+            double minus = age / m_limit;
+            return 1.0 - minus;
+        }
+    }
 
     public interface IRunnable <P,R> {
         R run(P param);
