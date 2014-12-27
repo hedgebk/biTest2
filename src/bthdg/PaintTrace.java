@@ -301,7 +301,7 @@ public class PaintTrace extends BaseChartPaint {
 
         if (PAINT_PRICE) {
             // paint market trades
-            for (TradeData trade : trades) {
+            for (DuTradeData trade : trades) {
                 if (trade.m_orderSide == null) {
                     int x = timeAxe.getPoint(trade.m_timestamp);
                     int y = priceAxe.getPointReverse(trade.m_price);
@@ -435,9 +435,9 @@ public class PaintTrace extends BaseChartPaint {
     private static XY paintCross(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, PaintChart.ChartAxe priceDiffAxe,
                                    Map.Entry<Long, DuTradeData[]> entry, TreeMap<Long, Double> diffAverageMap, boolean isOpenCross) {
         if(entry != null) {
-            TradeData[] crossTrades = entry.getValue();
-            TradeData buyTrade = crossTrades[0];
-            TradeData sellTrade = crossTrades[1];
+            DuTradeData[] crossTrades = entry.getValue();
+            DuTradeData buyTrade = crossTrades[0];
+            DuTradeData sellTrade = crossTrades[1];
             paintTrade(g, timeAxe, priceAxe, buyTrade);
             paintTrade(g, timeAxe, priceAxe, sellTrade);
 
@@ -461,7 +461,7 @@ public class PaintTrace extends BaseChartPaint {
         return null;
     }
 
-    private static void paintTrade(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, TradeData trade) {
+    private static void paintTrade(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, DuTradeData trade) {
         if (trade != null) {
             int x = timeAxe.getPoint(trade.m_timestamp);
             int y = priceAxe.getPointReverse(trade.m_price);
