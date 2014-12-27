@@ -20,22 +20,22 @@ import java.util.Collections;
 import java.util.List;
 
 public class PaintOsc extends BaseChartPaint {
-    private static final long TIME_FRAME = Utils.toMillis("5h");
-    private static final long BAR_SIZE = Utils.toMillis("30s");
+    private static final long TIME_FRAME = Utils.toMillis("1d");
+    private static final long BAR_SIZE = Utils.toMillis("1m");
     private static final Exchange EXCHANGE = Exchange.BTCN;
 //    private static final Exchange EXCHANGE = Exchange.OKCOIN;
 //    private static final Exchange EXCHANGE = Exchange.BTCE;
 //    private static final Exchange EXCHANGE = Exchange.BITSTAMP;
 
     // chart area
-    public static final boolean PAINT = true;
+    public static final boolean PAINT = false;
     private static final int WIDTH = 30000;
     public static final int HEIGHT = 800;
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
     public static final int K = 3;
     public static final int D = 3;
-    public static final int OFFSET_BAR_PARTS = 1;
+    public static final int OFFSET_BAR_PARTS = 5;
     private static final boolean DBL_CONFIRM_IN_MIDDLE = false;
     private static final boolean STICK_TOP_BOTTOM = false;
     private static final double STICK_TOP_BOTTOM_LEVEL = 0.05;
@@ -43,10 +43,10 @@ public class PaintOsc extends BaseChartPaint {
     private static final boolean BLEND_AVG = true;
 
     private static final double FINE_START_DIFF_LEVEL = 0.02;
-    private static final double FINE_START_DIFF_LEVEL_MUL = 6;
-    private static final long FINE_AVG_TIME = BAR_SIZE * 4;
+    private static final double FINE_START_DIFF_LEVEL_MUL = 4;
+    private static final long FINE_AVG_TIME = BAR_SIZE * 8;
     private static final boolean NOT_SAME_DIRECTION_START_STOP = true;
-    private static final long START_STOP_AVG_TIME = BAR_SIZE * 3;
+    private static final long START_STOP_AVG_TIME = BAR_SIZE * 7;
 
     public static final int X_FACTOR = 1; // more points
     private static final int MARK_DIAMETER = 5;

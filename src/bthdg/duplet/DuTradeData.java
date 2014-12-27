@@ -6,12 +6,14 @@ import bthdg.exch.TradesData;
 import bthdg.util.Utils;
 
 public class DuTradeData extends TradeData {
+    public final int m_exchId;
     public final long m_crossId; // TODO: eliminate - should reside in some wrapper
     public final long m_forkId;  // TODO: eliminate - should reside in some wrapper
 
     public DuTradeData(double amount, double price, long timestamp, long tid, TradesData.TradeType type, OrderSide orderSide,
                      int exchId, long crossId, long forkId) {
-        super( amount, price, timestamp, tid, type, orderSide, exchId );
+        super( amount, price, timestamp, tid, type, orderSide );
+        m_exchId = exchId;
         m_crossId = crossId;
         m_forkId = forkId;
     }
