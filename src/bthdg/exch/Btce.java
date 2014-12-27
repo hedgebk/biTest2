@@ -316,7 +316,7 @@ public class Btce extends BaseExch {
             long timestamp = Utils.getLong(tObj.get("timestamp")) * 1000;
             long tid = Utils.getLong(tObj.get("tid"));
             String typeStr = (String) tObj.get("type");
-            TradesData.TradeType type = TradesData.TradeType.get(typeStr);
+            TradeType type = TradeType.get(typeStr);
             TradeData tdata = new TradeData(amount, price, timestamp, tid, type);
             trades.add(tdata);
         }

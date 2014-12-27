@@ -7,20 +7,14 @@ public class TradeData {
     public final double m_price;
     public final long m_timestamp;
     public final long m_tid;
-    public final TradesData.TradeType m_type;
-    public final OrderSide m_orderSide;
+    public final TradeType m_type;
 
-    public TradeData(double amount, double price, long timestamp, long tid, TradesData.TradeType type) {
-        this(amount, price, timestamp, tid, type, null);
-    }
-
-    public TradeData(double amount, double price, long timestamp, long tid, TradesData.TradeType type, OrderSide orderSide) {
+    public TradeData(double amount, double price, long timestamp, long tid, TradeType type) {
         m_amount = amount;
         m_price = price;
         m_timestamp = timestamp;
         m_tid = tid;
         m_type= type;
-        m_orderSide = orderSide;
     }
 
     @Override public String toString() {
@@ -30,7 +24,6 @@ public class TradeData {
                 ", time=" + m_timestamp +
                 ", tid=" + m_tid +
                 ", type=" + m_type +
-                ((m_orderSide != null) ? ", orderSide=" + m_orderSide : "") +
                 '}';
     }
 }
