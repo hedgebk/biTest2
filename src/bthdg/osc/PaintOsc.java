@@ -23,6 +23,10 @@ public class PaintOsc extends BaseChartPaint {
     private static final long TIME_FRAME = Utils.toMillis("1d");
     private static final long BAR_SIZE = Utils.toMillis("30s");
     private static final Exchange EXCHANGE = Exchange.BTCN;
+    public static final int LEN1 = 14;
+    public static final int LEN2 = 14;
+    public static final int K = 3;
+    public static final int D = 3;
 //    private static final Exchange EXCHANGE = Exchange.OKCOIN;
 //    private static final Exchange EXCHANGE = Exchange.BTCE;
 //    private static final Exchange EXCHANGE = Exchange.BITSTAMP;
@@ -54,10 +58,6 @@ public class PaintOsc extends BaseChartPaint {
     private static final Color TRANSP_LIGHT_CYAN = new Color(150, 255, 255, 100);
 
     static {
-        OscCalculator.LEN1 = 14;
-        OscCalculator.LEN2 = 14;
-        OscCalculator.K = 3;
-        OscCalculator.D = 3;
         OscCalculator.BLEND_AVG = true;
     }
 
@@ -166,7 +166,7 @@ public class PaintOsc extends BaseChartPaint {
             paintBars(bars, priceAxe, timeAxe, g);
         }
 
-        OscCalculator.SimpleOscCalculator calc = new OscCalculator.SimpleOscCalculator(BAR_SIZE, 0);
+        OscCalculator.SimpleOscCalculator calc = new OscCalculator.SimpleOscCalculator(LEN1, LEN2, K, D, BAR_SIZE, 0);
         calc.setCalcFine(true);
         for (Tick tick : ticks) {
             calc.update(tick.m_stamp, tick.m_price);
@@ -223,7 +223,7 @@ public class PaintOsc extends BaseChartPaint {
 
     private static List<OscTick> calcForBars(List<Tick> ticks, long minBarTimestamp, long maxBarTimestamp, long timeOffset) {
 //        System.out.println("----------------------------------------------------------------------");
-        OscCalculator.SimpleOscCalculator calc = new OscCalculator.SimpleOscCalculator(BAR_SIZE, timeOffset);
+        OscCalculator.SimpleOscCalculator calc = new OscCalculator.SimpleOscCalculator(LEN1, LEN2, K, D, BAR_SIZE, timeOffset);
 
         int i = 0;
         for (long barStartTime = minBarTimestamp + timeOffset; barStartTime < maxBarTimestamp; barStartTime += BAR_SIZE) {
@@ -249,7 +249,7 @@ public class PaintOsc extends BaseChartPaint {
     private static List<OscTick> calcCont(List<Tick> ticks) {
         List<OscTick> ret = new ArrayList<OscTick>();
         int ticksNum = ticks.size();
-        int barsNum = OscCalculator.LEN1 + OscCalculator.LEN2 + (OscCalculator.K - 1) + (OscCalculator.D - 1);
+        int barsNum = LEN1 + LEN2 + (K - 1) + (D - 1);
         Tick[] closeTicks = new Tick[barsNum];
         Tick firstTick = ticks.get(0);
         long minTickTime = firstTick.m_stamp;
@@ -279,7 +279,7 @@ public class PaintOsc extends BaseChartPaint {
                 lastOscTickTime = oscTickTime;
             }
             long barsMillisOffset = oscTickTime + 1 - (oscTickTime + 1) / BAR_SIZE * BAR_SIZE;
-            OscCalculator.SimpleOscCalculator calc = new OscCalculator.SimpleOscCalculator(BAR_SIZE, barsMillisOffset);
+            OscCalculator.SimpleOscCalculator calc = new OscCalculator.SimpleOscCalculator(LEN1, LEN2, K, D, BAR_SIZE, barsMillisOffset);
             for (int i = 0; i < closeTicks.length; i++) {
                 Tick closeTick = closeTicks[i];
                 boolean newBarStarted = calc.update(closeTick.m_stamp, closeTick.m_price);
