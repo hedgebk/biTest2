@@ -1,15 +1,20 @@
 package bthdg.osc;
 
-import bthdg.BaseChartPaint;
 import bthdg.util.Utils;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class OscCalculator {
-    public  static boolean BLEND_AVG = true;
+    public static boolean BLEND_AVG = true;
+    public static int LEN1 = 14;
+    public static int LEN2 = 14;
+    public static int K = 3;
+    public static int D = 3;
 
     private final long m_barSize;
+    private final long m_barsMillisOffset;
+
     private Long m_currBarStart;
     private Long m_currBarEnd;
     private double m_close;
@@ -22,34 +27,36 @@ public class OscCalculator {
     private List<Double> stochs = new ArrayList<Double>();
     private List<Double> stoch1s = new ArrayList<Double>();
 
-    private List<OscTick> ret = new ArrayList<OscTick>();
-    private List<OscTick> fine = new ArrayList<OscTick>();
-    private long m_barsMillisOffset;
-    private boolean m_calcFine;
+    public void fine(long stamp, double stoch1, double stoch2) {}
+    public void bar(Long barStart, double stoch1, double stoch2) {}
 
     public OscCalculator(long barSize) {
-        m_barSize = barSize;
+        this(barSize, 0);
     }
 
-    public boolean update(BaseChartPaint.Tick tick) {
+    public OscCalculator(long barSize, long barsMillisOffset) {
+        m_barSize = barSize;
+        m_barsMillisOffset = barsMillisOffset;
+    }
+
+    public boolean update(long stamp, double price) {
         boolean newBarStarted = false;
-        long stamp = tick.m_stamp;
         if (m_currBarStart == null) {
             startNewBar(stamp, null, 0);
             newBarStarted = true;
         }
         if (stamp < m_currBarEnd) { // one more tick in current bar
-            m_close = tick.m_price;
+            m_close = price;
             update(stamp, false);
         } else { // bar fully defined
             update(stamp, true);
-            startNewBar(stamp, m_close, tick.m_price);
+            startNewBar(stamp, m_close, price);
             newBarStarted = true;
         }
         return newBarStarted;
     }
 
-    private void update(long stamp, boolean finishBar) {
+    protected void update(long stamp, boolean finishBar) {
         if (m_prevBarClose == null) {
             return;
         }
@@ -59,21 +66,21 @@ public class OscCalculator {
         Double avgGain = null;
         Double avgLoss = null;
         if ((m_avgGain == null) || !BLEND_AVG) {
-            if (m_gains.size() == PaintOsc.LEN1 - 1) {
+            if (m_gains.size() == LEN1 - 1) {
                 avgGain = Utils.avg(m_gains, gain);
                 avgLoss = Utils.avg(m_losss, loss);
             }
             if (finishBar) {
                 m_gains.add(gain);
                 m_losss.add(loss);
-                if (m_gains.size() == PaintOsc.LEN1) {
+                if (m_gains.size() == LEN1) {
                     m_gains.remove(0);
                     m_losss.remove(0);
                 }
             }
         } else {
-            avgGain = (m_avgGain * (PaintOsc.LEN1 - 1) + gain) / PaintOsc.LEN1;
-            avgLoss = (m_avgLoss * (PaintOsc.LEN1 - 1) + loss) / PaintOsc.LEN1;
+            avgGain = (m_avgGain * (LEN1 - 1) + gain) / LEN1;
+            avgLoss = (m_avgLoss * (LEN1 - 1) + loss) / LEN1;
         }
         if (avgGain != null) {
             if (finishBar) {
@@ -81,52 +88,42 @@ public class OscCalculator {
                 m_avgLoss = avgLoss;
             }
             double rsi = (avgLoss == 0) ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
-            if (rsis.size() == PaintOsc.LEN2 - 1) {
+            if (rsis.size() == LEN2 - 1) {
                 double highest = Utils.max(rsis, rsi);
                 double lowest = Utils.min(rsis, rsi);
                 double stoch = (rsi - lowest) / (highest - lowest);
-                if (stochs.size() == PaintOsc.K - 1) {
+                if (stochs.size() == K - 1) {
                     double stoch1 = Utils.avg(stochs, stoch);
-                    if (stoch1s.size() == PaintOsc.D - 1) {
+                    if (stoch1s.size() == D - 1) {
                         double stoch2 = Utils.avg(stoch1s, stoch1);
+
+                        fine(stamp, stoch1, stoch2);
                         if (finishBar) {
-                            OscTick osc = new OscTick(m_currBarStart, stoch1, stoch2);
-                            ret.add(osc);
-                        }
-                        if (m_calcFine) {
-                            OscTick osc = new OscTick(stamp, stoch1, stoch2);
-                            fine.add(osc);
+                            bar(m_currBarStart, stoch1, stoch2);
                         }
                     }
                     if (finishBar) {
                         stoch1s.add(stoch1);
-                        if (stoch1s.size() == PaintOsc.D) {
+                        if (stoch1s.size() == D) {
                             stoch1s.remove(0);
                         }
                     }
                 }
                 if (finishBar) {
                     stochs.add(stoch);
-                    if (stochs.size() == PaintOsc.K) {
+                    if (stochs.size() == K) {
                         stochs.remove(0);
                     }
                 }
             }
             if (finishBar) {
                 rsis.add(rsi);
-                if (rsis.size() == PaintOsc.LEN2) {
+                if (rsis.size() == LEN2) {
                     rsis.remove(0);
                 }
             }
         }
     }
-
-    public List<OscTick> ret() {
-        update(0, true);
-        return ret;
-    }
-
-    public List<OscTick> fine() { return fine; }
 
     private void startNewBar(long stamp, Double prevBarClose, double close) {
         m_currBarStart = (stamp - m_barsMillisOffset) / m_barSize * m_barSize + m_barsMillisOffset;
@@ -135,7 +132,35 @@ public class OscCalculator {
         m_close = close;
     }
 
-    public void setBarsMillisOffset(long barsMillisOffset) { m_barsMillisOffset = barsMillisOffset; }
+    public static class SimpleOscCalculator extends OscCalculator {
+        private List<OscTick> ret = new ArrayList<OscTick>();
+        private List<OscTick> fine = new ArrayList<OscTick>();
+        private boolean m_calcFine;
 
-    public void setCalcFine(boolean calcFine) { m_calcFine = calcFine; }
+        public List<OscTick> fine() { return fine; }
+
+        public void setCalcFine(boolean calcFine) { m_calcFine = calcFine; }
+
+        public SimpleOscCalculator(long barSize, long barsMillisOffset) {
+            super(barSize, barsMillisOffset);
+        }
+
+
+        @Override public void bar(Long barStart, double stoch1, double stoch2) {
+            OscTick osc = new OscTick(barStart, stoch1, stoch2);
+            ret.add(osc);
+        }
+
+        @Override public void fine(long stamp, double stoch1, double stoch2) {
+            if(m_calcFine) {
+                OscTick osc = new OscTick(stamp, stoch1, stoch2);
+                fine.add(osc);
+            }
+        }
+
+        public List<OscTick> ret() {
+            update(0, true);
+            return ret;
+        }
+    }
 }
