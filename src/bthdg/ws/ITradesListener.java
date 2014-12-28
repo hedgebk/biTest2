@@ -1,5 +1,7 @@
 package bthdg.ws;
 
+import bthdg.exch.TradeData;
+
 public interface ITradesListener {
-    void onTrade();
+    void onTrade(TradeData tdata);
 }
