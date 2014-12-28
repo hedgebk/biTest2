@@ -337,6 +337,60 @@ public class Utils {
         }
     }
 
+    public static double avg(List<Double> vals, Double lastVal) {
+        double sum = lastVal;
+        for (Double val : vals) {
+            sum += val;
+        }
+        return sum / (vals.size() + 1);
+    }
+
+    public static double fadeAvg(List<Double> vals, Double lastVal) {
+        double ratioStep = 1.0 / (vals.size() + 1);
+        double ratio = 1;
+        double sum = lastVal;
+        double cummRatio = ratio;
+
+        for (Double val : vals) {
+            ratio -= ratioStep;
+            cummRatio += ratio;
+            sum += val * ratio;
+        }
+        return sum / cummRatio;
+    }
+
+    private static double max(List<Double> vals) {
+        double res = 0;
+        for (Double val : vals) {
+            res = Math.max(res, val);
+        }
+        return res;
+    }
+
+    public static double max(List<Double> vals, Double lastVal) {
+        return Math.max(max(vals), lastVal);
+    }
+
+    private static double min(List<Double> vals) {
+        Double res = null;
+        for (Double val : vals) {
+            res = (res == null) ? val : Math.min(res, val);
+        }
+        return (res == null) ? 0 : res;
+    }
+
+    public static double min(List<Double> vals, Double lastVal) {
+        return Math.min(min(vals), lastVal);
+    }
+
+    private static double avg(List<Double> vals) {
+        double sum = 0;
+        for (Double val : vals) {
+            sum += val;
+        }
+        return sum / vals.size();
+    }
+
     public interface IExchangeRunnable {
         void run(Exchange exchange) throws Exception;
     }
