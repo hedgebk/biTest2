@@ -27,7 +27,8 @@ public class OkCoinWs implements IWs {
     }
 
     public static final String URL = "wss://real.okcoin.cn:10440/websocket/okcoinapi";
-    public static final String SUBSCRIBE_BTCCNY_TICKER = "{'event':'addChannel','channel':'ok_btccny_ticker'}";
+    public static final String BTCCNY_TICKER_CHANNEL = "ok_btccny_ticker";
+//    public static final String SUBSCRIBE_BTCCNY_TICKER = "{'event':'addChannel','channel':'ok_btccny_ticker'}";
 // [{"channel":"ok_btccny_ticker",
 //   "data":{"buy":"2606.01",
 //           "high":"2977.9",
@@ -104,7 +105,9 @@ public class OkCoinWs implements IWs {
 
     private Session m_session;
     private final Map<String,MessageHandler.Whole<Object>> m_channelListeners = new HashMap<String,MessageHandler.Whole<Object>>();
-    private ITradesListener m_tradesLestener;
+    private ITradesListener m_tradesListener;
+    private ITopListener m_topListener;
+    private MessageHandler.Whole<String> m_messageHandler;
 
     public static void main(String[] args) {
         try {
@@ -130,7 +133,7 @@ public class OkCoinWs implements IWs {
                         });
 //                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_TICKER);
 //                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_DEPTH);
-                        session.getBasicRemote().sendText(""/*SUBSCRIBE_BTCCNY_TRADES*/);
+                        session.getBasicRemote().sendText(""                            /* SUBSCRIBE_BTCCNY_TRADES */);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -152,7 +155,7 @@ public class OkCoinWs implements IWs {
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
-        m_tradesLestener = listener;
+        m_tradesListener = listener;
         m_channelListeners.put(BTCCNY_TRADES_CHANNEL, new MessageHandler.Whole<Object>() {
             @Override public void onMessage(Object json) { // [["2228.01","0.2","09:26:02","ask"]]
 //System.out.println("   tradesDataListener.onMessage() json=" + json);
@@ -178,101 +181,107 @@ public class OkCoinWs implements IWs {
                                 TradeType type = TradeType.get(side);
                                 TradeData tdata = new TradeData(amount, price, millis, 0, type);
 //System.out.println("      TradeData=" + tdata);
-                                if (m_tradesLestener != null) {
-                                    m_tradesLestener.onTrade(tdata);
+                                if (m_tradesListener != null) {
+                                    m_tradesListener.onTrade(tdata);
                                 }
                             }
                         }
                     }
                 }
             }
-
-            private long parseTimeToDate(String time) {
-                try {
-                    Date date = sdf.parse(time);
-
-                    Calendar now = Calendar.getInstance(TZ, Locale.ENGLISH);
-                    int year = now.get(Calendar.YEAR);
-                    int month = now.get(Calendar.MONTH);
-                    int day = now.get(Calendar.DAY_OF_MONTH);
-
-                    Calendar out = Calendar.getInstance(TZ, Locale.ENGLISH);
-                    out.setTime(date);
-                    out.set(Calendar.YEAR, year);
-                    out.set(Calendar.MONTH, month);
-                    out.set(Calendar.DAY_OF_MONTH, day);
-
-                    long millisDiff = now.getTimeInMillis() - out.getTimeInMillis();
-                    if (Math.abs(millisDiff) > (Utils.ONE_DAY_IN_MILLIS >> 1)) {
-                        out.add(Calendar.DAY_OF_MONTH, -1);
-                    }
-                    return out.getTimeInMillis();
-                } catch (java.text.ParseException e) {
-                    System.out.println("error parsing time=" + time);
-                }
-                return 0;
-            }
         });
-
-        subscribe(BTCCNY_TRADES_CHANNEL, new MessageHandler.Whole<Object>() {
-            @Override public void onMessage(Object json) {
-//                System.out.println("Received json message (class="+json.getClass()+"): " + json);
-
-                // [{ "channel":"ok_btccny_trades","data":[["2228.01","0.2","09:26:02","ask"]]}]
-
-                if (json instanceof JSONArray) {
-                    JSONArray array = (JSONArray) json;
-                    int length = array.size();
-//                    System.out.println(" array length = " + length);
-                    for(int i = 0; i < length; i++) {
-                        Object channelObj = array.get(i);
-//                        System.out.println(" channelObj["+i+"]: " + channelObj + ";  class="+channelObj.getClass());
-                        if(channelObj instanceof JSONObject) {
-                            JSONObject channelItem = (JSONObject)channelObj;
-//                            System.out.println(" channelItem["+i+"]: " + channelItem);
-                            String channel = (String) channelItem.get("channel");
-//                            System.out.println("  channel: " + channelItem);
-                            Whole<Object> channelListener = m_channelListeners.get(channel);
-                            if(channelListener != null) {
-                                Object data = channelItem.get("data");
-//                                System.out.println("  data: " + data);
-                                channelListener.onMessage(data);
-                            } else {
-                                System.out.println("no listener for channel '" + channel + "'; keys:" + m_channelListeners.keySet());
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        subscribe(BTCCNY_TRADES_CHANNEL);
     }
 
-    private void subscribe(final String channel, final MessageHandler.Whole<Object> listener) {
+    @Override public void subscribeTop(Pair pair, ITopListener listener) {
+        if (pair != Pair.BTC_CNH) {
+            throw new RuntimeException("pair " + pair + " not supported yet");
+        }
+        m_topListener = listener;
+        m_channelListeners.put(BTCCNY_TICKER_CHANNEL, new MessageHandler.Whole<Object>() {
+            @Override public void onMessage(Object json) { // {"high":"1976.29","vol":"65,980.35","last":"1957.91","low":"1917.19","buy":"1957.85","sell":"1957.91","timestamp":"1419804927532"}
+//System.out.println("   topDataListener.onMessage() json=" + json + ";  class=" + json.getClass());
+                if (json instanceof JSONObject) {
+                    JSONObject jsonObject = (JSONObject) json;
+                    String buyStr = (String) jsonObject.get("buy");
+                    String sellStr = (String) jsonObject.get("sell");
+                    String timestampStr = (String) jsonObject.get("timestamp");
+//System.out.println("     buyStr=" + buyStr + "; sellStr=" + sellStr + "; timestampStr=" + timestampStr);
+                    double buy = Utils.getDouble(buyStr);
+                    double sell = Utils.getDouble(sellStr);
+                    long timestamp = Utils.getLong(timestampStr);
+//System.out.println("      buy=" + buy + "; sell=" + sell + "; timestamp=" + timestamp);
+                    if (m_topListener != null) {
+                        m_topListener.onTop(timestamp, buy, sell);
+                    }
+                }
+            }
+        });
+        subscribe(BTCCNY_TICKER_CHANNEL);
+    }
+
+    private void subscribe(final String channel) {
         if( m_session == null ) {
             connect(new Runnable() {
                 @Override public void run() {
-                    sendSubscribe(channel, listener);
+                    sendSubscribe(channel);
                 }
             });
         } else {
-            sendSubscribe(channel, listener);
+            sendSubscribe(channel);
         }
     }
 
-    private void sendSubscribe(String channel, final MessageHandler.Whole<Object> listener) {
-        String subscribeCmd = "{'event':'addChannel','channel':'"+channel+"'}";
-        System.out.println("sendSubscribe() channel="+channel+"; subscribeCmd="+subscribeCmd + "; m_session="+m_session);
+    private void sendSubscribe(String channel) {
+        String subscribeCmd = "{'event':'addChannel','channel':'" + channel + "'}";
+        System.out.println("sendSubscribe() channel=" + channel + "; subscribeCmd=" + subscribeCmd + "; m_session=" + m_session);
+
+        addMessageHandlerIfNeeded();
         try {
-            m_session.addMessageHandler(new MessageHandler.Whole<String>() {
-                @Override public void onMessage(String message) {
-                    System.out.println("Received message: " + message);
-                    Object obj = parseJson(message);
-                    listener.onMessage(obj);
-                }
-            });
             m_session.getBasicRemote().sendText(subscribeCmd);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void addMessageHandlerIfNeeded() {
+        if( m_messageHandler == null ) {
+            m_messageHandler = new MessageHandler.Whole<String>() {
+                @Override public void onMessage(String message) {
+//System.out.println("Received message: " + message);
+                    Object obj = parseJson(message);
+                    OkCoinWs.this.onMessage(obj);
+                }
+            };
+            m_session.addMessageHandler(m_messageHandler);
+        }
+    }
+
+    private void onMessage(Object json) {
+//System.out.println("Received json message (class="+json.getClass()+"): " + json);
+        // [{ "channel":"ok_btccny_trades","data":[["2228.01","0.2","09:26:02","ask"]]}]
+        if (json instanceof JSONArray) {
+            JSONArray array = (JSONArray) json;
+            int length = array.size();
+//                    System.out.println(" array length = " + length);
+            for(int i = 0; i < length; i++) {
+                Object channelObj = array.get(i);
+//                        System.out.println(" channelObj["+i+"]: " + channelObj + ";  class="+channelObj.getClass());
+                if(channelObj instanceof JSONObject) {
+                    JSONObject channelItem = (JSONObject)channelObj;
+//                            System.out.println(" channelItem["+i+"]: " + channelItem);
+                    String channel = (String) channelItem.get("channel");
+//                            System.out.println("  channel: " + channelItem);
+                    MessageHandler.Whole<Object> channelListener = m_channelListeners.get(channel);
+                    if(channelListener != null) {
+                        Object data = channelItem.get("data");
+//                                System.out.println("  data: " + data);
+                        channelListener.onMessage(data);
+                    } else {
+                        System.out.println("no listener for channel '" + channel + "'; keys:" + m_channelListeners.keySet());
+                    }
+                }
+            }
         }
     }
 
@@ -310,5 +319,31 @@ public class OkCoinWs implements IWs {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static long parseTimeToDate(String time) {
+        try {
+            Date date = sdf.parse(time);
+
+            Calendar now = Calendar.getInstance(TZ, Locale.ENGLISH);
+            int year = now.get(Calendar.YEAR);
+            int month = now.get(Calendar.MONTH);
+            int day = now.get(Calendar.DAY_OF_MONTH);
+
+            Calendar out = Calendar.getInstance(TZ, Locale.ENGLISH);
+            out.setTime(date);
+            out.set(Calendar.YEAR, year);
+            out.set(Calendar.MONTH, month);
+            out.set(Calendar.DAY_OF_MONTH, day);
+
+            long millisDiff = now.getTimeInMillis() - out.getTimeInMillis();
+            if (Math.abs(millisDiff) > (Utils.ONE_DAY_IN_MILLIS >> 1)) {
+                out.add(Calendar.DAY_OF_MONTH, -1);
+            }
+            return out.getTimeInMillis();
+        } catch (java.text.ParseException e) {
+            System.out.println("error parsing time=" + time);
+        }
+        return 0;
     }
 }
