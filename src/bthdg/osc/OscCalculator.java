@@ -28,7 +28,7 @@ public class OscCalculator {
     private List<Double> stoch1s = new ArrayList<Double>();
 
     public void fine(long stamp, double stoch1, double stoch2) {}
-    public void bar(Long barStart, double stoch1, double stoch2) {}
+    public void bar(long barStart, double stoch1, double stoch2) {}
 
     public OscCalculator(int len1, int len2, int k, int d, long barSize, long barsMillisOffset) {
         m_len1 = len1;
@@ -144,7 +144,7 @@ public class OscCalculator {
             super(len1, len2, k, d, barSize, barsMillisOffset);
         }
 
-        @Override public void bar(Long barStart, double stoch1, double stoch2) {
+        @Override public void bar(long barStart, double stoch1, double stoch2) {
             OscTick osc = new OscTick(barStart, stoch1, stoch2);
             ret.add(osc);
         }
