@@ -1,5 +1,6 @@
 package bthdg.ws;
 
+import bthdg.exch.Exchange;
 import bthdg.exch.Pair;
 import bthdg.exch.TradeData;
 import bthdg.exch.TradeType;
@@ -149,6 +150,10 @@ public class OkCoinWs implements IWs {
 
     public static IWs create() {
         return new OkCoinWs();
+    }
+
+    @Override public Exchange exchange() {
+        return Exchange.OKCOIN;
     }
 
     @Override public void subscribeTrades(Pair pair, ITradesListener listener) {

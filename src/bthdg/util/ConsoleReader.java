@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 
 public abstract class ConsoleReader extends Thread {
     protected abstract void beforeLine();
+    /** @return true if exit command detected */
     protected abstract boolean processLine(String line) throws Exception;
 
     public ConsoleReader() {
