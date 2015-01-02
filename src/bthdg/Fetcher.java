@@ -34,7 +34,7 @@ import java.util.Properties;
  * - simulate trade at MKT price fast (instantaneously)
  */
 public class Fetcher {
-    public static boolean SIMULATE_ORDER_EXECUTION = true;
+    public static boolean SIMULATE_ORDER_EXECUTION = false;
     public static boolean SIMULATE_ACCEPT_ORDER_PRICE = false;
     public static double SIMULATE_ACCEPT_ORDER_PRICE_RATE = 0.7;
     private static final boolean USE_TOP_TEST_STR = false;

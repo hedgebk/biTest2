@@ -20,7 +20,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class PaintOsc extends BaseChartPaint {
-    private static final long TIME_FRAME = Utils.toMillis("1d");
+    private static final long TIME_FRAME = Utils.toMillis("5d");
     private static final long BAR_SIZE = Utils.toMillis("30s");
     private static final Exchange EXCHANGE = Exchange.BTCN;
     public static final int LEN1 = 14;

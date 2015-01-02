@@ -47,7 +47,7 @@ public abstract class BaseExch {
     public double roundAmount(double amount, Pair pair){
         DecimalFormat decimalFormat = amountFormat(pair);
         int scale = decimalFormat.getMaximumFractionDigits();
-        return round(amount, scale, RoundingMode.HALF_UP);
+        return round(amount, scale, RoundingMode.DOWN);
     }
 
     public String roundPriceStr(double price, Pair pair) {
