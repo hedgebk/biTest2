@@ -17,7 +17,7 @@ import java.math.RoundingMode;
 import java.util.*;
 
 public class Osc {
-    private static final long BAR_SIZE = Utils.toMillis("4s");
+    private static final long BAR_SIZE = Utils.toMillis("5s");
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
     public static final int K = 3;
@@ -27,9 +27,10 @@ public class Osc {
     public static final int PHASES = 1;
     public static final double START_LEVEL = 0.01;
     public static final double STOP_LEVEL = 0.005;
-    public static final Pair PAIR = Pair.BTC_CNH;
+    public static final Pair PAIR = Pair.BTC_CNH; // TODO: BTC is hardcoded below
     private static final int MAX_PLACE_ORDER_REPEAT = 2;
     public static final double CLOSE_PRICE_DIFF = 1.5;
+    private static final double ORDER_SIZE_TOLERANCE = 0.1;
 
     private static int s_notEnoughFundsCounter;
 
@@ -170,7 +171,7 @@ public class Osc {
             synchronized (this) {
                 int direction = m_direction;
                 m_direction += delta;
-                log("direction updated from " + direction + " -> " + m_direction);
+                log("update(delta=" + delta + ") direction updated from " + direction + " -> " + m_direction);
                 m_changed = true;
                 notify();
             }
@@ -344,8 +345,8 @@ log("ERROR recheckDirection() not yet implemented");
         private State processDirection(int direction) throws Exception {
             log("processDirection(direction=" + direction + ")");
             m_direction = direction;
-            Exchange exchange = m_ws.exchange();
 
+            Exchange exchange = m_ws.exchange();
             double valuateBtc = m_account.evaluate(m_topsData, Currency.BTC, exchange);
             log("  valuateBtc=" + valuateBtc + " BTC");
 
@@ -366,25 +367,56 @@ log("ERROR recheckDirection() not yet implemented");
             double orderSizeRound = exchange.roundAmount(orderSize, PAIR);
             double minOrderToCreate = exchange.minOrderToCreate(PAIR);
             log(" orderSize=" + orderSize + "; orderSizeRound=" + orderSizeRound + "; minOrderToCreate=" + minOrderToCreate);
-            if (orderSizeRound >= minOrderToCreate) {
-                OrderSide orderSide = isBuy ? OrderSide.BUY : OrderSide.SELL;
-                log("  orderSide=" + orderSide);
-                Currency currency = PAIR.currencyFrom(isBuy);
-                log("  currency=" + currency + "; PAIR=" + PAIR);
-                RoundingMode roundMode = orderSide.getMktRoundMode();
-                log("  roundMode=" + roundMode);
-                double midPrice = (m_buy + m_sell) / 2;
-                log("  buy=" + m_buy + "; sell=" + m_sell + "; midPrice=" + midPrice);
-                double orderPrice = exchange.roundPrice(midPrice, PAIR, roundMode);
-                log("  rounded orderPrice=" + orderPrice);
-                m_order = new OrderData(PAIR, orderSide, orderPrice, orderSizeRound);
-                log("  orderData=" + m_order);
 
-                if (placeOrderToExchange(exchange, m_order)) {
-                    return State.ORDER;
+            OrderSide needOrderSide = isBuy ? OrderSide.BUY : OrderSide.SELL;
+            log("  orderSide=" + needOrderSide);
+
+            String error = null;
+            if (m_order != null) {
+                OrderSide haveOrderSide = m_order.m_side;
+                log("  we have order: needOrderSide=" + needOrderSide + "; haveOrderSide=" + haveOrderSide);
+                boolean toCancel = true;
+                if (needOrderSide == haveOrderSide) {
+                    double remained = m_order.remained();
+                    log("   we have order: needOrderSize=" + orderSizeRound + "; haveOrderSize=" + remained);
+                    if (orderSizeRound != 0) {
+                        double orderSizeRatio = remained/orderSizeRound;
+                        log("    orderSizeRatio=" + orderSizeRatio);
+                        if( (orderSizeRatio < (1+ORDER_SIZE_TOLERANCE)) && (orderSizeRatio > (1-ORDER_SIZE_TOLERANCE))) {
+                            log("     order Sizes are very close - do not cancel existing order");
+                            toCancel = false;
+                        }
+                    }
                 }
-            } else {
-                log("warning: small order to create");
+                if (toCancel) {
+                    log("  need cancel existing order: " + m_order);
+                    error = m_account.cancelOrder(m_order);
+                    if (error == null) {
+                        m_order = null;
+                    } else {
+                        log("error in cancel order: " + error + "; " + m_order);
+                    }
+                }
+            }
+            if(error == null) {
+                if (orderSizeRound >= minOrderToCreate) {
+                    Currency currency = PAIR.currencyFrom(isBuy);
+                    log("  currency=" + currency + "; PAIR=" + PAIR);
+                    RoundingMode roundMode = needOrderSide.getMktRoundMode();
+                    log("  roundMode=" + roundMode);
+                    double midPrice = (m_buy + m_sell) / 2;
+                    log("  buy=" + m_buy + "; sell=" + m_sell + "; midPrice=" + midPrice);
+                    double orderPrice = exchange.roundPrice(midPrice, PAIR, roundMode);
+                    log("  rounded orderPrice=" + orderPrice);
+                    m_order = new OrderData(PAIR, needOrderSide, orderPrice, orderSizeRound);
+                    log("  orderData=" + m_order);
+
+                    if (placeOrderToExchange(exchange, m_order)) {
+                        return State.ORDER;
+                    }
+                } else {
+                    log("warning: small order to create: orderSizeRound=" + orderSizeRound);
+                }
             }
             return State.NONE;
         }
@@ -711,7 +743,7 @@ log("ERROR recheckDirection() not yet implemented");
         @Override protected void update(long stamp, boolean finishBar) {
             super.update(stamp, finishBar);
             if(finishBar) {
-log(" bar " + m_barNum + "; PREHEAT_BARS_NUM=" + PREHEAT_BARS_NUM);
+                log(" bar " + m_barNum + "; PREHEAT_BARS_NUM=" + PREHEAT_BARS_NUM);
                 if (m_barNum++ == PREHEAT_BARS_NUM - INIT_BARS_BEFORE) {
                     m_executor.init();
                 }
@@ -728,10 +760,12 @@ log(" bar " + m_barNum + "; PREHEAT_BARS_NUM=" + PREHEAT_BARS_NUM);
         }
 
         public void start(OrderSide orderSide) {
+            log("start() bar " + m_barNum + "; orderSide=" + orderSide);
             m_executor.update((orderSide == OrderSide.BUY) ? 1 : -1);
         }
 
         public void stop(OrderSide orderSide) {
+            log("stop() bar " + m_barNum + "; orderSide=" + orderSide);
             m_executor.update((orderSide == OrderSide.BUY) ? 1 : -1);
         }
     }

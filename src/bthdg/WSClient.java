@@ -1,11 +1,6 @@
 package bthdg;
 
-import bthdg.exch.Pair;
-import bthdg.exch.TradeData;
-import bthdg.ws.ITopListener;
-import bthdg.ws.ITradesListener;
-import bthdg.ws.IWs;
-import bthdg.ws.OkCoinWs;
+import bthdg.ws.HuobiWs;
 import io.socket.IOAcknowledge;
 import io.socket.IOCallback;
 import io.socket.SocketIO;
@@ -15,7 +10,6 @@ import org.json.JSONObject;
 
 import javax.net.ssl.SSLContext;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 public class WSClient {
@@ -23,25 +17,25 @@ public class WSClient {
     // http://finance.yahoo.com/webservice/v1/symbols/allcurrencies/quote
 
     public static void main(String[] args) {
-        final IWs ws1 = OkCoinWs.create();
-//        HuobiWs.main(args);
+        HuobiWs.main(args);
 //        BtcnWs.main(args);
 //        BitstampWs.main(args);
 
-        ws1.subscribeTrades(Pair.BTC_CNH, new ITradesListener() {
-            int i = 0;
-            @Override public void onTrade(TradeData tdata) {
-                System.out.println("got Trade=" + tdata);
-
-                if(i++ == 10) {
-                    ws1.subscribeTop(Pair.BTC_CNH, new ITopListener() {
-                        @Override public void onTop(long timestamp, double buy, double sell) {
-                            System.out.println("got Top: timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell + "; date=" + new Date(timestamp));
-                        }
-                    });
-                }
-            }
-        });
+//        final IWs ws1 = OkCoinWs.create();
+//        ws1.subscribeTrades(Pair.BTC_CNH, new ITradesListener() {
+//            int i = 0;
+//            @Override public void onTrade(TradeData tdata) {
+//                System.out.println("got Trade=" + tdata);
+//
+//                if(i++ == 10) {
+//                    ws1.subscribeTop(Pair.BTC_CNH, new ITopListener() {
+//                        @Override public void onTop(long timestamp, double buy, double sell) {
+//                            System.out.println("got Top: timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell + "; date=" + new Date(timestamp));
+//                        }
+//                    });
+//                }
+//            }
+//        });
 
         try {
             Thread thread = Thread.currentThread();

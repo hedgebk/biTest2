@@ -135,10 +135,8 @@ public class Utils {
     }
 
     public static double getDouble(Object obj) {
-        if(obj instanceof Double) {
-            return (Double) obj;
-        } else if(obj instanceof Long) {
-            return ((Long) obj).doubleValue();
+        if(obj instanceof Number) {
+            return ((Number) obj).doubleValue();
         } else if(obj instanceof String) {
             return Double.parseDouble((String) obj);
         } else {
