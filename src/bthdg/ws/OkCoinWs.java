@@ -20,7 +20,7 @@ import java.util.*;
 // http://img.okcoin.cn/about/ws_api.do
 //  error codes: https://www.okcoin.cn/about/ws_request.do
 //  ping, okcoin.com: https://www.okcoin.com/about/ws_faq.do
-public class OkCoinWs implements IWs {
+public class OkCoinWs extends BaseWs {
     private static final TimeZone TZ = TimeZone.getTimeZone("Asia/Hong_Kong"); // utc+08:00 Beijing, Hong Kong, Urumqi
     private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH); // 09:26:02
     static {
@@ -106,8 +106,6 @@ public class OkCoinWs implements IWs {
 
     private Session m_session;
     private final Map<String,MessageHandler.Whole<Object>> m_channelListeners = new HashMap<String,MessageHandler.Whole<Object>>();
-    private ITradesListener m_tradesListener;
-    private ITopListener m_topListener;
     private MessageHandler.Whole<String> m_messageHandler;
 
     public static void main(String[] args) {
