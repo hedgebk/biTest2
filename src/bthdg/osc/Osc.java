@@ -7,17 +7,17 @@ import bthdg.exch.*;
 import bthdg.exch.Currency;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
+import bthdg.ws.HuobiWs;
 import bthdg.ws.ITopListener;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
-import bthdg.ws.OkCoinWs;
 
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.util.*;
 
 public class Osc {
-    private static final long BAR_SIZE = Utils.toMillis("5s");
+    private static final long BAR_SIZE = Utils.toMillis("6s");
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
     public static final int K = 3;
@@ -29,7 +29,7 @@ public class Osc {
     public static final double STOP_LEVEL = 0.005;
     public static final Pair PAIR = Pair.BTC_CNH; // TODO: BTC is hardcoded below
     private static final int MAX_PLACE_ORDER_REPEAT = 2;
-    public static final double CLOSE_PRICE_DIFF = 1.5;
+    public static final double CLOSE_PRICE_DIFF = 1.0;
     private static final double ORDER_SIZE_TOLERANCE = 0.1;
 
     private static int s_notEnoughFundsCounter;
@@ -68,14 +68,10 @@ public class Osc {
 
     private void run() throws IOException {
         Properties keys = BaseExch.loadKeys();
-//        Btce.init(keys);
-//        Bitstamp.init(keys);
-        OkCoin.init(keys);
 //        Btcn.init(keys);
-//        Huobi.init(keys);
 
-        IWs ws = OkCoinWs.create();
-//        HuobiWs.main(args);
+//        IWs ws = OkCoinWs.create(keys);
+        IWs ws = HuobiWs.create(keys);
 //        BtcnWs.main(args);
 //        BitstampWs.main(args);
 
@@ -135,7 +131,7 @@ public class Osc {
         }
 
         private void process(TradeData tData) {
-            log("Processor.process() tData=" + tData);
+//            log("Processor.process() tData=" + tData);
             m_executor.onTrade(tData);
             for (int i = 0; i < PHASES; i++) {
                 m_calcs[i].update(tData.m_timestamp, tData.m_price);
@@ -251,8 +247,9 @@ public class Osc {
             setState(m_state.onDirection(this, direction));
         }
 
-        private void recheckDirection() {
-log("ERROR recheckDirection() not yet implemented");
+        private void recheckDirection() throws Exception {
+            log("OscExecutor.recheckDirection() m_direction=" + m_direction);
+            setState(m_state.onDirection(this, m_direction));
         }
 
         private void checkLiveOrders() throws Exception {
@@ -290,7 +287,7 @@ log("ERROR recheckDirection() not yet implemented");
                     OrderData closeOrder = closeOrderWrapper.m_closeOrder;
                     double closeOrderPrice = closeOrder.m_price;
                     if (closeOrderPrice == tradePrice) {
-                        log("trade price " + tData + " matched close order " + closeOrder);
+                        log("trade price " + tData + " matched with close order " + closeOrder);
                         gotMatchedPrice = true;
                     }
                 }
@@ -322,9 +319,13 @@ log("ERROR recheckDirection() not yet implemented");
             }
             if(closed) {
                 log("some orders closed - post recheck direction");
-                getOrderWatcher().addTask(new RecheckDirectionTask());
+                postRecheckDirection();
             }
             return iContext;
+        }
+
+        private void postRecheckDirection() {
+            getOrderWatcher().addTask(new RecheckDirectionTask(), RecheckDirectionTask.class);
         }
 
         private OscOrderWatcher getOrderWatcher() {
@@ -348,33 +349,54 @@ log("ERROR recheckDirection() not yet implemented");
 
             Exchange exchange = m_ws.exchange();
             double valuateBtc = m_account.evaluate(m_topsData, Currency.BTC, exchange);
-            log("  valuateBtc=" + valuateBtc + " BTC");
+            double valuateCnh = m_account.evaluate(m_topsData, Currency.CNH, exchange);
+            log("  valuateBtc=" + valuateBtc + " BTC; valuateCnh="+valuateCnh+" CNH");
 
-            int dirAdjusted = direction / PHASES;        // dirAdjusted  [-1 ... 1]
-            double needBtcRatio = (dirAdjusted + 1) / 2; // needBtcRatio [0  ... 1]
-            double needBtc = needBtcRatio * valuateBtc;
-            log("  dirAdjusted=" + dirAdjusted + "; needBtcRatio=" + needBtcRatio + "; needBtc=" + needBtc);
+            int directionAdjusted = direction / PHASES;        // directionAdjusted  [-1 ... 1]
+            double needBuyBtc = directionAdjusted * valuateBtc;
+            double needSellCnh = directionAdjusted * valuateCnh;
+            log("  directionAdjusted=" + directionAdjusted + "; needBuyBtc=" + needBuyBtc + "; needSellCnh=" + needSellCnh);
 
             log(" account=" + m_account);
-            double haveBtc = m_account.getAllValue(Currency.BTC);
-            log(" haveBtc=" + haveBtc);
+            double haveBtc = m_account.available(Currency.BTC);
+            double haveCnh = m_account.available(Currency.CNH);
+            log(" haveBtc=" + haveBtc + "; haveCnh=" + haveCnh);
+            OrderSide needOrderSide;
+            double buyBtc;
+            if (needBuyBtc > 0) {
+                log("  will buy Btc:");
+                double canSellCnh = Math.min(needSellCnh, haveCnh);
+                double canBuyBtc = m_topsData.convert(Currency.CNH, Currency.BTC, canSellCnh, exchange);
+                log("   need to sell " + needSellCnh + " CNH; can Sell " + canSellCnh + " CNH; this will buy " + canBuyBtc + " BTC");
+                buyBtc = canBuyBtc;
+                needOrderSide = OrderSide.BUY;
+            } else if (needBuyBtc < 0) {
+                log("  will sell Btc:");
+                double needSellBtc = -needBuyBtc;
+                double canSellBtc = Math.min(needSellBtc, haveBtc);
+                double canBuyCnh = m_topsData.convert(Currency.BTC, Currency.CNH, canSellBtc, exchange);
+                log("   need to sell " + needSellBtc + " BTC; can Sell " + canSellBtc + " BTC; this will buy " + canBuyCnh + " CNH");
+                buyBtc = -canSellBtc;
+                needOrderSide = OrderSide.SELL;
+            } else {
+                log("  do not buy/sell anything");
+                buyBtc = 0;
+                needOrderSide = null;
+            }
 
-            double buyBtc = needBtc - haveBtc;
-            boolean isBuy = (buyBtc > 0);
-            log(" buyBtc=" + buyBtc + "; isBuy=" + isBuy);
+            log(" buyBtc=" + buyBtc + "; needOrderSide=" + needOrderSide);
 
             double orderSize = Math.abs(buyBtc);
             double orderSizeRound = exchange.roundAmount(orderSize, PAIR);
             double minOrderToCreate = exchange.minOrderToCreate(PAIR);
             log(" orderSize=" + orderSize + "; orderSizeRound=" + orderSizeRound + "; minOrderToCreate=" + minOrderToCreate);
 
-            OrderSide needOrderSide = isBuy ? OrderSide.BUY : OrderSide.SELL;
-            log("  orderSide=" + needOrderSide);
+            log("  needOrderSide=" + needOrderSide);
 
             String error = null;
             if (m_order != null) {
                 OrderSide haveOrderSide = m_order.m_side;
-                log("  we have order: needOrderSide=" + needOrderSide + "; haveOrderSide=" + haveOrderSide);
+                log("  we have existing order: needOrderSide=" + needOrderSide + "; haveOrderSide=" + haveOrderSide);
                 boolean toCancel = true;
                 if (needOrderSide == haveOrderSide) {
                     double remained = m_order.remained();
@@ -387,6 +409,8 @@ log("ERROR recheckDirection() not yet implemented");
                             toCancel = false;
                         }
                     }
+                } else {
+                    log("   OrderSides are different - definitely canceling");
                 }
                 if (toCancel) {
                     log("  need cancel existing order: " + m_order);
@@ -399,24 +423,58 @@ log("ERROR recheckDirection() not yet implemented");
                 }
             }
             if(error == null) {
-                if (orderSizeRound >= minOrderToCreate) {
-                    Currency currency = PAIR.currencyFrom(isBuy);
-                    log("  currency=" + currency + "; PAIR=" + PAIR);
-                    RoundingMode roundMode = needOrderSide.getMktRoundMode();
-                    log("  roundMode=" + roundMode);
-                    double midPrice = (m_buy + m_sell) / 2;
-                    log("  buy=" + m_buy + "; sell=" + m_sell + "; midPrice=" + midPrice);
-                    double orderPrice = exchange.roundPrice(midPrice, PAIR, roundMode);
-                    log("  rounded orderPrice=" + orderPrice);
-                    m_order = new OrderData(PAIR, needOrderSide, orderPrice, orderSizeRound);
-                    log("  orderData=" + m_order);
+                boolean reprocess = false;
+                if (!m_closeOrders.isEmpty()) {
+                    boolean hadError = false;
+                    for(ListIterator<CloseOrderWrapper> iterator = m_closeOrders.listIterator(); iterator.hasNext(); ) {
+                        CloseOrderWrapper next = iterator.next();
+                        OrderData closeOrder = next.m_closeOrder;
+                        OrderSide closeOrderSide = closeOrder.m_side;
+                        if(closeOrderSide == needOrderSide) {
+                            log("  need cancel existing close order: " + closeOrder);
+                            error = m_account.cancelOrder(closeOrder);
+                            if (error == null) {
+                                iterator.remove();
+                            } else {
+                                // basically we may have no such order error here - when executed concurrently
+                                log("error canceling close order: " + error + "; " + m_order);
+                                hadError = true;
+                            }
+                        }
+                        reprocess = true;
+                    }
+                    if (hadError) {
+                        checkCloseOrdersState(null);
+                    }
+                }
 
-                    if (placeOrderToExchange(exchange, m_order)) {
-                        return State.ORDER;
+                if(!reprocess) {
+                    if (orderSizeRound >= minOrderToCreate) {
+                        Currency currency = PAIR.currencyFrom(needOrderSide.isBuy());
+                        log("  currency=" + currency + "; PAIR=" + PAIR);
+                        RoundingMode roundMode = needOrderSide.getMktRoundMode();
+                        log("  roundMode=" + roundMode);
+                        double midPrice = (m_buy + m_sell) / 2;
+                        log("  buy=" + m_buy + "; sell=" + m_sell + "; midPrice=" + midPrice);
+                        double orderPrice = exchange.roundPrice(midPrice, PAIR, roundMode);
+                        log("  rounded orderPrice=" + orderPrice);
+                        m_order = new OrderData(PAIR, needOrderSide, orderPrice, orderSizeRound);
+                        log("  orderData=" + m_order);
+
+                        if (placeOrderToExchange(exchange, m_order)) {
+                            return State.ORDER;
+                        } else {
+                            return State.ERROR;
+                        }
+                    } else {
+                        log("warning: small order to create: orderSizeRound=" + orderSizeRound);
                     }
                 } else {
-                    log("warning: small order to create: orderSizeRound=" + orderSizeRound);
+                    log("some orders maybe closed - post recheck direction");
+                    postRecheckDirection();
                 }
+            } else {
+                log("ERROR: existing order was not cancelled - do not start new");
             }
             return State.NONE;
         }
@@ -479,9 +537,9 @@ log("ERROR recheckDirection() not yet implemented");
         private State processTrade(TradeData tData, IIterationContext.BaseIterationContext inContext) throws Exception {
             log("processTrade(tData=" + tData + ")");
             double tradePrice = tData.m_price;
-            double orderPrice = m_order.m_price;
-            log(" tradePrice=" + tradePrice + ", orderPrice=" + orderPrice);
-            if (tradePrice == orderPrice) {
+            double ordPrice = m_order.m_price;
+            log(" tradePrice=" + tradePrice + ", orderPrice=" + ordPrice);
+            if (tradePrice == ordPrice) {
                 log("  same price - MAYBE SOME PART OF OUR ORDER EXECUTED ?");
                 double orderRemained = m_order.remained();
                 double tradeSize = tData.m_amount;
@@ -489,57 +547,66 @@ log("ERROR recheckDirection() not yet implemented");
 
                 //check orders state
                 return checkOrderState(inContext);
+            } else {
+                if ((m_order != null) && !m_order.isFilled()) {
+                    startCheckLiveOrdersTaskIfNeeded(m_buy, m_sell);
+                }
             }
             return State.ORDER;
         }
 
-        private State checkOrderState(IIterationContext.BaseIterationContext inContext) throws Exception {
-            IIterationContext.BaseIterationContext iContext = (inContext == null ) ? getLiveOrdersContext() : inContext;
-
-            Exchange exchange = m_ws.exchange();
-            m_order.checkState(iContext, exchange, m_account,
-                null, // TODO - implement exec listener, add partial support - to fire partial close orders
-                null);
-            log("  order state checked: " + m_order);
-
-            if (m_order.isFilled()) {
-                log("$$$$$$   order FILLED: " + m_order);
-                OrderSide orderSide = m_order.m_side;
-                OrderSide closeSide = orderSide.opposite();
-                double closePrice = m_order.m_price + (orderSide.isBuy() ? CLOSE_PRICE_DIFF : -CLOSE_PRICE_DIFF);
-                double closeSize = m_order.m_amount;
-
-                OrderData closeOrder = new OrderData(PAIR, closeSide, closePrice, closeSize);
-                log("  placing closeOrder=" + closeOrder);
-
-                boolean placed = placeOrderToExchange(exchange, closeOrder);
-                if (placed) {
-                    m_closeOrders.add(new CloseOrderWrapper(closeOrder, m_order));
-                    m_order = null;
-                    return State.NONE;
-                } else {
-                    m_order = null;
-                    log("ERROR placing closeOrder=" + closeOrder);
-                    return State.ERROR;
-                }
-            } else {
-                log("   order not yet FILLED: " + m_order);
-                return State.ORDER;
+        private void startCheckLiveOrdersTaskIfNeeded(double buy, double sell) {
+            boolean isBuy = m_order.m_side.isBuy();
+            double orderPrice = m_order.m_price;
+            if ((isBuy && (buy < orderPrice)) || (!isBuy && (sell > orderPrice))) {
+                log("  order price " + orderPrice + " is out of MKT [buy=" + buy + "; sell=" + sell + "] starting CheckLiveOrdersTask");
+                getOrderWatcher().addTask(new CheckLiveOrdersTask(), CheckLiveOrdersTask.class);
             }
+        }
+
+        private State checkOrderState(IIterationContext.BaseIterationContext inContext) throws Exception {
+            if( m_order != null ) {
+                IIterationContext.BaseIterationContext iContext = (inContext == null ) ? getLiveOrdersContext() : inContext;
+
+                Exchange exchange = m_ws.exchange();
+                m_order.checkState(iContext, exchange, m_account,
+                        null, // TODO - implement exec listener, add partial support - to fire partial close orders
+                        null);
+                log("  order state checked: " + m_order);
+
+                if (m_order.isFilled()) {
+                    log("$$$$$$   order FILLED: " + m_order);
+                    OrderSide orderSide = m_order.m_side;
+                    OrderSide closeSide = orderSide.opposite();
+                    double closePrice = m_order.m_price + (orderSide.isBuy() ? CLOSE_PRICE_DIFF : -CLOSE_PRICE_DIFF);
+                    double closeSize = m_order.m_amount;
+
+                    OrderData closeOrder = new OrderData(PAIR, closeSide, closePrice, closeSize);
+                    log("  placing closeOrder=" + closeOrder);
+
+                    boolean placed = placeOrderToExchange(exchange, closeOrder);
+                    if (placed) {
+                        m_closeOrders.add(new CloseOrderWrapper(closeOrder, m_order));
+                        m_order = null;
+                        return State.NONE;
+                    } else {
+                        m_order = null;
+                        log("ERROR placing closeOrder=" + closeOrder);
+                        return State.ERROR;
+                    }
+                } else {
+                    log("   order not yet FILLED: " + m_order);
+                }
+            }
+            return null; // no change
         }
 
         private void processTop(double buy, double sell) {
             log("processTop(buy=" + buy + ", sell=" + sell + ")");
-            if (m_order != null && !m_order.isFilled()) {
-                OrderSide side = m_order.m_side;
-                boolean isBuy = side.isBuy();
-                double orderPrice = m_order.m_price;
-                if ((isBuy && (buy < orderPrice)) || (!isBuy && (sell > orderPrice))) {
-                    getOrderWatcher().addTask(new CheckLiveOrdersTask(), CheckLiveOrdersTask.class);
-                }
+            if ((m_order != null) && !m_order.isFilled()) {
+                startCheckLiveOrdersTaskIfNeeded(buy, sell);
             }
         }
-
 
         private IIterationContext.BaseIterationContext getLiveOrdersContext() throws Exception {
             final OrdersData ordersData = Fetcher.fetchOrders(m_ws.exchange(), PAIR);
@@ -623,8 +690,7 @@ log("ERROR recheckDirection() not yet implemented");
         }
 
         private class RecheckDirectionTask implements IOrderTask {
-            public RecheckDirectionTask() {
-            }
+            public RecheckDirectionTask() {}
 
             @Override public void process() throws Exception {
                 log("RecheckDirectionTask.process()");
@@ -633,8 +699,7 @@ log("ERROR recheckDirection() not yet implemented");
         }
 
         private class CheckLiveOrdersTask implements IOrderTask {
-            public CheckLiveOrdersTask() {
-            }
+            public CheckLiveOrdersTask() {}
 
             @Override public void process() throws Exception {
                 log("CheckLiveOrdersTask.process()");
@@ -688,12 +753,16 @@ log("ERROR recheckDirection() not yet implemented");
                 }
             },
             ORDER { // order placed - waiting
+                @Override public OscExecutor.State onDirection(OscExecutor executor, int direction) throws Exception {
+                    log("State.ORDER.onDirection(direction=" + direction + ") on " + this);
+                    return executor.processDirection(direction);
+                }
                 @Override public OscExecutor.State onTrade(OscExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
-                    log("State.ORDER.onTrade(tData=" + tData + ") on " + this);
+//                    log("State.ORDER.onTrade(tData=" + tData + ") on " + this);
                     return executor.processTrade(tData, iContext);
                 }
                 @Override public void onTop(OscExecutor executor, double buy, double sell) {
-                    log("State.ORDER.onTop(buy=" + buy + ", sell=" + sell + ") on " + this);
+//                    log("State.ORDER.onTop(buy=" + buy + ", sell=" + sell + ") on " + this);
                     executor.processTop(buy, sell);
                 }
             }, ERROR;

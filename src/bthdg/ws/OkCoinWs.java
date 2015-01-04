@@ -1,9 +1,6 @@
 package bthdg.ws;
 
-import bthdg.exch.Exchange;
-import bthdg.exch.Pair;
-import bthdg.exch.TradeData;
-import bthdg.exch.TradeType;
+import bthdg.exch.*;
 import bthdg.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.json.simple.JSONArray;
@@ -146,7 +143,8 @@ public class OkCoinWs extends BaseWs {
         }
     }
 
-    public static IWs create() {
+    public static IWs create(Properties keys) {
+        OkCoin.init(keys);
         return new OkCoinWs();
     }
 

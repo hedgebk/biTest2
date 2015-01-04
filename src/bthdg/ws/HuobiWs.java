@@ -1,7 +1,9 @@
 package bthdg.ws;
 
 import bthdg.exch.Exchange;
+import bthdg.exch.Huobi;
 import bthdg.exch.Pair;
+import bthdg.exch.TradeData;
 import bthdg.util.Utils;
 import io.socket.IOAcknowledge;
 import io.socket.IOCallback;
@@ -11,38 +13,215 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
 public class HuobiWs extends BaseWs {
+    public static final String ADDRESS = "http://hq.huobi.com:80/";
+
+    private SocketIO m_socket;
+
     public static void main(String[] args) {
         try {
-            final SocketIO socket = new SocketIO("http://hq.huobi.com:80/");
-            socket.connect(new IOCallback() {
-                @Override public void onMessage(JSONObject json, IOAcknowledge ack) {
-                    try {
-                        System.out.println("Server said:" + json.toString(2));
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+            new HuobiWs().subscribe();
+
+            Thread thread = Thread.currentThread();
+            synchronized (thread) {
+                thread.wait();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void subscribe() {
+        try {
+            m_socket = new SocketIO(ADDRESS);
+        } catch (MalformedURLException e) {}
+
+        m_socket.connect(new IOCallback() {
+            @Override public void onMessage(JSONObject json, IOAcknowledge ack) {
+                try {
+                    System.out.println("Server said:" + json.toString(2));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override public void onMessage(String data, IOAcknowledge ack) {
+                System.out.println("Server said: " + data);
+            }
+
+            @Override public void onError(SocketIOException socketIOException) {
+                System.out.println("an Error occurred: " + socketIOException);
+                socketIOException.printStackTrace();
+            }
+
+            @Override public void onDisconnect() {
+                System.out.println("Connection terminated.");
+            }
+
+            @Override public void onConnect() {
+                System.out.println("Connection established");
+                sendSubscribe();
+            }
+
+            @Override public void on(String event, IOAcknowledge ack, Object... args) {
+//                System.out.println("Server triggered event '" + event + "'; args=" + args);
+                try {
+                    if (event.equals("message")) {
+                        List<Object> array = Arrays.asList(args);
+//                        System.out.println(" array=" + array);
+                        for (Object obj : array) {
+//                            System.out.println("  obj=" + obj);
+//                            System.out.println("   .class=" + obj.getClass());
+                            JSONObject json = (JSONObject) obj;
+                            String msgType = (String) json.get("msgType");
+//                            System.out.println("   msgType=" + msgType);
+                            if (msgType.equals("marketDetail")) {
+                                parseMarketDetail(json);
+                            } else if (msgType.equals("tradeDetail")) {
+                                parseTradeDetail(json);
+                            } else {
+                                System.out.println("ERROR: not supported msgType=" + msgType);
+                            }
+                        }
+                    }
+                } catch (JSONException e) {
+                    System.out.println("error parsing json: " + e);
+                    e.printStackTrace();
+                }
+            }
+
+            private void parseTradeDetail(JSONObject json) throws JSONException {
+                JSONObject payload = (JSONObject) json.get("payload");
+//                System.out.println("   payload=" + payload);
+                {
+                    JSONArray amount = (JSONArray) payload.get("amount");
+//                        System.out.println("     amount=" + amount);
+                    int length = amount.length();
+//                        System.out.println("      .length=" + length);
+                    JSONArray price = (JSONArray) payload.get("price");
+//                        System.out.println("     price=" + price);
+//                        System.out.println("      .length=" + price.length());
+                    JSONArray time = (JSONArray) payload.get("time");
+//                        System.out.println("     time=" + time);
+//                        System.out.println("      .length=" + time.length());
+                    JSONArray topAsks = (JSONArray) payload.get("topAsks");
+//                        System.out.println("     topAsks=" + topAsks);
+//                        System.out.println("      .length=" + topAsks.length());
+                    JSONArray topBids = (JSONArray) payload.get("topBids");
+//                        System.out.println("     topBids=" + topBids);
+//                        System.out.println("      .length=" + topBids.length());
+                    for (int i = 0; i < length; i++) {
+                        Double amt = Utils.getDouble(amount.get(i));
+                        Double prc = Utils.getDouble(price.get(i));
+                        Integer tm = (Integer) time.get(i);
+                        long timestamp = tm * 1000L;
+//                        System.out.println("         date=" + new Date(timestamp));
+
+                        JSONObject asks = (JSONObject) topAsks.get(i);
+//                            System.out.println("       asks[" + i + "] asks=" + asks);
+                        JSONArray askAmounts = (JSONArray) asks.get("amount");
+//                            System.out.println("        amount=" + askAmounts);
+                        int askAmountsNum = askAmounts.length();
+//                            System.out.println("        .length=" + askAmountsNum);
+                        JSONArray askPrices = (JSONArray) asks.get("price");
+//                            System.out.println("        price=" + askPrices);
+//                            System.out.println("        .length=" + askPrices.length());
+//                            for (int j = 0; j < askAmountsNum; j++) {
+//                                Double askAmt = Utils.getDouble(askAmounts.get(j));
+//                                Double askPrc = Utils.getDouble(askPrices.get(j));
+//                                System.out.println("         ask[" + j + "] amount=" + askAmt + "; price=" + askPrc);
+//                            }
+                        JSONObject bids = (JSONObject) topBids.get(i);
+//                            System.out.println("       bids[" + i + "] bids=" + asks);
+                        JSONArray bidAmounts = (JSONArray) bids.get("amount");
+//                            System.out.println("        amount=" + bidAmounts);
+                        int bidAmountsNum = bidAmounts.length();
+//                            System.out.println("        .length=" + bidAmountsNum);
+                        JSONArray bidPrices = (JSONArray) bids.get("price");
+//                            System.out.println("        price=" + bidPrices);
+//                            System.out.println("        .length=" + bidPrices.length());
+//                            for (int j = 0; j < bidAmountsNum; j++) {
+//                                Double bidAmt = Utils.getDouble(bidAmounts.get(j));
+//                                Double bidPrc = Utils.getDouble(bidPrices.get(j));
+//                                System.out.println("         bid[" + j + "] amount=" + bidAmt + "; price=" + bidPrc);
+//                            }
+                        Double askPrc = Utils.getDouble(askPrices.get(0));
+                        Double bidPrc = Utils.getDouble(bidPrices.get(0));
+
+                        System.out.println("       [" + i + "] amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
+
+                        if (m_tradesListener != null) {
+                            m_tradesListener.onTrade(new TradeData(amt, prc, timestamp, 0, null));
+                        }
+                        if (m_topListener != null) {
+                            m_topListener.onTop(timestamp, bidPrc, askPrc);
+                        }
                     }
                 }
+            }
 
-                @Override public void onMessage(String data, IOAcknowledge ack) {
-                    System.out.println("Server said: " + data);
+            private void parseMarketDetail(JSONObject json) throws JSONException {
+                String symbolId = (String) json.get("symbolId");
+                System.out.println("   symbolId=" + symbolId);
+                Integer idCur = (Integer) json.get("idCur");
+                System.out.println("   idCur=" + idCur);
+                JSONObject payload = (JSONObject) json.get("payload");
+                System.out.println("   payload=" + payload);
+                Double totalVolume = (Double) payload.get("totalVolume");
+                System.out.println("    totalVolume=" + totalVolume);
+                JSONObject trades = (JSONObject) payload.get("trades");
+                System.out.println("    trades=" + trades);
+                {
+                    JSONArray amount = (JSONArray) trades.get("amount");
+                    System.out.println("     amount=" + amount);
+                    System.out.println("      .length=" + amount.length());
+                    JSONArray price = (JSONArray) trades.get("price");
+                    System.out.println("     price=" + price);
+                    System.out.println("      .length=" + price.length());
+                    JSONArray time = (JSONArray) trades.get("time");
+                    System.out.println("     time=" + time);
+                    System.out.println("      .length=" + time.length());
+                    JSONArray direction = (JSONArray) trades.get("direction");
+                    System.out.println("     direction=" + direction);
+                    System.out.println("      .length=" + direction.length());
                 }
-
-                @Override public void onError(SocketIOException socketIOException) {
-                    System.out.println("an Error occurred: " + socketIOException);
-                    socketIOException.printStackTrace();
+                JSONObject asks = (JSONObject) payload.get("asks");
+                System.out.println("    asks=" + asks);
+                {
+                    JSONArray amount = (JSONArray) asks.get("amount");
+                    System.out.println("     amount=" + amount);
+                    System.out.println("      .length=" + amount.length());
+                    JSONArray price = (JSONArray) asks.get("price");
+                    System.out.println("     price=" + price);
+                    System.out.println("      .length=" + price.length());
+                    JSONArray accuAmount = (JSONArray) asks.get("accuAmount");
+                    System.out.println("     accuAmount=" + accuAmount);
+                    System.out.println("      .length=" + accuAmount.length());
                 }
-
-                @Override public void onDisconnect() {
-                    System.out.println("Connection terminated.");
+                JSONObject bids = (JSONObject) payload.get("bids");
+                System.out.println("    bids=" + bids);
+                {
+                    JSONArray amount = (JSONArray) bids.get("amount");
+                    System.out.println("     amount=" + amount);
+                    System.out.println("      .length=" + amount.length());
+                    JSONArray price = (JSONArray) bids.get("price");
+                    System.out.println("     price=" + price);
+                    System.out.println("      .length=" + price.length());
+                    JSONArray accuAmount = (JSONArray) bids.get("accuAmount");
+                    System.out.println("     accuAmount=" + accuAmount);
+                    System.out.println("      .length=" + accuAmount.length());
                 }
+            }
+        });
+    }
 
-                @Override public void onConnect() {
-                    System.out.println("Connection established");
-// reqSymbolList: Request symbol list.
+    private void sendSubscribe() {
+        // reqSymbolList: Request symbol list.
 //String str = "[{\"version\":1,\"msgType\":\"reqSymbolList\",\"requestIndex\":1405141205513}]";
 // response:
 // [{"msgType":"reqSymbolList",
@@ -409,9 +588,9 @@ public class HuobiWs extends BaseWs {
 //   "_id":1415829465,
 //   "version":1}]
 
-                    // reqMsgSubscribe: Push message to subscribe
-                    String str = "[{\"version\":1,\"msgType\":\"reqMsgSubscribe\",\"requestIndex\":"+System.currentTimeMillis()+"," +
-                            "\"symbolList\":{\"tradeDetail\":[{\"symbolId\":\"btccny\",\"pushType\":\"pushLong\"}]}}]";
+        // reqMsgSubscribe: Push message to subscribe
+        String str = "[{\"version\":1,\"msgType\":\"reqMsgSubscribe\",\"requestIndex\":" + System.currentTimeMillis() + "," +
+                "\"symbolList\":{\"tradeDetail\":[{\"symbolId\":\"btccny\",\"pushType\":\"pushLong\"}]}}]";
 //{"symbolId":"btccny",
 // "msgType":"tradeDetail",
 // "idCur":33082292,
@@ -443,158 +622,20 @@ public class HuobiWs extends BaseWs {
 // "timeMin":1420291225,
 // "version":1}
 
-                    System.out.println("str to emit: " + str);
-                    socket.emit("request", str);
-                }
+        System.out.println("str to emit: " + str);
+        m_socket.emit("request", str);
+    }
 
-                @Override public void on(String event, IOAcknowledge ack, Object... args) {
-                    System.out.println("Server triggered event '" + event + "'; args=" + args);
-                    try {
-                        if(event.equals("message")) {
-                            List<Object> array = Arrays.asList(args);
-                            System.out.println(" array=" + array);
-                            for (Object obj : array) {
-                                System.out.println("  obj=" + obj);
-                                System.out.println("   .class=" + obj.getClass());
-                                JSONObject json = (JSONObject)obj;
-                                String msgType = (String) json.get("msgType");
-                                System.out.println("   msgType=" + msgType);
-                                if(msgType.equals("marketDetail")) {
-                                    parseMarketDetail(json);
-                                } else if(msgType.equals("tradeDetail")) {
-                                    parseTradeDetail(json);
-                                } else {
-                                    System.out.println("ERROR: not supported msgType=" + msgType);
-                                }
-                            }
-                        }
-                    } catch (JSONException e) {
-                        System.out.println("error parsing json: " + e);
-                        e.printStackTrace();
-                    }
-                }
-
-                private void parseTradeDetail(JSONObject json) throws JSONException {
-                    JSONObject payload = (JSONObject) json.get("payload");
-                    System.out.println("   payload=" + payload);
-                    {
-                        JSONArray amount = (JSONArray) payload.get("amount");
-//                        System.out.println("     amount=" + amount);
-                        int length = amount.length();
-//                        System.out.println("      .length=" + length);
-                        JSONArray price = (JSONArray) payload.get("price");
-//                        System.out.println("     price=" + price);
-//                        System.out.println("      .length=" + price.length());
-                        JSONArray time = (JSONArray) payload.get("time");
-//                        System.out.println("     time=" + time);
-//                        System.out.println("      .length=" + time.length());
-                        JSONArray topAsks = (JSONArray) payload.get("topAsks");
-//                        System.out.println("     topAsks=" + topAsks);
-//                        System.out.println("      .length=" + topAsks.length());
-                        JSONArray topBids = (JSONArray) payload.get("topBids");
-//                        System.out.println("     topBids=" + topBids);
-//                        System.out.println("      .length=" + topBids.length());
-                        for(int i = 0; i < length; i++) {
-                            Double amt = (Double) amount.get(i);
-                            Double prc = (Double) price.get(i);
-                            Integer tm = (Integer) time.get(i);
-                            System.out.println("       [" + i + "] amt=" + amt + "; prc=" + prc + "; tm=" + tm);
-                            JSONObject asks = (JSONObject) topAsks.get(i);
-//                            System.out.println("       asks[" + i + "] asks=" + asks);
-                            JSONArray askAmounts = (JSONArray) asks.get("amount");
-//                            System.out.println("        amount=" + askAmounts);
-                            int askAmountsNum = askAmounts.length();
-//                            System.out.println("        .length=" + askAmountsNum);
-                            JSONArray askPrices = (JSONArray) asks.get("price");
-//                            System.out.println("        price=" + askPrices);
-//                            System.out.println("        .length=" + askPrices.length());
-//                            for (int j = 0; j < askAmountsNum; j++) {
-//                                Double askAmt = Utils.getDouble(askAmounts.get(j));
-//                                Double askPrc = Utils.getDouble(askPrices.get(j));
-//                                System.out.println("         ask[" + j + "] amount=" + askAmt + "; price=" + askPrc);
-//                            }
-                            JSONObject bids = (JSONObject) topBids.get(i);
-//                            System.out.println("       bids[" + i + "] bids=" + asks);
-                            JSONArray bidAmounts = (JSONArray) bids.get("amount");
-//                            System.out.println("        amount=" + bidAmounts);
-                            int bidAmountsNum = bidAmounts.length();
-//                            System.out.println("        .length=" + bidAmountsNum);
-                            JSONArray bidPrices = (JSONArray) bids.get("price");
-//                            System.out.println("        price=" + bidPrices);
-//                            System.out.println("        .length=" + bidPrices.length());
-//                            for (int j = 0; j < bidAmountsNum; j++) {
-//                                Double bidAmt = Utils.getDouble(bidAmounts.get(j));
-//                                Double bidPrc = Utils.getDouble(bidPrices.get(j));
-//                                System.out.println("         bid[" + j + "] amount=" + bidAmt + "; price=" + bidPrc);
-//                            }
-                            Double askPrc = Utils.getDouble(askPrices.get(0));
-                            Double bidPrc = Utils.getDouble(bidPrices.get(0));
-                            System.out.println("          BID=" + bidPrc + "; ASK=" + askPrc);
-                        }
-                    }
-                }
-
-                private void parseMarketDetail(JSONObject json) throws JSONException {
-                    String symbolId = (String) json.get("symbolId");
-                    System.out.println("   symbolId=" + symbolId);
-                    Integer idCur = (Integer) json.get("idCur");
-                    System.out.println("   idCur=" + idCur);
-                    JSONObject payload = (JSONObject) json.get("payload");
-                    System.out.println("   payload=" + payload);
-                    Double totalVolume = (Double) payload.get("totalVolume");
-                    System.out.println("    totalVolume=" + totalVolume);
-                    JSONObject trades = (JSONObject) payload.get("trades");
-                    System.out.println("    trades=" + trades);
-                    {
-                        JSONArray amount = (JSONArray) trades.get("amount");
-                        System.out.println("     amount=" + amount);
-                        System.out.println("      .length=" + amount.length());
-                        JSONArray price = (JSONArray) trades.get("price");
-                        System.out.println("     price=" + price);
-                        System.out.println("      .length=" + price.length());
-                        JSONArray time = (JSONArray) trades.get("time");
-                        System.out.println("     time=" + time);
-                        System.out.println("      .length=" + time.length());
-                        JSONArray direction = (JSONArray) trades.get("direction");
-                        System.out.println("     direction=" + direction);
-                        System.out.println("      .length=" + direction.length());
-                    }
-                    JSONObject asks = (JSONObject) payload.get("asks");
-                    System.out.println("    asks=" + asks);
-                    {
-                        JSONArray amount = (JSONArray) asks.get("amount");
-                        System.out.println("     amount=" + amount);
-                        System.out.println("      .length=" + amount.length());
-                        JSONArray price = (JSONArray) asks.get("price");
-                        System.out.println("     price=" + price);
-                        System.out.println("      .length=" + price.length());
-                        JSONArray accuAmount = (JSONArray) asks.get("accuAmount");
-                        System.out.println("     accuAmount=" + accuAmount);
-                        System.out.println("      .length=" + accuAmount.length());
-                    }
-                    JSONObject bids = (JSONObject) payload.get("bids");
-                    System.out.println("    bids=" + bids);
-                    {
-                        JSONArray amount = (JSONArray) bids.get("amount");
-                        System.out.println("     amount=" + amount);
-                        System.out.println("      .length=" + amount.length());
-                        JSONArray price = (JSONArray) bids.get("price");
-                        System.out.println("     price=" + price);
-                        System.out.println("      .length=" + price.length());
-                        JSONArray accuAmount = (JSONArray) bids.get("accuAmount");
-                        System.out.println("     accuAmount=" + accuAmount);
-                        System.out.println("      .length=" + accuAmount.length());
-                    }
-                }
-            });
-
-            Thread.sleep(150000);
-            System.out.println("done");
-        } catch (Exception e) {
-            e.printStackTrace();
+    private void subscribeIfNeeded() {
+        if(m_socket == null) {
+            subscribe();
         }
     }
 
+    public static IWs create(Properties keys) {
+        Huobi.init(keys);
+        return new HuobiWs();
+    }
     @Override public Exchange exchange() { return Exchange.HUOBI; }
 
     @Override public void subscribeTrades(Pair pair, ITradesListener listener) {
@@ -602,10 +643,14 @@ public class HuobiWs extends BaseWs {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
         m_tradesListener = listener;
-
+        subscribeIfNeeded();
     }
 
     @Override public void subscribeTop(Pair pair, ITopListener listener) {
-        throw new RuntimeException("subscribeTop not implemented yet");
+        if (pair != Pair.BTC_CNH) {
+            throw new RuntimeException("pair " + pair + " not supported yet");
+        }
+        m_topListener = listener;
+        subscribeIfNeeded();
     }
 }
