@@ -5,6 +5,6 @@ import bthdg.exch.Pair;
 
 public interface IWs {
     Exchange exchange();
-    void subscribeTrades(Pair pair, ITradesListener listener);
-    void subscribeTop(Pair pair, ITopListener listener);
+    void subscribeTrades(Pair pair, ITradesListener listener) throws Exception;
+    void subscribeTop(Pair pair, ITopListener listener) throws Exception;
 }

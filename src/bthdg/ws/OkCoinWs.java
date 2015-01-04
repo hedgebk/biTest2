@@ -152,7 +152,7 @@ public class OkCoinWs extends BaseWs {
         return Exchange.OKCOIN;
     }
 
-    @Override public void subscribeTrades(Pair pair, ITradesListener listener) {
+    @Override public void subscribeTrades(Pair pair, ITradesListener listener) throws Exception {
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
@@ -194,7 +194,7 @@ public class OkCoinWs extends BaseWs {
         subscribe(BTCCNY_TRADES_CHANNEL);
     }
 
-    @Override public void subscribeTop(Pair pair, ITopListener listener) {
+    @Override public void subscribeTop(Pair pair, ITopListener listener) throws Exception {
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
@@ -221,7 +221,7 @@ public class OkCoinWs extends BaseWs {
         subscribe(BTCCNY_TICKER_CHANNEL);
     }
 
-    private void subscribe(final String channel) {
+    private void subscribe(final String channel) throws Exception {
         if( m_session == null ) {
             connect(new Runnable() {
                 @Override public void run() {
@@ -296,7 +296,7 @@ public class OkCoinWs extends BaseWs {
         return null;
     }
 
-    private void connect(final Runnable callback) {
+    private void connect(final Runnable callback) throws Exception {
         try {
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
             ClientManager client = ClientManager.createClient();
@@ -309,7 +309,8 @@ public class OkCoinWs extends BaseWs {
 
                 @Override public void onClose(Session session, CloseReason closeReason) {
                     System.out.println("onClose session=" + session + "; closeReason=" + closeReason);
-//                    need reconnect
+                    m_messageHandler = null;
+                    new ReconnectThread().start();
                 }
 
                 @Override public void onError(Session session, Throwable thr) {
@@ -319,7 +320,8 @@ public class OkCoinWs extends BaseWs {
             }, cec, new URI(URL));
             System.out.println("session isOpen=" + m_session.isOpen() + "; session=" + m_session);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("connectToServer error: " + e);
+            throw e;
         }
     }
 
@@ -347,5 +349,51 @@ public class OkCoinWs extends BaseWs {
             System.out.println("error parsing time=" + time);
         }
         return 0;
+    }
+
+    private class ReconnectThread extends Thread {
+        @Override public void run() {
+            System.out.println("reconnect thread started");
+            try {
+                long reconnectTimeout = 3000;
+                int attempt = 1;
+                boolean iterate = true;
+                while (iterate) {
+                    System.out.println("reconnect attempt " + attempt + "; waiting " + reconnectTimeout + " ms...");
+                    Thread.sleep(reconnectTimeout);
+                    try {
+                        connect(new Runnable() {
+                            @Override public void run() {
+                                System.out.println("reconnected. resubscribing...");
+                                resubscribe();
+                            }
+                        });
+                        iterate = false;
+                    } catch (Exception e) {
+                        System.out.println("reconnect error: " + e);
+                        attempt++;
+                        reconnectTimeout = reconnectTimeout * 3 / 2;
+                    }
+                }
+                System.out.println("reconnect thread finished");
+            } catch (Exception e) {
+                System.out.println("reconnect error: " + e);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void resubscribe() {
+        try {
+            if (m_tradesListener != null) {
+                subscribe(BTCCNY_TRADES_CHANNEL);
+            }
+            if (m_topListener != null) {
+                subscribe(BTCCNY_TICKER_CHANNEL);
+            }
+        } catch (Exception e) {
+            System.out.println("resubscribe error: " + e);
+            e.printStackTrace();
+        }
     }
 }

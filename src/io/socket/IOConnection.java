@@ -833,18 +833,18 @@ class IOConnection implements IOCallback {
                 try {
                         JSONObject json = new JSONObject().put("name", event).put("args", arg);
                     String jsonStr = json.toString();
-logger.warning("jsonStr="+jsonStr);
+//logger.warning("jsonStr="+jsonStr);
                     jsonStr = jsonStr.replace("\"[","[");
-logger.warning("jsonStr1="+jsonStr);
+//logger.warning("jsonStr1="+jsonStr);
                     jsonStr = jsonStr.replace("]\"","]");
-logger.warning("jsonStr2="+jsonStr);
+//logger.warning("jsonStr2="+jsonStr);
                     jsonStr = jsonStr.replace("\\\"","\"");
-logger.warning("jsonStr3="+jsonStr);
+//logger.warning("jsonStr3="+jsonStr);
                     IOMessage message = new IOMessage(IOMessage.TYPE_EVENT,
                                         socket.getNamespace(), jsonStr);
                         synthesizeAck(message, ack);
                     String str = message.toString();
-logger.warning("message str="+str);
+//logger.warning("message str="+str);
                     sendPlain(str);
                 } catch (JSONException e) {
                         error(new SocketIOException(

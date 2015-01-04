@@ -20,8 +20,10 @@ import java.util.Properties;
 
 public class HuobiWs extends BaseWs {
     public static final String ADDRESS = "http://hq.huobi.com:80/";
+    public static final int DEF_RECONNECT_DELAY = 5000;
 
     private SocketIO m_socket;
+    private Thread m_reconnectThread;
 
     public static void main(String[] args) {
         try {
@@ -55,35 +57,66 @@ public class HuobiWs extends BaseWs {
             }
 
             @Override public void onError(SocketIOException socketIOException) {
-                System.out.println("an Error occurred: " + socketIOException);
+                System.out.println("onError() an Error occurred: " + socketIOException);
                 socketIOException.printStackTrace();
-                System.out.println("will retry in seconds");
-                new Thread() {
-                    @Override public void run() {
-                        try {
-                            int millis = 5000;
-                            System.out.println("sleep "+millis+" ms...");
-                            Thread.sleep(millis);
-                            System.out.println("reconnecting...");
-                            m_socket.reconnect();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+
+                System.out.println("will retry again. isConnected=" + m_socket.isConnected() + "; m_reconnectThread=" + m_reconnectThread);
+                if (m_reconnectThread != null && m_reconnectThread.isAlive() && !m_reconnectThread.isInterrupted()) {
+                    synchronized (m_reconnectThread) {
+                        System.out.println(" notify reconnect thread");
+                        m_reconnectThread.notify();
                     }
-                } .start();
+                } else {
+                    System.out.println(" starting reconnect thread");
+                    m_reconnectThread = new Thread() {
+                        @Override public void run() {
+                            try {
+                                long reconnectDelay = DEF_RECONNECT_DELAY;
+                                int attempt = 1;
+                                while (!isInterrupted()) {
+                                    System.out.println("sleep " + reconnectDelay + " ms before reconnect attempt " + attempt);
+                                    Thread.sleep(reconnectDelay);
+                                    synchronized (m_reconnectThread) {
+                                        System.out.println("reconnecting, attempt " + attempt + "...");
+
+                                        subscribe();
+
+                                        System.out.println("reconnect invoked, waiting");
+                                        m_reconnectThread.wait();
+                                        reconnectDelay = reconnectDelay * 3 / 2;
+                                        attempt++;
+                                    }
+                                }
+                                System.out.println("reconnect thread was interrupted - finishing after  " + (attempt - 1) + " attempts");
+                            } catch (Exception e) {
+                                System.out.println("error in reconnect thread: " + e);
+                                e.printStackTrace();
+                            }
+                            m_reconnectThread = null;
+                        }
+                    };
+                    m_reconnectThread.start();
+                }
             }
 
             @Override public void onDisconnect() {
-                System.out.println("Connection terminated.");
+                System.out.println("Connection terminated. onDisconnect()");
             }
 
             @Override public void onConnect() {
-                System.out.println("Connection established");
+                System.out.println("Connection established. onConnect() isConnected="+ m_socket.isConnected());
+                if (m_reconnectThread != null && m_reconnectThread.isAlive() && !m_reconnectThread.isInterrupted()) {
+                    synchronized (m_reconnectThread) {
+                        System.out.println(" notify and interrupt reconnect thread");
+                        m_reconnectThread.notify();
+                        m_reconnectThread.interrupt();
+                    }
+                }
                 sendSubscribe();
             }
 
             @Override public void on(String event, IOAcknowledge ack, Object... args) {
-//                System.out.println("Server triggered event '" + event + "'; args=" + args);
+                System.out.println("Server triggered event '" + event + "'; args=" + args);
                 try {
                     if (event.equals("message")) {
                         List<Object> array = Arrays.asList(args);
@@ -154,7 +187,7 @@ public class HuobiWs extends BaseWs {
 //                            System.out.println("       bids[" + i + "] bids=" + asks);
                         JSONArray bidAmounts = (JSONArray) bids.get("amount");
 //                            System.out.println("        amount=" + bidAmounts);
-                        int bidAmountsNum = bidAmounts.length();
+//                        int bidAmountsNum = bidAmounts.length();
 //                            System.out.println("        .length=" + bidAmountsNum);
                         JSONArray bidPrices = (JSONArray) bids.get("price");
 //                            System.out.println("        price=" + bidPrices);

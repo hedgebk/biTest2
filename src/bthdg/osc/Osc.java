@@ -7,10 +7,10 @@ import bthdg.exch.*;
 import bthdg.exch.Currency;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
+import bthdg.ws.HuobiWs;
 import bthdg.ws.ITopListener;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
-import bthdg.ws.OkCoinWs;
 
 import java.io.IOException;
 import java.math.RoundingMode;
@@ -71,18 +71,22 @@ public class Osc {
         Properties keys = BaseExch.loadKeys();
 //        Btcn.init(keys);
 
-        IWs ws = OkCoinWs.create(keys);
-//        IWs ws = HuobiWs.create(keys);
+//        IWs ws = OkCoinWs.create(keys);
+        IWs ws = HuobiWs.create(keys);
 //        BtcnWs.main(args);
 //        BitstampWs.main(args);
 
         m_processor = new Processor(ws);
 
-        ws.subscribeTrades(PAIR, new ITradesListener() {
-            @Override public void onTrade(TradeData tdata) {
-                m_processor.onTrade(tdata);
-            }
-        });
+        try {
+            ws.subscribeTrades(PAIR, new ITradesListener() {
+                @Override public void onTrade(TradeData tdata) {
+                    m_processor.onTrade(tdata);
+                }
+            });
+        } catch (Exception e) {
+            err("subscribeTrades error" + e, e);
+        }
     }
 
     private static class Processor implements Runnable {
