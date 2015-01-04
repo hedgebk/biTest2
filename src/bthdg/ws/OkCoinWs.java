@@ -309,6 +309,7 @@ public class OkCoinWs extends BaseWs {
 
                 @Override public void onClose(Session session, CloseReason closeReason) {
                     System.out.println("onClose session=" + session + "; closeReason=" + closeReason);
+//                    need reconnect
                 }
 
                 @Override public void onError(Session session, Throwable thr) {

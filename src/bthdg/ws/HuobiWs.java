@@ -57,6 +57,20 @@ public class HuobiWs extends BaseWs {
             @Override public void onError(SocketIOException socketIOException) {
                 System.out.println("an Error occurred: " + socketIOException);
                 socketIOException.printStackTrace();
+                System.out.println("will retry in seconds");
+                new Thread() {
+                    @Override public void run() {
+                        try {
+                            int millis = 5000;
+                            System.out.println("sleep "+millis+" ms...");
+                            Thread.sleep(millis);
+                            System.out.println("reconnecting...");
+                            m_socket.reconnect();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                } .start();
             }
 
             @Override public void onDisconnect() {

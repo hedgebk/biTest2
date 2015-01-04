@@ -7,17 +7,17 @@ import bthdg.exch.*;
 import bthdg.exch.Currency;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
-import bthdg.ws.HuobiWs;
 import bthdg.ws.ITopListener;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
+import bthdg.ws.OkCoinWs;
 
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.util.*;
 
 public class Osc {
-    private static final long BAR_SIZE = Utils.toMillis("6s");
+    private static final long BAR_SIZE = Utils.toMillis("20s");
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
     public static final int K = 3;
@@ -29,8 +29,9 @@ public class Osc {
     public static final double STOP_LEVEL = 0.005;
     public static final Pair PAIR = Pair.BTC_CNH; // TODO: BTC is hardcoded below
     private static final int MAX_PLACE_ORDER_REPEAT = 2;
-    public static final double CLOSE_PRICE_DIFF = 1.0;
+    public static final double CLOSE_PRICE_DIFF = 1.5;
     private static final double ORDER_SIZE_TOLERANCE = 0.1;
+    public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
 
     private static int s_notEnoughFundsCounter;
 
@@ -70,8 +71,8 @@ public class Osc {
         Properties keys = BaseExch.loadKeys();
 //        Btcn.init(keys);
 
-//        IWs ws = OkCoinWs.create(keys);
-        IWs ws = HuobiWs.create(keys);
+        IWs ws = OkCoinWs.create(keys);
+//        IWs ws = HuobiWs.create(keys);
 //        BtcnWs.main(args);
 //        BitstampWs.main(args);
 
@@ -79,7 +80,6 @@ public class Osc {
 
         ws.subscribeTrades(PAIR, new ITradesListener() {
             @Override public void onTrade(TradeData tdata) {
-//log("got Trade=" + tdata);
                 m_processor.onTrade(tdata);
             }
         });
@@ -210,18 +210,10 @@ public class Osc {
             log("OscExecutor.initImpl()................");
 
             Exchange exchange = m_ws.exchange();
-
             m_topsData = Fetcher.fetchTops(exchange, PAIR);
             log(" topsData=" + m_topsData);
 
-            m_account = Fetcher.fetchAccount(exchange);
-            if (m_account != null) {
-                log(" account=" + m_account);
-                double valuateBtc = m_account.evaluate(m_topsData, Currency.BTC, exchange);
-                log("  valuateBtc=" + valuateBtc + " BTC");
-            } else {
-                log("account request error");
-            }
+            initAccount();
 
             log("initImpl() continue: subscribeTrades()");
             m_ws.subscribeTop(PAIR, new ITopListener() {
@@ -233,6 +225,18 @@ public class Osc {
                     getOrderWatcher().addTask(new TopTask(buy, sell), TopTask.class);
                 }
             });
+        }
+
+        private void initAccount() throws Exception {
+            Exchange exchange = m_ws.exchange();
+            m_account = Fetcher.fetchAccount(exchange);
+            if (m_account != null) {
+                log(" account=" + m_account);
+                double valuateBtc = m_account.evaluate(m_topsData, Currency.BTC, exchange);
+                log("  valuateBtc=" + valuateBtc + " BTC");
+            } else {
+                log("account request error");
+            }
         }
 
         private void setState(State state) {
@@ -348,107 +352,21 @@ public class Osc {
             m_direction = direction;
 
             Exchange exchange = m_ws.exchange();
-            double valuateBtc = m_account.evaluate(m_topsData, Currency.BTC, exchange);
-            double valuateCnh = m_account.evaluate(m_topsData, Currency.CNH, exchange);
-            log("  valuateBtc=" + valuateBtc + " BTC; valuateCnh="+valuateCnh+" CNH");
+            double buyBtc = calcOrderSizeFromDirection(direction, exchange);
 
-            int directionAdjusted = direction / PHASES;        // directionAdjusted  [-1 ... 1]
-            double needBuyBtc = directionAdjusted * valuateBtc;
-            double needSellCnh = directionAdjusted * valuateCnh;
-            log("  directionAdjusted=" + directionAdjusted + "; needBuyBtc=" + needBuyBtc + "; needSellCnh=" + needSellCnh);
-
-            log(" account=" + m_account);
-            double haveBtc = m_account.available(Currency.BTC);
-            double haveCnh = m_account.available(Currency.CNH);
-            log(" haveBtc=" + haveBtc + "; haveCnh=" + haveCnh);
-            OrderSide needOrderSide;
-            double buyBtc;
-            if (needBuyBtc > 0) {
-                log("  will buy Btc:");
-                double canSellCnh = Math.min(needSellCnh, haveCnh);
-                double canBuyBtc = m_topsData.convert(Currency.CNH, Currency.BTC, canSellCnh, exchange);
-                log("   need to sell " + needSellCnh + " CNH; can Sell " + canSellCnh + " CNH; this will buy " + canBuyBtc + " BTC");
-                buyBtc = canBuyBtc;
-                needOrderSide = OrderSide.BUY;
-            } else if (needBuyBtc < 0) {
-                log("  will sell Btc:");
-                double needSellBtc = -needBuyBtc;
-                double canSellBtc = Math.min(needSellBtc, haveBtc);
-                double canBuyCnh = m_topsData.convert(Currency.BTC, Currency.CNH, canSellBtc, exchange);
-                log("   need to sell " + needSellBtc + " BTC; can Sell " + canSellBtc + " BTC; this will buy " + canBuyCnh + " CNH");
-                buyBtc = -canSellBtc;
-                needOrderSide = OrderSide.SELL;
-            } else {
-                log("  do not buy/sell anything");
-                buyBtc = 0;
-                needOrderSide = null;
-            }
-
-            log(" buyBtc=" + buyBtc + "; needOrderSide=" + needOrderSide);
+            OrderSide needOrderSide = (buyBtc == 0) ? null : (buyBtc > 0) ? OrderSide.BUY : OrderSide.SELL;
+            buyBtc *= USE_FUNDS_FROM_AVAILABLE; // do not use ALL available funds
+            log(" buyBtc'=" + buyBtc + "; needOrderSide=" + needOrderSide);
 
             double orderSize = Math.abs(buyBtc);
             double orderSizeRound = exchange.roundAmount(orderSize, PAIR);
             double minOrderToCreate = exchange.minOrderToCreate(PAIR);
             log(" orderSize=" + orderSize + "; orderSizeRound=" + orderSizeRound + "; minOrderToCreate=" + minOrderToCreate);
 
-            log("  needOrderSide=" + needOrderSide);
-
-            String error = null;
-            if (m_order != null) {
-                OrderSide haveOrderSide = m_order.m_side;
-                log("  we have existing order: needOrderSide=" + needOrderSide + "; haveOrderSide=" + haveOrderSide);
-                boolean toCancel = true;
-                if (needOrderSide == haveOrderSide) {
-                    double remained = m_order.remained();
-                    log("   we have order: needOrderSize=" + orderSizeRound + "; haveOrderSize=" + remained);
-                    if (orderSizeRound != 0) {
-                        double orderSizeRatio = remained/orderSizeRound;
-                        log("    orderSizeRatio=" + orderSizeRatio);
-                        if( (orderSizeRatio < (1+ORDER_SIZE_TOLERANCE)) && (orderSizeRatio > (1-ORDER_SIZE_TOLERANCE))) {
-                            log("     order Sizes are very close - do not cancel existing order");
-                            toCancel = false;
-                        }
-                    }
-                } else {
-                    log("   OrderSides are different - definitely canceling");
-                }
-                if (toCancel) {
-                    log("  need cancel existing order: " + m_order);
-                    error = m_account.cancelOrder(m_order);
-                    if (error == null) {
-                        m_order = null;
-                    } else {
-                        log("error in cancel order: " + error + "; " + m_order);
-                    }
-                }
-            }
-            if(error == null) {
-                boolean reprocess = false;
-                if (!m_closeOrders.isEmpty()) {
-                    boolean hadError = false;
-                    for(ListIterator<CloseOrderWrapper> iterator = m_closeOrders.listIterator(); iterator.hasNext(); ) {
-                        CloseOrderWrapper next = iterator.next();
-                        OrderData closeOrder = next.m_closeOrder;
-                        OrderSide closeOrderSide = closeOrder.m_side;
-                        if(closeOrderSide == needOrderSide) {
-                            log("  need cancel existing close order: " + closeOrder);
-                            error = m_account.cancelOrder(closeOrder);
-                            if (error == null) {
-                                iterator.remove();
-                            } else {
-                                // basically we may have no such order error here - when executed concurrently
-                                log("error canceling close order: " + error + "; " + m_order);
-                                hadError = true;
-                            }
-                        }
-                        reprocess = true;
-                    }
-                    if (hadError) {
-                        checkCloseOrdersState(null);
-                    }
-                }
-
-                if(!reprocess) {
+            boolean cancelAttempted = cancelOrderIfDirectionDiffers(needOrderSide, orderSizeRound);
+            if (!cancelAttempted) { // cancel attempt was not performed
+                cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
+                if (!cancelAttempted) { // cancel attempt was not performed
                     if (orderSizeRound >= minOrderToCreate) {
                         Currency currency = PAIR.currencyFrom(needOrderSide.isBuy());
                         log("  currency=" + currency + "; PAIR=" + PAIR);
@@ -467,16 +385,120 @@ public class Osc {
                             return State.ERROR;
                         }
                     } else {
-                        log("warning: small order to create: orderSizeRound=" + orderSizeRound);
+                        log("warning: small order to create: orderSizeRound=" + orderSizeRound + "; minOrderToCreate=" + minOrderToCreate);
                     }
                 } else {
                     log("some orders maybe closed - post recheck direction");
                     postRecheckDirection();
                 }
             } else {
-                log("ERROR: existing order was not cancelled - do not start new");
+                log("order cancel was attempted. time passed. posting recheck direction");
+                postRecheckDirection();
             }
-            return State.NONE;
+            return null;
+        }
+
+        private double calcOrderSizeFromDirection(int direction, Exchange exchange) {
+            double valuateBtc = m_account.evaluate(m_topsData, Currency.BTC, exchange);
+            double valuateCnh = m_account.evaluate(m_topsData, Currency.CNH, exchange);
+            log("  valuateBtc=" + valuateBtc + " BTC; valuateCnh=" + valuateCnh + " CNH");
+
+            int directionAdjusted = direction / PHASES;        // directionAdjusted  [-1 ... 1]
+            double needBuyBtc = directionAdjusted * valuateBtc;
+            double needSellCnh = directionAdjusted * valuateCnh;
+            log("  directionAdjusted=" + directionAdjusted + "; needBuyBtc=" + needBuyBtc + "; needSellCnh=" + needSellCnh);
+
+            log(" account=" + m_account);
+            double haveBtc = m_account.available(Currency.BTC);
+            double haveCnh = m_account.available(Currency.CNH);
+            log(" haveBtc=" + haveBtc + "; haveCnh=" + haveCnh);
+            double buyBtc;
+            if (needBuyBtc > 0) {
+                log("  will buy Btc:");
+                double canSellCnh = Math.min(needSellCnh, haveCnh);
+                double canBuyBtc = m_topsData.convert(Currency.CNH, Currency.BTC, canSellCnh, exchange);
+                log("   need to sell " + needSellCnh + " CNH; can Sell " + canSellCnh + " CNH; this will buy " + canBuyBtc + " BTC");
+                buyBtc = canBuyBtc;
+            } else if (needBuyBtc < 0) {
+                log("  will sell Btc:");
+                double needSellBtc = -needBuyBtc;
+                double canSellBtc = Math.min(needSellBtc, haveBtc);
+                double canBuyCnh = m_topsData.convert(Currency.BTC, Currency.CNH, canSellBtc, exchange);
+                log("   need to sell " + needSellBtc + " BTC; can Sell " + canSellBtc + " BTC; this will buy " + canBuyCnh + " CNH");
+                buyBtc = -canSellBtc;
+            } else {
+                log("  do not buy/sell anything");
+                buyBtc = 0;
+            }
+            return buyBtc;
+        }
+
+        private boolean cancelSameDirectionCloseOrders(OrderSide needOrderSide) throws Exception {
+            boolean reprocess = false;
+            if (!m_closeOrders.isEmpty()) {
+                log("  cancelSameDirectionCloseOrders...");
+                boolean hadError = false;
+                for (ListIterator<CloseOrderWrapper> iterator = m_closeOrders.listIterator(); iterator.hasNext(); ) {
+                    CloseOrderWrapper next = iterator.next();
+                    OrderData closeOrder = next.m_closeOrder;
+                    OrderSide closeOrderSide = closeOrder.m_side;
+                    log("  next closeOrder "+closeOrder);
+                    if (closeOrderSide == needOrderSide) {
+                        log("   need cancel existing close order: " + closeOrder);
+                        String error = m_account.cancelOrder(closeOrder);
+                        if (error == null) {
+                            iterator.remove();
+                        } else {
+                            // basically we may have no such order error here - when executed concurrently
+                            log("ERROR canceling close order: " + error + "; " + m_order);
+                            hadError = true;
+                        }
+                        reprocess = true;
+                    }
+                }
+                if (hadError) {
+                    checkCloseOrdersState(null);
+                }
+            }
+            return reprocess;
+        }
+
+        private boolean cancelOrderIfDirectionDiffers(OrderSide needOrderSide, double orderSizeRound) throws Exception {
+            boolean toCancel = false;
+            if (m_order != null) {
+                OrderSide haveOrderSide = m_order.m_side;
+                log("  we have existing order: needOrderSide=" + needOrderSide + "; haveOrderSide=" + haveOrderSide);
+                toCancel = true;
+                if (needOrderSide == haveOrderSide) {
+                    double remained = m_order.remained();
+                    log("   we have order: needOrderSize=" + orderSizeRound + "; haveOrderSize=" + remained);
+                    if (orderSizeRound != 0) {
+                        double orderSizeRatio = remained / orderSizeRound;
+                        log("    orderSizeRatio=" + orderSizeRatio);
+                        if ((orderSizeRatio < (1 + ORDER_SIZE_TOLERANCE)) && (orderSizeRatio > (1 - ORDER_SIZE_TOLERANCE))) {
+                            log("     order Sizes are very close - do not cancel existing order");
+                            toCancel = false;
+                        }
+                    }
+                } else {
+                    log("   OrderSides are different - definitely canceling (needOrderSide=" + needOrderSide + ", haveOrderSide=" + haveOrderSide + ")");
+                }
+                if (toCancel) {
+                    log("  need cancel existing order: " + m_order);
+                    String error = m_account.cancelOrder(m_order);
+                    if (error == null) {
+                        m_order = null;
+                    } else {
+                        log("ERROR in cancel order: " + error + "; " + m_order);
+                        // todo: orders/need account sync
+                        if (error.contains("Order does not exist")) {
+                            log("looks the order was already executed - need check live orders");
+                            checkLiveOrders();
+                        }
+                    }
+                }
+            }
+            return toCancel;
         }
 
         private boolean placeOrderToExchange(Exchange exchange, OrderData order) throws Exception {
@@ -565,8 +587,8 @@ public class Osc {
         }
 
         private State checkOrderState(IIterationContext.BaseIterationContext inContext) throws Exception {
-            if( m_order != null ) {
-                IIterationContext.BaseIterationContext iContext = (inContext == null ) ? getLiveOrdersContext() : inContext;
+            if (m_order != null) {
+                IIterationContext.BaseIterationContext iContext = (inContext == null) ? getLiveOrdersContext() : inContext;
 
                 Exchange exchange = m_ws.exchange();
                 m_order.checkState(iContext, exchange, m_account,
@@ -616,6 +638,34 @@ public class Osc {
             };
         }
 
+        private void onError() throws Exception {
+            log("onError() resetting...  -------------------------- ");
+            if (m_order != null) {
+                log("  we have existing order, will cancel: " + m_order);
+                String error = m_account.cancelOrder(m_order);
+                if (error == null) {
+                    m_order = null;
+                } else {
+                    log("error in cancel order: " + error + "; " + m_order);
+                    m_order = null;
+                }
+            }
+            if (!m_closeOrders.isEmpty()) {
+                log("  we have existing close orders, will cancel");
+                for (ListIterator<CloseOrderWrapper> iterator = m_closeOrders.listIterator(); iterator.hasNext(); ) {
+                    CloseOrderWrapper next = iterator.next();
+                    OrderData closeOrder = next.m_closeOrder;
+                    log("  need cancel existing close order: " + closeOrder);
+                    String error = m_account.cancelOrder(closeOrder);
+                    if (error != null) {
+                        log("error canceling close order: " + error + "; " + m_order);
+                    }
+                    iterator.remove();
+                }
+            }
+            initAccount();
+        }
+
         private static class OscOrderWatcher implements Runnable {
             private final LinkedList<IOrderTask> m_tasksQueue = new LinkedList<IOrderTask>();
             private Thread m_thread;
@@ -654,14 +704,11 @@ public class Osc {
                         IOrderTask task;
                         synchronized (m_tasksQueue) {
                             if (m_tasksQueue.isEmpty()) {
-//log("OscOrderWatcher.queue: empty queue, wait...");
                                 m_tasksQueue.wait();
-//log("OscOrderWatcher.queue: waked up");
                             }
                             task = m_tasksQueue.pollFirst();
                         }
                         if (task != null) {
-//log("OscOrderWatcher.queue: process task " + task);
                             task.process();
                         }
                     } catch (Exception e) {
@@ -715,7 +762,6 @@ public class Osc {
             }
 
             @Override public void process() throws Exception {
-//log("TradeTask.process() tData=" + m_tData);
                 gotTrade(m_tData);
             }
         }
@@ -730,7 +776,6 @@ public class Osc {
             }
 
             @Override public void process() {
-//log("TopTask.process()");
                 gotTop(m_buy, m_sell);
             }
         }
@@ -765,7 +810,14 @@ public class Osc {
 //                    log("State.ORDER.onTop(buy=" + buy + ", sell=" + sell + ") on " + this);
                     executor.processTop(buy, sell);
                 }
-            }, ERROR;
+            },
+            ERROR {
+                public OscExecutor.State onTrade(OscExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+                    log("State.ERROR.onTrade(tData=" + tData + ") on " + this);
+                    executor.onError();
+                    return NONE;
+                }
+            };
 
             public void onTop(OscExecutor executor, double buy, double sell) {
                 log("State.NONE.onTop(buy=" + buy + ", sell=" + sell + ") on " + this);
