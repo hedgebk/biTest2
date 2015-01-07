@@ -14,6 +14,12 @@ public class TopsData {
         put(pair, topData);
     }
 
+    public TopsData copy() {
+        TopsData ret = new TopsData();
+        ret.m_map.putAll(m_map);
+        return ret;
+    }
+
     public TopData get(Pair pair) {
         TopData topData = getInt(pair);
         if (topData == null) {

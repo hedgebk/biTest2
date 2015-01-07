@@ -116,7 +116,7 @@ public class HuobiWs extends BaseWs {
             }
 
             @Override public void on(String event, IOAcknowledge ack, Object... args) {
-                System.out.println("Server triggered event '" + event + "'; args=" + args);
+//                System.out.println("Server triggered event '" + event + "'; args=" + args);
                 try {
                     if (event.equals("message")) {
                         List<Object> array = Arrays.asList(args);
