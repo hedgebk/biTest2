@@ -203,7 +203,7 @@ public class HuobiWs extends BaseWs {
                         System.out.println("       [" + i + "] amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
 
                         if (m_tradesListener != null) {
-                            m_tradesListener.onTrade(new TradeData(amt, prc, timestamp, 0, null));
+                            m_tradesListener.onTrade(new TradeData(amt, prc, timestamp));
                         }
                         if (m_topListener != null) {
                             m_topListener.onTop(timestamp, bidPrc, askPrc);

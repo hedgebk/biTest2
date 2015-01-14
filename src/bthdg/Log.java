@@ -17,14 +17,27 @@ public class Log {
     }
 
     public static class StdLog implements ILog {
-        // synchronized -- do not mess 2 hreads outputs
+        // synchronized -- do not mess 2 threads outputs
         @Override public synchronized void log(String s) {
             System.out.println(s);
         }
 
-        // synchronized -- do not mess 2 hreads outputs
+        // synchronized -- do not mess 2 threads outputs
         @Override public synchronized void err(String s, Exception err) {
             System.out.println(s);
+            err.printStackTrace();
+        }
+    }
+
+    public static class TimestampLog implements ILog {
+        // synchronized -- do not mess 2 threads outputs
+        @Override public synchronized void log(String s) {
+            System.out.println(System.currentTimeMillis() + ": " + s);
+        }
+
+        // synchronized -- do not mess 2 threads outputs
+        @Override public synchronized void err(String s, Exception err) {
+            System.out.println(System.currentTimeMillis() + ": " + s);
             err.printStackTrace();
         }
     }

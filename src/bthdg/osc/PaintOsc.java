@@ -6,11 +6,8 @@ import bthdg.exch.Exchange;
 import bthdg.exch.OrderSide;
 import bthdg.util.Utils;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -122,16 +119,11 @@ public class PaintOsc extends BaseChartPaint {
         ChartAxe timeAxe = new PaintChart.ChartAxe(minBarTimestamp, maxBarTimestamp, WIDTH);
         ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT);
         PaintChart.ChartAxe oscAxe = new PaintChart.ChartAxe(0, 1, HEIGHT);
-        String timePpStr = "time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale);
-        System.out.println(timePpStr);
+        System.out.println("time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale));
 
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage./*TYPE_USHORT_565_RGB*/ TYPE_INT_ARGB );
         Graphics2D g = image.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
-        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON );
-        g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY );
+        setupGraphics(g);
 
         if(PAINT) {
             g.setPaint(new Color(250, 250, 250));
@@ -190,15 +182,7 @@ public class PaintOsc extends BaseChartPaint {
         g.dispose();
 
         if (PAINT) {
-            try {
-                long millis = System.currentTimeMillis();
-                File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
-                ImageIO.write(image, "png", output);
-                System.out.println("write done in " + Utils.millisToDHMSStr(System.currentTimeMillis() - millis));
-                Desktop.getDesktop().open(output);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            writeAndShowImage(image);
         }
     }
 

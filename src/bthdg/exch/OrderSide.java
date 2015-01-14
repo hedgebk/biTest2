@@ -88,7 +88,7 @@ public enum OrderSide {
             return null;
         }
         for (OrderSide orderSide : values()) {
-            if (orderSide.m_name.equals(str)) {
+            if (orderSide.m_name.equalsIgnoreCase(str)) {
                 return orderSide;
             }
         }

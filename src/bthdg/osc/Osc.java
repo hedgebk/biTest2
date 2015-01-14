@@ -37,6 +37,8 @@ public class Osc {
     private Processor m_processor;
 
     public Osc(String[] args) {
+        Log.s_impl = new Log.TimestampLog();
+
         if(args.length > 0) {
             m_e = args[0];
         } else {
@@ -223,7 +225,7 @@ public class Osc {
         private void init() {
             if (!m_initialized) {
                 log("not initialized - added InitTask to queue");
-                getOrderWatcher().addTask(new InitTask());
+                addTask(new InitTask());
                 m_initialized = true;
             }
         }
@@ -250,7 +252,7 @@ public class Osc {
                     m_topsData.put(PAIR, topData);
                     log(" topsData'=" + m_topsData);
 
-                    getOrderWatcher().addTask(new TopTask(), TopTask.class);
+                    addTask(new TopTask());
                 }
             });
         }
@@ -367,10 +369,6 @@ public class Osc {
             log("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}");
         }
 
-        private void postRecheckDirection() {
-            getOrderWatcher().addTask(new RecheckDirectionTask(), RecheckDirectionTask.class);
-        }
-
         private OscOrderWatcher getOrderWatcher() {
             if (m_orderWatcher == null) {
                 m_orderWatcher = new OscOrderWatcher();
@@ -378,12 +376,20 @@ public class Osc {
             return m_orderWatcher;
         }
 
+        private void addTask(IOrderTask task) {
+            getOrderWatcher().addTask(task);
+        }
+
+        private void postRecheckDirection() {
+            addTask(new RecheckDirectionTask());
+        }
+
         public void onTrade(TradeData tData) {
-            getOrderWatcher().addTask(new TradeTask(tData));
+            addTask(new TradeTask(tData));
         }
 
         private State processDirection() throws Exception {
-            log("processDirection() m_direction=" + m_direction + ")");
+            log("processDirection() direction=" + m_direction + ")");
 
             double directionAdjusted = ((double)m_direction) / PHASES;        // directionAdjusted  [-1 ... 1]
             if ((directionAdjusted < -1) || (directionAdjusted > 1)) {
@@ -542,23 +548,24 @@ public class Osc {
             log("cancelOrderIfDirectionDiffers() needOrderSide=" + needOrderSide + "; needOrderSize=" + needOrderSize + "; order=" + m_order);
             boolean cancelAttempted = false;
             if (m_order != null) {
-                OrderSide haveOrderSide = m_order.m_side;
-                log("  we have existing order: needOrderSide=" + needOrderSide + "; haveOrderSide=" + haveOrderSide);
-                boolean cancelOrder = true;
-                if (needOrderSide == haveOrderSide) {
-                    double remained = m_order.remained();
-                    log("   same order sides: we have order: needOrderSize=" + needOrderSize + "; remainedOrderSize=" + remained);
-                    if (needOrderSize > 0) {
-                        double orderSizeRatio = remained / needOrderSize;
-                        log("    orderSizeRatio=" + orderSizeRatio);
-                        if ((orderSizeRatio < (1 + ORDER_SIZE_TOLERANCE)) && (orderSizeRatio > (1 - ORDER_SIZE_TOLERANCE))) {
-                            log("     order Sizes are very close - do not cancel existing order");
-                            cancelOrder = false;
-                        }
-                    }
-                } else {
-                    log("   OrderSides are different - definitely canceling (needOrderSide=" + needOrderSide + ", haveOrderSide=" + haveOrderSide + ")");
-                }
+                boolean cancelOrder = (needOrderSize > 0);
+//                boolean cancelOrder = true;
+//                OrderSide haveOrderSide = m_order.m_side;
+//                log("  we have existing order: needOrderSide=" + needOrderSide + "; haveOrderSide=" + haveOrderSide);
+//                if (needOrderSide == haveOrderSide) {
+//                    double remained = m_order.remained();
+//                    log("   same order sides: we have order: needOrderSize=" + needOrderSize + "; remainedOrderSize=" + remained);
+//                    if (needOrderSize > 0) {
+//                        double orderSizeRatio = remained / needOrderSize;
+//                        log("    orderSizeRatio=" + orderSizeRatio);
+//                        if ((orderSizeRatio < (1 + ORDER_SIZE_TOLERANCE)) && (orderSizeRatio > (1 - ORDER_SIZE_TOLERANCE))) {
+//                            log("     order Sizes are very close - do not cancel existing order");
+//                            cancelOrder = false;
+//                        }
+//                    }
+//                } else {
+//                    log("   OrderSides are different - definitely canceling (needOrderSide=" + needOrderSide + ", haveOrderSide=" + haveOrderSide + ")");
+//                }
                 if (cancelOrder) {
                     log("  need cancel existing order: " + m_order);
                     String error = m_account.cancelOrder(m_order);
@@ -710,7 +717,7 @@ public class Osc {
                 /// bid   90 will buy
                 if ((isBuy && (m_sell <= orderPrice)) || (!isBuy && (m_buy >= orderPrice))) {
                     log("  MKT price [buy=" + m_buy + "; sell=" + m_sell + "] is crossed the order " + m_order.m_side + "@" + orderPrice + " - starting CheckLiveOrdersTask");
-                    getOrderWatcher().addTask(new CheckLiveOrdersTask(), CheckLiveOrdersTask.class);
+                    addTask(new CheckLiveOrdersTask());
                 }
             }
         }
@@ -810,20 +817,15 @@ public class Osc {
             private boolean m_run = true;
 
             public void addTask(IOrderTask task) {
-                addTask(task, null);
-            }
-
-            public void addTask(IOrderTask task, Class toRemove) {
                 synchronized (m_tasksQueue) {
-                    if (toRemove != null) {
-                        for (ListIterator<IOrderTask> listIterator = m_tasksQueue.listIterator(); listIterator.hasNext(); ) {
-                            IOrderTask nextTask = listIterator.next();
-                            if (toRemove.isInstance(nextTask)) {
+                    for (ListIterator<IOrderTask> listIterator = m_tasksQueue.listIterator(); listIterator.hasNext(); ) {
+                        IOrderTask nextTask = listIterator.next();
+                        if (task.isDuplicate(nextTask)) {
 //                                log("OscOrderWatcher.queue: found existing task to remove of class " + toRemove);
-                                listIterator.remove();
-                            }
+                            listIterator.remove();
                         }
                     }
+
                     m_tasksQueue.addLast(task);
 //log("OscOrderWatcher.queue: task added " + task + "; notify...");
                     m_tasksQueue.notify();
@@ -859,9 +861,14 @@ public class Osc {
 
         private interface IOrderTask {
             void process() throws Exception;
+            boolean isDuplicate(IOrderTask other);
         }
 
-        private class RecheckDirectionTask implements IOrderTask {
+        private abstract class BaseOrderTask implements IOrderTask {
+            @Override public final boolean isDuplicate(IOrderTask other) { return true; } // single presence in queue task
+        }
+
+        private class RecheckDirectionTask extends BaseOrderTask {
             public RecheckDirectionTask() {}
 
             @Override public void process() throws Exception {
@@ -870,7 +877,7 @@ public class Osc {
             }
         }
 
-        private class CheckLiveOrdersTask implements IOrderTask {
+        private class CheckLiveOrdersTask extends BaseOrderTask {
             public CheckLiveOrdersTask() {}
 
             @Override public void process() throws Exception {
@@ -886,12 +893,24 @@ public class Osc {
                 m_tData = tData;
             }
 
+            @Override public boolean isDuplicate(IOrderTask other) {
+                if (other instanceof TradeTask) {
+                    TradeTask tradeTask = (TradeTask) other;
+                    double price = m_tData.m_price;
+                    if (tradeTask.m_tData.m_price == price) {
+                        log("skip same price TradeTask. price="+price);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             @Override public void process() throws Exception {
                 gotTrade(m_tData);
             }
         }
 
-        private class TopTask implements IOrderTask {
+        private class TopTask extends BaseOrderTask {
             public TopTask() {}
 
             @Override public void process() throws Exception {
@@ -902,6 +921,7 @@ public class Osc {
         private class InitTask implements IOrderTask {
             public InitTask() {}
 
+            @Override public boolean isDuplicate(IOrderTask other) { return false; }
             @Override public void process() throws Exception {
                 log("InitTask.process()");
                 initImpl();
