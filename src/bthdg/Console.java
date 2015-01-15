@@ -313,15 +313,27 @@ public class Console {
     }
 
     private static void doOrder(String line) throws Exception {
-        // order [buy|sell] 0.1 eur for btc [@|at] [11.5|mkt|peg]
+        // order [on btcn|okcoin] [buy|sell] [0.1|100%] eur for btc [@|at] [11.5|mkt|mkt-5|mkt|peg]{!}
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
         if(tokensNum >= 8) {
             String t1 = tok.nextToken();
-            String sideStr = tok.nextToken();
+            String token = tok.nextToken();
+            List<Exchange> exchanges = new ArrayList<Exchange>();
+            if (token.equals("on")) {
+                String exchangesStr = tok.nextToken();
+                if(parseExchanges(exchangesStr, exchanges)) {
+                    return;
+                }
+                token = tok.nextToken();
+            } else {
+                exchanges.add(s_exchange);
+            }
+            Exchange exchange = exchanges.get(0);
+
+            String sideStr = token;
             OrderSide side = OrderSide.getByName(sideStr);
             String amountStr = tok.nextToken();
-            double amount = Double.parseDouble(amountStr);
             String to = tok.nextToken();
             Currency toCurrency = Currency.getByName(to);
             String sep1 = tok.nextToken();
@@ -339,58 +351,118 @@ public class Console {
                 String sep2 = tok.nextToken();
                 if(sep2.equals("@") || sep2.equals("at")) {
                     String priceStr = tok.nextToken();
-                    System.out.println(" order: side=" + side + "; amount=" + amount + "; fromCurrency=" + fromCurrency +
+                    System.out.println(" order: side=" + side + "; amount=" + amountStr + "; fromCurrency=" + fromCurrency +
                             "; toCurrency=" + toCurrency + "; priceStr=" + priceStr + "; pair=" + pd);
-                    double limitPrice;
-                    if (priceStr.equals("mkt")) { // place mkt
-                        TopData top = Fetcher.fetchTop(s_exchange, pair);
-                        limitPrice = side.mktPrice(top);
-                    } else if (priceStr.startsWith("mkt-")) { // place mkt  minus x%
-                        double perc = Double.parseDouble(priceStr.substring(4));
-                        TopData top = Fetcher.fetchTop(s_exchange, pair);
-                        double dif = top.m_ask - top.m_bid;
-                        double offset = dif * perc/100;
-                        limitPrice = side.isBuy() ? top.m_ask - offset : top.m_bid + offset;
-                        limitPrice = s_exchange.roundPrice(limitPrice, pair);
-                        System.out.println(" bid="+s_exchange.roundPriceStr(top.m_bid, pair) +
-                                           ", ask="+s_exchange.roundPriceStr(top.m_bid, pair) +
-                                           ", limit="+s_exchange.roundPriceStr(limitPrice, pair));
-                    } else if (priceStr.equals("peg")) { // place peg
-                        TopData top = Fetcher.fetchTop(s_exchange, pair);
-                        double step = s_exchange.minOurPriceStep(pair);
-                        double exchStep = s_exchange.minExchPriceStep(pair);
-                        limitPrice = side.pegPrice(top, step, exchStep);
-                    } else if (priceStr.equals("mid")) { // place mid
-                        TopData top = Fetcher.fetchTop(s_exchange, pair);
-                        limitPrice = top.getMid();
-                        limitPrice = s_exchange.roundPrice(limitPrice, pair);
+                    boolean noPriceConfirm = false;
+                    if (priceStr.endsWith("!")) {
+                        noPriceConfirm = true;
+                        priceStr = priceStr.substring(0, priceStr.length() - 1);
                     } else {
-                        limitPrice = Double.parseDouble(priceStr);
-                    }
-
-                    if(!forward) {
-                        amount = amount/limitPrice;
-                    }
-
-                    OrderData orderData = new OrderData(pair, side, limitPrice, amount);
-                    System.out.println("confirm orderData=" + orderData);
-                    if(confirm()) {
-                        TopData top = Fetcher.fetchTop(s_exchange, pair);
-                        if (confirmLmtPrice(limitPrice, top)) {
-                            PlaceOrderData poData = Fetcher.placeOrder(orderData, s_exchange);
-                            System.out.println("order place result: " + poData);
-                        } else {
-                            System.out.println(" limit price not confirmed");
+                        if(exchanges.size() > 1) {
+                            System.err.println("ERROR: only auto-confirmed orders can be placed at multiple exchanges at once");
                         }
-                    } else {
-                        System.out.println(" orderData not confirmed");
                     }
-
+                    placeOrder(exchange, side, amountStr, pair, forward, priceStr, noPriceConfirm);
                     return;
                 }
             }
         }
-        System.err.println("invalid 'order' command: use followed format: order [buy|sell] 0.1 eur for btc @ [11.5|mkt|peg]");
+        System.err.println("invalid 'order' command: use followed format: order [on btcn|okcoin] [buy|sell] [0.1|100%] eur for btc [@|at] [11.5|mkt|mkt-5|mkt|peg]{!}");
+    }
+
+    private static boolean parseExchanges(String exchangesStr, List<Exchange> exchanges) {
+        String[] split = exchangesStr.split("\\|");
+        for (String ex : split) {
+            String exchName = ex.toUpperCase();
+            List<Exchange> resolved = Exchange.resolveExchange(exchName);
+            int num = resolved.size();
+            if (num > 1) {
+                System.err.println("ERROR: multiple exchanges contain '" + exchName + "' : " + resolved);
+                return true;
+            } else if (num == 1) {
+                Exchange exchange = resolved.get(0);
+                String name = exchange.name();
+                if (!name.equalsIgnoreCase(ex)) {
+                    System.err.println("exchange '" + ex + "' resolved to '" + name + "'");
+                }
+                exchanges.add(exchange);
+            } else {
+                System.err.println("ERROR: no exchanges resolved for '" + ex + "'. supported: " + Arrays.asList(Exchange.values()));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void placeOrder(Exchange exchange, OrderSide side, String amountStr, Pair pair, boolean forward, String priceStr, boolean noPriceConfirm) throws Exception {
+        double amount;
+        if (amountStr.endsWith("%")) {
+            System.out.println("% size specified - fetching account...");
+            AccountData account = Fetcher.fetchAccount(exchange);
+            System.out.println("account=" + account);
+            Currency currency = pair.currencyFrom(!forward);
+            System.out.println("pair=" + pair + "; forward=" + forward + " -> currency=" + currency);
+            double available = account.available(currency);
+            System.out.println("available=" + available);
+            double percent = Double.parseDouble(amountStr.substring(0, amountStr.length() - 1));
+            amount = percent * available / 100.0;
+        } else {
+            amount = Double.parseDouble(amountStr);
+        }
+
+        TopData top = null;
+        double limitPrice;
+        if (priceStr.equals("mkt")) { // place mkt
+            top = Fetcher.fetchTop(exchange, pair);
+            limitPrice = side.mktPrice(top);
+        } else if (priceStr.startsWith("mkt-")) { // place mkt  minus x%
+            double perc = Double.parseDouble(priceStr.substring(4));
+            top = Fetcher.fetchTop(exchange, pair);
+            double dif = top.m_ask - top.m_bid;
+            double offset = dif * perc / 100;
+            limitPrice = side.isBuy() ? top.m_ask - offset : top.m_bid + offset;
+            limitPrice = exchange.roundPrice(limitPrice, pair);
+            System.out.println(" bid=" + exchange.roundPriceStr(top.m_bid, pair) +
+                    ", ask=" + exchange.roundPriceStr(top.m_ask, pair) +
+                    ", dif=" + exchange.roundPriceStr(dif, pair) +
+                    ", offset=" + exchange.roundPriceStr(offset, pair) +
+                    " -> limit=" + exchange.roundPriceStr(limitPrice, pair));
+        } else if (priceStr.equals("peg")) { // place peg
+            top = Fetcher.fetchTop(exchange, pair);
+            double step = exchange.minOurPriceStep(pair);
+            double exchStep = exchange.minExchPriceStep(pair);
+            limitPrice = side.pegPrice(top, step, exchStep);
+        } else if (priceStr.equals("mid")) { // place mid
+            top = Fetcher.fetchTop(exchange, pair);
+            limitPrice = top.getMid();
+            limitPrice = exchange.roundPrice(limitPrice, pair);
+        } else {
+            limitPrice = Double.parseDouble(priceStr);
+        }
+
+        if (!forward) {
+            amount = amount / limitPrice;
+        }
+
+        OrderData orderData = new OrderData(pair, side, limitPrice, amount);
+        if (noPriceConfirm) {
+            System.out.println("auto-confirmed order=" + orderData);
+        } else {
+            System.out.println("confirm orderData=" + orderData);
+        }
+        if (noPriceConfirm || confirm()) {
+            if ((top == null) || !noPriceConfirm) {
+                top = Fetcher.fetchTop(exchange, pair);
+            }
+            if (noPriceConfirm || confirmLmtPrice(limitPrice, top)) {
+                PlaceOrderData poData = Fetcher.placeOrder(orderData, exchange);
+                System.out.println("order place result: " + poData);
+            } else {
+                System.out.println(" limit price not confirmed");
+            }
+        } else {
+            System.out.println(" orderData not confirmed");
+        }
     }
 
     private static boolean confirmLmtPrice(double limitPrice, TopData top) throws IOException {
