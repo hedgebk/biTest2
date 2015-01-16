@@ -14,12 +14,12 @@ import java.math.RoundingMode;
 import java.util.*;
 
 public class Osc {
-    private static final long BAR_SIZE = Utils.toMillis("20s");
+    private static final long BAR_SIZE = Utils.toMillis("60s");
     public static final int LEN1 = 14;
     public static final int LEN2 = 14;
     public static final int K = 3;
     public static final int D = 3;
-    public static final int PHASES = 2;
+    public static final int PHASES = 4;
     public static final int PREHEAT_BARS_NUM = LEN1 + LEN2 + (K - 1) + (D - 1);
     public static final int INIT_BARS_BEFORE = 4;
     public static final double START_LEVEL = 0.01;
@@ -575,12 +575,10 @@ public class Osc {
                         m_order = null;
                     } else {
                         log("ERROR in cancel order: " + error + "; " + m_order);
-                        // todo: orders/need account sync
-                        if (error.contains("Order does not exist")) {
-                            log("looks the order was already executed - need check live orders");
-                            checkLiveOrders();
-                        }
+                        // the can be already executed (partially)
+                        checkLiveOrders();
                     }
+                    initAccount();
                 }
             }
             return cancelAttempted;
