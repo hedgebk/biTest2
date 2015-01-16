@@ -17,17 +17,25 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OscLogProcessor extends BaseChartPaint {
-    private static final String LOG_FILE = "osc.O.log";
-    private static final int WIDTH = 3000;
-    public static final int HEIGHT = 800;
+    private static final String LOG_FILE = "osc.H.log";
+    private static final int WIDTH = 8000;
+    public static final int HEIGHT = 900;
     public static final int X_FACTOR = 1; // more points
+    public static final int DIRECTION_MARK_RADIUS = 40;
 
     private static final Pattern TRADE_PATTERN = Pattern.compile("(\\d+): State.onTrade\\(tData=TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+).+");
     private static final Pattern DIRECTION_ADJUSTED_PATTERN = Pattern.compile("(\\d+):   directionAdjusted=([\\+\\-]?\\d+\\.\\d+);.*");
+    private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=.*, price=(\\d+\\.\\d+),.*");
+    private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
+
     private static final List<TradeData> m_trades = new ArrayList<TradeData>();
     private static HashMap<Long, Double> m_directions = new HashMap<Long, Double>();
+    private static HashMap<Long, Double> m_directionsBasePrice = new HashMap<Long, Double>();
     private static HashMap<Long, Double> m_placeOrdersPrice = new HashMap<Long, Double>();
     private static HashMap<Long, OrderSide> m_placeOrdersSide = new HashMap<Long, OrderSide>();
+    private static HashMap<Long, Double> m_bidPrice = new HashMap<Long, Double>();
+    private static HashMap<Long, Double> m_askPrice = new HashMap<Long, Double>();
+    private static Double m_lastMidPrice;
 
     public static void main(String[] args) {
         try {
@@ -102,11 +110,26 @@ public class OscLogProcessor extends BaseChartPaint {
         // paint time axe labels
         paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
-        paintDirections(timeAxe, g);
+        paintDirections(priceAxe, timeAxe, g);
+        paintTops(priceAxe, timeAxe, g);
         paintTrades(priceAxe, timeAxe, g);
         paintPlaceOrder(priceAxe, timeAxe, g);
 
         writeAndShowImage(image);
+    }
+
+    private static void paintTops(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        g.setPaint(Color.black);
+        for (Map.Entry<Long, Double> entry : m_bidPrice.entrySet()) {
+            Long stamp = entry.getKey();
+            Double bidPrice = entry.getValue();
+            Double askPrice = m_askPrice.get(stamp);
+            int x = timeAxe.getPoint(stamp);
+            int y1 = priceAxe.getPointReverse(bidPrice);
+            int y2 = priceAxe.getPointReverse(askPrice);
+            g.drawLine(x, y1, x, y1);
+            g.drawLine(x, y2, x, y2);
+        }
     }
 
     private static void paintPlaceOrder(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
@@ -121,25 +144,29 @@ public class OscLogProcessor extends BaseChartPaint {
         }
     }
 
-    private static void paintDirections(ChartAxe timeAxe, Graphics2D g) {
-        for (Map.Entry<Long, Double> entry: m_directions.entrySet()) {
+    private static void paintDirections(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        for (Map.Entry<Long, Double> entry : m_directions.entrySet()) {
             Long stamp = entry.getKey();
             Double direction = entry.getValue();
+            Double basePrice = m_directionsBasePrice.get(stamp);
             int x = timeAxe.getPoint(stamp);
+            int y = priceAxe.getPointReverse(basePrice);
             g.setPaint(Color.lightGray);
-            g.drawLine(x, 0, x, HEIGHT);
-            if( direction > 0 ) {
+            g.drawLine(x, y - DIRECTION_MARK_RADIUS, x, y + DIRECTION_MARK_RADIUS);
+            if (direction > 0) {
                 g.setPaint(Color.green);
-                g.drawLine(x, (int) (HEIGHT - direction*(HEIGHT/2)), x, HEIGHT);
-            } else {
+                g.drawLine(x, y, x, y - (int) (DIRECTION_MARK_RADIUS * direction));
+            } else if (direction < 0) {
                 g.setPaint(Color.red);
-                g.drawLine(x, (int) (- direction*(HEIGHT/2)), x, 0);
+                g.drawLine(x, y, x, y - (int) (DIRECTION_MARK_RADIUS * direction));
+//            } else {
+//                g.drawLine(x, y - 30, x, y + 30);
             }
         }
     }
 
     private static void paintTrades(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        g.setPaint(Color.red);
+        g.setPaint(Color.blue);
         for (TradeData trade: m_trades) {
             double price = trade.m_price;
             int y = priceAxe.getPointReverse(price);
@@ -156,12 +183,31 @@ public class OscLogProcessor extends BaseChartPaint {
             processDirectionLine(line, blr);
         } else if(line.contains(":    orderData=OrderData{status=NEW,")) { // 1421193272478:    orderData=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.08500, price=1347.99000, state=NONE, filled=0.00000}
             processPlaceOrderLine(line, blr);
+        } else if(line.contains(":  topsData'=TopsData[")) { // 1421196514606:  topsData'=TopsData[BTC_CNH=Top{bid=1,326.2100, ask=1,326.2400, last=0.0000}; }
+            processTopDataLine(line, blr);
         } else {
             System.out.println("-------- skip line: " + line);
         }
     }
 
-    private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=.*, price=(\\d+\\.\\d+),.*");
+    private static void processTopDataLine(String line1, BufferedLineReader blr) {
+        // 1421196514606:  topsData'=TopsData[BTC_CNH=Top{bid=1,326.2100, ask=1,326.2400, last=0.0000}; }
+        Matcher matcher = TOP_DATA_PATTERN.matcher(line1);
+        if(matcher.matches()) {
+            String millisStr = matcher.group(1);
+            String bidStr = matcher.group(2);
+            String askStr = matcher.group(3);
+            System.out.println("GOT TOP_DATA: millisStr=" + millisStr + "; bidStr=" + bidStr + "; askStr=" + askStr);
+            long millis = Long.parseLong(millisStr);
+            double bid = Double.parseDouble(bidStr.replace(",", ""));
+            double ask = Double.parseDouble(askStr.replace(",",""));
+            m_bidPrice.put(millis, bid);
+            m_askPrice.put(millis, ask);
+            m_lastMidPrice = (bid+ask)/2;
+        } else {
+            throw new RuntimeException("not matched TOP_DATA_PATTERN line: " + line1);
+        }
+    }
 
     private static void processPlaceOrderLine(String line1, BufferedLineReader blr) {
         // 1421193272478:    orderData=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.08500, price=1347.99000, state=NONE, filled=0.00000}
@@ -195,6 +241,7 @@ public class OscLogProcessor extends BaseChartPaint {
                 long millis = Long.parseLong(millisStr);
                 double directionAdjusted = Double.parseDouble(directionAdjustedStr);
                 m_directions.put(millis, directionAdjusted);
+                m_directionsBasePrice.put(millis, m_lastMidPrice);
             } else {
                 throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
             }
@@ -230,7 +277,7 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static class BufferedLineReader {
-        public static final int MAX_BUFFER_LINES = 1000;
+//        public static final int MAX_BUFFER_LINES = 1000;
         private final BufferedReader m_bis;
         private final ArrayList<String> m_buffer = new ArrayList<String>();
         private int index = 0;
@@ -247,9 +294,9 @@ public class OscLogProcessor extends BaseChartPaint {
             if(index < m_buffer.size()) {
                 return m_buffer.get(index++);
             }
-            if(index > MAX_BUFFER_LINES) {
-                throw new RuntimeException("max buffer lines reached");
-            }
+//            if(index > MAX_BUFFER_LINES) {
+//                throw new RuntimeException("max buffer lines reached");
+//            }
             return readLine();
         }
 
