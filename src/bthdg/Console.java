@@ -9,6 +9,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** support CANCEL ALL */
 public class Console {
@@ -109,11 +111,16 @@ public class Console {
                 if(pairName.equals("all")) {
                     od = fetchAllOrders();
                 } else {
-                    Pair pair = Pair.resolvePair(pairName, s_exchange);
-                    if (pair == null) {
+                    List<Pair> pairs = Pair.guessPair(pairName, s_exchange);
+                    if (pairs.isEmpty()) {
                         System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
                     } else {
-                        od = Fetcher.fetchOrders(s_exchange, pair);
+                        if(pairs.size()==1) {
+                            Pair pair = pairs.get(0);
+                            od = Fetcher.fetchOrders(s_exchange, pair);
+                        } else {
+                            System.out.println("ambiguous pair name: pair '" + pairs + "'. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                        }
                     }
                 }
             } else {
@@ -329,11 +336,10 @@ public class Console {
             } else {
                 exchanges.add(s_exchange);
             }
-            Exchange exchange = exchanges.get(0);
 
             String sideStr = token;
             OrderSide side = OrderSide.getByName(sideStr);
-            String amountStr = tok.nextToken();
+            final String amountStr = tok.nextToken();
             String to = tok.nextToken();
             Currency toCurrency = Currency.getByName(to);
             String sep1 = tok.nextToken();
@@ -353,16 +359,33 @@ public class Console {
                     String priceStr = tok.nextToken();
                     System.out.println(" order: side=" + side + "; amount=" + amountStr + "; fromCurrency=" + fromCurrency +
                             "; toCurrency=" + toCurrency + "; priceStr=" + priceStr + "; pair=" + pd);
-                    boolean noPriceConfirm = false;
+                    boolean noPriceConfirm;
+                    int exchangesNum = exchanges.size();
                     if (priceStr.endsWith("!")) {
                         noPriceConfirm = true;
                         priceStr = priceStr.substring(0, priceStr.length() - 1);
                     } else {
-                        if(exchanges.size() > 1) {
+                        noPriceConfirm = false;
+                        if(exchangesNum > 1) {
                             System.err.println("ERROR: only auto-confirmed orders can be placed at multiple exchanges at once");
+                            return;
                         }
                     }
-                    placeOrder(exchange, side, amountStr, pair, forward, priceStr, noPriceConfirm);
+                    final AtomicBoolean flag = new AtomicBoolean();
+                    final AtomicInteger counter = new AtomicInteger(exchangesNum);
+                    for(final Exchange exchange: exchanges) {
+                        new PlaceOrderThread(exchange, side, amountStr, pair, forward, priceStr, noPriceConfirm, exchangesNum, counter, flag).start();
+                    }
+                    synchronized (flag) {
+                        boolean completed = flag.get();
+                        if(!completed) {
+System.out.println("waiting until all orders done...");
+                            flag.wait();
+System.out.println("waiting all orders done...");
+                        } else {
+System.out.println("all orders done...");
+                        }
+                    }
                     return;
                 }
             }
@@ -487,4 +510,52 @@ public class Console {
         return false;
     }
 
+    private static class PlaceOrderThread extends Thread {
+        private final Exchange m_exchange;
+        private final OrderSide m_finalSide;
+        private final String m_amountStr;
+        private final Pair m_pair;
+        private final boolean m_forward;
+        private final String m_finalPriceStr;
+        private final boolean m_noPriceConfirm;
+        private final int m_exchNum;
+        private final AtomicInteger m_counter;
+        private final AtomicBoolean m_flag;
+
+        public PlaceOrderThread(Exchange exchange, OrderSide finalSide, String amountStr, Pair pair, boolean forward, String finalPriceStr,
+                                boolean noPriceConfirm, int exchangesNum, AtomicInteger counter, AtomicBoolean flag) {
+            m_exchange = exchange;
+            m_finalSide = finalSide;
+            m_amountStr = amountStr;
+            m_pair = pair;
+            m_forward = forward;
+            m_finalPriceStr = finalPriceStr;
+            m_noPriceConfirm = noPriceConfirm;
+            m_exchNum = exchangesNum;
+            m_counter = counter;
+            m_flag = flag;
+        }
+
+        @Override public void run() {
+            setName("placeOrder-" + m_exchange.m_name);
+            try {
+                placeOrder(m_exchange, m_finalSide, m_amountStr, m_pair, m_forward, m_finalPriceStr, m_noPriceConfirm);
+            } catch (Exception e) {
+                System.err.println("ERROR placing order: " + e);
+                e.printStackTrace();
+            }
+            synchronized (m_counter) {
+                int more = m_counter.decrementAndGet();
+                if (more > 0) {
+                    System.out.println("more " + more + " order(s) to wait");
+                } else {
+                    System.out.println("all " + m_exchNum + " orders done");
+                    synchronized (m_flag) {
+                        m_flag.set(true);
+                        m_flag.notify();
+                    }
+                }
+            }
+        }
+    }
 }

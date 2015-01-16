@@ -287,6 +287,7 @@ public enum Exchange {
         for (Exchange exchange : Exchange.values()) {
             String name = exchange.name();
             if (name.equalsIgnoreCase(exchName)) {
+                startsWith.clear();
                 startsWith.add(exchange);
                 return startsWith;
             }

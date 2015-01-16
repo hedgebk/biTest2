@@ -1,5 +1,8 @@
 package bthdg.exch;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public enum Pair {
     ALL(0, null, null), // special holder
     LTC_USD(1, Currency.LTC, Currency.USD),
@@ -81,6 +84,23 @@ public enum Pair {
             }
         }
         return null;
+    }
+
+    public static List<Pair> guessPair(String pairName, Exchange exchange) {
+        List<Pair> startsWith = new ArrayList<Pair>();
+        Pair[] pairs = exchange.supportedPairs();
+        for (Pair pair : pairs) {
+            String name = pair.name();
+            if (name.equalsIgnoreCase(pairName)) {
+                startsWith.clear();
+                startsWith.add(pair);
+                return startsWith;
+            }
+            if (name.toLowerCase().contains(pairName)) {
+                startsWith.add(pair);
+            }
+        }
+    return startsWith;
     }
 
     public double getFee(AccountData account, Exchange exchange) {
