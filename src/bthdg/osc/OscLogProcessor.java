@@ -9,33 +9,37 @@ import bthdg.util.Utils;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OscLogProcessor extends BaseChartPaint {
-    private static final String LOG_FILE = "osc.H.log";
-    private static final int WIDTH = 8000;
-    public static final int HEIGHT = 900;
+    private static final String LOG_FILE = "osc.H5.log";
+    private static final int WIDTH = 20000;
+    public static final int HEIGHT = 1000;
     public static final int X_FACTOR = 1; // more points
-    public static final int DIRECTION_MARK_RADIUS = 40;
+    public static final int DIRECTION_MARK_RADIUS = 45;
+    private static final int OSCS_RADIUS = DIRECTION_MARK_RADIUS * 4;
+    private static final int OSCS_OFFSET = DIRECTION_MARK_RADIUS * 2;
+    public static final long AVG_PRICE_TIME = Utils.toMillis(20, 0);
 
     private static final Pattern TRADE_PATTERN = Pattern.compile("(\\d+): State.onTrade\\(tData=TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+).+");
     private static final Pattern DIRECTION_ADJUSTED_PATTERN = Pattern.compile("(\\d+):   directionAdjusted=([\\+\\-]?\\d+\\.\\d+);.*");
     private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=.*, price=(\\d+\\.\\d+),.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
+    private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
 
-    private static final List<TradeData> m_trades = new ArrayList<TradeData>();
-    private static HashMap<Long, Double> m_directions = new HashMap<Long, Double>();
-    private static HashMap<Long, Double> m_directionsBasePrice = new HashMap<Long, Double>();
-    private static HashMap<Long, Double> m_placeOrdersPrice = new HashMap<Long, Double>();
-    private static HashMap<Long, OrderSide> m_placeOrdersSide = new HashMap<Long, OrderSide>();
-    private static HashMap<Long, Double> m_bidPrice = new HashMap<Long, Double>();
-    private static HashMap<Long, Double> m_askPrice = new HashMap<Long, Double>();
-    private static Double m_lastMidPrice;
+    private static final List<TradeData> s_trades = new ArrayList<TradeData>();
+    private static HashMap<Long, Double> s_directions = new HashMap<Long, Double>();
+    private static HashMap<Long, Double> s_directionsBasePrice = new HashMap<Long, Double>();
+    private static ArrayList<PlaceOrderData> s_placeOrders = new ArrayList<PlaceOrderData>();
+    private static HashMap<Long, Double> s_bidPrice = new HashMap<Long, Double>();
+    private static HashMap<Long, Double> s_askPrice = new HashMap<Long, Double>();
+    private static Double s_lastMidPrice;
+    private static ArrayList<OscData> s_oscs = new ArrayList<OscData>();
+    private static int s_maxOscIndex = 0;
+    private static TreeMap<Long,Double> s_avgPrice = new TreeMap<Long, Double>();
 
     public static void main(String[] args) {
         try {
@@ -63,17 +67,28 @@ public class OscLogProcessor extends BaseChartPaint {
             processLine(line, blr);
             blr.removeLine();
         }
+        postProcess();
         paint();
     }
 
+    private static void postProcess() {
+        Utils.AverageCounter averageCounter = new Utils.AverageCounter(AVG_PRICE_TIME);
+        for (TradeData trade : s_trades) {
+            long timestamp = trade.m_timestamp;
+            double price = trade.m_price;
+            double avg = averageCounter.add(timestamp, price);
+            s_avgPrice.put(timestamp, avg);
+        }
+    }
+
     private static void paint() {
-        Utils.DoubleMinMaxCalculator<TradeData> priceCalc = new Utils.DoubleMinMaxCalculator<TradeData>(m_trades) {
+        Utils.DoubleMinMaxCalculator<TradeData> priceCalc = new Utils.DoubleMinMaxCalculator<TradeData>(s_trades) {
             @Override public Double getValue(TradeData tick) { return tick.m_price; }
         };
         double minPrice = priceCalc.m_minValue;
         double maxPrice = priceCalc.m_maxValue;
 
-        Utils.LongMinMaxCalculator<TradeData> timeCalc = new Utils.LongMinMaxCalculator<TradeData>(m_trades) {
+        Utils.LongMinMaxCalculator<TradeData> timeCalc = new Utils.LongMinMaxCalculator<TradeData>(s_trades) {
             @Override public Long getValue(TradeData tick) { return tick.m_timestamp; }
         };
         long minTimestamp = timeCalc.m_minValue;
@@ -114,16 +129,74 @@ public class OscLogProcessor extends BaseChartPaint {
         paintTops(priceAxe, timeAxe, g);
         paintTrades(priceAxe, timeAxe, g);
         paintPlaceOrder(priceAxe, timeAxe, g);
+        paintAvgPrice(priceAxe, timeAxe, g);
+        paintOscs(priceAxe, timeAxe, g);
 
         writeAndShowImage(image);
     }
 
+    private static void paintOscs(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        int oscNum = s_maxOscIndex + 1;
+        int[] lastX = new int[oscNum];
+        int[] lastY1 = new int[oscNum];
+        int[] lastY2 = new int[oscNum];
+        for (OscData osc : s_oscs) {
+            int index = osc.m_index;
+            long time = osc.m_millis;
+            Map.Entry<Long, Double> entry = s_avgPrice.floorEntry(time);
+            if (entry != null) {
+                Double avgPrice = entry.getValue();
+                int x = timeAxe.getPoint(time);
+                int y = priceAxe.getPointReverse(avgPrice);
+
+                double osc1 = osc.m_osc1;
+                double osc2 = osc.m_osc2;
+                int y1 = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * osc1));
+                int y2 = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * osc2));
+                if (lastX[index] != 0) {
+                    Color color = OSC_COLORS[index % OSC_COLORS.length];
+                    g.setPaint(color);
+                    int prevX = lastX[index];
+                    g.drawLine(prevX, lastY1[index], x, y1);
+                    g.drawLine(lastX[index], lastY2[index], x, y2);
+                    g.drawRect(x - 1, y1 - 1, 2, 2);
+                    g.drawRect(x - 1, y2 - 1, 2, 2);
+                }
+                lastX[index] = x;
+                lastY1[index] = y1;
+                lastY2[index] = y2;
+            }
+        }
+    }
+
+    private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        int lastX = -1;
+        int lastY = -1;
+        int dy1 = OSCS_OFFSET;
+        int dy2 = dy1 + OSCS_RADIUS;
+        for (Map.Entry<Long, Double> entry : s_avgPrice.entrySet()) {
+            Long time = entry.getKey();
+            Double price = entry.getValue();
+            int x = timeAxe.getPoint(time);
+            int y = priceAxe.getPointReverse(price);
+            if (lastX != -1) {
+                g.setPaint(Color.orange);
+                g.drawLine(lastX, lastY, x, y);
+                g.setPaint(Color.lightGray);
+                g.drawLine(lastX, lastY - dy1, x, y - dy1);
+                g.drawLine(lastX, lastY - dy2, x, y - dy2);
+            }
+            lastX = x;
+            lastY = y;
+        }
+    }
+
     private static void paintTops(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
         g.setPaint(Color.black);
-        for (Map.Entry<Long, Double> entry : m_bidPrice.entrySet()) {
+        for (Map.Entry<Long, Double> entry : s_bidPrice.entrySet()) {
             Long stamp = entry.getKey();
             Double bidPrice = entry.getValue();
-            Double askPrice = m_askPrice.get(stamp);
+            Double askPrice = s_askPrice.get(stamp);
             int x = timeAxe.getPoint(stamp);
             int y1 = priceAxe.getPointReverse(bidPrice);
             int y2 = priceAxe.getPointReverse(askPrice);
@@ -133,22 +206,28 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintPlaceOrder(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        for (Map.Entry<Long, Double> entry : m_placeOrdersPrice.entrySet()) {
-            Long stamp = entry.getKey();
-            Double price = entry.getValue();
-            OrderSide orderSide = m_placeOrdersSide.get(stamp);
+        for (PlaceOrderData placeOrder : s_placeOrders) {
+            Long stamp = placeOrder.m_placeMillis;
+            Double price = placeOrder.m_price;
+            OrderSide orderSide = placeOrder.m_side;
             int x = timeAxe.getPoint(stamp);
             int y = priceAxe.getPointReverse(price);
             g.setPaint(orderSide.isBuy() ? Color.green : Color.red);
             g.drawRect(x - 2, y - 2, 4, 4);
+
+            Long fillTime = placeOrder.m_fillTime;
+            if (fillTime != null) {
+                int x2 = timeAxe.getPoint(fillTime);
+                g.drawLine(x, y, x2, y);
+            }
         }
     }
 
     private static void paintDirections(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        for (Map.Entry<Long, Double> entry : m_directions.entrySet()) {
+        for (Map.Entry<Long, Double> entry : s_directions.entrySet()) {
             Long stamp = entry.getKey();
             Double direction = entry.getValue();
-            Double basePrice = m_directionsBasePrice.get(stamp);
+            Double basePrice = s_directionsBasePrice.get(stamp);
             int x = timeAxe.getPoint(stamp);
             int y = priceAxe.getPointReverse(basePrice);
             g.setPaint(Color.lightGray);
@@ -159,15 +238,13 @@ public class OscLogProcessor extends BaseChartPaint {
             } else if (direction < 0) {
                 g.setPaint(Color.red);
                 g.drawLine(x, y, x, y - (int) (DIRECTION_MARK_RADIUS * direction));
-//            } else {
-//                g.drawLine(x, y - 30, x, y + 30);
             }
         }
     }
 
     private static void paintTrades(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
         g.setPaint(Color.blue);
-        for (TradeData trade: m_trades) {
+        for (TradeData trade: s_trades) {
             double price = trade.m_price;
             int y = priceAxe.getPointReverse(price);
             long stamp = trade.m_timestamp;
@@ -185,8 +262,34 @@ public class OscLogProcessor extends BaseChartPaint {
             processPlaceOrderLine(line, blr);
         } else if(line.contains(":  topsData'=TopsData[")) { // 1421196514606:  topsData'=TopsData[BTC_CNH=Top{bid=1,326.2100, ask=1,326.2400, last=0.0000}; }
             processTopDataLine(line, blr);
+        } else if(line.contains("] bar")) { // 1421372554483:  ------------ [3] bar    1421372505000   0.6458513387891542       0.5664781116721086
+            processOscBar(line);
+// 1421373132043:   directionAdjusted=-0.25; needBuyBtc=-0.05826512553126485; needSellCnh=-75.331272125
         } else {
             System.out.println("-------- skip line: " + line);
+        }
+    }
+
+    private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] \\w+\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
+    private static void processOscBar(String line1) {
+        // 1421372554483:  ------------ [3] bar    1421372505000   0.6458513387891542       0.5664781116721086
+        // 1421388199512:  ------------ [2] bar	1421388150000	5.493781175722471E-4	 1.8312603919074902E-4
+        Matcher matcher = OSC_BAR_PATTERN.matcher(line1);
+        if(matcher.matches()) {
+            String millisStr = matcher.group(1);
+            String indexStr = matcher.group(2);
+            String osc1str = matcher.group(3);
+            String osc2str = matcher.group(4);
+            System.out.println("GOT OSC_BAR: millisStr=" + millisStr + "; indexStr=" + indexStr + "; osc1str=" + osc1str + "; osc2str=" + osc2str);
+            long millis = Long.parseLong(millisStr);
+            int index = Integer.parseInt(indexStr);
+            double osc1 = Double.parseDouble(osc1str);
+            double osc2 = Double.parseDouble(osc2str);
+            OscData osc = new OscData(millis, index, osc1, osc2);
+            s_oscs.add(osc);
+            s_maxOscIndex = Math.max(s_maxOscIndex, index);
+        } else {
+            throw new RuntimeException("not matched OSC_BAR_PATTERN line: " + line1);
         }
     }
 
@@ -200,19 +303,19 @@ public class OscLogProcessor extends BaseChartPaint {
             System.out.println("GOT TOP_DATA: millisStr=" + millisStr + "; bidStr=" + bidStr + "; askStr=" + askStr);
             long millis = Long.parseLong(millisStr);
             double bid = Double.parseDouble(bidStr.replace(",", ""));
-            double ask = Double.parseDouble(askStr.replace(",",""));
-            m_bidPrice.put(millis, bid);
-            m_askPrice.put(millis, ask);
-            m_lastMidPrice = (bid+ask)/2;
+            double ask = Double.parseDouble(askStr.replace(",", ""));
+            s_bidPrice.put(millis, bid);
+            s_askPrice.put(millis, ask);
+            s_lastMidPrice = (bid+ask)/2;
         } else {
             throw new RuntimeException("not matched TOP_DATA_PATTERN line: " + line1);
         }
     }
 
-    private static void processPlaceOrderLine(String line1, BufferedLineReader blr) {
+    private static void processPlaceOrderLine(String line1, BufferedLineReader blr) throws IOException {
         // 1421193272478:    orderData=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.08500, price=1347.99000, state=NONE, filled=0.00000}
         Matcher matcher = PLACE_ORDER_PATTERN.matcher(line1);
-        if(matcher.matches()) {
+        if (matcher.matches()) {
             String millisStr = matcher.group(1);
             String sideStr = matcher.group(2);
             String priceStr = matcher.group(3);
@@ -220,8 +323,44 @@ public class OscLogProcessor extends BaseChartPaint {
             long millis = Long.parseLong(millisStr);
             OrderSide side = OrderSide.getByName(sideStr);
             double price = Double.parseDouble(priceStr);
-            m_placeOrdersPrice.put(millis, price);
-            m_placeOrdersSide.put(millis, side);
+            PlaceOrderData opd = new PlaceOrderData(millis, price, side);
+            s_placeOrders.add(opd);
+
+            String line2 = waitLineContained(blr, "PlaceOrderData: PlaceOrderData{");
+            if (line2 != null) {
+                System.out.println("GOT PlaceOrderData: " + line2);
+//                // PlaceOrderData: PlaceOrderData{orderId=96465911, remains=0.0, received=0.0}
+                int indx1 = line2.indexOf("orderId=");
+                if (indx1 != -1) {
+                    int indx2 = line2.indexOf(",", indx1);
+                    String orderId = line2.substring(indx1 + 8, indx2);
+                    System.out.println(" orderId: " + orderId);
+                    opd.m_orderId = orderId;
+
+                    // 1421411215853: $$$$$$   order FILLED: OrderData{id=96872920 status=FILLED, pair=BTC_CNH, side=BUY, amount=0.05580, price=1279.27000, state=NONE, filled=0.05580}
+                    String line3 = waitLineContained(blr, "order FILLED: OrderData{id=" + orderId);
+                    if (line3 != null) {
+                        System.out.println("  GOT order FILLED: " + line3);
+                        int indx3 = line3.indexOf(":");
+                        if (indx3 != -1) {
+                            String time = line3.substring(0, indx3);
+                            Long millis2 = Long.parseLong(time);
+                            System.out.println("   extracted time : " + millis2);
+                            opd.m_fillTime = millis2;
+                        }
+                    }
+                } else {
+                    // PlaceOrderData: PlaceOrderData{error='place order error: javax.net.ssl.SSLHandshakeException: Remote host closed connection during handshake'}
+                    // PlaceOrderData: PlaceOrderData{error='place order error: javax.net.ssl.SSLHandshakeException: Remote host closed connection during handshake'}
+                    int indx2 = line2.indexOf("error='");
+                    if (indx2 != -1) {
+                        int indx3 = line2.indexOf("'", indx2 + 7);
+                        String error = line2.substring(indx2 + 7, indx3);
+                        System.out.println(" error: " + error);
+                        opd.m_error = error;
+                    }
+                }
+            }
         } else {
             throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
         }
@@ -240,8 +379,8 @@ public class OscLogProcessor extends BaseChartPaint {
                 System.out.println("GOT DIRECTION_ADJUSTED: millisStr=" + millisStr + "; directionAdjustedStr=" + directionAdjustedStr);
                 long millis = Long.parseLong(millisStr);
                 double directionAdjusted = Double.parseDouble(directionAdjustedStr);
-                m_directions.put(millis, directionAdjusted);
-                m_directionsBasePrice.put(millis, m_lastMidPrice);
+                s_directions.put(millis, directionAdjusted);
+                s_directionsBasePrice.put(millis, s_lastMidPrice);
             } else {
                 throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
             }
@@ -270,14 +409,13 @@ public class OscLogProcessor extends BaseChartPaint {
             long millis = Long.parseLong(millisStr);
             double price = Double.parseDouble(priceStr);
             TradeData tradeData = new TradeData(0, price, millis);
-            m_trades.add(tradeData);
+            s_trades.add(tradeData);
         } else {
             throw new RuntimeException("not matched TRADE_PATTERN line: " + line);
         }
     }
 
     private static class BufferedLineReader {
-//        public static final int MAX_BUFFER_LINES = 1000;
         private final BufferedReader m_bis;
         private final ArrayList<String> m_buffer = new ArrayList<String>();
         private int index = 0;
@@ -294,9 +432,6 @@ public class OscLogProcessor extends BaseChartPaint {
             if(index < m_buffer.size()) {
                 return m_buffer.get(index++);
             }
-//            if(index > MAX_BUFFER_LINES) {
-//                throw new RuntimeException("max buffer lines reached");
-//            }
             return readLine();
         }
 
@@ -314,7 +449,36 @@ public class OscLogProcessor extends BaseChartPaint {
                 throw new RuntimeException("no lines to remove from buffer");
             }
             m_buffer.remove(0);
-            index--;
+            index=0;
+        }
+    }
+
+    private static class PlaceOrderData {
+        private final long m_placeMillis;
+        private final double m_price;
+        private final OrderSide m_side;
+        public String m_orderId;
+        public String m_error;
+        public Long m_fillTime;
+
+        public PlaceOrderData(long millis, double price, OrderSide side) {
+            m_placeMillis = millis;
+            m_price = price;
+            m_side = side;
+        }
+    }
+
+    private static class OscData {
+        private final long m_millis;
+        private final int m_index;
+        private final double m_osc1;
+        private final double m_osc2;
+
+        public OscData(long millis, int index, double osc1, double osc2) {
+            m_millis = millis;
+            m_index = index;
+            m_osc1 = osc1;
+            m_osc2 = osc2;
         }
     }
 }
