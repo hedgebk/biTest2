@@ -14,7 +14,7 @@ import java.math.RoundingMode;
 import java.util.*;
 
 public class Osc {
-    static long BAR_SIZE = Utils.toMillis("1d");
+    public static long BAR_SIZE = Utils.toMillis("1d");
     public static int LEN1 = 14;
     public static int LEN2 = 14;
     public static int K = 3;
@@ -24,6 +24,8 @@ public class Osc {
     public static double STOP_LEVEL = 0.005;
 
     public static int PREHEAT_BARS_NUM = calcPreheatBarsNum();
+
+    public static final int START_STOP_LEVEL_MULTIPLY = 3;
     public static final int INIT_BARS_BEFORE = 4;
     public static final Pair PAIR = Pair.BTC_CNH; // TODO: BTC is hardcoded below
     private static final int MAX_PLACE_ORDER_REPEAT = 2;
@@ -426,15 +428,15 @@ public class Osc {
 
             double haveBtc = m_account.getAllValue(Currency.BTC);
             double haveCnh = m_account.getAllValue(Currency.CNH);
-            log("  haveBtc=" + haveBtc + " BTC; haveCnh=" + haveCnh + " CNH");
+            log("  haveBtc=" + Utils.format8(haveBtc) + " BTC; haveCnh=" + Utils.format8(haveCnh) + " CNH; on account=" + m_account);
 
             double needBtc = (directionAdjusted + 1) / 2 * valuateBtc;
-            double needCnh = -(directionAdjusted - 1) / 2 * valuateBtc;
-            log("  needBtc=" + needBtc + " BTC; needCnh=" + needCnh + " CNH");
+            double needCnh = -(directionAdjusted - 1) / 2 * valuateCnh;
+            log("  needBtc=" + Utils.format8(needBtc) + " BTC; needCnh=" + Utils.format8(needCnh) + " CNH");
 
             double needBuyBtc = needBtc - haveBtc;
             double needSellCnh = haveCnh - needCnh;
-            log("  directionAdjusted=" + directionAdjusted + "; needBuyBtc=" + needBuyBtc + "; needSellCnh=" + needSellCnh);
+            log("  directionAdjusted=" + directionAdjusted + "; needBuyBtc=" + Utils.format8(needBuyBtc) + "; needSellCnh=" + Utils.format8(needSellCnh));
 
             double orderSize = Math.abs(needBuyBtc);
             OrderSide needOrderSide = (needBuyBtc == 0) ? null : (needBuyBtc > 0) ? OrderSide.BUY : OrderSide.SELL;
@@ -444,52 +446,56 @@ public class Osc {
             if (orderSize != 0) {
                 double cumCancelOrdersSize = getCumCancelOrdersSize(needOrderSide);
                 double orderSizeAdjusted = orderSize - cumCancelOrdersSize;
-                log("    orderSize=" + orderSize + "; cumCancelOrdersSize=" + cumCancelOrdersSize + "; orderSizeAdjusted=" + orderSizeAdjusted);
+                log("    orderSize=" + Utils.format8(orderSize) + "; cumCancelOrdersSize=" + cumCancelOrdersSize + "; orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted));
 
                 if (orderSizeAdjusted > 0) {
                     orderSizeAdjusted = (needOrderSide == OrderSide.BUY) ? orderSizeAdjusted : -orderSizeAdjusted;
-                    log("     signed orderSizeAdjusted=" + orderSizeAdjusted);
+                    log("     signed orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted));
 
                     orderSizeAdjusted = adjustSizeToAvailable(needBuyBtc, exchange);
-                    log("      available adjusted orderSize=" + orderSizeAdjusted);
+                    log("      available adjusted orderSize=" + Utils.format8(orderSizeAdjusted));
 
                     orderSizeAdjusted *= USE_FUNDS_FROM_AVAILABLE; // do not use ALL available funds
-                    log("       fund ratio adjusted orderSize=" + orderSizeAdjusted);
+                    log("       fund ratio adjusted orderSize=" + Utils.format8(orderSizeAdjusted));
 
                     double orderSizeRound = exchange.roundAmount(orderSizeAdjusted, PAIR);
                     placeOrderSize = Math.abs(orderSizeRound);
-                    log("        orderSizeAdjusted=" + orderSizeAdjusted + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + placeOrderSize);
+                    log("        orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
                 }
             }
 
             boolean cancelAttempted = cancelOrderIfDirectionDiffers(needOrderSide, placeOrderSize);
             if (!cancelAttempted) { // cancel attempt was not performed
-                cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
-                if (!cancelAttempted) { // cancel attempt was not performed
-                    double minOrderToCreate = exchange.minOrderToCreate(PAIR);
-                    if (placeOrderSize >= minOrderToCreate) {
-                        Currency currency = PAIR.currencyFrom(needOrderSide.isBuy());
-                        log("  currency=" + currency + "; PAIR=" + PAIR);
-                        double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
-                        m_order = new OrderData(PAIR, needOrderSide, orderPrice, placeOrderSize);
-                        log("   orderData=" + m_order);
+                if (m_order == null) { // we should not have open order at this place
+                    cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
+                    if (!cancelAttempted) { // cancel attempt was not performed
+                        double minOrderToCreate = exchange.minOrderToCreate(PAIR);
+                        if (placeOrderSize >= minOrderToCreate) {
+                            Currency currency = PAIR.currencyFrom(needOrderSide.isBuy());
+                            log("  currency=" + currency + "; PAIR=" + PAIR);
+                            double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
+                            m_order = new OrderData(PAIR, needOrderSide, orderPrice, placeOrderSize);
+                            log("   orderData=" + m_order);
 
-                        if (placeOrderToExchange(exchange, m_order)) {
-                            return State.ORDER;
+                            if (placeOrderToExchange(exchange, m_order)) {
+                                return State.ORDER;
+                            } else {
+                                return State.ERROR;
+                            }
                         } else {
-                            return State.ERROR;
+                            log("warning: small order to create: placeOrderSize=" + placeOrderSize + "; minOrderToCreate=" + minOrderToCreate);
+                            if (m_maySyncAccount) {
+                                log("no orders - we may re-check account");
+                                initAccount();
+                            }
+                            return State.NONE;
                         }
                     } else {
-                        log("warning: small order to create: placeOrderSize=" + placeOrderSize + "; minOrderToCreate=" + minOrderToCreate);
-                        if(m_maySyncAccount) {
-                            log("no orders - we may re-check account");
-                            initAccount();
-                        }
-                        return State.NONE;
+                        log("some orders maybe closed - post recheck direction");
+                        postRecheckDirection();
                     }
                 } else {
-                    log("some orders maybe closed - post recheck direction");
-                    postRecheckDirection();
+                    log("warning: order still exist - do nothing: " + m_order);
                 }
             } else {
                 log("order cancel was attempted. time passed. posting recheck direction");
@@ -513,7 +519,7 @@ public class Osc {
             log(" account=" + m_account);
             double haveBtc = m_account.available(Currency.BTC);
             double haveCnh = m_account.available(Currency.CNH);
-            log(" haveBtc=" + haveBtc + "; haveCnh=" + haveCnh);
+            log(" haveBtc=" + Utils.format8(haveBtc) + "; haveCnh=" + Utils.format8(haveCnh));
             double buyBtc;
             if (needBuyBtc > 0) {
                 log("  will buy Btc:");
@@ -721,11 +727,8 @@ public class Osc {
                     m_order = null;
                 } else {
                     log("ERROR in cancel order: " + error + "; " + m_order);
-                    // todo: orders/need account sync
-                    if (error.contains("Order does not exist")) {
-                        log("looks the order was already executed - need check live orders");
-                        checkLiveOrders();
-                    }
+                    log("looks the order was already executed - need check live orders");
+                    checkLiveOrders();
                 }
                 log("need Recheck Direction");
                 postRecheckDirection();
@@ -830,6 +833,7 @@ public class Osc {
                     iterator.remove();
                 }
             }
+            checkLiveOrders();
             initAccount();
         }
 
@@ -887,11 +891,22 @@ public class Osc {
         }
 
         private abstract class BaseOrderTask implements IOrderTask {
-            @Override public final boolean isDuplicate(IOrderTask other) { return true; } // single presence in queue task
+            @Override public boolean isDuplicate(IOrderTask other) {
+                // single presence in queue task
+                return getClass().equals(other.getClass());
+            }
         }
 
         private class RecheckDirectionTask extends BaseOrderTask {
             public RecheckDirectionTask() {}
+
+            @Override public boolean isDuplicate(IOrderTask other) {
+                boolean duplicate = super.isDuplicate(other);
+                if (duplicate) {
+                    log(" skipped RecheckDirectionTask duplicate");
+                }
+                return duplicate;
+            }
 
             @Override public void process() throws Exception {
 //                log("RecheckDirectionTask.process()");
@@ -901,6 +916,14 @@ public class Osc {
 
         private class CheckLiveOrdersTask extends BaseOrderTask {
             public CheckLiveOrdersTask() {}
+
+            @Override public boolean isDuplicate(IOrderTask other) {
+                boolean duplicate = super.isDuplicate(other);
+                if (duplicate) {
+                    log(" skipped CheckLiveOrdersTask duplicate");
+                }
+                return duplicate;
+            }
 
             @Override public void process() throws Exception {
                 log("CheckLiveOrdersTask.process()");
@@ -1004,5 +1027,4 @@ public class Osc {
             }
         }
     }
-
 }

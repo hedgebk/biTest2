@@ -106,7 +106,8 @@ class PhasedOscCalculator extends OscCalculator {
             double mid = (stoch1 + stoch2) / 2;            // [0    ... 0.5 ... 1   ]
             double centerToMid = mid - 0.5;                // [-0.5 ... 0   ... 0.5 ]
             double absCenterToMid = Math.abs(centerToMid); // [0.5  ... 0   ... 0.5 ]
-            double ratio = 1 * 2 * absCenterToMid;         // [2    ... 1   ... 2   ]
+            double ratio = (-absCenterToMid * 2) * (Osc.START_STOP_LEVEL_MULTIPLY - 1) + Osc.START_STOP_LEVEL_MULTIPLY;
+                                                           // [1    ... 3   ... 1   ]
             return ratio;
         }
     }
