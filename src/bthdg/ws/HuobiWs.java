@@ -187,7 +187,7 @@ public class HuobiWs extends BaseWs {
 //                            System.out.println("       bids[" + i + "] bids=" + asks);
                         JSONArray bidAmounts = (JSONArray) bids.get("amount");
 //                            System.out.println("        amount=" + bidAmounts);
-//                        int bidAmountsNum = bidAmounts.length();
+                        int bidAmountsNum = bidAmounts.length();
 //                            System.out.println("        .length=" + bidAmountsNum);
                         JSONArray bidPrices = (JSONArray) bids.get("price");
 //                            System.out.println("        price=" + bidPrices);
@@ -197,10 +197,10 @@ public class HuobiWs extends BaseWs {
 //                                Double bidPrc = Utils.getDouble(bidPrices.get(j));
 //                                System.out.println("         bid[" + j + "] amount=" + bidAmt + "; price=" + bidPrc);
 //                            }
-                        Double askPrc = Utils.getDouble(askPrices.get(0));
-                        Double bidPrc = Utils.getDouble(bidPrices.get(0));
+                        Double askPrc = Utils.getDouble(askPrices.get(i < askAmountsNum ? i : 0));
+                        Double bidPrc = Utils.getDouble(bidPrices.get(i < bidAmountsNum ? i : 0));
 
-                        System.out.println("       [" + i + "] amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
+                        System.out.println("       trade[" + i + "] timestamp=" + timestamp + "; amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
 
                         if (m_tradesListener != null) {
                             m_tradesListener.onTrade(new TradeData(amt, prc, timestamp));
