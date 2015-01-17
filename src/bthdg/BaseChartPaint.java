@@ -141,8 +141,8 @@ public class BaseChartPaint extends DbReady {
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON );
-        g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY );
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
     }
 
     public static void drawX(Graphics2D g, int x, int y, int d) {
@@ -182,6 +182,7 @@ public class BaseChartPaint extends DbReady {
         public final double m_max;
         public final int m_size;
         public final double m_scale;
+        public int m_offset;
 
         public ChartAxe(double min, double max, int size) {
             m_min = min;
@@ -192,13 +193,17 @@ public class BaseChartPaint extends DbReady {
         }
 
         public int getPoint(double value) {
+            return m_offset + getPointInt(value);
+        }
+
+        private int getPointInt(double value) {
             double offset = value - m_min;
             return (int) (offset / m_scale);
         }
 
         public int getPointReverse(double value) {
-            int point = getPoint(value);
-            return m_size - 1 - point;
+            int point = getPointInt(value);
+            return m_offset + m_size - 1 - point;
         }
     }
 }

@@ -15,8 +15,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OscLogProcessor extends BaseChartPaint {
-    private static final String LOG_FILE = "osc.H5.log";
-    private static final int WIDTH = 20000;
+    private static final String LOG_FILE = "osc.H.log";
+    private static final int WIDTH = 2000;
     public static final int HEIGHT = 1000;
     public static final int X_FACTOR = 1; // more points
     public static final int DIRECTION_MARK_RADIUS = 45;
@@ -100,7 +100,9 @@ public class OscLogProcessor extends BaseChartPaint {
         System.out.println("minPrice = " + minPrice + ", maxPrice = " + maxPrice + ", priceDiff = " + priceDiff);
 
         ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT);
+        ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT - OSCS_RADIUS);
+        priceAxe.m_offset = OSCS_RADIUS;
+
         System.out.println("time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale));
 
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage./*TYPE_USHORT_565_RGB*/ TYPE_INT_ARGB );
