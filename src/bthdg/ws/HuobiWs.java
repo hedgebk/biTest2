@@ -200,7 +200,7 @@ public class HuobiWs extends BaseWs {
                         Double askPrc = Utils.getDouble(askPrices.get(i < askAmountsNum ? i : 0));
                         Double bidPrc = Utils.getDouble(bidPrices.get(i < bidAmountsNum ? i : 0));
 
-                        System.out.println("       trade[" + i + "] timestamp=" + timestamp + "; amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
+//                        System.out.println("       trade[" + i + "] timestamp=" + timestamp + "; amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
 
                         if (m_tradesListener != null) {
                             m_tradesListener.onTrade(new TradeData(amt, prc, timestamp));
