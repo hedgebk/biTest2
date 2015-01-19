@@ -2,6 +2,7 @@ package bthdg.osc;
 
 import bthdg.BaseChartPaint;
 import bthdg.PaintChart;
+import bthdg.exch.BaseExch;
 import bthdg.exch.OrderSide;
 import bthdg.exch.TradeData;
 import bthdg.util.Utils;
@@ -15,8 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OscLogProcessor extends BaseChartPaint {
-    private static final String LOG_FILE = "osc.H.log";
-    private static final int WIDTH = 2000;
+    private static final int WIDTH = 20000;
     public static final int HEIGHT = 1000;
     public static final int X_FACTOR = 1; // more points
     public static final int DIRECTION_MARK_RADIUS = 45;
@@ -43,7 +43,10 @@ public class OscLogProcessor extends BaseChartPaint {
 
     public static void main(String[] args) {
         try {
-            File file = new File(LOG_FILE);
+            Properties keys = BaseExch.loadKeys();
+            String logFile = keys.getProperty("osc.log_processor.file");
+            System.out.println("logFile: " + logFile);
+            File file = new File(logFile);
             FileInputStream fis = new FileInputStream(file);
             try {
                 BufferedLineReader blr = new BufferedLineReader(fis);
