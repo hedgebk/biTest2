@@ -22,10 +22,11 @@ public class Osc {
     public static int PHASES = 1;
     public static double START_LEVEL = 0.005;
     public static double STOP_LEVEL = 0.005;
+    public static int START_STOP_LEVEL_MULTIPLY = 3;
+    private static boolean STICK_TOP_BOTTOM = false;
 
     public static int PREHEAT_BARS_NUM = calcPreheatBarsNum();
 
-    public static final int START_STOP_LEVEL_MULTIPLY = 3;
     public static final int INIT_BARS_BEFORE = 4;
     public static final Pair PAIR = Pair.BTC_CNH; // TODO: BTC is hardcoded below
     private static final int MAX_PLACE_ORDER_REPEAT = 2;
@@ -34,8 +35,9 @@ public class Osc {
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
     private static final boolean DO_CLOSE_ORDERS = false;
 
-    private final String m_e;
+    private static Osc s_osc; // instance
 
+    private final String m_e;
     private Processor m_processor;
 
     public Osc(String[] args) {
@@ -54,7 +56,8 @@ public class Osc {
 
     public static void main(String[] args) {
         try {
-            new Osc(args).run();
+            s_osc = new Osc(args);
+            s_osc.run();
 
             new ConsoleReader() {
                 @Override protected void beforeLine() {
@@ -74,9 +77,18 @@ public class Osc {
         }
     }
 
-    private static boolean onConsoleLine(String line) {
+    private static boolean onConsoleLine(String line) throws Exception {
         log("onConsoleLine: " + line);
+        if (line.equals("stop")) {
+            s_osc.onStop();
+            return true;
+        }
         return false;
+    }
+
+    private void onStop() throws Exception {
+        log("stop()-----------------------------------------------------");
+        m_processor.stop();
     }
 
     private void run() throws IOException {
@@ -115,13 +127,26 @@ public class Osc {
 
     private void init(Properties properties) {
         BAR_SIZE = Utils.toMillis(properties.getProperty("osc.bar_size"));
+        log("BAR_SIZE=" + BAR_SIZE);
         LEN1 = Integer.parseInt(properties.getProperty("osc.len1"));
+        log("LEN1=" + LEN1);
         LEN2 = Integer.parseInt(properties.getProperty("osc.len2"));
+        log("LEN2=" + LEN2);
         K = Integer.parseInt(properties.getProperty("osc.k"));
+        log("K=" + K);
         D = Integer.parseInt(properties.getProperty("osc.d"));
+        log("D=" + D);
         PHASES = Integer.parseInt(properties.getProperty("osc.phases"));
-        START_LEVEL =  Double.parseDouble(properties.getProperty("osc.start_level"));
-        STOP_LEVEL =  Double.parseDouble(properties.getProperty("osc.stop_level"));
+        log("PHASES=" + PHASES);
+        START_LEVEL = Double.parseDouble(properties.getProperty("osc.start_level"));
+        log("START_LEVEL=" + START_LEVEL);
+        STOP_LEVEL = Double.parseDouble(properties.getProperty("osc.stop_level"));
+        log("STOP_LEVEL=" + STOP_LEVEL);
+        START_STOP_LEVEL_MULTIPLY = Integer.parseInt(properties.getProperty("osc.start_stop_level_multiply"));
+        log("START_STOP_LEVEL_MULTIPLY=" + START_STOP_LEVEL_MULTIPLY);
+        String str = properties.getProperty("osc.stickTopBottom");
+        STICK_TOP_BOTTOM = Boolean.parseBoolean(str);
+        log("STICK_TOP_BOTTOM=" + STICK_TOP_BOTTOM);
 
         PREHEAT_BARS_NUM = calcPreheatBarsNum();
     }
@@ -136,7 +161,7 @@ public class Osc {
         public Processor(IWs ws) {
             m_executor = new OscExecutor(ws);
             for (int i = 0; i < PHASES; i++) {
-                m_calcs[i] = new PhasedOscCalculator(i, m_executor);
+                m_calcs[i] = new PhasedOscCalculator(i, m_executor, STICK_TOP_BOTTOM);
             }
             m_thread = new Thread(this);
             m_thread.setName("Processor");
@@ -169,6 +194,7 @@ public class Osc {
                     e.printStackTrace();
                 }
             }
+            log("Processor thread finished");
         }
 
         private void process(TradeData tData) {
@@ -178,11 +204,20 @@ public class Osc {
                 m_calcs[i].update(tData.m_timestamp, tData.m_price);
             }
         }
+
+        public void stop() throws Exception {
+            m_executor.stop();
+            synchronized (m_queue) {
+                m_run = false;
+                m_queue.notify();
+            }
+        }
     }
 
     static class OscExecutor implements Runnable{
         private final IWs m_ws;
         private final Thread m_thread;
+        private final long m_startMillis;
         private int m_direction;
         private boolean m_run = true;
         private boolean m_changed;
@@ -201,6 +236,7 @@ public class Osc {
         private boolean m_maySyncAccount = false;
 
         public OscExecutor(IWs ws) {
+            m_startMillis = System.currentTimeMillis();
             m_ws = ws;
             m_thread = new Thread(this);
             m_thread.setName("OscExecutor");
@@ -383,7 +419,13 @@ public class Osc {
             double valuateBtcSleep = m_initAccount.evaluate(m_topsData, Currency.BTC, exchange);
             double valuateCnhSleep = m_initAccount.evaluate(m_topsData, Currency.CNH, exchange);
             log("  SLEEP: valuateBtc=" + valuateBtcSleep + " BTC; valuateCnh=" + valuateCnhSleep + " CNH");
-            log("  GAIN: Btc=" + (valuateBtcNow/valuateBtcInit) + "; Cnh=" + (valuateCnhNow/valuateCnhInit) + " CNH");
+            double gainBtc = valuateBtcNow / valuateBtcInit;
+            double gainCnh = valuateCnhNow / valuateCnhInit;
+            double gainAvg = (gainBtc + gainCnh) / 2;
+            long takesMillis = System.currentTimeMillis() - m_startMillis;
+            double pow = ((double) Utils.ONE_DAY_IN_MILLIS) / takesMillis;
+            double projected = Math.pow(gainAvg, pow);
+            log("  GAIN: Btc=" + gainBtc + "; Cnh=" + gainCnh + " CNH; avg=" + gainAvg + "; projected=" + projected);
             log("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}");
         }
 
@@ -810,6 +852,12 @@ public class Osc {
 
         private void onError() throws Exception {
             log("onError() resetting...  -------------------------- ");
+            cancelAllOrders();
+            checkLiveOrders();
+            initAccount();
+        }
+
+        private void cancelAllOrders() throws Exception {
             if (m_order != null) {
                 log("  we have existing order, will cancel: " + m_order);
                 String error = cancelOrder(m_order);
@@ -833,8 +881,17 @@ public class Osc {
                     iterator.remove();
                 }
             }
-            checkLiveOrders();
-            initAccount();
+        }
+
+        public void stop() throws Exception {
+            m_ws.stop();
+            synchronized (this) {
+                m_run = false;
+                notify();
+            }
+            addTask(new StopTaskTask());
+            m_orderWatcher.stop();
+            cancelAllOrders();
         }
 
         private static class OscOrderWatcher implements Runnable {
@@ -882,12 +939,30 @@ public class Osc {
                         e.printStackTrace();
                     }
                 }
+                log("OscOrderWatcher.queue: thread finished");
+            }
+
+            public void stop() {
+                m_run = false;
             }
         }
 
         private interface IOrderTask {
             void process() throws Exception;
             boolean isDuplicate(IOrderTask other);
+        }
+
+        private class StopTaskTask extends BaseOrderTask {
+            public StopTaskTask() {}
+
+            @Override public boolean isDuplicate(IOrderTask other) {
+                log("stopping. removed task " + other);
+                return true;
+            }
+
+            @Override public void process() throws Exception {
+                m_orderWatcher.stop();
+            }
         }
 
         private abstract class BaseOrderTask implements IOrderTask {
@@ -909,7 +984,6 @@ public class Osc {
             }
 
             @Override public void process() throws Exception {
-//                log("RecheckDirectionTask.process()");
                 recheckDirection();
             }
         }
@@ -952,6 +1026,10 @@ public class Osc {
 
             @Override public void process() throws Exception {
                 gotTrade(m_tData);
+            }
+
+            @Override public String toString() {
+                return "TradeTask[tData=" + m_tData + "]";
             }
         }
 
