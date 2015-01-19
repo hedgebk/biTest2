@@ -4,17 +4,29 @@ import bthdg.Log;
 import bthdg.exch.OrderSide;
 
 class PhasedOscCalculator extends OscCalculator {
+    private static final double STICK_TOP_BOTTOM_LEVEL = 0.2;
+    public static final double STICK_TOP_LEVEL = 1 - STICK_TOP_BOTTOM_LEVEL;
+    public static final double STICK_DOWN_LEVEL = STICK_TOP_BOTTOM_LEVEL;
+
     private final Osc.OscExecutor m_executor;
     private final int m_index;
     private State m_state = State.NONE;
     private int m_barNum = 0;
+    private boolean m_stickTopBottom = false;
+    private boolean m_stickTop;
+    private boolean m_stickDown;
 
     private static void log(String s) { Log.log(s); }
 
     public PhasedOscCalculator(int index, Osc.OscExecutor executor) {
+        this(index, executor, false);
+    }
+
+    public PhasedOscCalculator(int index, Osc.OscExecutor executor, boolean stickTopBottom) {
         super(Osc.LEN1, Osc.LEN2, Osc.K, Osc.D, Osc.BAR_SIZE, getOffset(index));
         m_executor = executor;
         m_index = index;
+        m_stickTopBottom = stickTopBottom;
     }
 
     private static long getOffset(int index) {
@@ -24,7 +36,7 @@ class PhasedOscCalculator extends OscCalculator {
     @Override protected void update(long stamp, boolean finishBar) {
         super.update(stamp, finishBar);
         if(finishBar) {
-            log(" bar " + m_barNum + "; PREHEAT_BARS_NUM=" + Osc.PREHEAT_BARS_NUM);
+            log(" [" + m_index + "] bar " + m_barNum + "; PREHEAT_BARS_NUM=" + Osc.PREHEAT_BARS_NUM);
             if (m_barNum++ == Osc.PREHEAT_BARS_NUM - Osc.INIT_BARS_BEFORE) {
                 m_executor.init();
             }
@@ -69,6 +81,23 @@ class PhasedOscCalculator extends OscCalculator {
         },
         UP {
             @Override public State process(PhasedOscCalculator calc, double stoch1, double stoch2) {
+                if (calc.m_stickTopBottom) {
+                    if (calc.m_stickTop) {
+                        if ((stoch1 < STICK_TOP_LEVEL) || (stoch2 < STICK_TOP_LEVEL)) {
+                            calc.m_stickTop = false;
+                            log("unstick from Top: stoch1=" + stoch1 + "; stoch2=" + stoch2);
+                        } else {
+                            log("ignored since stuck to Top: stoch1=" + stoch1 + "; stoch2=" + stoch2);
+                            return this;
+                        }
+                    } else {
+                        if ((stoch1 > STICK_TOP_LEVEL) && (stoch2 > STICK_TOP_LEVEL)) {
+                            calc.m_stickTop = true;
+                            log("stick to Top: stoch1=" + stoch1 + "; stoch2=" + stoch2);
+                            return this;
+                        }
+                    }
+                }
                 double stochDiff = stoch2 - stoch1;
                 boolean reverseDiff = stochDiff > stopLevel(stoch1, stoch2);
                 if (reverseDiff) {
@@ -80,6 +109,23 @@ class PhasedOscCalculator extends OscCalculator {
         },
         DOWN {
             @Override public State process(PhasedOscCalculator calc, double stoch1, double stoch2) {
+                if (calc.m_stickTopBottom) {
+                    if (calc.m_stickDown) {
+                        if ((stoch1 < STICK_DOWN_LEVEL) || (stoch2 < STICK_DOWN_LEVEL)) {
+                            calc.m_stickDown = false;
+                            log("unstick from Down: stoch1=" + stoch1 + "; stoch2=" + stoch2);
+                        } else {
+                            log("ignored since stuck to Down: stoch1=" + stoch1 + "; stoch2=" + stoch2);
+                            return this;
+                        }
+                    } else {
+                        if ((stoch1 > STICK_DOWN_LEVEL) && (stoch2 > STICK_DOWN_LEVEL)) {
+                            calc.m_stickDown = true;
+                            log("stick to Down: stoch1=" + stoch1 + "; stoch2=" + stoch2);
+                            return this;
+                        }
+                    }
+                }
                 double stochDiff = stoch2 - stoch1;
                 boolean reverseDiff = -stochDiff > stopLevel(stoch1, stoch2);
                 if (reverseDiff) {
