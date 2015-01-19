@@ -669,6 +669,10 @@ public class HuobiWs extends BaseWs {
 // "timeMin":1420291225,
 // "version":1}
 
+        emit(str);
+    }
+
+    private void emit(String str) {
         System.out.println("str to emit: " + str);
         m_socket.emit("request", str);
     }
@@ -699,5 +703,18 @@ public class HuobiWs extends BaseWs {
         }
         m_topListener = listener;
         subscribeIfNeeded();
+    }
+
+    @Override public void stop() {
+        // reqMsgSubscribe: Push message to subscribe
+        String str = "[{\"version\":1,\"msgType\":\"reqMsgUnsubscribe\",\"requestIndex\":" + System.currentTimeMillis() + "," +
+                "\"symbolList\":{\"tradeDetail\":[{\"symbolId\":\"btccny\",\"pushType\":\"pushLong\"}]}}]";
+        emit(str);
+        System.out.println("unsubscribe sent");
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {}
+        m_socket.disconnect();
+        System.out.println("disconnected");
     }
 }

@@ -221,6 +221,10 @@ public class OkCoinWs extends BaseWs {
         subscribe(BTCCNY_TICKER_CHANNEL);
     }
 
+    @Override public void stop() {
+        throw new RuntimeException("stop is not implemented");
+    }
+
     private void subscribe(final String channel) throws Exception {
         if( m_session == null ) {
             connect(new Runnable() {
