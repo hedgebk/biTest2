@@ -48,29 +48,29 @@ public class Console {
     }
 
     private static boolean process(String line) throws Exception {
-        if( line.equals("exit")) {
+        if (line.equals("exit")) {
             return true;
-        } else if( line.startsWith("account")) {
+        } else if (line.startsWith("account") || line.equals("a")) {
             doAccount(line);
-        } else if( line.startsWith("orders")) {
+        } else if (line.startsWith("orders") || line.startsWith("o ")) {
             doOrders(line);
-        } else if( line.equals("tops")) {
+        } else if (line.equals("tops")) {
             doTops();
-        } else if( line.startsWith("top ")) {
+        } else if (line.startsWith("top ")) {
             doTop(line);
-        } else if( line.startsWith("order ")) {
+        } else if (line.startsWith("order ")) {
             doOrder(line);
-        } else if( line.startsWith("cancel ")) {
+        } else if (line.startsWith("cancel ")) {
             doCancel(line);
-        } else if( line.equals("am")) {
+        } else if (line.equals("am")) {
             AccountData account = Fetcher.fetchAccount(s_exchange);
             if (account != null) {
                 TopsData tops = fetchTops();
                 doAccountMap(account, tops);
             }
-        } else if( line.startsWith("e ")) {
+        } else if (line.startsWith("e ")) {
             switchExchange(line);
-        } else if( line.equals("help")) {
+        } else if (line.equals("help")) {
             printHelp();
         } else {
             System.err.println("unknown command '" + line + "'");
