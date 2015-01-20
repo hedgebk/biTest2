@@ -577,8 +577,10 @@ public class Utils {
 
         public void justAdd(long millis, double addValue) {
             long limit = millis - m_limit;
-            removeOld(limit, m_map);
-            m_map.put(millis, addValue);
+            synchronized (m_map) {
+                removeOld(limit, m_map);
+                m_map.put(millis, addValue);
+            }
         }
 
         private static <T> void removeOld(long limit, TreeMap<Long, T> map) {
@@ -594,15 +596,15 @@ public class Utils {
         public double get() {
             double totalWeight = 0;
             double summ = 0.0;
-
-            Long lastKey = m_map.lastKey();
-
-            for (Map.Entry<Long, Double> entry : m_map.entrySet()) {
-                Long time = entry.getKey();
-                Double value = entry.getValue();
-                Double weight = getWeight(time, lastKey);
-                summ += value * weight;
-                totalWeight += weight;
+            synchronized (m_map) {
+                Long lastKey = m_map.lastKey();
+                for (Map.Entry<Long, Double> entry : m_map.entrySet()) {
+                    Long time = entry.getKey();
+                    Double value = entry.getValue();
+                    Double weight = getWeight(time, lastKey);
+                    summ += value * weight;
+                    totalWeight += weight;
+                }
             }
             return summ / totalWeight;
         }
@@ -614,8 +616,10 @@ public class Utils {
         public void serialize(StringBuilder sb) {
             sb.append("AvgCntr[limit=").append(m_limit);
             sb.append("; map=[");
-            for(Map.Entry<Long, Double> e: m_map.entrySet()) {
-                sb.append(e.getKey()).append("=").append(e.getValue()).append("; ");
+            synchronized (m_map) {
+                for (Map.Entry<Long, Double> e : m_map.entrySet()) {
+                    sb.append(e.getKey()).append("=").append(e.getValue()).append("; ");
+                }
             }
             sb.append("]]");
         }
@@ -669,6 +673,18 @@ public class Utils {
                         throw new RuntimeException("map["+key+"].value");
                     }
                 }
+            }
+        }
+
+        public Double getOldest() {
+            synchronized (m_map) {
+                return m_map.firstEntry().getValue();
+            }
+        }
+
+        public Double getLast() {
+            synchronized (m_map) {
+                return m_map.lastEntry().getValue();
             }
         }
     } // AverageCounter
