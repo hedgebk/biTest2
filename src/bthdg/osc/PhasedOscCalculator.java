@@ -4,29 +4,27 @@ import bthdg.Log;
 import bthdg.exch.OrderSide;
 
 class PhasedOscCalculator extends OscCalculator {
-    private static final double STICK_TOP_BOTTOM_LEVEL = 0.2;
+    private static final double STICK_TOP_BOTTOM_LEVEL = 0.11;
     public static final double STICK_TOP_LEVEL = 1 - STICK_TOP_BOTTOM_LEVEL;
     public static final double STICK_DOWN_LEVEL = STICK_TOP_BOTTOM_LEVEL;
 
-    private final Osc.OscExecutor m_executor;
+    private final OscExecutor m_executor;
     private final int m_index;
     private State m_state = State.NONE;
     private int m_barNum = 0;
     private boolean m_stickTopBottom = false;
     private boolean m_stickTop;
     private boolean m_stickDown;
+    private boolean m_delayReverseStart;
 
     private static void log(String s) { Log.log(s); }
 
-    public PhasedOscCalculator(int index, Osc.OscExecutor executor) {
-        this(index, executor, false);
-    }
-
-    public PhasedOscCalculator(int index, Osc.OscExecutor executor, boolean stickTopBottom) {
+    public PhasedOscCalculator(int index, OscExecutor executor, boolean stickTopBottom, boolean delayReverseStart) {
         super(Osc.LEN1, Osc.LEN2, Osc.K, Osc.D, Osc.BAR_SIZE, getOffset(index));
         m_executor = executor;
         m_index = index;
         m_stickTopBottom = stickTopBottom;
+        m_delayReverseStart = delayReverseStart;
     }
 
     private static long getOffset(int index) {
@@ -68,11 +66,31 @@ class PhasedOscCalculator extends OscCalculator {
                 double stochDiff = stoch2 - stoch1;
                 if (stochDiff > startLevel(stoch1, stoch2)) {
                     log("start level reached for SELL; stochDiff=" + stochDiff);
+                    if (calc.m_delayReverseStart) {
+                        OscExecutor executor = calc.m_executor;
+                        Double last = executor.m_trendCounter.getLast();
+                        Double oldest = executor.m_trendCounter.getOldest();
+                        double trend = last - oldest;
+                        if (trend > 0) {
+                            log(" delayed DOWN start since trend is up: " + trend);
+                            return this;
+                        }
+                    }
                     calc.start(OrderSide.SELL);
                     return DOWN;
                 }
                 if (-stochDiff > startLevel(stoch1, stoch2)) {
                     log("start level reached for BUY; stochDiff=" + stochDiff);
+                    if (calc.m_delayReverseStart) {
+                        OscExecutor executor = calc.m_executor;
+                        Double last = executor.m_trendCounter.getLast();
+                        Double oldest = executor.m_trendCounter.getOldest();
+                        double trend = last - oldest;
+                        if (trend < 0) {
+                            log(" delayed UP start since trend is down: " + trend);
+                            return this;
+                        }
+                    }
                     calc.start(OrderSide.BUY);
                     return UP;
                 }
@@ -111,7 +129,7 @@ class PhasedOscCalculator extends OscCalculator {
             @Override public State process(PhasedOscCalculator calc, double stoch1, double stoch2) {
                 if (calc.m_stickTopBottom) {
                     if (calc.m_stickDown) {
-                        if ((stoch1 < STICK_DOWN_LEVEL) || (stoch2 < STICK_DOWN_LEVEL)) {
+                        if ((stoch1 > STICK_DOWN_LEVEL) || (stoch2 > STICK_DOWN_LEVEL)) {
                             calc.m_stickDown = false;
                             log("unstick from Down: stoch1=" + stoch1 + "; stoch2=" + stoch2);
                         } else {
@@ -119,7 +137,7 @@ class PhasedOscCalculator extends OscCalculator {
                             return this;
                         }
                     } else {
-                        if ((stoch1 > STICK_DOWN_LEVEL) && (stoch2 > STICK_DOWN_LEVEL)) {
+                        if ((stoch1 < STICK_DOWN_LEVEL) && (stoch2 < STICK_DOWN_LEVEL)) {
                             calc.m_stickDown = true;
                             log("stick to Down: stoch1=" + stoch1 + "; stoch2=" + stoch2);
                             return this;
