@@ -29,6 +29,8 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=.*, price=(\\d+\\.\\d+),.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
     private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
+    private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] \\w+\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
+    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=(\\d+\\.\\d+); trend=([-\\d]+\\.[\\d-E]+)");
 
     private static final List<TradeData> s_trades = new ArrayList<TradeData>();
     private static HashMap<Long, Double> s_directions = new HashMap<Long, Double>();
@@ -40,6 +42,7 @@ public class OscLogProcessor extends BaseChartPaint {
     private static ArrayList<OscData> s_oscs = new ArrayList<OscData>();
     private static int s_maxOscIndex = 0;
     private static TreeMap<Long,Double> s_avgPrice = new TreeMap<Long, Double>();
+    private static TreeMap<Long, Double> s_avg = new TreeMap<Long, Double>();
 
     public static void main(String[] args) {
         try {
@@ -133,11 +136,29 @@ public class OscLogProcessor extends BaseChartPaint {
         paintDirections(priceAxe, timeAxe, g);
         paintTops(priceAxe, timeAxe, g);
         paintTrades(priceAxe, timeAxe, g);
+        paintAvg(priceAxe, timeAxe, g);
         paintPlaceOrder(priceAxe, timeAxe, g);
         paintAvgPrice(priceAxe, timeAxe, g);
         paintOscs(priceAxe, timeAxe, g);
 
         writeAndShowImage(image);
+    }
+
+    private static void paintAvg(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        int lastX = -1;
+        int lastY = -1;
+        g.setPaint(Color.CYAN);
+        for (Map.Entry<Long, Double> entry : s_avg.entrySet()) {
+            Long stamp = entry.getKey();
+            Double avgPrice = entry.getValue();
+            int x = timeAxe.getPoint(stamp);
+            int y = priceAxe.getPointReverse(avgPrice);
+            if (lastX != -1) {
+                g.drawLine(lastX, lastY, x, y);
+            }
+            lastX = x;
+            lastY = y;
+        }
     }
 
     private static void paintOscs(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
@@ -179,6 +200,8 @@ public class OscLogProcessor extends BaseChartPaint {
         int lastY = -1;
         int dy1 = OSCS_OFFSET;
         int dy2 = dy1 + OSCS_RADIUS;
+        int dy3 = dy1 + OSCS_RADIUS * 2 / 10;
+        int dy4 = dy1 + OSCS_RADIUS * 8 / 10;
         for (Map.Entry<Long, Double> entry : s_avgPrice.entrySet()) {
             Long time = entry.getKey();
             Double price = entry.getValue();
@@ -190,6 +213,8 @@ public class OscLogProcessor extends BaseChartPaint {
                 g.setPaint(Color.lightGray);
                 g.drawLine(lastX, lastY - dy1, x, y - dy1);
                 g.drawLine(lastX, lastY - dy2, x, y - dy2);
+                g.drawLine(lastX, lastY - dy3, x, y - dy3);
+                g.drawLine(lastX, lastY - dy4, x, y - dy4);
             }
             lastX = x;
             lastY = y;
@@ -197,7 +222,7 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintTops(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        g.setPaint(Color.black);
+        g.setPaint(Color.orange);
         for (Map.Entry<Long, Double> entry : s_bidPrice.entrySet()) {
             Long stamp = entry.getKey();
             Double bidPrice = entry.getValue();
@@ -267,15 +292,36 @@ public class OscLogProcessor extends BaseChartPaint {
             processPlaceOrderLine(line, blr);
         } else if(line.contains(":  topsData'=TopsData[")) { // 1421196514606:  topsData'=TopsData[BTC_CNH=Top{bid=1,326.2100, ask=1,326.2400, last=0.0000}; }
             processTopDataLine(line, blr);
-        } else if(line.contains("] bar")) { // 1421372554483:  ------------ [3] bar    1421372505000   0.6458513387891542       0.5664781116721086
+        } else if(line.contains("] bar") && !line.contains("PREHEAT_BARS_NUM")) { // 1421372554483:  ------------ [3] bar    1421372505000   0.6458513387891542       0.5664781116721086
             processOscBar(line);
-// 1421373132043:   directionAdjusted=-0.25; needBuyBtc=-0.05826512553126485; needSellCnh=-75.331272125
+        } else if(line.contains("; oldest=")) { // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
+            processAvgAndTrend(line);
         } else {
             System.out.println("-------- skip line: " + line);
         }
     }
 
-    private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] \\w+\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
+    private static void processAvgAndTrend(String line1) {
+        // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
+        Matcher matcher = AVG_TREND_PATTERN.matcher(line1);
+        if (matcher.matches()) {
+            String millisStr = matcher.group(1);
+            String avgStr = matcher.group(2);
+            String lastStr = matcher.group(3);
+            String oldestStr = matcher.group(4);
+            String trendStr = matcher.group(5);
+            System.out.println("GOT OSC_BAR: millisStr=" + millisStr + "; avgStr=" + avgStr + "; lastStr=" + lastStr + "; oldestStr=" + oldestStr + "; trendStr=" + trendStr);
+            long millis = Long.parseLong(millisStr);
+            double avg = Double.parseDouble(avgStr);
+//            double last = Double.parseDouble(lastStr);
+//            double oldest = Double.parseDouble(oldestStr);
+//            double trend = Double.parseDouble(trendStr);
+            s_avg.put(millis, avg);
+        } else {
+            throw new RuntimeException("not matched AVG_TREND line: " + line1);
+        }
+    }
+
     private static void processOscBar(String line1) {
         // 1421372554483:  ------------ [3] bar    1421372505000   0.6458513387891542       0.5664781116721086
         // 1421388199512:  ------------ [2] bar	1421388150000	5.493781175722471E-4	 1.8312603919074902E-4
