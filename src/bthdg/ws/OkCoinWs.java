@@ -221,6 +221,13 @@ public class OkCoinWs extends BaseWs {
         subscribe(BTCCNY_TICKER_CHANNEL);
     }
 
+    @Override public void queryHistoryTrades(Pair pair, ITradesListener listener, int time) {
+        if (pair != Pair.BTC_CNH) {
+            throw new RuntimeException("pair " + pair + " not supported yet");
+        }
+        throw new RuntimeException("not implemented yet");
+    }
+
     @Override public void stop() {
         throw new RuntimeException("stop is not implemented");
     }
