@@ -2,30 +2,32 @@ package bthdg.osc;
 
 import bthdg.Log;
 import bthdg.exch.TradeData;
+import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
 import java.util.LinkedList;
 
 class OscProcessor implements Runnable {
+    private final IWs m_ws;
     private final OscExecutor m_executor;
     private final OscCalculator[] m_calcs = new OscCalculator[Osc.PHASES];
-    private final Thread m_thread;
     private final LinkedList<TradeData> m_queue = new LinkedList<TradeData>();
     private boolean m_run = true;
 
     private static void log(String s) { Log.log(s); }
 
     public OscProcessor(IWs ws) {
+        m_ws = ws;
         m_executor = new OscExecutor(ws);
         for (int i = 0; i < Osc.PHASES; i++) {
             m_calcs[i] = new PhasedOscCalculator(i, m_executor, Osc.STICK_TOP_BOTTOM, Osc.DELAY_REVERSE_START);
         }
-        m_thread = new Thread(this);
-        m_thread.setName("OscProcessor");
-        m_thread.start();
+        Thread thread = new Thread(this);
+        thread.setName("OscProcessor");
+        thread.start();
     }
 
-    public void onTrade(TradeData tdata) {
+    public void gotTrade(TradeData tdata) {
         synchronized (m_queue) {
             m_queue.addLast(tdata);
             m_queue.notify();
@@ -68,5 +70,13 @@ class OscProcessor implements Runnable {
             m_run = false;
             m_queue.notify();
         }
+    }
+
+    public void start() throws Exception {
+        m_ws.subscribeTrades(Osc.PAIR, new ITradesListener() {
+            @Override public void onTrade(TradeData tdata) {
+                gotTrade(tdata);
+            }
+        });
     }
 }

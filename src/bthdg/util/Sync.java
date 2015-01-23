@@ -27,16 +27,7 @@ public class Sync {
         new Thread() {
             @Override public void run() {
                 for (AtomicBoolean obj : sync) {
-                    synchronized (obj) {
-                        boolean flag = obj.get();
-                        if (!flag) {
-                            try {
-                                obj.wait();
-                            } catch (InterruptedException e) {
-                                Log.err("interrupted: " + e, e);
-                            }
-                        }
-                    }
+                    Sync.wait(obj);
                 }
                 callback.run();
             }
@@ -46,15 +37,19 @@ public class Sync {
     public static void wait(List<AtomicBoolean> ret) {
         if (ret != null) {
             for (AtomicBoolean sync : ret) {
-                synchronized (sync) {
-                    boolean flag = sync.get();
-                    if (!flag) {
-                        try {
-                            sync.wait();
-                        } catch (InterruptedException e) {
-                            Log.err("interrupted: " + e, e);
-                        }
-                    }
+                wait(sync);
+            }
+        }
+    }
+
+    public static void wait(AtomicBoolean sync) {
+        synchronized (sync) {
+            boolean flag = sync.get();
+            if (!flag) {
+                try {
+                    sync.wait();
+                } catch (InterruptedException e) {
+                    Log.err("interrupted: " + e, e);
                 }
             }
         }

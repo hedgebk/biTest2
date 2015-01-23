@@ -5,15 +5,12 @@ import bthdg.Log;
 import bthdg.exch.BaseExch;
 import bthdg.exch.Exchange;
 import bthdg.exch.Pair;
-import bthdg.exch.TradeData;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 import bthdg.ws.HuobiWs;
-import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 import bthdg.ws.OkCoinWs;
 
-import java.io.IOException;
 import java.util.Properties;
 
 public class Osc {
@@ -95,7 +92,7 @@ public class Osc {
         m_processor.stop();
     }
 
-    private void run() throws IOException {
+    private void run() throws Exception {
         Properties keys = BaseExch.loadKeys();
 //        Btcn.init(keys);
 
@@ -117,13 +114,9 @@ public class Osc {
 //        BitstampWs.main(args);
 
         m_processor = new OscProcessor(ws);
+        m_processor.start();
 
         try {
-            ws.subscribeTrades(PAIR, new ITradesListener() {
-                @Override public void onTrade(TradeData tdata) {
-                    m_processor.onTrade(tdata);
-                }
-            });
         } catch (Exception e) {
             err("subscribeTrades error" + e, e);
         }

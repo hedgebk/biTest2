@@ -3,6 +3,8 @@ package bthdg.exch;
 import bthdg.util.Utils;
 
 public class TradeData {
+    public static final TradeData END_MARKER = new TradeData(0, 0, 0, 0, null);
+
     public double m_amount;
     public final double m_price;
     public final long m_timestamp;
