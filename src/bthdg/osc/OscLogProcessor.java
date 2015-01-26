@@ -8,6 +8,7 @@ import bthdg.exch.TradeData;
 import bthdg.util.Utils;
 
 import java.awt.*;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
@@ -24,13 +25,15 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final int OSCS_OFFSET = DIRECTION_MARK_RADIUS * 2;
     public static final long AVG_PRICE_TIME = Utils.toMillis(20, 0);
 
+    private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
+
     private static final Pattern TRADE_PATTERN = Pattern.compile("(\\d+): State.onTrade\\(tData=TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+).+");
-    private static final Pattern DIRECTION_ADJUSTED_PATTERN = Pattern.compile("(\\d+):   directionAdjusted=([\\+\\-]?\\d+\\.\\d+);.*");
+    private static final Pattern DIRECTION_ADJUSTED_PATTERN = Pattern.compile("(\\d+):   directionAdjusted=([\\+\\-]?\\d+\\.[\\d\\-E]+);.*");
     private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=.*, price=(\\d+\\.\\d+),.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
-    private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
-    private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] \\w+\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
+    private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] bar\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
     private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=(\\d+\\.\\d+); trend=([-\\d]+\\.[\\d-E]+)");
+    private static final Pattern GAIN_PATTERN = Pattern.compile("(\\d+):\\s+GAIN: Btc=(\\d+\\.\\d+); Cnh=(\\d+\\.\\d+) CNH; avg=(\\d+\\.\\d+); projected=(\\d+\\.\\d+).*");
 
     private static final List<TradeData> s_trades = new ArrayList<TradeData>();
     private static HashMap<Long, Double> s_directions = new HashMap<Long, Double>();
@@ -43,6 +46,10 @@ public class OscLogProcessor extends BaseChartPaint {
     private static int s_maxOscIndex = 0;
     private static TreeMap<Long,Double> s_avgPrice = new TreeMap<Long, Double>();
     private static TreeMap<Long, Double> s_avg = new TreeMap<Long, Double>();
+    private static TreeMap<Long, Double> s_gain = new TreeMap<Long, Double>();
+    private static Utils.DoubleMinMaxCalculator<Double> gainCalc = new Utils.DoubleMinMaxCalculator<Double>() {
+        public Double getValue(Double val) {return val;};
+    };
 
     public static void main(String[] args) {
         try {
@@ -106,9 +113,13 @@ public class OscLogProcessor extends BaseChartPaint {
         System.out.println("minPrice = " + minPrice + ", maxPrice = " + maxPrice + ", priceDiff = " + priceDiff);
 
         ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT - OSCS_RADIUS);
-        priceAxe.m_offset = OSCS_RADIUS;
+        ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT - OSCS_RADIUS*3);
+        priceAxe.m_offset = OSCS_RADIUS*3/2;
+        Double minGain = gainCalc.m_minValue;
+        Double maxGain = gainCalc.m_maxValue;
+        ChartAxe gainAxe = new PaintChart.ChartAxe(minGain, maxGain, OSCS_RADIUS);
 
+        System.out.println("minGain: " + minGain + "; maxGain=" + maxGain);
         System.out.println("time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale));
 
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage./*TYPE_USHORT_565_RGB*/ TYPE_INT_ARGB );
@@ -133,13 +144,16 @@ public class OscLogProcessor extends BaseChartPaint {
         // paint time axe labels
         paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
+        int zeroGainOffset = gainAxe.getPoint(1);
+
         paintDirections(priceAxe, timeAxe, g);
         paintTops(priceAxe, timeAxe, g);
         paintTrades(priceAxe, timeAxe, g);
         paintAvg(priceAxe, timeAxe, g);
         paintPlaceOrder(priceAxe, timeAxe, g);
-        paintAvgPrice(priceAxe, timeAxe, g);
+        paintAvgPrice(priceAxe, timeAxe, g, zeroGainOffset);
         paintOscs(priceAxe, timeAxe, g);
+        paintGain(priceAxe, timeAxe, gainAxe, g);
 
         writeAndShowImage(image);
     }
@@ -160,6 +174,34 @@ public class OscLogProcessor extends BaseChartPaint {
             lastY = y;
         }
     }
+
+    private static void paintGain(ChartAxe priceAxe, ChartAxe timeAxe, ChartAxe gainAxe, Graphics2D g) {
+        int lastX = -1;
+        int lastY = -1;
+        for (Map.Entry<Long, Double> entry : s_gain.entrySet()) {
+            Long time = entry.getKey();
+            Double gain = entry.getValue();
+
+            Map.Entry<Long, Double> avgEntry = s_avgPrice.floorEntry(time);
+            if (avgEntry != null) {
+                Double avgPrice = avgEntry.getValue();
+                int avgY = priceAxe.getPointReverse(avgPrice);
+                int gainDeltaY = gainAxe.getPointReverse(gain);
+
+                int x = timeAxe.getPoint(time);
+                int y = avgY + OSCS_OFFSET + gainDeltaY;
+
+                if (lastX != -1) {
+                    Color color = (y > lastY) ? Color.RED : (y < lastY) ? Color.GREEN : Color.GRAY;
+                    g.setPaint(color);
+                    g.drawLine(lastX, lastY, x, y);
+                }
+                lastX = x;
+                lastY = y;
+            }
+        }
+    }
+
 
     private static void paintOscs(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
         int oscNum = s_maxOscIndex + 1;
@@ -195,7 +237,7 @@ public class OscLogProcessor extends BaseChartPaint {
         }
     }
 
-    private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+    private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, int zeroGainOffset) {
         int lastX = -1;
         int lastY = -1;
         int dy1 = OSCS_OFFSET;
@@ -215,6 +257,9 @@ public class OscLogProcessor extends BaseChartPaint {
                 g.drawLine(lastX, lastY - dy2, x, y - dy2);
                 g.drawLine(lastX, lastY - dy3, x, y - dy3);
                 g.drawLine(lastX, lastY - dy4, x, y - dy4);
+                g.drawLine(lastX, lastY + dy1, x, y + dy1);
+                g.drawLine(lastX, lastY + dy2, x, y + dy2);
+                g.drawLine(lastX, lastY + dy2 - zeroGainOffset, x, y + dy2 - zeroGainOffset);
             }
             lastX = x;
             lastY = y;
@@ -236,6 +281,8 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintPlaceOrder(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        g.setFont(g.getFont().deriveFont(10f));
+        FontMetrics fontMetrics = g.getFontMetrics();
         for (PlaceOrderData placeOrder : s_placeOrders) {
             Long stamp = placeOrder.m_placeMillis;
             Double price = placeOrder.m_price;
@@ -249,6 +296,21 @@ public class OscLogProcessor extends BaseChartPaint {
             if (fillTime != null) {
                 int x2 = timeAxe.getPoint(fillTime);
                 g.drawLine(x, y, x2, y);
+            }
+
+            String orderId = placeOrder.m_orderId;
+            if (orderId != null) {
+                int strWidth = fontMetrics.stringWidth(orderId);
+                int textX = x + 2;
+                int textY = y + DIRECTION_MARK_RADIUS + 10 + strWidth;
+
+
+                AffineTransform orig = g.getTransform();
+                g.translate(textX, textY);
+                g.rotate(-Math.PI / 2);
+                g.setColor(Color.BLACK);
+                g.drawString(orderId, 0, 0);
+                g.setTransform(orig);
             }
         }
     }
@@ -296,8 +358,29 @@ public class OscLogProcessor extends BaseChartPaint {
             processOscBar(line);
         } else if(line.contains("; oldest=")) { // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
             processAvgAndTrend(line);
+        } else if(line.contains("GAIN: ")) { // 1422133198048:   GAIN: Btc=0.975798088760157; Cnh=1.0289787120270006 CNH; avg=1.0023884003935788; projected=1.0051339148741418
+            processGain(line);
         } else {
             System.out.println("-------- skip line: " + line);
+        }
+    }
+
+    private static void processGain(String line1) {
+        // 1422133198048:   GAIN: Btc=0.975798088760157; Cnh=1.0289787120270006 CNH; avg=1.0023884003935788; projected=1.0051339148741418
+        Matcher matcher = GAIN_PATTERN.matcher(line1);
+        if (matcher.matches()) {
+            String millisStr = matcher.group(1);
+            String btcStr = matcher.group(2);
+            String cnhStr = matcher.group(3);
+            String avgStr = matcher.group(4);
+            String projectedStr = matcher.group(5);
+            System.out.println("GOT OSC_BAR: millisStr=" + millisStr + "; btcStr=" + btcStr + "; cnhStr=" + cnhStr + "; avgStr=" + avgStr + "; projectedStr=" + projectedStr);
+            long millis = Long.parseLong(millisStr);
+            double avg = Double.parseDouble(avgStr);
+            s_gain.put(millis, avg);
+            gainCalc.calculate(avg);
+        } else {
+            throw new RuntimeException("not matched AVG_TREND line: " + line1);
         }
     }
 
@@ -413,7 +496,7 @@ public class OscLogProcessor extends BaseChartPaint {
                 }
             }
         } else {
-            throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
+            throw new RuntimeException("not matched PLACE_ORDER_PATTERN line: " + line1);
         }
     }
 
