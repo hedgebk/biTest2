@@ -10,7 +10,8 @@ import java.util.LinkedList;
 class OscProcessor implements Runnable {
     private final IWs m_ws;
     private final OscExecutor m_executor;
-    private final OscCalculator[] m_calcs = new OscCalculator[Osc.PHASES];
+    private final int m_calcsNum;
+    private final OscCalculator[] m_calcs;
     private final LinkedList<TradeData> m_queue = new LinkedList<TradeData>();
     private boolean m_run = true;
 
@@ -19,8 +20,16 @@ class OscProcessor implements Runnable {
     public OscProcessor(IWs ws) {
         m_ws = ws;
         m_executor = new OscExecutor(ws);
-        for (int i = 0; i < Osc.PHASES; i++) {
-            m_calcs[i] = new PhasedOscCalculator(i, m_executor, Osc.STICK_TOP_BOTTOM, Osc.DELAY_REVERSE_START);
+        int barSizesNum = Osc.BAR_SIZES.length;
+        m_calcsNum = Osc.PHASES * barSizesNum;
+        m_calcs = new OscCalculator[m_calcsNum];
+        int indx = 0;
+        for (int k = 0; k < barSizesNum; k++) {
+            long barSize = Osc.BAR_SIZES[k];
+            for (int i = 0; i < Osc.PHASES; i++) {
+                m_calcs[indx] = new PhasedOscCalculator(indx, barSize, m_executor, Osc.STICK_TOP_BOTTOM);
+                indx++;
+            }
         }
         Thread thread = new Thread(this);
         thread.setName("OscProcessor");
@@ -59,8 +68,10 @@ class OscProcessor implements Runnable {
     private void process(TradeData tData) {
 //            log("OscProcessor.process() tData=" + tData);
         m_executor.onTrade(tData);
-        for (int i = 0; i < Osc.PHASES; i++) {
-            m_calcs[i].update(tData.m_timestamp, tData.m_price);
+        long timestamp = tData.m_timestamp;
+        double price = tData.m_price;
+        for (int i = 0; i < m_calcsNum; i++) {
+            m_calcs[i].update(timestamp, price);
         }
     }
 

@@ -14,7 +14,9 @@ import bthdg.ws.OkCoinWs;
 import java.util.Properties;
 
 public class Osc {
-    public static long BAR_SIZE = Utils.toMillis("1d");
+    public static long[] BAR_SIZES;
+    public static long AVG_BAR_SIZE;
+    public static long MAX_BAR_SIZE = 0;
     public static int LEN1 = 14;
     public static int LEN2 = 14;
     public static int K = 3;
@@ -22,9 +24,10 @@ public class Osc {
     public static int PHASES = 1;
     public static double START_LEVEL = 0.005;
     public static double STOP_LEVEL = 0.005;
-    public static int START_STOP_LEVEL_MULTIPLY = 3;
+    public static double START_STOP_LEVEL_MULTIPLY = 3;
     static boolean STICK_TOP_BOTTOM = false;
-    static boolean DELAY_REVERSE_START = false;
+//    static boolean DELAY_REVERSE_START = false;
+//    static double RATIO_POWER = 1;
 
     public static int PREHEAT_BARS_NUM = calcPreheatBarsNum();
 
@@ -123,8 +126,21 @@ public class Osc {
     }
 
     private void init(Properties properties) {
-        BAR_SIZE = Utils.toMillis(properties.getProperty("osc.bar_size"));
-        log("BAR_SIZE=" + BAR_SIZE);
+        String barSizeStr = properties.getProperty("osc.bar_size");
+        String[] split = barSizeStr.split("\\|");
+        int barSizeLen = split.length;
+        log("BAR_SIZE.len=" + barSizeLen);
+        BAR_SIZES = new long[barSizeLen];
+        long summ = 0;
+        for (int i = 0; i < barSizeLen; i++) {
+            String str = split[i];
+            long millis = Utils.toMillis(str);
+            BAR_SIZES[i] = millis;
+            log(" BAR_SIZE[" + i + "]=" + millis);
+            summ += millis;
+            MAX_BAR_SIZE = Math.max(MAX_BAR_SIZE, millis);
+        }
+        AVG_BAR_SIZE = summ / barSizeLen;
         LEN1 = Integer.parseInt(properties.getProperty("osc.len1"));
         log("LEN1=" + LEN1);
         LEN2 = Integer.parseInt(properties.getProperty("osc.len2"));
@@ -139,14 +155,16 @@ public class Osc {
         log("START_LEVEL=" + START_LEVEL);
         STOP_LEVEL = Double.parseDouble(properties.getProperty("osc.stop_level"));
         log("STOP_LEVEL=" + STOP_LEVEL);
-        START_STOP_LEVEL_MULTIPLY = Integer.parseInt(properties.getProperty("osc.start_stop_level_multiply"));
+        START_STOP_LEVEL_MULTIPLY = Double.parseDouble(properties.getProperty("osc.start_stop_level_multiply"));
         log("START_STOP_LEVEL_MULTIPLY=" + START_STOP_LEVEL_MULTIPLY);
         String str = properties.getProperty("osc.stickTopBottom");
         STICK_TOP_BOTTOM = Boolean.parseBoolean(str);
         log("STICK_TOP_BOTTOM=" + STICK_TOP_BOTTOM);
         String str2 = properties.getProperty("osc.delayReverseStart");
-        DELAY_REVERSE_START = Boolean.parseBoolean(str2);
-        log("DELAY_REVERSE_START=" + DELAY_REVERSE_START);
+//        DELAY_REVERSE_START = Boolean.parseBoolean(str2);
+//        log("DELAY_REVERSE_START=" + DELAY_REVERSE_START);
+//        RATIO_POWER = Double.parseDouble(properties.getProperty("osc.ratioPower"));
+//        log("RATIO_POWER=" + RATIO_POWER);
 
         PREHEAT_BARS_NUM = calcPreheatBarsNum();
 

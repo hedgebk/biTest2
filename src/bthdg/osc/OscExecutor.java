@@ -33,12 +33,16 @@ class OscExecutor implements Runnable{
     private OrderData m_order;
     private List<CloseOrderWrapper> m_closeOrders = new ArrayList<CloseOrderWrapper>();
     private boolean m_maySyncAccount = false;
-    Utils.AverageCounter m_avgCounter = new Utils.FadingAverageCounter(Osc.BAR_SIZE * 2);
-    Utils.AverageCounter m_trendCounter = new Utils.AverageCounter(Osc.BAR_SIZE * 2);
+    private final Utils.AverageCounter m_avgCounter;
+    final TrendCounter m_trendCounter;
+    private final Booster m_booster;
 
     private static void log(String s) { Log.log(s); }
 
     public OscExecutor(IWs ws) {
+        m_avgCounter = new Utils.FadingAverageCounter(Osc.AVG_BAR_SIZE * 2);
+        m_trendCounter = new TrendCounter();
+        m_booster = new Booster();
         m_startMillis = System.currentTimeMillis();
         m_ws = ws;
         Thread thread = new Thread(this);
@@ -235,7 +239,7 @@ class OscExecutor implements Runnable{
         long takesMillis = System.currentTimeMillis() - m_startMillis;
         double pow = ((double) Utils.ONE_DAY_IN_MILLIS) / takesMillis;
         double projected = Math.pow(gainAvg, pow);
-        log("  GAIN: Btc=" + gainBtc + "; Cnh=" + gainCnh + " CNH; avg=" + gainAvg + "; projected=" + projected);
+        log("  GAIN: Btc=" + gainBtc + "; Cnh=" + gainCnh + " CNH; avg=" + gainAvg + "; projected=" + projected + "; takes: " + Utils.millisToDHMSStr(takesMillis));
         log("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}");
     }
 
@@ -264,7 +268,7 @@ class OscExecutor implements Runnable{
     private State processDirection() throws Exception {
         log("processDirection() direction=" + m_direction + ")");
 
-        double directionAdjusted = ((double)m_direction) / Osc.PHASES;        // directionAdjusted  [-1 ... 1]
+        double directionAdjusted = ((double)m_direction) / Osc.PHASES / Osc.BAR_SIZES.length; // directionAdjusted  [-1 ... 1]
         if ((directionAdjusted < -1) || (directionAdjusted > 1)) {
             log("ERROR: invalid directionAdjusted=" + directionAdjusted);
             if (directionAdjusted < -1) {
@@ -274,6 +278,18 @@ class OscExecutor implements Runnable{
                 directionAdjusted = 1;
             }
         }
+
+//        if (Osc.RATIO_POWER != 1) {
+//            boolean negative = (directionAdjusted < 0);
+//            double boosted = Math.pow(Math.abs(directionAdjusted), 1 / Osc.RATIO_POWER);
+//            if (negative) {
+//                boosted = -boosted;
+//            }
+//            log("  boost direction from " + directionAdjusted + " to " + boosted);
+//            directionAdjusted = boosted;
+//        }
+
+        directionAdjusted = m_booster.boost(directionAdjusted);
 
         Exchange exchange = m_ws.exchange();
 
@@ -767,6 +783,23 @@ class OscExecutor implements Runnable{
         boolean isDuplicate(IOrderTask other);
     }
 
+    public static class TrendCounter extends Utils.AverageCounter {
+        public TrendCounter() {
+            super(Osc.AVG_BAR_SIZE * 2);
+        }
+
+        public boolean isTrendUp() {
+            double trend = getTrend();
+            return (trend > 0);
+        }
+
+        public double getTrend() {
+            Double last = getLast();
+            Double oldest = getOldest();
+            return last - oldest;
+        }
+    }
+
     private class StopTaskTask extends BaseOrderTask {
         public StopTaskTask() {}
 
@@ -918,6 +951,36 @@ class OscExecutor implements Runnable{
         public CloseOrderWrapper(OrderData closeOrder, OrderData order) {
             m_closeOrder = closeOrder;
             m_order = order;
+        }
+    }
+
+    private static class Booster {
+        private Double m_lastValue = null;
+        private Boolean m_boostUp = null;
+        private double m_boostStart;
+        private double m_boostRange;
+
+        public double boost(double value) {
+            double ret;
+            if(m_lastValue != null) {
+                double diff = value - m_lastValue;
+                if ((m_boostUp == null) || (m_boostUp && (diff < 0)) || (!m_boostUp && (diff > 0))) {
+                    m_boostUp = (diff > 0);
+                    m_boostStart = m_lastValue;
+                    m_boostRange = m_boostUp ? (1 - m_boostStart) : (m_boostStart + 1);
+log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boostStart=" + m_boostStart + "; boostRange=" + m_boostRange);
+                }
+                double boostDistance = m_boostUp ? value - m_boostStart : m_boostStart - value;
+                double boostRatio = boostDistance / m_boostRange;
+                double boosted = Math.pow(boostRatio, 0.5);
+                double boostedDistance = boosted * m_boostRange;
+                ret = m_boostUp ? m_boostStart + boostedDistance : m_boostStart - boostedDistance;
+                log("boosted from " + value + " to " + ret + ": boostDistance=" + boostDistance + "; boostRatio=" + boostRatio + "; boosted=" + boosted + "; boostedDistance=" + boostedDistance);
+            } else {
+                ret = value;
+            }
+            m_lastValue = value;
+            return ret;
         }
     }
 }

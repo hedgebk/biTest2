@@ -7,6 +7,7 @@ class PhasedOscCalculator extends OscCalculator {
     private static final double STICK_TOP_BOTTOM_LEVEL = 0.11;
     public static final double STICK_TOP_LEVEL = 1 - STICK_TOP_BOTTOM_LEVEL;
     public static final double STICK_DOWN_LEVEL = STICK_TOP_BOTTOM_LEVEL;
+    private static final double REVERSE_TREND_LEVEL_MULTIPLIER = 1.5;
 
     private final OscExecutor m_executor;
     private final int m_index;
@@ -15,20 +16,18 @@ class PhasedOscCalculator extends OscCalculator {
     private boolean m_stickTopBottom = false;
     private boolean m_stickTop;
     private boolean m_stickDown;
-    private boolean m_delayReverseStart;
 
     private static void log(String s) { Log.log(s); }
 
-    public PhasedOscCalculator(int index, OscExecutor executor, boolean stickTopBottom, boolean delayReverseStart) {
-        super(Osc.LEN1, Osc.LEN2, Osc.K, Osc.D, Osc.BAR_SIZE, getOffset(index));
+    public PhasedOscCalculator(int index, long barSize, OscExecutor executor, boolean stickTopBottom) {
+        super(Osc.LEN1, Osc.LEN2, Osc.K, Osc.D, barSize, getOffset(index, barSize));
         m_executor = executor;
         m_index = index;
         m_stickTopBottom = stickTopBottom;
-        m_delayReverseStart = delayReverseStart;
     }
 
-    private static long getOffset(int index) {
-        return Osc.BAR_SIZE / Osc.PHASES * index;
+    private static long getOffset(int index, long barSize) {
+        return barSize * (index % Osc.PHASES) / Osc.PHASES;
     }
 
     @Override protected void update(long stamp, boolean finishBar) {
@@ -51,46 +50,33 @@ class PhasedOscCalculator extends OscCalculator {
     }
 
     public void start(OrderSide orderSide) {
-        log("start() bar " + m_barNum + "; orderSide=" + orderSide);
+        log("[" + m_index + "] start() bar " + m_barNum + "; orderSide=" + orderSide);
         m_executor.update((orderSide == OrderSide.BUY) ? 1 : -1);
     }
 
     public void stop(OrderSide orderSide) {
-        log("stop() bar " + m_barNum + "; orderSide=" + orderSide);
-        m_executor.update((orderSide == OrderSide.BUY) ? 1 : -1);
+        log("[" + m_index + "] stop() bar " + m_barNum + "; orderSide=" + orderSide);
+        m_executor.update(orderSide.isBuy() ? 1 : -1);
     }
 
     private enum State {
         NONE {
             @Override public State process(PhasedOscCalculator calc, double stoch1, double stoch2) {
                 double stochDiff = stoch2 - stoch1;
-                if (stochDiff > startLevel(stoch1, stoch2)) {
-                    log("start level reached for SELL; stochDiff=" + stochDiff);
-                    if (calc.m_delayReverseStart) {
-                        OscExecutor executor = calc.m_executor;
-                        Double last = executor.m_trendCounter.getLast();
-                        Double oldest = executor.m_trendCounter.getOldest();
-                        double trend = last - oldest;
-                        if (trend > 0) {
-                            log(" delayed DOWN start since trend is up: " + trend);
-                            return this;
-                        }
+                double startLevel = startLevel(stoch1, stoch2);
+                OscExecutor executor = calc.m_executor;
+                if (stochDiff > 0) { // DOWN
+                    if (executor.m_trendCounter.isTrendUp()) {
+                        startLevel *= REVERSE_TREND_LEVEL_MULTIPLIER;
                     }
+                    log("[" + calc.m_index + "] start level reached for SELL; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
                     calc.start(OrderSide.SELL);
                     return DOWN;
-                }
-                if (-stochDiff > startLevel(stoch1, stoch2)) {
-                    log("start level reached for BUY; stochDiff=" + stochDiff);
-                    if (calc.m_delayReverseStart) {
-                        OscExecutor executor = calc.m_executor;
-                        Double last = executor.m_trendCounter.getLast();
-                        Double oldest = executor.m_trendCounter.getOldest();
-                        double trend = last - oldest;
-                        if (trend < 0) {
-                            log(" delayed UP start since trend is down: " + trend);
-                            return this;
-                        }
+                } else if (stochDiff < 0) { // UP
+                    if (!executor.m_trendCounter.isTrendUp()) {
+                        startLevel *= REVERSE_TREND_LEVEL_MULTIPLIER;
                     }
+                    log("[" + calc.m_index + "] start level reached for BUY; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
                     calc.start(OrderSide.BUY);
                     return UP;
                 }
