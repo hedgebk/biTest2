@@ -17,10 +17,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OscLogProcessor extends BaseChartPaint {
-    private static final int WIDTH = 20000;
+    private static final int WIDTH = 80000;
     public static final int HEIGHT = 1000;
     public static final int X_FACTOR = 1; // more points
-    public static final int DIRECTION_MARK_RADIUS = 45;
+    public static final int DIRECTION_MARK_RADIUS = 50;
     private static final int OSCS_RADIUS = DIRECTION_MARK_RADIUS * 4;
     private static final int OSCS_OFFSET = DIRECTION_MARK_RADIUS * 2;
     public static final long AVG_PRICE_TIME = Utils.toMillis(20, 0);
@@ -235,6 +235,50 @@ public class OscLogProcessor extends BaseChartPaint {
                 lastY2[index] = y2;
             }
         }
+        Double[] midOscs = new Double[oscNum];
+        Integer prevAvgOscY = null;
+        int prevAvgOscX = 0;
+        Double prevAvgOsc = 0.0;
+        BasicStroke avgOscStroke = new BasicStroke(4);
+        Stroke old = g.getStroke();
+        g.setStroke(avgOscStroke);
+        for (OscData osc : s_oscs) {
+            int index = osc.m_index;
+            long time = osc.m_millis;
+            Map.Entry<Long, Double> entry = s_avgPrice.floorEntry(time);
+            if (entry != null) {
+                Double avgPrice = entry.getValue();
+                int x = timeAxe.getPoint(time);
+                int y = priceAxe.getPointReverse(avgPrice);
+
+                double osc1 = osc.m_osc1;
+                double osc2 = osc.m_osc2;
+                double oscMid = (osc1 + osc2) / 2;
+                midOscs[index] = oscMid;
+                Double avgOsc = 0.0;
+                for (int i = 0; i < oscNum; i++) {
+                    Double mid = midOscs[i];
+                    if (mid == null) {
+                        avgOsc = null;
+                        break;
+                    }
+                    avgOsc += mid;
+                }
+                if (avgOsc != null) {
+                    avgOsc /= oscNum;
+                    int avgOscY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * avgOsc));
+                    if (prevAvgOscY != null) {
+                        Boolean down = (avgOsc < prevAvgOsc) ? Boolean.TRUE : (avgOsc > prevAvgOsc) ? Boolean.FALSE : null;
+                        g.setPaint(down == null ? Color.gray : down ? Color.red : Color.green);
+                        g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
+                    }
+                    prevAvgOscY = avgOscY;
+                    prevAvgOscX = x;
+                    prevAvgOsc = avgOsc;
+                }
+            }
+        }
+        g.setStroke(old);
     }
 
     private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, int zeroGainOffset) {
@@ -257,6 +301,7 @@ public class OscLogProcessor extends BaseChartPaint {
                 g.drawLine(lastX, lastY - dy2, x, y - dy2);
                 g.drawLine(lastX, lastY - dy3, x, y - dy3);
                 g.drawLine(lastX, lastY - dy4, x, y - dy4);
+                g.setPaint(Color.magenta);
                 g.drawLine(lastX, lastY + dy1, x, y + dy1);
                 g.drawLine(lastX, lastY + dy2, x, y + dy2);
                 g.drawLine(lastX, lastY + dy2 - zeroGainOffset, x, y + dy2 - zeroGainOffset);
@@ -281,7 +326,7 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintPlaceOrder(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        g.setFont(g.getFont().deriveFont(10f));
+        g.setFont(g.getFont().deriveFont(9f));
         FontMetrics fontMetrics = g.getFontMetrics();
         for (PlaceOrderData placeOrder : s_placeOrders) {
             Long stamp = placeOrder.m_placeMillis;
@@ -304,11 +349,10 @@ public class OscLogProcessor extends BaseChartPaint {
                 int textX = x + 2;
                 int textY = y + DIRECTION_MARK_RADIUS + 10 + strWidth;
 
-
                 AffineTransform orig = g.getTransform();
                 g.translate(textX, textY);
                 g.rotate(-Math.PI / 2);
-                g.setColor(Color.BLACK);
+                g.setColor(Color.darkGray);
                 g.drawString(orderId, 0, 0);
                 g.setTransform(orig);
             }

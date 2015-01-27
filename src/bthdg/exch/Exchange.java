@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Properties;
 
 // to support others ?
+// coinbase
+//  docs: https://docs.exchange.coinbase.com/#time
 // goc.io
 // https://www.kraken.com
 // https://vircurex.com		https://vircurex.com/welcome/api

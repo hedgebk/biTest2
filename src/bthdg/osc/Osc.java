@@ -160,7 +160,7 @@ public class Osc {
         String str = properties.getProperty("osc.stickTopBottom");
         STICK_TOP_BOTTOM = Boolean.parseBoolean(str);
         log("STICK_TOP_BOTTOM=" + STICK_TOP_BOTTOM);
-        String str2 = properties.getProperty("osc.delayReverseStart");
+//        String str2 = properties.getProperty("osc.delayReverseStart");
 //        DELAY_REVERSE_START = Boolean.parseBoolean(str2);
 //        log("DELAY_REVERSE_START=" + DELAY_REVERSE_START);
 //        RATIO_POWER = Double.parseDouble(properties.getProperty("osc.ratioPower"));
