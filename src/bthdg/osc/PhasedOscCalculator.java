@@ -9,19 +9,20 @@ class PhasedOscCalculator extends OscCalculator {
     public static final double STICK_DOWN_LEVEL = STICK_TOP_BOTTOM_LEVEL;
     private static final double REVERSE_TREND_LEVEL_MULTIPLIER = 1.5;
 
-    private final OscExecutor m_executor;
+    private final OscProcessor m_processor;
     private final int m_index;
     private State m_state = State.NONE;
     private int m_barNum = 0;
     private boolean m_stickTopBottom = false;
     private boolean m_stickTop;
     private boolean m_stickDown;
+    double m_lastStoch = -1;
 
     private static void log(String s) { Log.log(s); }
 
-    public PhasedOscCalculator(int index, long barSize, OscExecutor executor, boolean stickTopBottom) {
+    public PhasedOscCalculator(int index, long barSize, OscProcessor processor, boolean stickTopBottom) {
         super(Osc.LEN1, Osc.LEN2, Osc.K, Osc.D, barSize, getOffset(index, barSize));
-        m_executor = executor;
+        m_processor = processor;
         m_index = index;
         m_stickTopBottom = stickTopBottom;
     }
@@ -35,28 +36,28 @@ class PhasedOscCalculator extends OscCalculator {
         if(finishBar) {
             log(" [" + m_index + "] bar " + m_barNum + "; PREHEAT_BARS_NUM=" + Osc.PREHEAT_BARS_NUM);
             if (m_barNum++ == Osc.PREHEAT_BARS_NUM - Osc.INIT_BARS_BEFORE) {
-                m_executor.init();
+                m_processor.m_executor.init();
             }
         }
     }
 
-    @Override public void fine(long stamp, double stoch1, double stoch2) {
-//log(" fine " + stamp + ": " + stoch1 + "; " + stoch2);
-    }
+    @Override public void fine(long stamp, double stoch1, double stoch2) {}
 
     @Override public void bar(long barStart, double stoch1, double stoch2) {
         log(" ------------ [" + m_index + "] bar\t" + barStart + "\t" + stoch1 + "\t " + stoch2);
+        m_lastStoch = (stoch1 + stoch2) / 2;
+        m_processor.onBar(m_index, stoch1, stoch2);
         m_state = m_state.process(this, stoch1, stoch2);
     }
 
     public void start(OrderSide orderSide) {
         log("[" + m_index + "] start() bar " + m_barNum + "; orderSide=" + orderSide);
-        m_executor.update((orderSide == OrderSide.BUY) ? 1 : -1);
+        m_processor.m_executor.update(orderSide.isBuy() ? 1 : -1);
     }
 
     public void stop(OrderSide orderSide) {
         log("[" + m_index + "] stop() bar " + m_barNum + "; orderSide=" + orderSide);
-        m_executor.update(orderSide.isBuy() ? 1 : -1);
+        m_processor.m_executor.update(orderSide.isBuy() ? 1 : -1);
     }
 
     private enum State {
@@ -64,7 +65,7 @@ class PhasedOscCalculator extends OscCalculator {
             @Override public State process(PhasedOscCalculator calc, double stoch1, double stoch2) {
                 double stochDiff = stoch2 - stoch1;
                 double startLevel = startLevel(stoch1, stoch2);
-                OscExecutor executor = calc.m_executor;
+                OscExecutor executor = calc.m_processor.m_executor;
                 if (stochDiff > 0) { // DOWN
                     if (executor.m_trendCounter.isTrendUp()) {
                         startLevel *= REVERSE_TREND_LEVEL_MULTIPLIER;

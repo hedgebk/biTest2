@@ -36,6 +36,7 @@ class OscExecutor implements Runnable{
     private final Utils.AverageCounter m_avgCounter;
     final TrendCounter m_trendCounter;
     private final Booster m_booster;
+    private AvgStochCalculator m_avgStochCalculator = new AvgStochCalculator();
 
     private static void log(String s) { Log.log(s); }
 
@@ -725,6 +726,10 @@ class OscExecutor implements Runnable{
         m_orderWatcher.stop();
     }
 
+    public void onAvgStoch(double avgStoch) {
+        m_avgStochCalculator.update(avgStoch);
+    }
+
     private static class OscOrderWatcher implements Runnable {
         private final LinkedList<IOrderTask> m_tasksQueue = new LinkedList<IOrderTask>();
         private Thread m_thread;
@@ -735,13 +740,10 @@ class OscExecutor implements Runnable{
                 for (ListIterator<IOrderTask> listIterator = m_tasksQueue.listIterator(); listIterator.hasNext(); ) {
                     IOrderTask nextTask = listIterator.next();
                     if (task.isDuplicate(nextTask)) {
-//                                log("OscOrderWatcher.queue: found existing task to remove of class " + toRemove);
                         listIterator.remove();
                     }
                 }
-
                 m_tasksQueue.addLast(task);
-//log("OscOrderWatcher.queue: task added " + task + "; notify...");
                 m_tasksQueue.notify();
                 if (m_thread == null) {
                     m_thread = new Thread(this);
@@ -981,6 +983,12 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
             }
             m_lastValue = value;
             return ret;
+        }
+    }
+
+    private class AvgStochCalculator {
+        public void update(double avgStoch) {
+
         }
     }
 }

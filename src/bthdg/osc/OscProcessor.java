@@ -9,9 +9,9 @@ import java.util.LinkedList;
 
 class OscProcessor implements Runnable {
     private final IWs m_ws;
-    private final OscExecutor m_executor;
+    final OscExecutor m_executor;
     private final int m_calcsNum;
-    private final OscCalculator[] m_calcs;
+    private final PhasedOscCalculator[] m_calcs;
     private final LinkedList<TradeData> m_queue = new LinkedList<TradeData>();
     private boolean m_run = true;
 
@@ -22,12 +22,12 @@ class OscProcessor implements Runnable {
         m_executor = new OscExecutor(ws);
         int barSizesNum = Osc.BAR_SIZES.length;
         m_calcsNum = Osc.PHASES * barSizesNum;
-        m_calcs = new OscCalculator[m_calcsNum];
+        m_calcs = new PhasedOscCalculator[m_calcsNum];
         int indx = 0;
         for (int k = 0; k < barSizesNum; k++) {
             long barSize = Osc.BAR_SIZES[k];
             for (int i = 0; i < Osc.PHASES; i++) {
-                m_calcs[indx] = new PhasedOscCalculator(indx, barSize, m_executor, Osc.STICK_TOP_BOTTOM);
+                m_calcs[indx] = new PhasedOscCalculator(indx, barSize, this, Osc.STICK_TOP_BOTTOM);
                 indx++;
             }
         }
@@ -89,5 +89,18 @@ class OscProcessor implements Runnable {
                 gotTrade(tdata);
             }
         });
+    }
+
+    public void onBar(int index, double stoch1, double stoch2) {
+        double avgStoch = 0;
+        for (int i = 0; i < m_calcsNum; i++) {
+            double lastStoch = m_calcs[i].m_lastStoch;
+            if(lastStoch == -1) {
+                return; // all not yet calculated
+            }
+            avgStoch += lastStoch;
+        }
+        avgStoch /= m_calcsNum;
+        m_executor.onAvgStoch(avgStoch);
     }
 }
