@@ -290,32 +290,51 @@ public class Console {
 
     private static void doCancel(String line) throws Exception {
         // cancel 12345 [LTC_CNH]
+        // cancel ALL
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
-        if(s_exchange.requirePairForCancel()) {
-            if (tokensNum == 3) {
-                tok.nextToken();
-                String orderId = tok.nextToken();
-                String pairName = tok.nextToken();
-                Pair pair = Pair.resolvePair(pairName, s_exchange);
-                if (pair == null) {
-                    System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+        if (tokensNum >= 2) {
+            tok.nextToken();
+            String orderId = tok.nextToken();
+            if( orderId.equalsIgnoreCase("all") ) {
+                cancelAll();
+            } else {
+                if(s_exchange.requirePairForCancel()) {
+                    if (tokensNum == 3) {
+                        String pairName = tok.nextToken();
+                        Pair pair = Pair.resolvePair(pairName, s_exchange);
+                        if (pair == null) {
+                            System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                        } else {
+                            CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, pair);
+                            System.out.println("cancel order '" + orderId + "' result: " + coData);
+                        }
+                    } else {
+                        System.err.println("invalid 'cancel' command: use followed format: cancel orderId pair. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                    }
                 } else {
-                    CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, pair);
+                    CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, null);
                     System.out.println("cancel order '" + orderId + "' result: " + coData);
                 }
-            } else {
-                System.err.println("invalid 'cancel' command: use followed format: cancel orderId pair. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
             }
         } else {
-            if (tokensNum >= 2) {
-                tok.nextToken();
-                String orderId = tok.nextToken();
-                CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, null);
-                System.out.println("cancel order '" + orderId + "' result: " + coData);
-            } else {
-                System.err.println("invalid 'cancel' command: use followed format: cancel orderId");
+            System.err.println("invalid 'cancel' command: use followed format: cancel orderId");
+        }
+    }
+
+    private static void cancelAll() throws Exception {
+        System.out.println("cancel ALL requested - query orders...");
+        OrdersData od = s_exchange.requirePairForOrders() ? fetchAllOrders() : Fetcher.fetchOrders(s_exchange);
+        Map<String, OrdersData.OrdData> orders = od.m_ords;
+        if(!orders.isEmpty()) {
+            for(OrdersData.OrdData order:orders.values()) {
+                System.out.println("canceling order: " + order);
+                String orderId = order.m_orderId;
+                CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, order.m_pair);
+                System.out.println(" cancel order '" + orderId + "' result: " + coData);
             }
+        } else {
+            System.out.println("no live orders to cancel");
         }
     }
 
@@ -324,7 +343,7 @@ public class Console {
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
         if(tokensNum >= 8) {
-            String t1 = tok.nextToken();
+            tok.nextToken();
             String token = tok.nextToken();
             List<Exchange> exchanges = new ArrayList<Exchange>();
             if (token.equals("on")) {
