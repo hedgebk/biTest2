@@ -1,5 +1,6 @@
 package bthdg;
 
+import bthdg.util.Colors;
 import bthdg.util.Utils;
 
 import javax.imageio.ImageIO;
@@ -14,7 +15,6 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 
 public class BaseChartPaint extends DbReady {
-    public static final Color SEMI_TRANSPARENT_GRAY = new Color(128, 128, 128, 128); // Color.gray
     public static final BasicStroke DASHED_STROKE = new BasicStroke(1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{10.0f}, 0.0f);
 
     public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
@@ -30,7 +30,7 @@ public class BaseChartPaint extends DbReady {
             if (price > minPrice) {
                 int y = priceAxe.getPointReverse(price);
                 boolean highlight = (highlightY != null) && (Math.abs(highlightY - price) < priceStep / 10);
-                g.setPaint(highlight ? Color.BLACK : SEMI_TRANSPARENT_GRAY);
+                g.setPaint(highlight ? Color.BLACK : Colors.SEMI_TRANSPARENT_GRAY);
                 g.drawLine(0, y, width - 1, y);
             }
         }

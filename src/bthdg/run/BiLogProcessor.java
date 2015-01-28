@@ -4,6 +4,7 @@ import bthdg.BaseChartPaint;
 import bthdg.PaintChart;
 import bthdg.exch.Exchange;
 import bthdg.exch.Pair;
+import bthdg.util.Colors;
 import bthdg.util.Utils;
 
 import java.awt.*;
@@ -50,9 +51,6 @@ public class BiLogProcessor {
     private static final int XFACTOR = 1;
     private static final int WIDTH = 1620 * XFACTOR * 16;
     public static final int HEIGHT = 900 * XFACTOR;
-    public static final Color LIGHT_RED = new Color(255, 0, 0, 70);
-    public static final Color LIGHT_BLUE = new Color(0, 0, 255, 70);
-    public static final Color LIGHT_ORANGE = new Color(200, 100, 0, 90);
     private static final boolean PAINT_BALANCE_CALCULATION = false;
 
     public static void main(String[] args) {
@@ -464,7 +462,7 @@ public class BiLogProcessor {
                 int y = priceDiffAxe.getPointReverse(diff);
 
                 if (x0 != -1) {
-                    g.setPaint(LIGHT_RED);
+                    g.setPaint(Colors.LIGHT_RED);
                     g.drawLine(x0, y0, x, y);
                 }
 
@@ -472,7 +470,7 @@ public class BiLogProcessor {
                 Double avgDiff = pd.getAvgDiff();
                 int ya = priceDiffAxe.getPointReverse(avgDiff);
                 if (x0 != -1) {
-                    g.setPaint(LIGHT_BLUE);
+                    g.setPaint(Colors.LIGHT_BLUE);
                     g.drawLine(x0, y0a, x, ya);
                 }
 
@@ -488,7 +486,7 @@ public class BiLogProcessor {
                 int yad = priceDiffAxe.getPointReverse(avgDiff + levelDelta);
                 int dy = yad - ya;
                 if (x0 != -1) {
-                    g.setPaint(LIGHT_ORANGE);
+                    g.setPaint(Colors.LIGHT_ORANGE);
                     g.drawLine(x0, y0a + dy, x, ya + dy);
                     g.drawLine(x0, y0a - dy, x, ya - dy);
                 }

@@ -3,6 +3,7 @@ package bthdg;
 import bthdg.duplet.DuTradeData;
 import bthdg.exch.OrderSide;
 import bthdg.exch.TradeData;
+import bthdg.util.Colors;
 import bthdg.util.Utils;
 
 import java.awt.*;
@@ -18,9 +19,6 @@ public class PaintTrace extends BaseChartPaint {
     private static final int XFACTOR = 2;
     private static final int WIDTH = 1620 * XFACTOR * 2;
     public static final int HEIGHT = 900 * XFACTOR;
-    public static final Color LIGHT_RED = new Color(255, 0, 0, 32);
-    public static final Color LIGHT_BLUE = new Color(0, 0, 255, 32);
-    public static final Color DARK_GREEN = new Color(0, 80, 0);
     public static final Color LIGHT_X = new Color(60, 60, 60, 12);
     public static final double EXPECTED_GAIN = Fetcher.EXPECTED_GAIN;
     public static final double COMMISSION = 0.002;
@@ -285,7 +283,7 @@ public class PaintTrace extends BaseChartPaint {
 
                 diffAvg = y2;
 
-                g.setPaint(exceed ? Color.MAGENTA : DARK_GREEN);
+                g.setPaint(exceed ? Color.MAGENTA : Colors.DARK_GREEN);
                 g.drawLine(x, y, x, y);
                 g.drawRect(x - 2, y - 2, 4, 4);
                 if ((diffX != -1) && (diffY != -1)) {
@@ -502,7 +500,7 @@ public class PaintTrace extends BaseChartPaint {
         if ((bidAsk.m_bid != 0) && (bidAsk.m_ask != 0)) {
             if (PAINT_PRICE) {
                 int y1 = priceAxe.getPointReverse(bidAsk.m_bid);
-                g.setPaint(LIGHT_RED);
+                g.setPaint(Colors.LIGHT_RED);
                 g.drawLine(x - 1, y1, x + 1, y1);
 
                 int y2 = priceAxe.getPointReverse(bidAsk.m_ask);
