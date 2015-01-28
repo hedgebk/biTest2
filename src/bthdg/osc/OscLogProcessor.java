@@ -5,6 +5,7 @@ import bthdg.PaintChart;
 import bthdg.exch.BaseExch;
 import bthdg.exch.OrderSide;
 import bthdg.exch.TradeData;
+import bthdg.util.Colors;
 import bthdg.util.Utils;
 
 import java.awt.*;
@@ -238,7 +239,8 @@ public class OscLogProcessor extends BaseChartPaint {
         Double[] midOscs = new Double[oscNum];
         Integer prevAvgOscY = null;
         int prevAvgOscX = 0;
-        Double prevAvgOsc = 0.0;
+        Double prevPrevAvgOsc = null;
+        Double prevAvgOsc = null;
         BasicStroke avgOscStroke = new BasicStroke(4);
         Stroke old = g.getStroke();
         g.setStroke(avgOscStroke);
@@ -266,14 +268,18 @@ public class OscLogProcessor extends BaseChartPaint {
                 }
                 if (avgOsc != null) {
                     avgOsc /= oscNum;
-                    int avgOscY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * avgOsc));
-                    if (prevAvgOscY != null) {
-                        Boolean down = (avgOsc < prevAvgOsc) ? Boolean.TRUE : (avgOsc > prevAvgOsc) ? Boolean.FALSE : null;
-                        g.setPaint(down == null ? Color.gray : down ? Color.red : Color.green);
-                        g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
+                    if ((prevAvgOsc != null) && (prevPrevAvgOsc != null)) {
+                        avgOsc = (avgOsc + prevAvgOsc) / 3; // blend 3 last values
+                        int avgOscY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * avgOsc));
+                        if (prevAvgOscY != null) {
+                            Boolean down = (avgOsc < prevAvgOsc) ? Boolean.TRUE : (avgOsc > prevAvgOsc) ? Boolean.FALSE : null;
+                            g.setPaint(down == null ? Color.gray : down ? Color.red : Colors.DARK_GREEN);
+                            g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
+                        }
+                        prevAvgOscY = avgOscY;
+                        prevAvgOscX = x;
                     }
-                    prevAvgOscY = avgOscY;
-                    prevAvgOscX = x;
+                    prevPrevAvgOsc = prevAvgOsc;
                     prevAvgOsc = avgOsc;
                 }
             }
