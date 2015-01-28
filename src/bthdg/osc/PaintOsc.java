@@ -4,6 +4,7 @@ import bthdg.BaseChartPaint;
 import bthdg.PaintChart;
 import bthdg.exch.Exchange;
 import bthdg.exch.OrderSide;
+import bthdg.util.Colors;
 import bthdg.util.Utils;
 
 import java.awt.*;
@@ -47,12 +48,6 @@ public class PaintOsc extends BaseChartPaint {
     public static final int X_FACTOR = 1; // more points
     private static final int MARK_DIAMETER = 5;
     public static final BasicStroke TR_STROKE = new BasicStroke(3);
-
-    private static final Color TRANSP_GRAY = new Color(100, 100, 100, 50);
-    private static final Color DARK_GREEN = new Color(0, 100, 0);
-    private static final Color DARK_BLUE = new Color(0, 0, 120);
-    private static final Color LIGHT_CYAN = new Color(150, 255, 255);
-    private static final Color TRANSP_LIGHT_CYAN = new Color(150, 255, 255, 100);
 
     static {
         OscCalculator.BLEND_AVG = true;
@@ -342,7 +337,7 @@ public class PaintOsc extends BaseChartPaint {
                 int lowY = priceAxe.getPointReverse(low);
 
                 if (PAINT) {
-                    g.setPaint(TRANSP_GRAY);
+                    g.setPaint(Colors.TRANSP_GRAY);
                     g.drawLine(left, 0, left, HEIGHT);
                     g.fillRect(left, highY, right - left, lowY - highY);
                 }
@@ -546,13 +541,13 @@ public class PaintOsc extends BaseChartPaint {
             if (PAINT) {
                 int fine1Y = oscAxe.getPointReverse(fine1);
                 int fine2Y = oscAxe.getPointReverse(fine2);
-                g.setPaint(fine1Y > fine2Y ? Color.pink : TRANSP_LIGHT_CYAN);
+                g.setPaint(fine1Y > fine2Y ? Color.pink : Colors.TRANSP_LIGHT_CYAN);
                 g.drawLine(x, fine1Y, x, fine2Y);
 
                 if (prevX != null) {
-                    g.setPaint(DARK_BLUE);
+                    g.setPaint(Colors.DARK_BLUE);
                     g.drawLine(prevX, prevVal1Yavg, x, val1Yavg);
-                    g.setPaint(DARK_GREEN);
+                    g.setPaint(Colors.DARK_GREEN);
                     g.drawLine(prevX, prevVal2Yavg, x, val2Yavg);
 
                     g.setPaint(Color.lightGray);
@@ -647,7 +642,7 @@ public class PaintOsc extends BaseChartPaint {
             s_startTick = tick;
             s_orderSide = orderSide;
             if (PAINT) {
-                g.setPaint((orderSide == OrderSide.BUY) ? LIGHT_CYAN : Color.pink);
+                g.setPaint((orderSide == OrderSide.BUY) ? Colors.LIGHT_CYAN : Color.pink);
                 int x = timeAxe.getPoint(tick.m_stamp);
                 g.drawLine(x, 0, x, HEIGHT);
 
@@ -669,7 +664,7 @@ public class PaintOsc extends BaseChartPaint {
             s_totalRatio *= ratio;
 
             if (PAINT) {
-                g.setPaint((s_orderSide == OrderSide.BUY) ? LIGHT_CYAN : Color.pink);
+                g.setPaint((s_orderSide == OrderSide.BUY) ? Colors.LIGHT_CYAN : Color.pink);
                 int finishX = timeAxe.getPoint(tick.m_stamp);
                 g.drawLine(finishX, 0, finishX, HEIGHT);
 
