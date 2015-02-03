@@ -66,9 +66,7 @@ public class PairDirection {
         return false;
     }
 
-    public OrderSide getSide() {
-        return (m_direction == Direction.FORWARD) ? OrderSide.BUY : OrderSide.SELL;
-    }
+    public OrderSide getSide() { return m_direction.orderSide(); }
 
     public double getFee(AccountData account, Exchange exchange) {
         return m_pair.getFee(account, exchange);

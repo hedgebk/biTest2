@@ -91,11 +91,11 @@ class OscProcessor implements Runnable {
         });
     }
 
-    public void onBar(int index, double stoch1, double stoch2) {
+    public void onBar() {
         double avgStoch = 0;
         for (int i = 0; i < m_calcsNum; i++) {
             double lastStoch = m_calcs[i].m_lastStoch;
-            if(lastStoch == -1) {
+            if (lastStoch == -1) {
                 return; // all not yet calculated
             }
             avgStoch += lastStoch;

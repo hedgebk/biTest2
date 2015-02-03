@@ -206,7 +206,7 @@ public class TriTradesData implements OrderState.IOrderExecListener, TradesData.
             log("    bestPeg=" + bestPeg);
             double bracketPrice = bestPeg.m_need;
             TopData top = tops.get(pair);
-            OrderSide side = (direction == Direction.FORWARD) ? OrderSide.BUY : OrderSide.SELL;
+            OrderSide side = direction.orderSide();
             double amount = side.isBuy() ? available / bracketPrice : available;
             log("    bracketPrice:" + bracketPrice + "; side=" + side + "; amount=" + amount + "; top=" + top);
 

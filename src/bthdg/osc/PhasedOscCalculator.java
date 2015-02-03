@@ -45,8 +45,9 @@ class PhasedOscCalculator extends OscCalculator {
 
     @Override public void bar(long barStart, double stoch1, double stoch2) {
         log(" ------------ [" + m_index + "] bar\t" + barStart + "\t" + stoch1 + "\t " + stoch2);
-        m_lastStoch = (stoch1 + stoch2) / 2;
-        m_processor.onBar(m_index, stoch1, stoch2);
+//        m_lastStoch = (stoch1 + stoch2) / 2;
+        m_lastStoch = stoch1;
+        m_processor.onBar();
         m_state = m_state.process(this, stoch1, stoch2);
     }
 

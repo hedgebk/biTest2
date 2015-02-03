@@ -124,10 +124,14 @@ public class Utils {
     }
 
     public static void setToDayStart(Calendar cal) {
+        setToHourStart(cal);
+        cal.set(Calendar.HOUR_OF_DAY,0);
+    }
+
+    public static void setToHourStart(Calendar cal) {
         cal.set(Calendar.MILLISECOND, 0);
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.HOUR_OF_DAY,0);
     }
 
     public static double getDouble(JSONObject object, String key) {

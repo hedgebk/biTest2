@@ -6,6 +6,8 @@ public enum Direction {
     },
     BACKWARD(false) {
         @Override public Direction reverse() { return FORWARD; }
+        @Override public double applyDirection(double value) {return -value;}
+        @Override public OrderSide orderSide() { return OrderSide.SELL; }
     };
 
     public boolean m_forward;
@@ -13,6 +15,7 @@ public enum Direction {
     Direction(boolean forward) {
         m_forward = forward;
     }
-
     public Direction reverse() { return null; }
+    public double applyDirection(double value) {return value;}
+    public OrderSide orderSide() { return OrderSide.BUY; }
 }
