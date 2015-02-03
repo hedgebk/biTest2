@@ -8,4 +8,5 @@ public interface IWs {
     void subscribeTrades(Pair pair, ITradesListener listener) throws Exception;
     void subscribeTop(Pair pair, ITopListener listener) throws Exception;
     void stop();
+    String getPropPrefix();
 }

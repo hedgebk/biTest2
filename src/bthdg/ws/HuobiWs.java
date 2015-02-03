@@ -718,4 +718,8 @@ public class HuobiWs extends BaseWs {
         m_socket.disconnect();
         System.out.println("disconnected");
     }
+
+    @Override public String getPropPrefix() {
+        return "hu.";
+    }
 }

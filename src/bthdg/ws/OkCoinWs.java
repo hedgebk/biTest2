@@ -225,6 +225,10 @@ public class OkCoinWs extends BaseWs {
         System.out.println("ERROR: stop is not implemented");
     }
 
+    @Override public String getPropPrefix() {
+        return "ok.";
+    }
+
     private void subscribe(final String channel) throws Exception {
         if( m_session == null ) {
             connect(new Runnable() {
