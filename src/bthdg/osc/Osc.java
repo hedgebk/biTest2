@@ -43,6 +43,8 @@ public class Osc {
 
     private final String m_e;
     private OscProcessor m_processor;
+    private String m_propPrefix;
+    private Properties m_keys;
 
     public Osc(String[] args) {
         Log.s_impl = new Log.TimestampLog();
@@ -96,23 +98,24 @@ public class Osc {
     }
 
     private void run() throws Exception {
-        Properties keys = BaseExch.loadKeys();
-//        Btcn.init(keys);
-
-        init(keys);
+        m_keys = BaseExch.loadKeys();
+//        Btcn.init(m_keys);
 
         IWs ws;
         Exchange exchange = Exchange.getExchange(m_e);
         switch (exchange) {
             case HUOBI:
-                ws = HuobiWs.create(keys);
+                ws = HuobiWs.create(m_keys);
                 break;
             case OKCOIN:
-                ws = OkCoinWs.create(keys);
+                ws = OkCoinWs.create(m_keys);
                 break;
             default:
                 throw new RuntimeException("not supported exchange: " + exchange);
         }
+
+        m_propPrefix = ws.getPropPrefix();
+        init();
 
 //        BitstampWs.main(args);
 
@@ -125,8 +128,8 @@ public class Osc {
         }
     }
 
-    private void init(Properties properties) {
-        String barSizeStr = properties.getProperty("osc.bar_size");
+    private void init() {
+        String barSizeStr = getProperty("osc.bar_size");
         String[] split = barSizeStr.split("\\|");
         int barSizeLen = split.length;
         log("BAR_SIZE.len=" + barSizeLen);
@@ -141,24 +144,23 @@ public class Osc {
             MAX_BAR_SIZE = Math.max(MAX_BAR_SIZE, millis);
         }
         AVG_BAR_SIZE = summ / barSizeLen;
-        LEN1 = Integer.parseInt(properties.getProperty("osc.len1"));
+        LEN1 = Integer.parseInt(getProperty("osc.len1"));
         log("LEN1=" + LEN1);
-        LEN2 = Integer.parseInt(properties.getProperty("osc.len2"));
+        LEN2 = Integer.parseInt(getProperty("osc.len2"));
         log("LEN2=" + LEN2);
-        K = Integer.parseInt(properties.getProperty("osc.k"));
+        K = Integer.parseInt(getProperty("osc.k"));
         log("K=" + K);
-        D = Integer.parseInt(properties.getProperty("osc.d"));
+        D = Integer.parseInt(getProperty("osc.d"));
         log("D=" + D);
-        PHASES = Integer.parseInt(properties.getProperty("osc.phases"));
+        PHASES = Integer.parseInt(getProperty("osc.phases"));
         log("PHASES=" + PHASES);
-        START_LEVEL = Double.parseDouble(properties.getProperty("osc.start_level"));
+        START_LEVEL = Double.parseDouble(getProperty("osc.start_level"));
         log("START_LEVEL=" + START_LEVEL);
-        STOP_LEVEL = Double.parseDouble(properties.getProperty("osc.stop_level"));
+        STOP_LEVEL = Double.parseDouble(getProperty("osc.stop_level"));
         log("STOP_LEVEL=" + STOP_LEVEL);
-        START_STOP_LEVEL_MULTIPLY = Double.parseDouble(properties.getProperty("osc.start_stop_level_multiply"));
+        START_STOP_LEVEL_MULTIPLY = Double.parseDouble(getProperty("osc.start_stop_level_multiply"));
         log("START_STOP_LEVEL_MULTIPLY=" + START_STOP_LEVEL_MULTIPLY);
-        String str = properties.getProperty("osc.stickTopBottom");
-        STICK_TOP_BOTTOM = Boolean.parseBoolean(str);
+        STICK_TOP_BOTTOM = Boolean.parseBoolean(getProperty("osc.stickTopBottom"));
         log("STICK_TOP_BOTTOM=" + STICK_TOP_BOTTOM);
 //        String str2 = properties.getProperty("osc.delayReverseStart");
 //        DELAY_REVERSE_START = Boolean.parseBoolean(str2);
@@ -169,5 +171,16 @@ public class Osc {
         PREHEAT_BARS_NUM = calcPreheatBarsNum();
 
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
+    }
+
+    private String getProperty(String key) {
+        String ret = m_keys.getProperty(m_propPrefix + key);
+        if (ret == null) {
+            ret = m_keys.getProperty(key);
+        }
+        if (ret == null) {
+            throw new RuntimeException("no property found for key '" + key + " '");
+        }
+        return ret;
     }
 }
