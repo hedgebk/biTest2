@@ -97,7 +97,7 @@ public class BaseChartPaint extends DbReady {
         // paint HOURS
         if (timePeriodDays <= 15) {
             cal.setTimeInMillis(minTimestamp);
-            Utils.setToDayStart(cal);
+            Utils.setToHourStart(cal);
 
             int hourPlus = (timePeriodDays > 6) ? 6 : ((timePeriodDays > 1) ? 2 : 1);
 
@@ -116,6 +116,35 @@ public class BaseChartPaint extends DbReady {
                         int x = timeAxe.getPoint(millis);
                         g.drawLine(x, height - 10, x, height - 1);
                         g.drawString(label, x + 2, height - 4);
+                    }
+                }
+            }
+
+            if (timePeriodDays <= 2) {
+                cal.setTimeInMillis(minTimestamp);
+                cal.set(Calendar.MILLISECOND, 0);
+                cal.set(Calendar.SECOND, 0);
+                int minute = cal.get(Calendar.MINUTE);
+                cal.set(Calendar.MINUTE, (minute/10) * 10);
+
+                int mintesStep = 10;
+
+                g.setFont(g.getFont().deriveFont(15.0f * xFactor));
+                format = new SimpleDateFormat("mm");
+                while (true) {
+                    cal.add(Calendar.MINUTE, mintesStep);
+                    int min = cal.get(Calendar.MINUTE);
+                    if (min != 0) {
+                        long millis = cal.getTimeInMillis();
+                        if (millis >= minTimestamp) {
+                            if (millis > maxTimestamp) {
+                                break;
+                            }
+                            String label = format.format(cal.getTime());
+                            int x = timeAxe.getPoint(millis);
+                            g.drawLine(x, height - 10, x, height - 1);
+                            g.drawString(label, x + 2, height - 4);
+                        }
                     }
                 }
             }
