@@ -290,7 +290,9 @@ class OscExecutor implements Runnable{
 //            directionAdjusted = boosted;
 //        }
 
-        directionAdjusted = m_booster.boost(directionAdjusted);
+//        directionAdjusted = m_booster.boost(directionAdjusted);
+
+        directionAdjusted = m_avgStochCalculator.boost(directionAdjusted);
 
         Exchange exchange = m_ws.exchange();
 
@@ -727,7 +729,7 @@ class OscExecutor implements Runnable{
     }
 
     public void onAvgStoch(double avgStoch) {
-        m_avgStochCalculator.update(avgStoch);
+        m_avgStochCalculator.updateAvgStoch(avgStoch);
     }
 
     private static class OscOrderWatcher implements Runnable {
@@ -987,8 +989,74 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
     }
 
     private class AvgStochCalculator {
-        public void update(double avgStoch) {
+        private Double m_prevAvgStoch;
+        private Double m_prevPrevAvgStoch;
+        private Double m_blendAvgStoch;
+        private Direction m_direction;
+        private Boolean m_directionChanged;
+        private Double m_peakAvgStoch;
 
+        public void updateAvgStoch(double avgStoch) {
+//log("updateAvgStoch(avgStoch="+avgStoch+") prevAvgStoch="+m_prevAvgStoch);
+            if (m_prevAvgStoch != null) {
+//log(" m_prevPrevAvgStoch="+m_prevPrevAvgStoch);
+                if (m_prevPrevAvgStoch != null) {
+                    Double blendAvgStoch = (avgStoch + m_prevAvgStoch + m_prevPrevAvgStoch) / 3;
+log("  blendAvgStoch="+blendAvgStoch + "; m_blendAvgStoch="+ m_blendAvgStoch);
+                    if (m_blendAvgStoch != null) {
+                        Direction direction = (blendAvgStoch > m_blendAvgStoch) ? Direction.FORWARD : Direction.BACKWARD;
+//log("   direction="+direction);
+                        if (m_direction != null) {
+                            m_directionChanged = (direction != m_direction);
+//log("    m_directionChanged="+m_directionChanged);
+                            if (m_directionChanged) {
+                                m_peakAvgStoch = m_blendAvgStoch;
+log("direction changed: peakAvgStoch=" + m_peakAvgStoch + "; direction=" + m_direction);
+                            }
+                        }
+                        m_direction = direction;
+                    }
+                    m_blendAvgStoch = blendAvgStoch;
+                }
+                m_prevPrevAvgStoch = m_prevAvgStoch;
+            }
+            m_prevAvgStoch = avgStoch;
+        }
+
+        public double boost(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
+            double ret = directionAdjusted;
+            if (m_peakAvgStoch != null) {
+                double distanceFromPeak = m_direction.applyDirection(m_blendAvgStoch - m_peakAvgStoch);
+log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + m_direction + "; peakAvgStoch=" + m_peakAvgStoch + "; blendAvgStoch=" + m_blendAvgStoch + "; prevAvgStoch="+m_prevAvgStoch);
+                // distanceFromPeak  [0 ... 1]
+                if (distanceFromPeak < 0.1) {          //[0 ... 0.1]
+                    double q = 0.1 - distanceFromPeak; //[0.1 ... 0]
+                    double w = q * 2;                  //[0.2 ... 0]
+                    double e = 1 - w;                  //[0.8 ... 1]
+                    ret = directionAdjusted * e;
+                } else if (distanceFromPeak < 0.1) {   //[0.1 ... 0.2]
+                    double q = distanceFromPeak - 0.1; //[0 ... 0.1]
+                    double w = q * 5;                  //[0 ... 0.5]
+                    ret = boostDirection(directionAdjusted, w);
+                } else { // [0.2 ... 1]
+                    double q = distanceFromPeak - 0.2; //[0 ... 0.8]
+                    double w = q / 8 * 5;              //[0 ... 0.5]
+                    double e = 0.5 + w;                //[0.5 ... 1]
+                    ret = boostDirection(directionAdjusted, e);
+                }
+                log(" boosted from " + directionAdjusted + " to " + ret);
+            }
+            return ret;
+        }
+
+        private double boostDirection(double direction, double rate) {
+            double ret;
+            double directionAbs = Math.abs(direction);
+            double distanceToOne = 1 - directionAbs;
+            double plus = distanceToOne * rate;
+            double newDirectionAbs = directionAbs + plus;
+            ret = (direction < 0) ? -newDirectionAbs : newDirectionAbs;
+            return ret;
         }
     }
 }
