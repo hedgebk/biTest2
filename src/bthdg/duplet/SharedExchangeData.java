@@ -57,7 +57,7 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
         TopData top = Fetcher.fetchTopOnce(m_exchange);
         if( top != null ) { // we got fresh top data
             m_lastTop = top; // update top
-            m_averageCounter.add(m_lastTop.getMid());
+            m_averageCounter.justAdd(m_lastTop.getMid());
             double bidAskDiff = m_lastTop.getBidAskDiff();
             m_bidAskDiffCalculator.addValue(bidAskDiff);
         } else {
