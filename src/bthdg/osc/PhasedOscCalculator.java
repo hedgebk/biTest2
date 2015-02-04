@@ -68,14 +68,14 @@ class PhasedOscCalculator extends OscCalculator {
                 double startLevel = startLevel(stoch1, stoch2);
                 OscExecutor executor = calc.m_processor.m_executor;
                 if (stochDiff > 0) { // DOWN
-                    if (executor.m_trendCounter.isTrendUp()) {
+                    if (executor.m_priceTrendCounter.isTrendUp()) {
                         startLevel *= REVERSE_TREND_LEVEL_MULTIPLIER;
                     }
                     log("[" + calc.m_index + "] start level reached for SELL; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
                     calc.start(OrderSide.SELL);
                     return DOWN;
                 } else if (stochDiff < 0) { // UP
-                    if (!executor.m_trendCounter.isTrendUp()) {
+                    if (!executor.m_priceTrendCounter.isTrendUp()) {
                         startLevel *= REVERSE_TREND_LEVEL_MULTIPLIER;
                     }
                     log("[" + calc.m_index + "] start level reached for BUY; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
