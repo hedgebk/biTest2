@@ -33,7 +33,6 @@ public class Osc {
 
     public static final int INIT_BARS_BEFORE = 4;
     public static final Pair PAIR = Pair.BTC_CNH; // TODO: BTC is hardcoded below
-    static final int MAX_PLACE_ORDER_REPEAT = 2;
     public static final double CLOSE_PRICE_DIFF = 1.25;
     static final double ORDER_SIZE_TOLERANCE = 0.3;
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
