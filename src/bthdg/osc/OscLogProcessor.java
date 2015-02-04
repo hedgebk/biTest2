@@ -18,7 +18,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OscLogProcessor extends BaseChartPaint {
-    private static final int WIDTH = 20000;
+    private static final int WIDTH = 16000;
     public static final int HEIGHT = 1000;
     public static final int X_FACTOR = 5; // more points
     public static final int DIRECTION_MARK_RADIUS = 50;
@@ -30,13 +30,18 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static final Pattern TRADE_PATTERN = Pattern.compile("(\\d+): State.onTrade\\(tData=TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+).+");
     private static final Pattern DIRECTION_ADJUSTED_PATTERN = Pattern.compile("(\\d+):   directionAdjusted=([\\+\\-]?\\d+\\.[\\d\\-E]+);.*");
-    private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=.*, price=(\\d+\\.\\d+),.*");
+    private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+),.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
     private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] bar\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
     private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=(\\d+\\.\\d+); trend=([-\\d]+\\.[\\d-E]+)");
     private static final Pattern GAIN_PATTERN = Pattern.compile("(\\d+):\\s+GAIN: Btc=(\\d+\\.\\d+); Cnh=(\\d+\\.\\d+) CNH; avg=(\\d+\\.\\d+); projected=(\\d+\\.\\d+).*");
+    private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
+    private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
+
     public static final String DIRECTION_ADJUSTED = "   directionAdjusted=";
-    public static final String[] AFTER_DIRECTION = new String[]{"boosted from ", DIRECTION_ADJUSTED};
+    public static final String CHILLED_FROM = "chilled from";
+    public static final String[] AFTER_DIRECTION = new String[]{"boosted from ", CHILLED_FROM, DIRECTION_ADJUSTED};
+    public static final String[] AFTER_BOOSTED = new String[]{CHILLED_FROM, DIRECTION_ADJUSTED};
 
     private static final List<TradeData> s_trades = new ArrayList<TradeData>();
     private static ArrayList<PlaceOrderData> s_placeOrders = new ArrayList<PlaceOrderData>();
@@ -146,14 +151,12 @@ public class OscLogProcessor extends BaseChartPaint {
         // paint time axe labels
         paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
-        int zeroGainOffset = gainAxe.getPoint(1);
-
         paintDirections(priceAxe, timeAxe, g);
         paintTops(priceAxe, timeAxe, g);
         paintTrades(priceAxe, timeAxe, g);
         paintAvg(priceAxe, timeAxe, g);
         paintPlaceOrder(priceAxe, timeAxe, g);
-        paintAvgPrice(priceAxe, timeAxe, g, zeroGainOffset);
+        paintAvgPrice(priceAxe, timeAxe, g, gainAxe);
         paintOscs(priceAxe, timeAxe, g);
         paintGain(priceAxe, timeAxe, gainAxe, g);
 
@@ -178,6 +181,9 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintGain(ChartAxe priceAxe, ChartAxe timeAxe, ChartAxe gainAxe, Graphics2D g) {
+        BasicStroke gainStroke = new BasicStroke(2);
+        Stroke old = g.getStroke();
+        g.setStroke(gainStroke);
         int lastX = -1;
         int lastY = -1;
         for (Map.Entry<Long, Double> entry : s_gain.entrySet()) {
@@ -202,6 +208,7 @@ public class OscLogProcessor extends BaseChartPaint {
                 lastY = y;
             }
         }
+        g.setStroke(old);
     }
 
 
@@ -290,7 +297,13 @@ public class OscLogProcessor extends BaseChartPaint {
         g.setStroke(old);
     }
 
-    private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, int zeroGainOffset) {
+    private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, ChartAxe gainAxe) {
+        double m_max = gainAxe.m_max;
+        double m_min = gainAxe.m_min; // [min ... 1 ... max]
+
+        int from = (int) ((m_min - 1) / 0.001);
+        int to = (int) ((m_max - 1) / 0.001);
+
         int lastX = -1;
         int lastY = -1;
         int dy1 = OSCS_OFFSET;
@@ -313,6 +326,14 @@ public class OscLogProcessor extends BaseChartPaint {
                 g.setPaint(Color.magenta);
                 g.drawLine(lastX, lastY + dy1, x, y + dy1);
                 g.drawLine(lastX, lastY + dy2, x, y + dy2);
+                for (int k = from; k <= to; k++) {
+                    if (k != 1) {
+                        int offset = gainAxe.getPoint(1 + k * 0.001);
+                        g.drawLine(lastX, lastY + dy2 - offset, x, y + dy2 - offset);
+                    }
+                }
+                g.setPaint(Colors.LIGHT_BLUE);
+                int zeroGainOffset = gainAxe.getPoint(1);
                 g.drawLine(lastX, lastY + dy2 - zeroGainOffset, x, y + dy2 - zeroGainOffset);
             }
             lastX = x;
@@ -354,7 +375,9 @@ public class OscLogProcessor extends BaseChartPaint {
 
             String orderId = placeOrder.m_orderId;
             if (orderId != null) {
-                int strWidth = fontMetrics.stringWidth(orderId);
+                double size = placeOrder.m_size;
+                String str = size + " " + orderId;
+                int strWidth = fontMetrics.stringWidth(str);
                 int textX = x + 2;
                 int textY = y + DIRECTION_MARK_RADIUS + 10 + strWidth;
 
@@ -362,30 +385,55 @@ public class OscLogProcessor extends BaseChartPaint {
                 g.translate(textX, textY);
                 g.rotate(-Math.PI / 2);
                 g.setColor(Color.darkGray);
-                g.drawString(orderId, 0, 0);
+                g.drawString(str, 0, 0);
                 g.setTransform(orig);
             }
         }
     }
 
     private static void paintDirections(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        Integer prevX = null;
+        Integer prevY = null;
         for (DirectionsData dData : s_directions) {
             Long stamp = dData.m_millis;
             Double direction = dData.m_directionAdjusted;
             Double boostedFrom = dData.m_boostedFrom;
+            Double boostedTo = dData.m_boostedTo;
+            Double chilledFrom = dData.m_chilledFrom;
+            Double chilledTo = dData.m_chilledTo;
             Double basePrice = dData.m_lastMidPrice;
+            if(basePrice == null) {
+                continue;
+            }
             int x = timeAxe.getPoint(stamp);
             int y = priceAxe.getPointReverse(basePrice);
             g.setPaint(Color.lightGray);
             g.drawLine(x, y - DIRECTION_MARK_RADIUS, x, y + DIRECTION_MARK_RADIUS);
-            g.setPaint((direction > 0) ? Color.green : Color.red);
             int y2 = y - (int) (DIRECTION_MARK_RADIUS * direction);
+            if (prevX != null) {
+                g.drawLine(prevX, prevY, x, y2);
+            }
+            g.setPaint((direction > 0) ? Color.green : Color.red);
             g.drawLine(x, y, x, y2);
-            if (boostedFrom != null) {
+            int dx = 1;
+            if ((boostedFrom != null) && (boostedTo != null)) {
                 g.setPaint(Color.blue);
                 int y3 = y - (int) (DIRECTION_MARK_RADIUS * boostedFrom);
-                g.drawLine(x + 1, y3, x + 1, y2);
+                int y4 = y - (int) (DIRECTION_MARK_RADIUS * boostedTo);
+                int x1 = x + dx;
+                g.drawLine(x1, y3, x1, y4);
+                dx++;
             }
+            if ((chilledFrom != null) && (chilledTo != null)) {
+                g.setPaint(Color.red);
+                int y3 = y - (int) (DIRECTION_MARK_RADIUS * chilledFrom);
+                int y4 = y - (int) (DIRECTION_MARK_RADIUS * chilledTo);
+                int x1 = x + dx;
+                g.drawLine(x1, y3, x1, y4);
+                dx++;
+            }
+            prevY = y2;
+            prevX = x;
         }
     }
 
@@ -507,12 +555,14 @@ public class OscLogProcessor extends BaseChartPaint {
         if (matcher.matches()) {
             String millisStr = matcher.group(1);
             String sideStr = matcher.group(2);
-            String priceStr = matcher.group(3);
-            System.out.println("GOT PLACE_ORDER: millisStr=" + millisStr + "; sideStr=" + sideStr + "; priceStr=" + priceStr);
+            String amountStr = matcher.group(3);
+            String priceStr = matcher.group(4);
+            System.out.println("GOT PLACE_ORDER: millisStr=" + millisStr + "; sideStr=" + sideStr + "; amountStr=" + amountStr + "; priceStr=" + priceStr);
             long millis = Long.parseLong(millisStr);
             OrderSide side = OrderSide.getByName(sideStr);
+            double size = Double.parseDouble(amountStr);
             double price = Double.parseDouble(priceStr);
-            PlaceOrderData opd = new PlaceOrderData(millis, price, side);
+            PlaceOrderData opd = new PlaceOrderData(millis, price, side, size);
             s_placeOrders.add(opd);
 
             String line2 = waitLineContained(blr, "PlaceOrderData: PlaceOrderData{");
@@ -555,60 +605,77 @@ public class OscLogProcessor extends BaseChartPaint {
         }
     }
 
-    private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
-
     private static void processDirectionLine(String line0, BufferedLineReader blr) throws IOException {
         // 1421192392632: processDirection() direction=-2)
 
         // 1422502222987:  boosted from 0.9166666666666666 to 0.7333861125264423
+        // 1422986746884:   direction chilled from -0.5599999999999999 to -0.33599999999999997
         // 1421192392632:   directionAdjusted=-1.0; needBuyBtc=-0.3281232434687124; needSellCnh=-442.251070012
         Map.Entry<Integer, String> entry = waitLineContained(blr, AFTER_DIRECTION);
-        if(entry != null) {
+        if (entry != null) {
             String boostedFromStr;
             String boostedToStr;
-            String line1;
             int index = entry.getKey();
-            if(index == 0) { // found 'boosted' first
+            if (index == 0) { // found 'boosted' first
                 String line2 = entry.getValue();
                 Matcher matcher = BOOSTED_PATTERN.matcher(line2);
-                if(matcher.matches()) {
-                    String millisStr = matcher.group(1);
+                if (matcher.matches()) {
                     boostedFromStr = matcher.group(2);
                     boostedToStr = matcher.group(3);
                     System.out.println("GOT BOOSTED: boostedFromStr=" + boostedFromStr + "; boostedToStr=" + boostedToStr);
-
-                    line1 = waitLineContained(blr, DIRECTION_ADJUSTED);
-                    if (line1 == null) {
-                        System.out.println("ERROR: not found expected 'directionAdjusted' after 'boosted'");
-
-                    }
                 } else {
                     throw new RuntimeException("not matched BOOSTED_PATTERN line: " + line2);
                 }
             } else {
-                line1 = entry.getValue();
                 boostedFromStr = null;
                 boostedToStr = null;
             }
-            Matcher matcher = DIRECTION_ADJUSTED_PATTERN.matcher(line1);
-            if(matcher.matches()) {
-                String millisStr = matcher.group(1);
-                String directionAdjustedStr = matcher.group(2);
-                System.out.println("GOT DIRECTION_ADJUSTED: millisStr=" + millisStr + "; directionAdjustedStr=" + directionAdjustedStr);
-                if (boostedToStr != null) {
-                    if (!boostedToStr.equals(directionAdjustedStr)) {
-                        throw new RuntimeException("boostedToStr '" + boostedToStr + "' not equals to directionAdjustedStr '" + directionAdjustedStr + "'");
+
+            entry = waitLineContained(blr, AFTER_BOOSTED);
+            if (entry != null) {
+                String chilledFromStr;
+                String chilledToStr;
+                index = entry.getKey();
+                if (index == 0) { // found 'chilled' first
+                    String line2 = entry.getValue();
+                    Matcher matcher = CHILLED_PATTERN.matcher(line2);
+                    if (matcher.matches()) {
+                        chilledFromStr = matcher.group(2);
+                        chilledToStr = matcher.group(3);
+                        System.out.println("GOT CHILLED: chilledFromStr=" + chilledFromStr + "; chilledToStr=" + chilledToStr);
+                    } else {
+                        throw new RuntimeException("not matched CHILLED_PATTERN line: " + line2);
                     }
+                } else {
+                    chilledFromStr = null;
+                    chilledToStr = null;
                 }
-                Double boostedFrom = (boostedToStr != null) ? Double.parseDouble(boostedFromStr) : null;
-                long millis = Long.parseLong(millisStr);
-                double directionAdjusted = Double.parseDouble(directionAdjustedStr);
-                s_directions.add(new DirectionsData(millis, boostedFrom, directionAdjusted, s_lastMidPrice));
+
+                String line1 = waitLineContained(blr, DIRECTION_ADJUSTED);
+                if (line1 != null) {
+                    Matcher matcher = DIRECTION_ADJUSTED_PATTERN.matcher(line1);
+                    if(matcher.matches()) {
+                        String millisStr = matcher.group(1);
+                        String directionAdjustedStr = matcher.group(2);
+                        System.out.println("GOT DIRECTION_ADJUSTED: millisStr=" + millisStr + "; directionAdjustedStr=" + directionAdjustedStr);
+                        Double boostedFrom = (boostedFromStr != null) ? Double.parseDouble(boostedFromStr) : null;
+                        Double boostedTo = (boostedToStr != null) ? Double.parseDouble(boostedToStr) : null;
+                        Double chilledFrom = (chilledFromStr != null) ? Double.parseDouble(chilledFromStr) : null;
+                        Double chilledTo = (chilledToStr != null) ? Double.parseDouble(chilledToStr) : null;
+                        long millis = Long.parseLong(millisStr);
+                        double directionAdjusted = Double.parseDouble(directionAdjustedStr);
+                        s_directions.add(new DirectionsData(millis, boostedFrom, boostedTo, chilledFrom, chilledTo, directionAdjusted, s_lastMidPrice));
+                    } else {
+                        throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
+                    }
+                } else {
+                    System.out.println("ERROR: not found expected 'directionAdjusted'");
+                }
             } else {
-                throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
+                System.out.println("ERROR: not found expected 'directionAdjusted' or 'chilled'");
             }
         } else {
-            System.out.println("ERROR: not found expected 'directionAdjusted' or 'boosted'");
+            System.out.println("ERROR: not found expected 'directionAdjusted' or 'boosted' or 'chilled'");
         }
     }
 
@@ -705,14 +772,16 @@ public class OscLogProcessor extends BaseChartPaint {
         private final long m_placeMillis;
         private final double m_price;
         private final OrderSide m_side;
+        private final double m_size;
         public String m_orderId;
         public String m_error;
         public Long m_fillTime;
 
-        public PlaceOrderData(long millis, double price, OrderSide side) {
+        public PlaceOrderData(long millis, double price, OrderSide side, double size) {
             m_placeMillis = millis;
             m_price = price;
             m_side = side;
+            m_size = size;
         }
     }
 
@@ -733,12 +802,21 @@ public class OscLogProcessor extends BaseChartPaint {
     private static class DirectionsData {
         private final long m_millis;
         private final Double m_boostedFrom;
+        private final Double m_boostedTo;
+        private final Double m_chilledFrom;
+        private final Double m_chilledTo;
         private final double m_directionAdjusted;
         private final Double m_lastMidPrice;
 
-        public DirectionsData(long millis, Double boostedFrom, double directionAdjusted, Double lastMidPrice) {
+        public DirectionsData(long millis,
+                              Double boostedFrom, Double boostedTo,
+                              Double chilledFrom, Double chilledTo,
+                              double directionAdjusted, Double lastMidPrice) {
             m_millis = millis;
             m_boostedFrom = boostedFrom;
+            m_boostedTo = boostedTo;
+            m_chilledFrom = chilledFrom;
+            m_chilledTo = chilledTo;
             m_directionAdjusted = directionAdjusted;
             m_lastMidPrice = lastMidPrice;
         }
