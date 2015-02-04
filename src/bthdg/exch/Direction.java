@@ -18,4 +18,8 @@ public enum Direction {
     public Direction reverse() { return null; }
     public double applyDirection(double value) {return value;}
     public OrderSide orderSide() { return OrderSide.BUY; }
+
+    public static Direction get(double diff) {
+        return (diff > 0) ? FORWARD : BACKWARD;
+    }
 }
