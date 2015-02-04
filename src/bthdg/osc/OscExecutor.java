@@ -33,16 +33,19 @@ class OscExecutor implements Runnable{
     private OrderData m_order;
     private List<CloseOrderWrapper> m_closeOrders = new ArrayList<CloseOrderWrapper>();
     private boolean m_maySyncAccount = false;
-    private final Utils.AverageCounter m_avgCounter;
-    final TrendCounter m_trendCounter;
+    private final Utils.AverageCounter m_avgPriceCounter;
+    final TrendCounter m_priceTrendCounter;
     private final Booster m_booster;
-    private AvgStochCalculator m_avgStochCalculator = new AvgStochCalculator();
+    private final AvgStochDirectionAdjuster m_avgStochDirectionAdjuster;
+    private final AvgPriceDirectionAdjuster m_avgPriceDirectionAdjuster;
 
     private static void log(String s) { Log.log(s); }
 
     public OscExecutor(IWs ws) {
-        m_avgCounter = new Utils.FadingAverageCounter(Osc.AVG_BAR_SIZE * 2);
-        m_trendCounter = new TrendCounter();
+        m_avgStochDirectionAdjuster = new AvgStochDirectionAdjuster();
+        m_avgPriceDirectionAdjuster = new AvgPriceDirectionAdjuster();
+        m_avgPriceCounter = new Utils.FadingAverageCounter(Osc.AVG_BAR_SIZE * 3 / 2);
+        m_priceTrendCounter = new TrendCounter();
         m_booster = new Booster();
         m_startMillis = System.currentTimeMillis();
         m_ws = ws;
@@ -166,9 +169,9 @@ class OscExecutor implements Runnable{
     private void gotTrade(TradeData tData) throws Exception {
         log("OscExecutor.gotTrade() tData=" + tData);
 
-        double avg = m_avgCounter.get();
-        Double last = m_trendCounter.getLast();
-        Double oldest = m_trendCounter.getOldest();
+        double avg = m_avgPriceCounter.get();
+        Double last = m_priceTrendCounter.getLast();
+        Double oldest = m_priceTrendCounter.getOldest();
         double trend = last - oldest;
         log(" avg=" + avg + "; last=" + last + "; oldest=" + oldest + "; trend=" + trend);
 
@@ -261,8 +264,8 @@ class OscExecutor implements Runnable{
 
     public void onTrade(TradeData tData) {
         long millis = System.currentTimeMillis();
-        double avg = m_avgCounter.add(millis, tData.m_price);
-        m_trendCounter.add(millis, avg);
+        double avg = m_avgPriceCounter.add(millis, tData.m_price);
+        m_priceTrendCounter.justAdd(millis, avg);
         addTask(new TradeTask(tData));
     }
 
@@ -292,7 +295,9 @@ class OscExecutor implements Runnable{
 
 //        directionAdjusted = m_booster.boost(directionAdjusted);
 
-        directionAdjusted = m_avgStochCalculator.boost(directionAdjusted);
+        directionAdjusted = m_avgStochDirectionAdjuster.adjustDirection(directionAdjusted);
+
+        directionAdjusted = m_avgPriceDirectionAdjuster.adjustDirection(directionAdjusted);
 
         Exchange exchange = m_ws.exchange();
 
@@ -354,6 +359,7 @@ class OscExecutor implements Runnable{
                         if (placeOrderToExchange(exchange, m_order)) {
                             return State.ORDER;
                         } else {
+                            log("order place error - switch to ERROR state");
                             return State.ERROR;
                         }
                     } else {
@@ -504,11 +510,11 @@ class OscExecutor implements Runnable{
         m_maySyncAccount = true;
         if (m_account.allocateOrder(order)) {
             OrderData.OrderPlaceStatus ops = placeOrderToExchange(exchange, order, OrderState.LIMIT_PLACED);
-            if (ops != OrderData.OrderPlaceStatus.OK) {
-                m_account.releaseOrder(order, exchange);
-            } else {
+            if (ops == OrderData.OrderPlaceStatus.OK) {
                 log(" placeOrderToExchange successful: " + exchange + ", " + order + ", account: " + m_account);
                 return true;
+            } else {
+                m_account.releaseOrder(order, exchange);
             }
         } else {
             log("ERROR: account allocateOrder unsuccessful: " + exchange + ", " + order + ", account: " + m_account);
@@ -517,43 +523,37 @@ class OscExecutor implements Runnable{
     }
 
     private OrderData.OrderPlaceStatus placeOrderToExchange(Exchange exchange, OrderData order, OrderState state) throws Exception {
-        int repeatCounter = Osc.MAX_PLACE_ORDER_REPEAT;
-        while (true) {
-            OrderData.OrderPlaceStatus ret;
-            PlaceOrderData poData = Fetcher.placeOrder(order, exchange);
-            log(" PlaceOrderData: " + poData.toString(exchange, order.m_pair));
-            String error = poData.m_error;
-            if (error == null) {
-                order.m_status = OrderStatus.SUBMITTED;
-                double amount = poData.m_received;
-                if (amount != 0) { // not implemented - makes sense for btce
-                    // see Triplet.placeOrderToExchange()
-                    String amountStr = order.roundAmountStr(exchange, amount);
-                    String orderAmountStr = order.roundAmountStr(exchange);
-                    throw new RuntimeException("  some part of order (" + amountStr + " from " + orderAmountStr + ") is executed at the time of placing ");
-                }
-                order.m_state = state;
-                ret = OrderData.OrderPlaceStatus.OK;
-            } else {
-                order.m_status = OrderStatus.ERROR;
-                order.m_state = OrderState.NONE;
-                if (error.contains("SocketTimeoutException")) {
-                    if (repeatCounter-- > 0) {
-                        log(" repeat place order, count=" + repeatCounter);
-                        continue;
-                    }
-                    ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
-                } else if (error.contains("It is not enough") || // It is not enough BTC in the account for sale
-                        (error.contains("Insufficient") && error.contains("balance"))) { // Insufficient CNY balance
-                    ret = OrderData.OrderPlaceStatus.ERROR;
-                    log("  NotEnoughFunds detected - need sync account");
-                    initAccount();
-                } else {
-                    ret = OrderData.OrderPlaceStatus.ERROR;
-                }
+        OrderData.OrderPlaceStatus ret;
+        PlaceOrderData poData = Fetcher.placeOrder(order, exchange);
+        log(" PlaceOrderData: " + poData.toString(exchange, order.m_pair));
+        String error = poData.m_error;
+        if (error == null) {
+            order.m_status = OrderStatus.SUBMITTED;
+            double amount = poData.m_received;
+            if (amount != 0) { // not implemented - makes sense for btce
+                // see Triplet.placeOrderToExchange()
+                String amountStr = order.roundAmountStr(exchange, amount);
+                String orderAmountStr = order.roundAmountStr(exchange);
+                throw new RuntimeException("  some part of order (" + amountStr + " from " + orderAmountStr + ") is executed at the time of placing ");
             }
-            return ret;
+            order.m_state = state;
+            ret = OrderData.OrderPlaceStatus.OK;
+        } else {
+            order.m_status = OrderStatus.ERROR;
+            order.m_state = OrderState.NONE;
+            if (error.contains("SocketTimeoutException")) {
+                ret = OrderData.OrderPlaceStatus.CAN_REPEAT;
+                // actually order can be placed, but we will not control it - we will go to ERROR state
+            } else if (error.contains("It is not enough") || // It is not enough BTC in the account for sale
+                    (error.contains("Insufficient") && error.contains("balance"))) { // Insufficient CNY balance
+                ret = OrderData.OrderPlaceStatus.ERROR;
+                log("  NotEnoughFunds detected - need sync account");
+                initAccount();
+            } else {
+                ret = OrderData.OrderPlaceStatus.ERROR;
+            }
         }
+        return ret;
     }
 
     private State processTrade(TradeData tData, IIterationContext.BaseIterationContext inContext) throws Exception {
@@ -729,7 +729,7 @@ class OscExecutor implements Runnable{
     }
 
     public void onAvgStoch(double avgStoch) {
-        m_avgStochCalculator.updateAvgStoch(avgStoch);
+        m_avgStochDirectionAdjuster.updateAvgStoch(avgStoch);
     }
 
     private static class OscOrderWatcher implements Runnable {
@@ -988,60 +988,70 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
         }
     }
 
-    private class AvgStochCalculator {
-        private Double m_prevAvgStoch;
-        private Double m_prevPrevAvgStoch;
-        private Double m_blendAvgStoch;
+    private class AvgStochDirectionAdjuster {
+        public static final double SMALL_DIFFS_THRESHOLD = 0.01;
+
+        private Utils.FadingAverageCounter m_avgCounter = new Utils.FadingAverageCounter(Osc.AVG_BAR_SIZE * 4 / 3);
+        private Double m_prevBlend;
         private Direction m_direction;
-        private Boolean m_directionChanged;
         private Double m_peakAvgStoch;
 
         public void updateAvgStoch(double avgStoch) {
-//log("updateAvgStoch(avgStoch="+avgStoch+") prevAvgStoch="+m_prevAvgStoch);
-            if (m_prevAvgStoch != null) {
-//log(" m_prevPrevAvgStoch="+m_prevPrevAvgStoch);
-                if (m_prevPrevAvgStoch != null) {
-                    Double blendAvgStoch = (avgStoch + m_prevAvgStoch + m_prevPrevAvgStoch) / 3;
-log("  blendAvgStoch="+blendAvgStoch + "; m_blendAvgStoch="+ m_blendAvgStoch);
-                    if (m_blendAvgStoch != null) {
-                        Direction direction = (blendAvgStoch > m_blendAvgStoch) ? Direction.FORWARD : Direction.BACKWARD;
-//log("   direction="+direction);
+            double blend = m_avgCounter.add(avgStoch);
+log("updateAvgStoch(avgStoch=" + avgStoch + ") blend=" + blend + "; full=" + m_avgCounter.m_full);
+            if (m_avgCounter.m_full) {
+                if (m_prevBlend != null) {
+                    double diff = blend - m_prevBlend;
+                    if (Math.abs(diff) > SMALL_DIFFS_THRESHOLD) { // ignore small diffs
+                        Direction direction = Direction.get(diff);
+                        log(" diff=" + diff + "; direction=" + direction + "; m_direction=" + m_direction);
                         if (m_direction != null) {
-                            m_directionChanged = (direction != m_direction);
+                            boolean directionChanged = (direction != m_direction);
 //log("    m_directionChanged="+m_directionChanged);
-                            if (m_directionChanged) {
-                                m_peakAvgStoch = m_blendAvgStoch;
-log("direction changed: peakAvgStoch=" + m_peakAvgStoch + "; direction=" + m_direction);
+                            if (directionChanged) {
+                                m_peakAvgStoch = m_prevBlend;
+                                log("direction changed: peakAvgStoch=" + m_peakAvgStoch + "; direction=" + m_direction);
                             }
                         }
                         m_direction = direction;
                     }
-                    m_blendAvgStoch = blendAvgStoch;
                 }
-                m_prevPrevAvgStoch = m_prevAvgStoch;
+                m_prevBlend = blend;
             }
-            m_prevAvgStoch = avgStoch;
         }
 
-        public double boost(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
+        private static final double LEVEL1_TO = 0.7;
+        private static final double LEVEL2_TO = 0.6;
+        private static final double LEVEL1 = 0.04; // [0 ... LEVEL1]      -> [0.8 ... 1]x    [LEVEL1_TO ... 1]
+        private static final double LEVEL2 = 0.15; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... LEVEL2_TO]
+                                                   // [LEVEL2 ... 1]      -> +[0.6 ... 1]    +[LEVEL2_TO ... 1]
+
+        public double adjustDirection(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
             double ret = directionAdjusted;
             if (m_peakAvgStoch != null) {
-                double distanceFromPeak = m_direction.applyDirection(m_blendAvgStoch - m_peakAvgStoch);
-log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + m_direction + "; peakAvgStoch=" + m_peakAvgStoch + "; blendAvgStoch=" + m_blendAvgStoch + "; prevAvgStoch="+m_prevAvgStoch);
+                double distanceFromPeak = m_direction.applyDirection(m_prevBlend - m_peakAvgStoch);
+log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + m_direction + "; peakAvgStoch=" + m_peakAvgStoch + "; m_prevBlend=" + m_prevBlend);
                 // distanceFromPeak  [0 ... 1]
-                if (distanceFromPeak < 0.1) {          //[0 ... 0.1]
-                    double q = 0.1 - distanceFromPeak; //[0.1 ... 0]
-                    double w = q * 2;                  //[0.2 ... 0]
-                    double e = 1 - w;                  //[0.8 ... 1]
-                    ret = directionAdjusted * e;
-                } else if (distanceFromPeak < 0.1) {   //[0.1 ... 0.2]
-                    double q = distanceFromPeak - 0.1; //[0 ... 0.1]
-                    double w = q * 5;                  //[0 ... 0.5]
+                if (distanceFromPeak < LEVEL1) {          //[0   ... 0.1]
+//                    double q = LEVEL1 - distanceFromPeak; //[0.1 ... 0  ]
+//                    double r = q / LEVEL1;                //[1   ... 0  ]
+//                    double w = r * (1 - LEVEL1_TO);       //[0.2 ... 0  ]
+//                    double e = 1 - w;                     //[0.8 ... 1  ]
+//log("  first range: e=" + e);
+//                    ret = directionAdjusted * e;
+                    return ret;
+                } else if (distanceFromPeak < LEVEL2) {   //[0.1 ... 0.2]
+                    double q = distanceFromPeak - LEVEL1; //[0   ... 0.1]
+                    double r = q / (LEVEL2 - LEVEL1);     //[0   ... 1  ]
+                    double w = r * LEVEL2_TO;             //[0   ... 0.6]
+log("  second range: w=" + w);
                     ret = boostDirection(directionAdjusted, w);
-                } else { // [0.2 ... 1]
-                    double q = distanceFromPeak - 0.2; //[0 ... 0.8]
-                    double w = q / 8 * 5;              //[0 ... 0.5]
-                    double e = 0.5 + w;                //[0.5 ... 1]
+                } else {                                  //[0.2 ... 1]
+                    double q = distanceFromPeak - LEVEL2; //[0 ... 0.8]
+                    double r  = q / (1 - LEVEL2);         //[0 ... 1  ]
+                    double w = r * (1 - LEVEL2_TO);       //[0 ... 0.4]
+                    double e = LEVEL2_TO + w;             //[0.6 ... 1]
+log("  third range: e=" + e);
                     ret = boostDirection(directionAdjusted, e);
                 }
                 log(" boosted from " + directionAdjusted + " to " + ret);
@@ -1056,6 +1066,37 @@ log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + m_directio
             double plus = distanceToOne * rate;
             double newDirectionAbs = directionAbs + plus;
             ret = (direction < 0) ? -newDirectionAbs : newDirectionAbs;
+            return ret;
+        }
+    }
+
+    private class AvgPriceDirectionAdjuster {
+        private Double m_prevAvgPrice;
+        private Double m_prevDirectionAdjusted;
+
+        public double adjustDirection(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
+            double ret = directionAdjusted;
+            if (m_avgPriceCounter.m_full) {
+                double avgPrice = m_avgPriceCounter.get();
+                if (m_prevAvgPrice != null) {
+                    double avgPriceDiff = avgPrice - m_prevAvgPrice;
+log(" avgPrice=" + avgPrice + "; m_prevAvgPrice=" + m_prevAvgPrice + "; avgPriceDiff=" + avgPriceDiff);
+                    boolean priceTrendUp = (avgPriceDiff > 0);
+                    if(m_prevDirectionAdjusted != null) {
+                        double directionAdjustedDiff = directionAdjusted - m_prevDirectionAdjusted;
+                        boolean directionUp = (directionAdjustedDiff > 0);
+log(" directionAdjusted=" + directionAdjusted + "; m_prevDirectionAdjusted=" + m_prevDirectionAdjusted + "; directionAdjustedDiff=" + directionAdjustedDiff);
+                        if ((priceTrendUp && !directionUp) || (!priceTrendUp && directionUp)) {
+                            log(" opposite priceTrendUp=" + priceTrendUp + " and directionUp=" + directionUp);
+                            double directionChilled = directionAdjusted * 0.75;
+                            log("  direction chilled from " + directionAdjusted + " to " + directionChilled);
+                            ret = directionChilled;
+                        }
+                    }
+                }
+                m_prevAvgPrice = avgPrice;
+            }
+            m_prevDirectionAdjusted = directionAdjusted;
             return ret;
         }
     }
