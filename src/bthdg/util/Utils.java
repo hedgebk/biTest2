@@ -556,27 +556,22 @@ public class Utils {
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    public static class AverageCounter {
-        // probably better to have average counter which counts older ticks with lower ratio/weight - fading
+    public static class SlidingValuesFrame {
         public final TreeMap<Long,Double> m_map; // sorted by time
         protected final long m_limit;
+        public boolean m_full;
 
-        public AverageCounter(long limit) {
+        public SlidingValuesFrame(long limit) {
             this(limit, new TreeMap<Long, Double>());
         }
 
-        public AverageCounter(long limit, TreeMap<Long, Double> map) {
+        public SlidingValuesFrame(long limit, TreeMap<Long, Double> map) {
             m_limit = limit;
             m_map = map;
         }
 
-        public double add(double addValue) {
-            return add(System.currentTimeMillis(), addValue);
-        }
-
-        public double add(long millis, double addValue) {
-            justAdd(millis, addValue);
-            return get();
+        public void justAdd(double addValue) {
+            justAdd(System.currentTimeMillis(), addValue);
         }
 
         public void justAdd(long millis, double addValue) {
@@ -587,14 +582,35 @@ public class Utils {
             }
         }
 
-        private static <T> void removeOld(long limit, TreeMap<Long, T> map) {
+        private <T> void removeOld(long limit, TreeMap<Long, T> map) {
             SortedMap<Long, T> toRemove = map.headMap(limit);
             if (!toRemove.isEmpty()) {
+                m_full = true; // the array becomes full
                 ArrayList<Long> keys = new ArrayList<Long>(toRemove.keySet());
                 for (Long key : keys) {
                     map.remove(key);
                 }
             }
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    public static class AverageCounter extends SlidingValuesFrame {
+        public AverageCounter(long limit) {
+            this(limit, new TreeMap<Long, Double>());
+        }
+
+        public AverageCounter(long limit, TreeMap<Long, Double> map) {
+            super(limit, map);
+        }
+
+        public double add(double addValue) {
+            return add(System.currentTimeMillis(), addValue);
+        }
+
+        public double add(long millis, double addValue) {
+            justAdd(millis, addValue);
+            return get();
         }
 
         public double get() {
