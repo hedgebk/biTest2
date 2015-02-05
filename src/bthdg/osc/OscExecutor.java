@@ -43,7 +43,7 @@ class OscExecutor implements Runnable{
 
     private static void log(String s) { Log.log(s); }
 
-    public OscExecutor(IWs ws, long avgBarSize) {
+    public OscExecutor(IWs ws) {
         m_avgStochDirectionAdjuster = new AvgStochDirectionAdjuster();
         m_avgPriceDirectionAdjuster = new AvgPriceDirectionAdjuster();
         m_avgPriceCounter = new Utils.FadingAverageCounter(Osc.AVG_BAR_SIZE * 3 / 2);
