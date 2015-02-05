@@ -18,12 +18,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OscLogProcessor extends BaseChartPaint {
-    private static final int WIDTH = 16000;
-    public static final int HEIGHT = 1000;
+    private static int WIDTH = 16000;
+    public static int HEIGHT = 1000;
     public static final int X_FACTOR = 5; // more points
-    public static final int DIRECTION_MARK_RADIUS = 50;
-    private static final int OSCS_RADIUS = DIRECTION_MARK_RADIUS * 4;
-    private static final int OSCS_OFFSET = DIRECTION_MARK_RADIUS * 2;
+    public static int DIRECTION_MARK_RADIUS = 50;
+    private static int OSCS_RADIUS;
+    private static int OSCS_OFFSET;
     public static final long AVG_PRICE_TIME = Utils.toMillis(20, 0);
 
     private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
@@ -58,11 +58,17 @@ public class OscLogProcessor extends BaseChartPaint {
     };
     private static ArrayList<DirectionsData> s_directions = new ArrayList<DirectionsData>();
 
+    private static void initOscsRadiusOffset() {
+        OSCS_RADIUS = DIRECTION_MARK_RADIUS * 4;
+        OSCS_OFFSET = DIRECTION_MARK_RADIUS * 2;
+    }
+
     public static void main(String[] args) {
         try {
             Properties keys = BaseExch.loadKeys();
-            String logFile = keys.getProperty("osc.log_processor.file");
-            System.out.println("logFile: " + logFile);
+
+            String logFile = init(keys);
+
             File file = new File(logFile);
             FileInputStream fis = new FileInputStream(file);
             try {
@@ -79,6 +85,31 @@ public class OscLogProcessor extends BaseChartPaint {
             System.err.println("GOT ERROR: " + e);
             e.printStackTrace();
         }
+    }
+
+    private static String init(Properties keys) {
+
+        String widthStr = keys.getProperty("osc.log_processor.width");
+        if (widthStr != null) {
+            System.out.println("widthStr: " + widthStr);
+            WIDTH = Integer.parseInt(widthStr);
+        }
+        String heightStr = keys.getProperty("osc.log_processor.height");
+        if (heightStr != null) {
+            System.out.println("heightStr: " + heightStr);
+            HEIGHT = Integer.parseInt(heightStr);
+        }
+        String radiusStr = keys.getProperty("osc.log_processor.radius");
+        if (radiusStr != null) {
+            System.out.println("radiusStr: " + radiusStr);
+            DIRECTION_MARK_RADIUS = Integer.parseInt(radiusStr);
+        }
+
+        initOscsRadiusOffset();
+
+        String logFile = keys.getProperty("osc.log_processor.file");
+        System.out.println("logFile: " + logFile);
+        return logFile;
     }
 
     private static void processLines(BufferedLineReader blr) throws IOException {
@@ -120,8 +151,8 @@ public class OscLogProcessor extends BaseChartPaint {
         System.out.println("minPrice = " + minPrice + ", maxPrice = " + maxPrice + ", priceDiff = " + priceDiff);
 
         ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT - OSCS_RADIUS*3);
-        priceAxe.m_offset = OSCS_RADIUS*3/2;
+        ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT - OSCS_RADIUS * 3);
+        priceAxe.m_offset = OSCS_RADIUS * 3 / 2;
         Double minGain = gainCalc.m_minValue;
         Double maxGain = gainCalc.m_maxValue;
         ChartAxe gainAxe = new PaintChart.ChartAxe(minGain, maxGain, OSCS_RADIUS);
@@ -129,7 +160,7 @@ public class OscLogProcessor extends BaseChartPaint {
         System.out.println("minGain: " + minGain + "; maxGain=" + maxGain);
         System.out.println("time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale));
 
-        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage./*TYPE_USHORT_565_RGB*/ TYPE_INT_ARGB );
+        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB ); /*TYPE_USHORT_565_RGB*/
         Graphics2D g = image.createGraphics();
         setupGraphics(g);
 
@@ -151,13 +182,13 @@ public class OscLogProcessor extends BaseChartPaint {
         // paint time axe labels
         paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
+        paintOscs(priceAxe, timeAxe, g);
         paintDirections(priceAxe, timeAxe, g);
         paintTops(priceAxe, timeAxe, g);
         paintTrades(priceAxe, timeAxe, g);
         paintAvg(priceAxe, timeAxe, g);
         paintPlaceOrder(priceAxe, timeAxe, g);
         paintAvgPrice(priceAxe, timeAxe, g, gainAxe);
-        paintOscs(priceAxe, timeAxe, g);
         paintGain(priceAxe, timeAxe, gainAxe, g);
 
         writeAndShowImage(image);
@@ -203,6 +234,7 @@ public class OscLogProcessor extends BaseChartPaint {
                     Color color = (y > lastY) ? Color.RED : (y < lastY) ? Color.GREEN : Color.GRAY;
                     g.setPaint(color);
                     g.drawLine(lastX, lastY, x, y);
+                    g.drawRect(x - 2, y - 2, 4, 4);
                 }
                 lastX = x;
                 lastY = y;
@@ -392,6 +424,7 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintDirections(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        g.setFont(g.getFont().deriveFont(9f));
         Integer prevX = null;
         Integer prevY = null;
         for (DirectionsData dData : s_directions) {
@@ -416,6 +449,7 @@ public class OscLogProcessor extends BaseChartPaint {
             g.setPaint((direction > 0) ? Color.green : Color.red);
             g.drawLine(x, y, x, y2);
             int dx = 1;
+            String str = "";
             if ((boostedFrom != null) && (boostedTo != null)) {
                 g.setPaint(Color.blue);
                 int y3 = y - (int) (DIRECTION_MARK_RADIUS * boostedFrom);
@@ -423,6 +457,7 @@ public class OscLogProcessor extends BaseChartPaint {
                 int x1 = x + dx;
                 g.drawLine(x1, y3, x1, y4);
                 dx++;
+                str += (Utils.format5(boostedFrom) + "->" + Utils.format5(boostedTo) + " |");
             }
             if ((chilledFrom != null) && (chilledTo != null)) {
                 g.setPaint(Color.red);
@@ -431,9 +466,22 @@ public class OscLogProcessor extends BaseChartPaint {
                 int x1 = x + dx;
                 g.drawLine(x1, y3, x1, y4);
                 dx++;
+                str += (Utils.format5(chilledFrom) + "->" + Utils.format5(chilledTo) + " |");
             }
             prevY = y2;
             prevX = x;
+            str += Utils.format5(direction);
+
+            //----------------
+            int textX = x;
+            int textY = y - DIRECTION_MARK_RADIUS - 10;
+
+            AffineTransform orig = g.getTransform();
+            g.translate(textX, textY);
+            g.rotate(-Math.PI / 2);
+            g.setColor(Color.darkGray);
+            g.drawString(str, 0, 0);
+            g.setTransform(orig);
         }
     }
 
