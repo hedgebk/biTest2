@@ -38,7 +38,7 @@ public class WebSocket extends Transport {
 
         final WebSocket self = this;
         try {
-            this.ws = new WebSocketClient(new URI(this.uri()), new Draft_17(), headers/*, 0*/) {
+            this.ws = new WebSocketClient(new URI(this.uri()), new Draft_17(), headers, 0) {
                 @Override
                 public void onOpen(final ServerHandshake serverHandshake) {
                     EventThread.exec(new Runnable() {
@@ -57,8 +57,7 @@ public class WebSocket extends Transport {
                         }
                     });
                 }
-                @Override
-                public void onClose(int i, String s, boolean b) {
+                @Override public void onClose(int i, String s, boolean b) {
                     EventThread.exec(new Runnable() {
                         @Override
                         public void run() {
@@ -66,8 +65,7 @@ public class WebSocket extends Transport {
                         }
                     });
                 }
-                @Override
-                public void onMessage(final String s) {
+                @Override public void onMessage(final String s) {
                     EventThread.exec(new Runnable() {
                         @Override
                         public void run() {
@@ -75,8 +73,7 @@ public class WebSocket extends Transport {
                         }
                     });
                 }
-                @Override
-                public void onMessage(final ByteBuffer s) {
+                @Override public void onMessage(final ByteBuffer s) {
                     EventThread.exec(new Runnable() {
                         @Override
                         public void run() {
@@ -84,8 +81,7 @@ public class WebSocket extends Transport {
                         }
                     });
                 }
-                @Override
-                public void onError(final Exception e) {
+                @Override public void onError(final Exception e) {
                     EventThread.exec(new Runnable() {
                         @Override
                         public void run() {
@@ -108,16 +104,15 @@ public class WebSocket extends Transport {
         this.writable = false;
         for (Packet packet : packets) {
             Parser.encodePacket(packet, new Parser.EncodeCallback() {
-                @Override
-                public void call(Object packet) {
+                @Override public void call(Object packet) {
                     if (packet instanceof String) {
                         self.ws.send((String) packet);
                     } else if (packet instanceof byte[]) {
-                        try {
+//                        try {
                             self.ws.send((byte[]) packet);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+//                        } catch (InterruptedException e) {
+//                            e.printStackTrace();
+//                        }
                     }
                 }
             });
@@ -136,8 +131,7 @@ public class WebSocket extends Transport {
         EventThread.nextTick(ondrain);
     }
 
-    @Override
-    protected void onClose() {
+    @Override protected void onClose() {
         super.onClose();
     }
 
@@ -176,5 +170,4 @@ public class WebSocket extends Transport {
         // for checking if the websocket is available. Should we remove?
         return true;
     }
-
 }
