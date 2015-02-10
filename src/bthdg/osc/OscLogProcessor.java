@@ -3,6 +3,7 @@ package bthdg.osc;
 import bthdg.BaseChartPaint;
 import bthdg.PaintChart;
 import bthdg.exch.BaseExch;
+import bthdg.exch.Direction;
 import bthdg.exch.OrderSide;
 import bthdg.exch.TradeData;
 import bthdg.util.Colors;
@@ -25,6 +26,7 @@ public class OscLogProcessor extends BaseChartPaint {
     private static int OSCS_RADIUS;
     private static int OSCS_OFFSET;
     public static final long AVG_PRICE_TIME = Utils.toMillis(20, 0);
+    public static final double FILTER_GAIN_SPIKES_RATIO = 1.02; // filter out >2% gain spikes
 
     private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
 
@@ -33,10 +35,11 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+),.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
     private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] bar\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
-    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=(\\d+\\.\\d+); trend=([-\\d]+\\.[\\d-E]+)");
+    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d+\\.\\d+)\\savg2=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=(\\d+\\.\\d+); trend=([-\\d]+\\.[\\d-E]+)");
     private static final Pattern GAIN_PATTERN = Pattern.compile("(\\d+):\\s+GAIN: Btc=(\\d+\\.\\d+); Cnh=(\\d+\\.\\d+) CNH; avg=(\\d+\\.\\d+); projected=(\\d+\\.\\d+).*");
     private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
     private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
+    private static final Pattern START_LEVEL_PATTERN = Pattern.compile("(\\d+): \\[(\\d+)\\] start level reached for (\\w+); .*");
 
     public static final String DIRECTION_ADJUSTED = "   directionAdjusted=";
     public static final String CHILLED_FROM = "chilled from";
@@ -51,12 +54,22 @@ public class OscLogProcessor extends BaseChartPaint {
     private static ArrayList<OscData> s_oscs = new ArrayList<OscData>();
     private static int s_maxOscIndex = 0;
     private static TreeMap<Long,Double> s_avgPrice = new TreeMap<Long, Double>();
-    private static TreeMap<Long, Double> s_avg = new TreeMap<Long, Double>();
+    private static TreeMap<Long, Double> s_avg1 = new TreeMap<Long, Double>();
+    private static TreeMap<Long, Double> s_avg2 = new TreeMap<Long, Double>();
     private static TreeMap<Long, Double> s_gain = new TreeMap<Long, Double>();
     private static Utils.DoubleMinMaxCalculator<Double> gainCalc = new Utils.DoubleMinMaxCalculator<Double>() {
-        public Double getValue(Double val) {return val;};
+        public Double getValue(Double val) {
+            if ((m_maxValue != null) && (val > m_maxValue * FILTER_GAIN_SPIKES_RATIO)) {
+                return m_maxValue; // filter huge jumps
+            }
+            if ((m_minValue != null) && (val < m_minValue / FILTER_GAIN_SPIKES_RATIO)) {
+                return m_minValue; // filter huge jumps
+            }
+            return val;
+        }
     };
     private static ArrayList<DirectionsData> s_directions = new ArrayList<DirectionsData>();
+    private static Map<Integer, OscData> s_lastOscs = new HashMap<Integer, OscData>();
 
     private static void initOscsRadiusOffset() {
         OSCS_RADIUS = DIRECTION_MARK_RADIUS * 4;
@@ -195,10 +208,19 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintAvg(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        BasicStroke gainStroke = new BasicStroke(2);
+        Stroke old = g.getStroke();
+        g.setStroke(gainStroke);
+        paintAvg(s_avg1, priceAxe, timeAxe, g, Color.CYAN);
+        paintAvg(s_avg2, priceAxe, timeAxe, g, Color.ORANGE);
+        g.setStroke(old);
+    }
+
+    private static void paintAvg(TreeMap<Long, Double> avgs, ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, Color cyan) {
+        g.setPaint(cyan);
         int lastX = -1;
         int lastY = -1;
-        g.setPaint(Color.CYAN);
-        for (Map.Entry<Long, Double> entry : s_avg.entrySet()) {
+        for (Map.Entry<Long, Double> entry : avgs.entrySet()) {
             Long stamp = entry.getKey();
             Double avgPrice = entry.getValue();
             int x = timeAxe.getPoint(stamp);
@@ -217,6 +239,7 @@ public class OscLogProcessor extends BaseChartPaint {
         g.setStroke(gainStroke);
         int lastX = -1;
         int lastY = -1;
+        int lastGainDeltaY = -1;
         for (Map.Entry<Long, Double> entry : s_gain.entrySet()) {
             Long time = entry.getKey();
             Double gain = entry.getValue();
@@ -231,13 +254,14 @@ public class OscLogProcessor extends BaseChartPaint {
                 int y = avgY + OSCS_OFFSET + gainDeltaY;
 
                 if (lastX != -1) {
-                    Color color = (y > lastY) ? Color.RED : (y < lastY) ? Color.GREEN : Color.GRAY;
+                    Color color = (gainDeltaY > lastGainDeltaY) ? Color.RED : (gainDeltaY < lastGainDeltaY) ? Color.GREEN : Color.GRAY;
                     g.setPaint(color);
                     g.drawLine(lastX, lastY, x, y);
                     g.drawRect(x - 2, y - 2, 4, 4);
                 }
                 lastX = x;
                 lastY = y;
+                lastGainDeltaY = gainDeltaY;
             }
         }
         g.setStroke(old);
@@ -260,31 +284,34 @@ public class OscLogProcessor extends BaseChartPaint {
 
                 double osc1 = osc.m_osc1;
                 double osc2 = osc.m_osc2;
+                Boolean startLevelBuy = osc.m_startLevelBuy;
                 int y1 = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * osc1));
                 int y2 = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * osc2));
                 if (lastX[index] != 0) {
                     Color color = OSC_COLORS[index % OSC_COLORS.length];
                     g.setPaint(color);
-                    int prevX = lastX[index];
-                    g.drawLine(prevX, lastY1[index], x, y1);
+                    g.drawLine(lastX[index], lastY1[index], x, y1);
                     g.drawLine(lastX[index], lastY2[index], x, y2);
                     g.drawRect(x - 1, y1 - 1, 2, 2);
                     g.drawRect(x - 1, y2 - 1, 2, 2);
+                    if (startLevelBuy != null) {
+                        g.drawLine(x, y1, x, y1 + (startLevelBuy ? -1 : 1) * OSCS_RADIUS / 3);
+                    }
                 }
                 lastX[index] = x;
                 lastY1[index] = y1;
                 lastY2[index] = y2;
             }
         }
+        TrendWatcher trendWatcher = new TrendWatcher(0.01);
         Double[] midOscs = new Double[oscNum];
         Integer prevAvgOscY = null;
         int prevAvgOscX = 0;
         Double prevPrevAvgOsc = null;
-        Double prevBlendAvgOsc = null;
+//        Double prevBlendAvgOsc = null;
         Double prevAvgOsc = null;
         BasicStroke avgOscStroke = new BasicStroke(4);
         Stroke old = g.getStroke();
-        g.setStroke(avgOscStroke);
         for (OscData osc : s_oscs) {
             int index = osc.m_index;
             long time = osc.m_millis;
@@ -309,15 +336,28 @@ public class OscLogProcessor extends BaseChartPaint {
                 }
                 if (avgOsc != null) {
                     avgOsc /= oscNum;
+                    trendWatcher.update(avgOsc);
                     if ((prevAvgOsc != null) && (prevPrevAvgOsc != null)) {
                         double blendAvgOsc = (avgOsc + prevAvgOsc + prevPrevAvgOsc) / 3; // blend 3 last values
                         int avgOscY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * blendAvgOsc));
-                        if (prevBlendAvgOsc != null) {
-                            Boolean down = (blendAvgOsc < prevBlendAvgOsc) ? Boolean.TRUE : (blendAvgOsc > prevBlendAvgOsc) ? Boolean.FALSE : null;
-                            g.setPaint(down == null ? Color.gray : down ? Color.red : Colors.DARK_GREEN);
+                        Direction direction = trendWatcher.m_direction;
+                        if (direction != null) {
+                            g.setStroke(avgOscStroke);
+                            g.setPaint((direction == Direction.FORWARD) ? Colors.DARK_GREEN : Color.red);
                             g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
+                            g.setStroke(old);
                         }
-                        prevBlendAvgOsc = blendAvgOsc;
+
+//                        if (prevBlendAvgOsc != null) {
+//                            g.setStroke(avgOscStroke);
+//                            Boolean down = (blendAvgOsc < prevBlendAvgOsc) ? Boolean.TRUE : (blendAvgOsc > prevBlendAvgOsc) ? Boolean.FALSE : null;
+//                            g.setPaint((down == null) ? Color.gray : down ? Color.red : Colors.DARK_GREEN);
+//                            g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
+//                            g.setStroke(old);
+//                            g.drawLine(x, avgOscY, x, avgOscY + ((down == null) ? 0 : down ? 1 : -1) * OSCS_OFFSET / 10);
+//                        }
+//                        prevBlendAvgOsc = blendAvgOsc;
+
                         prevAvgOscY = avgOscY;
                         prevAvgOscX = x;
                     }
@@ -442,6 +482,7 @@ public class OscLogProcessor extends BaseChartPaint {
             int y = priceAxe.getPointReverse(basePrice);
             g.setPaint(Color.lightGray);
             g.drawLine(x, y - DIRECTION_MARK_RADIUS, x, y + DIRECTION_MARK_RADIUS);
+            g.drawLine(x - 1, y, x + 1, y);
             int y2 = y - (int) (DIRECTION_MARK_RADIUS * direction);
             if (prevX != null) {
                 g.drawLine(prevX, prevY, x, y2);
@@ -511,6 +552,8 @@ public class OscLogProcessor extends BaseChartPaint {
             processAvgAndTrend(line);
         } else if(line.contains("GAIN: ")) { // 1422133198048:   GAIN: Btc=0.975798088760157; Cnh=1.0289787120270006 CNH; avg=1.0023884003935788; projected=1.0051339148741418
             processGain(line);
+        } else if(line.contains("start level reached for")) { // 1423187861490: [2] start level reached for SELL; stochDiff=0.02202571880404658; startLevel=0.11617121375916264
+            processStartLevel(line);
         } else {
             System.out.println("-------- skip line: " + line);
         }
@@ -537,22 +580,47 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static void processAvgAndTrend(String line1) {
         // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
+        // line: 1423530655990:  avg1=1370.9866478873241 avg2=1370.986655462185; last=1370.9866086956522; oldest=1371.0; trend=-0.013391304347805999
         Matcher matcher = AVG_TREND_PATTERN.matcher(line1);
         if (matcher.matches()) {
             String millisStr = matcher.group(1);
-            String avgStr = matcher.group(2);
-            String lastStr = matcher.group(3);
-            String oldestStr = matcher.group(4);
-            String trendStr = matcher.group(5);
-            System.out.println("GOT OSC_BAR: millisStr=" + millisStr + "; avgStr=" + avgStr + "; lastStr=" + lastStr + "; oldestStr=" + oldestStr + "; trendStr=" + trendStr);
+            String avgStr1 = matcher.group(2);
+            String avgStr2 = matcher.group(3);
+            String lastStr = matcher.group(4);
+            String oldestStr = matcher.group(5);
+            String trendStr = matcher.group(6);
+            System.out.println("GOT OSC_BAR: millisStr=" + millisStr + "; avgStr1=" + avgStr1 + "; avgStr2=" + avgStr2 +
+                               "; lastStr=" + lastStr + "; oldestStr=" + oldestStr + "; trendStr=" + trendStr);
             long millis = Long.parseLong(millisStr);
-            double avg = Double.parseDouble(avgStr);
+            double avg1 = Double.parseDouble(avgStr1);
+            double avg2 = Double.parseDouble(avgStr2);
 //            double last = Double.parseDouble(lastStr);
 //            double oldest = Double.parseDouble(oldestStr);
 //            double trend = Double.parseDouble(trendStr);
-            s_avg.put(millis, avg);
+            s_avg1.put(millis, avg1);
+            s_avg2.put(millis, avg2);
         } else {
             throw new RuntimeException("not matched AVG_TREND line: " + line1);
+        }
+    }
+
+    private static void processStartLevel(String line1) {
+        // 1423187861490: [2] start level reached for SELL; stochDiff=0.02202571880404658; startLevel=0.11617121375916264
+        Matcher matcher = START_LEVEL_PATTERN.matcher(line1);
+        if(matcher.matches()) {
+            String millisStr = matcher.group(1);
+            String indexStr = matcher.group(2);
+            String sideStr = matcher.group(3);
+            System.out.println("GOT START_LEVEL: millisStr=" + millisStr + "; indexStr=" + indexStr + "; sideStr=" + sideStr);
+//            long millis = Long.parseLong(millisStr);
+            int index = Integer.parseInt(indexStr);
+            boolean isBuy = sideStr.equals("BUY");
+            OscData oscData = s_lastOscs.get(index);
+            if (oscData != null) {
+                oscData.setStartLevelBuy(isBuy);
+            }
+        } else {
+            throw new RuntimeException("not matched OSC_BAR_PATTERN line: " + line1);
         }
     }
 
@@ -573,6 +641,7 @@ public class OscLogProcessor extends BaseChartPaint {
             OscData osc = new OscData(millis, index, osc1, osc2);
             s_oscs.add(osc);
             s_maxOscIndex = Math.max(s_maxOscIndex, index);
+            s_lastOscs.put(index, osc);
         } else {
             throw new RuntimeException("not matched OSC_BAR_PATTERN line: " + line1);
         }
@@ -838,12 +907,17 @@ public class OscLogProcessor extends BaseChartPaint {
         private final int m_index;
         private final double m_osc1;
         private final double m_osc2;
+        private Boolean m_startLevelBuy;
 
         public OscData(long millis, int index, double osc1, double osc2) {
             m_millis = millis;
             m_index = index;
             m_osc1 = osc1;
             m_osc2 = osc2;
+        }
+
+        public void setStartLevelBuy(boolean isBuy) {
+            m_startLevelBuy = isBuy;
         }
     }
 
@@ -867,6 +941,58 @@ public class OscLogProcessor extends BaseChartPaint {
             m_chilledTo = chilledTo;
             m_directionAdjusted = directionAdjusted;
             m_lastMidPrice = lastMidPrice;
+        }
+    }
+
+    public static class TrendWatcher {
+        protected final double m_tolerance;
+        Double m_peak;
+        private Double m_peakCandidate;
+        Direction m_direction;
+
+        public TrendWatcher(double tolerance) {
+            m_tolerance = tolerance;
+        }
+
+        public void update(double value) {
+            if (m_peak == null) {
+                m_peak = value;
+            } else {
+                double tolerance = getTolerance(value);
+                if (m_direction == null) {
+                    double diff = value - m_peak;
+                    if (diff > tolerance) {
+                        m_direction = Direction.FORWARD;
+                        m_peakCandidate = value;
+                    } else if (diff < -tolerance) {
+                        m_direction = Direction.BACKWARD;
+                        m_peakCandidate = value;
+                    }
+                } else {
+                    double diff = value - m_peakCandidate;
+                    if (m_direction == Direction.FORWARD) {
+                        if (diff > 0) {
+                            m_peakCandidate = value;
+                        } else if (diff < -tolerance) {
+                            m_direction = Direction.BACKWARD;
+                            m_peak = m_peakCandidate;
+                            m_peakCandidate = value;
+                        }
+                    } else if (m_direction == Direction.BACKWARD) {
+                        if (diff < 0) {
+                            m_peakCandidate = value;
+                        } else if (diff > tolerance) {
+                            m_direction = Direction.FORWARD;
+                            m_peak = m_peakCandidate;
+                            m_peakCandidate = value;
+                        }
+                    }
+                }
+            }
+        }
+
+        protected double getTolerance(double value) {
+            return m_tolerance;
         }
     }
 }
