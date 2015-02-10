@@ -23,6 +23,7 @@ import java.util.Properties;
 // crypto-trade.com ?
 // check more exchnages examples here https://github.com/mobnetic/BitcoinChecker/tree/master/DataModule/src/com/mobnetic/coinguardian/model/market
 //   https://github.com/timmolter/XChange
+// other exchanges: http://enjoybitcoins.com/listing-category/bitcoin-exchanges/?orderby=starrating&order=desc
 public enum Exchange {
     BITSTAMP("bitstamp", new Bitstamp(), "bitstampUSD", 1, 0.002, true,
              Bitstamp.topTestStr(), "https://www.bitstamp.net/api/ticker/",
