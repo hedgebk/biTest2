@@ -71,16 +71,24 @@ class PhasedOscCalculator extends OscCalculator {
                     if (executor.m_priceTrendCounter.isTrendUp()) {
                         startLevel *= REVERSE_TREND_LEVEL_MULTIPLIER;
                     }
-                    log("[" + calc.m_index + "] start level reached for SELL; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
-                    calc.start(OrderSide.SELL);
-                    return DOWN;
+                    if(stochDiff > startLevel) {
+                        log("[" + calc.m_index + "] start level reached for SELL; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
+                        calc.start(OrderSide.SELL);
+                        return DOWN;
+                    } else {
+                        log("[" + calc.m_index + "] start level not yet reached for SELL; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
+                    }
                 } else if (stochDiff < 0) { // UP
                     if (!executor.m_priceTrendCounter.isTrendUp()) {
                         startLevel *= REVERSE_TREND_LEVEL_MULTIPLIER;
                     }
-                    log("[" + calc.m_index + "] start level reached for BUY; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
-                    calc.start(OrderSide.BUY);
-                    return UP;
+                    if(stochDiff < -startLevel) {
+                        log("[" + calc.m_index + "] start level reached for BUY; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
+                        calc.start(OrderSide.BUY);
+                        return UP;
+                    } else {
+                        log("[" + calc.m_index + "] start level not yet reached for SELL; stochDiff=" + stochDiff + "; startLevel=" + startLevel);
+                    }
                 }
                 return this;
             }
