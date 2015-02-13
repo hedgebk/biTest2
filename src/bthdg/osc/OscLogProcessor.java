@@ -26,7 +26,7 @@ public class OscLogProcessor extends BaseChartPaint {
     private static int OSCS_RADIUS;
     private static int OSCS_OFFSET;
     public static final long AVG_PRICE_TIME = Utils.toMillis(20, 0);
-    public static final double FILTER_GAIN_SPIKES_RATIO = 1.02; // filter out >2% gain spikes
+    public static final double FILTER_GAIN_SPIKES_RATIO = 1.01; // filter out >1% gain spikes
 
     private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
 
@@ -35,16 +35,16 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+),.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
     private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] bar\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
-    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d+\\.\\d+)\\savg2=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=(\\d+\\.\\d+); trend=([-\\d]+\\.[\\d-E]+)");
+    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d+\\.\\d+)\\savg2=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=([\\+\\-]?\\d+\\.[\\d+\\-E]+); trend=([-\\d]+\\.[\\d-E]+)");
     private static final Pattern GAIN_PATTERN = Pattern.compile("(\\d+):\\s+GAIN: Btc=(\\d+\\.\\d+); Cnh=(\\d+\\.\\d+) CNH; avg=(\\d+\\.\\d+); projected=(\\d+\\.\\d+).*");
     private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
-    private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
+    private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled(\\d) from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
     private static final Pattern START_LEVEL_PATTERN = Pattern.compile("(\\d+): \\[(\\d+)\\] start level reached for (\\w+); .*");
 
     public static final String DIRECTION_ADJUSTED = "   directionAdjusted=";
-    public static final String CHILLED_FROM = "chilled from";
-    public static final String[] AFTER_DIRECTION = new String[]{"boosted from ", CHILLED_FROM, DIRECTION_ADJUSTED};
-    public static final String[] AFTER_BOOSTED = new String[]{CHILLED_FROM, DIRECTION_ADJUSTED};
+    public static final String DIRECTION_CHILLED = "direction chilled";
+    public static final String[] AFTER_DIRECTION = new String[]{"boosted from ", DIRECTION_CHILLED, DIRECTION_ADJUSTED};
+    public static final String[] AFTER_BOOSTED = new String[]{DIRECTION_CHILLED, DIRECTION_ADJUSTED};
 
     private static final List<TradeData> s_trades = new ArrayList<TradeData>();
     private static ArrayList<PlaceOrderData> s_placeOrders = new ArrayList<PlaceOrderData>();
@@ -54,10 +54,10 @@ public class OscLogProcessor extends BaseChartPaint {
     private static ArrayList<OscData> s_oscs = new ArrayList<OscData>();
     private static int s_maxOscIndex = 0;
     private static TreeMap<Long,Double> s_avgPrice = new TreeMap<Long, Double>();
-    private static TreeMap<Long, Double> s_avg1 = new TreeMap<Long, Double>();
-    private static TreeMap<Long, Double> s_avg2 = new TreeMap<Long, Double>();
-    private static TreeMap<Long, Double> s_gain = new TreeMap<Long, Double>();
-    private static Utils.DoubleMinMaxCalculator<Double> gainCalc = new Utils.DoubleMinMaxCalculator<Double>() {
+    private static TreeMap<Long, Double> s_avg1 = new TreeMap<Long, Double>(); // parsed avg price 1
+    private static TreeMap<Long, Double> s_avg2 = new TreeMap<Long, Double>(); // parsed avg price 2
+    private static TreeMap<Long, Double> s_gain = new TreeMap<Long, Double>(); // parsed gains
+    private static Utils.DoubleMinMaxCalculator<Double> gainCalc = new Utils.DoubleDoubleMinMaxCalculator() { // calc min/max gain
         public Double getValue(Double val) {
             if ((m_maxValue != null) && (val > m_maxValue * FILTER_GAIN_SPIKES_RATIO)) {
                 return m_maxValue; // filter huge jumps
@@ -126,12 +126,16 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void processLines(BufferedLineReader blr) throws IOException {
+        long startTime = System.currentTimeMillis();
         String line;
         while( (line = blr.getLine()) != null ) {
             processLine(line, blr);
             blr.removeLine();
         }
         postProcess();
+        int linesReaded = blr.m_linesReaded;
+        long takes = System.currentTimeMillis() - startTime;
+        System.out.println("readed/processed " + linesReaded + " lines in " + takes + " ms (" + (linesReaded / (takes / 1000)) + " l/s)");
         paint();
     }
 
@@ -234,6 +238,8 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintGain(ChartAxe priceAxe, ChartAxe timeAxe, ChartAxe gainAxe, Graphics2D g) {
+        g.setFont(g.getFont().deriveFont(10f));
+        FontMetrics fontMetrics = g.getFontMetrics();
         BasicStroke gainStroke = new BasicStroke(2);
         Stroke old = g.getStroke();
         g.setStroke(gainStroke);
@@ -252,6 +258,18 @@ public class OscLogProcessor extends BaseChartPaint {
 
                 int x = timeAxe.getPoint(time);
                 int y = avgY + OSCS_OFFSET + gainDeltaY;
+
+                String str = gain.toString();
+                int strWidth = fontMetrics.stringWidth(str);
+                int textX = x + 2;
+                int textY = y + 10 + strWidth;
+
+                AffineTransform orig = g.getTransform();
+                g.translate(textX, textY);
+                g.rotate(-Math.PI / 2);
+                g.setColor(Color.darkGray);
+                g.drawString(str, 0, 0);
+                g.setTransform(orig);
 
                 if (lastX != -1) {
                     Color color = (gainDeltaY > lastGainDeltaY) ? Color.RED : (gainDeltaY < lastGainDeltaY) ? Color.GREEN : Color.GRAY;
@@ -308,10 +326,11 @@ public class OscLogProcessor extends BaseChartPaint {
         Integer prevAvgOscY = null;
         int prevAvgOscX = 0;
         Double prevPrevAvgOsc = null;
-//        Double prevBlendAvgOsc = null;
         Double prevAvgOsc = null;
         BasicStroke avgOscStroke = new BasicStroke(4);
         Stroke old = g.getStroke();
+        TreeMap<Long, Double> avgOscDeltas = new TreeMap<Long, Double>();
+        Utils.DoubleDoubleMinMaxCalculator avgOscDeltasCalc = new Utils.DoubleDoubleMinMaxCalculator();
         for (OscData osc : s_oscs) {
             int index = osc.m_index;
             long time = osc.m_millis;
@@ -348,18 +367,12 @@ public class OscLogProcessor extends BaseChartPaint {
                             g.setStroke(old);
                         }
 
-//                        if (prevBlendAvgOsc != null) {
-//                            g.setStroke(avgOscStroke);
-//                            Boolean down = (blendAvgOsc < prevBlendAvgOsc) ? Boolean.TRUE : (blendAvgOsc > prevBlendAvgOsc) ? Boolean.FALSE : null;
-//                            g.setPaint((down == null) ? Color.gray : down ? Color.red : Colors.DARK_GREEN);
-//                            g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
-//                            g.setStroke(old);
-//                            g.drawLine(x, avgOscY, x, avgOscY + ((down == null) ? 0 : down ? 1 : -1) * OSCS_OFFSET / 10);
-//                        }
-//                        prevBlendAvgOsc = blendAvgOsc;
-
                         prevAvgOscY = avgOscY;
                         prevAvgOscX = x;
+
+                        double avgOscDelta = blendAvgOsc - prevPrevAvgOsc;
+                        avgOscDeltas.put(time, avgOscDelta);
+                        avgOscDeltasCalc.calculate(avgOscDelta);
                     }
                     prevPrevAvgOsc = prevAvgOsc;
                     prevAvgOsc = avgOsc;
@@ -367,6 +380,39 @@ public class OscLogProcessor extends BaseChartPaint {
             }
         }
         g.setStroke(old);
+
+        Double minAvgOscDelta = avgOscDeltasCalc.m_minValue;
+        Double maxAvgOscDelta = avgOscDeltasCalc.m_maxValue;
+        System.out.println("minAvgOscDelta = " + minAvgOscDelta + ", maxAvgOscDelta = " + maxAvgOscDelta);
+        ChartAxe avgOscDeltaAxe = new PaintChart.ChartAxe(minAvgOscDelta, maxAvgOscDelta, DIRECTION_MARK_RADIUS*2);
+
+        Integer prevX = null;
+        Integer prevPaintY = null;
+        Integer prevPaintZeroY = null;
+        int yDeltaZero = avgOscDeltaAxe.getPointReverse(0);
+        for (Map.Entry<Long, Double> entry : avgOscDeltas.entrySet()) {
+            Long time = entry.getKey();
+            Double avgOscDelta = entry.getValue();
+            Map.Entry<Long, Double> entry2 = s_avgPrice.floorEntry(time);
+            if (entry2 != null) {
+                Double avgPrice = entry2.getValue();
+                int x = timeAxe.getPoint(time);
+                int y = priceAxe.getPointReverse(avgPrice);
+                int yDelta = avgOscDeltaAxe.getPoint(avgOscDelta);
+                int basePaintY = y - OSCS_OFFSET - OSCS_RADIUS;
+                int paintY = basePaintY - yDelta;
+                int paintZeroY = basePaintY - yDeltaZero;
+                if (prevX != null) {
+                    g.setPaint((avgOscDelta > 0) ? Color.green : Color.red);
+                    g.drawLine(prevX, prevPaintY, x, paintY);
+                    g.setPaint(Colors.DARK_BLUE);
+                    g.drawLine(prevX, prevPaintZeroY, x, paintZeroY);
+                }
+                prevX = x;
+                prevPaintY = paintY;
+                prevPaintZeroY = paintZeroY;
+            }
+        }
     }
 
     private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, ChartAxe gainAxe) {
@@ -382,6 +428,7 @@ public class OscLogProcessor extends BaseChartPaint {
         int dy2 = dy1 + OSCS_RADIUS;
         int dy3 = dy1 + OSCS_RADIUS * 2 / 10;
         int dy4 = dy1 + OSCS_RADIUS * 8 / 10;
+        int dy5 = dy2 + DIRECTION_MARK_RADIUS * 2;
         for (Map.Entry<Long, Double> entry : s_avgPrice.entrySet()) {
             Long time = entry.getKey();
             Double price = entry.getValue();
@@ -391,11 +438,13 @@ public class OscLogProcessor extends BaseChartPaint {
                 g.setPaint(Color.orange);
                 g.drawLine(lastX, lastY, x, y);
                 g.setPaint(Color.lightGray);
-                g.drawLine(lastX, lastY - dy1, x, y - dy1);
-                g.drawLine(lastX, lastY - dy2, x, y - dy2);
                 g.drawLine(lastX, lastY - dy3, x, y - dy3);
                 g.drawLine(lastX, lastY - dy4, x, y - dy4);
-                g.setPaint(Color.magenta);
+                g.setPaint(Color.gray);
+                g.drawLine(lastX, lastY - dy1, x, y - dy1);
+                g.drawLine(lastX, lastY - dy2, x, y - dy2);
+                g.drawLine(lastX, lastY - dy5, x, y - dy5);
+                g.setPaint(Colors.LIGHT_MAGNETA);
                 g.drawLine(lastX, lastY + dy1, x, y + dy1);
                 g.drawLine(lastX, lastY + dy2, x, y + dy2);
                 for (int k = from; k <= to; k++) {
@@ -428,7 +477,7 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintPlaceOrder(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        g.setFont(g.getFont().deriveFont(9f));
+        g.setFont(g.getFont().deriveFont(10f));
         FontMetrics fontMetrics = g.getFontMetrics();
         for (PlaceOrderData placeOrder : s_placeOrders) {
             Long stamp = placeOrder.m_placeMillis;
@@ -468,16 +517,18 @@ public class OscLogProcessor extends BaseChartPaint {
         Integer prevX = null;
         Integer prevY = null;
         for (DirectionsData dData : s_directions) {
+            Double basePrice = dData.m_lastMidPrice;
+            if (basePrice == null) {
+                continue;
+            }
             Long stamp = dData.m_millis;
             Double direction = dData.m_directionAdjusted;
             Double boostedFrom = dData.m_boostedFrom;
             Double boostedTo = dData.m_boostedTo;
-            Double chilledFrom = dData.m_chilledFrom;
-            Double chilledTo = dData.m_chilledTo;
-            Double basePrice = dData.m_lastMidPrice;
-            if(basePrice == null) {
-                continue;
-            }
+            Double chilled1From = dData.m_chilled1From;
+            Double chilled1To = dData.m_chilled1To;
+            Double chilled2From = dData.m_chilled2From;
+            Double chilled2To = dData.m_chilled2To;
             int x = timeAxe.getPoint(stamp);
             int y = priceAxe.getPointReverse(basePrice);
             g.setPaint(Color.lightGray);
@@ -490,7 +541,7 @@ public class OscLogProcessor extends BaseChartPaint {
             g.setPaint((direction > 0) ? Color.green : Color.red);
             g.drawLine(x, y, x, y2);
             int dx = 1;
-            String str = "";
+            StringBuilder buff = new StringBuilder();
             if ((boostedFrom != null) && (boostedTo != null)) {
                 g.setPaint(Color.blue);
                 int y3 = y - (int) (DIRECTION_MARK_RADIUS * boostedFrom);
@@ -498,20 +549,29 @@ public class OscLogProcessor extends BaseChartPaint {
                 int x1 = x + dx;
                 g.drawLine(x1, y3, x1, y4);
                 dx++;
-                str += (Utils.format5(boostedFrom) + "->" + Utils.format5(boostedTo) + " |");
+                buff.append(" b ").append(Utils.format5(boostedFrom)).append("->").append(Utils.format5(boostedTo)).append(" |");
             }
-            if ((chilledFrom != null) && (chilledTo != null)) {
+            if ((chilled1From != null) && (chilled1To != null)) {
                 g.setPaint(Color.red);
-                int y3 = y - (int) (DIRECTION_MARK_RADIUS * chilledFrom);
-                int y4 = y - (int) (DIRECTION_MARK_RADIUS * chilledTo);
+                int y3 = y - (int) (DIRECTION_MARK_RADIUS * chilled1From);
+                int y4 = y - (int) (DIRECTION_MARK_RADIUS * chilled1To);
                 int x1 = x + dx;
                 g.drawLine(x1, y3, x1, y4);
                 dx++;
-                str += (Utils.format5(chilledFrom) + "->" + Utils.format5(chilledTo) + " |");
+                buff.append(" c1 ").append(Utils.format5(chilled1From)).append("->").append(Utils.format5(chilled1To)).append(" |");
+            }
+            if ((chilled2From != null) && (chilled2To != null)) {
+                g.setPaint(Color.CYAN);
+                int y3 = y - (int) (DIRECTION_MARK_RADIUS * chilled2From);
+                int y4 = y - (int) (DIRECTION_MARK_RADIUS * chilled2To);
+                int x1 = x + dx;
+                g.drawLine(x1, y3, x1, y4);
+                dx++;
+                buff.append(" c2 ").append(Utils.format5(chilled2From)).append("->").append(Utils.format5(chilled2To)).append(" |");
             }
             prevY = y2;
             prevX = x;
-            str += Utils.format5(direction);
+            buff.append(" ").append(Utils.format5(direction));
 
             //----------------
             int textX = x;
@@ -521,7 +581,7 @@ public class OscLogProcessor extends BaseChartPaint {
             g.translate(textX, textY);
             g.rotate(-Math.PI / 2);
             g.setColor(Color.darkGray);
-            g.drawString(str, 0, 0);
+            g.drawString(buff.toString(), 0, 0);
             g.setTransform(orig);
         }
     }
@@ -574,13 +634,14 @@ public class OscLogProcessor extends BaseChartPaint {
             s_gain.put(millis, avg);
             gainCalc.calculate(avg);
         } else {
-            throw new RuntimeException("not matched AVG_TREND line: " + line1);
+            throw new RuntimeException("not matched GAIN_PATTERN line: " + line1);
         }
     }
 
     private static void processAvgAndTrend(String line1) {
         // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
-        // line: 1423530655990:  avg1=1370.9866478873241 avg2=1370.986655462185; last=1370.9866086956522; oldest=1371.0; trend=-0.013391304347805999
+        // 1423530655990:  avg1=1370.9866478873241 avg2=1370.986655462185; last=1370.9866086956522; oldest=1371.0; trend=-0.013391304347805999
+        // 1423792012676:  avg1=1371.4557287278853 avg2=1371.3990983606557; last=1371.460410958904; oldest=-4.320119642545493E14; trend=4.3201196425592075E14
         Matcher matcher = AVG_TREND_PATTERN.matcher(line1);
         if (matcher.matches()) {
             String millisStr = matcher.group(1);
@@ -726,9 +787,9 @@ public class OscLogProcessor extends BaseChartPaint {
         // 1421192392632: processDirection() direction=-2)
 
         // 1422502222987:  boosted from 0.9166666666666666 to 0.7333861125264423
-        // 1422986746884:   direction chilled from -0.5599999999999999 to -0.33599999999999997
+        // 1422986746884:   direction chilledX from -0.5599999999999999 to -0.33599999999999997
         // 1421192392632:   directionAdjusted=-1.0; needBuyBtc=-0.3281232434687124; needSellCnh=-442.251070012
-        Map.Entry<Integer, String> entry = waitLineContained(blr, AFTER_DIRECTION);
+        Map.Entry<Integer, String> entry = waitLineContained(blr, AFTER_DIRECTION); // boosted | chilled | adjusted
         if (entry != null) {
             String boostedFromStr;
             String boostedToStr;
@@ -748,24 +809,53 @@ public class OscLogProcessor extends BaseChartPaint {
                 boostedToStr = null;
             }
 
-            entry = waitLineContained(blr, AFTER_BOOSTED);
+            entry = waitLineContained(blr, AFTER_BOOSTED); // chilled | adjusted
             if (entry != null) {
-                String chilledFromStr;
-                String chilledToStr;
+                String chilled1FromStr;
+                String chilled1ToStr;
+                String numberStr;
                 index = entry.getKey();
                 if (index == 0) { // found 'chilled' first
                     String line2 = entry.getValue();
                     Matcher matcher = CHILLED_PATTERN.matcher(line2);
                     if (matcher.matches()) {
-                        chilledFromStr = matcher.group(2);
-                        chilledToStr = matcher.group(3);
-                        System.out.println("GOT CHILLED: chilledFromStr=" + chilledFromStr + "; chilledToStr=" + chilledToStr);
+                        numberStr = matcher.group(2);
+                        chilled1FromStr = matcher.group(3);
+                        chilled1ToStr = matcher.group(4);
+                        System.out.println("GOT CHILLED: numberStr=" + numberStr + "; chilledFromStr=" + chilled1FromStr + "; chilledToStr=" + chilled1ToStr);
                     } else {
                         throw new RuntimeException("not matched CHILLED_PATTERN line: " + line2);
                     }
                 } else {
-                    chilledFromStr = null;
-                    chilledToStr = null;
+                    chilled1FromStr = null;
+                    chilled1ToStr = null;
+                    numberStr = null;
+                }
+
+                String chilled2FromStr = null;
+                String chilled2ToStr = null;
+                if ("1".equals(numberStr)) { // got chilled1
+                    entry = waitLineContained(blr, AFTER_BOOSTED); // chilled | adjusted
+                    if (entry != null) {
+                        index = entry.getKey();
+                        if (index == 0) { // found 'chilled' first
+                            String line2 = entry.getValue();
+                            Matcher matcher = CHILLED_PATTERN.matcher(line2);
+                            if (matcher.matches()) {
+                                numberStr = matcher.group(2);
+                                chilled2FromStr = matcher.group(3);
+                                chilled2ToStr = matcher.group(4);
+                                System.out.println("GOT CHILLED: numberStr=" + numberStr + "; chilled2FromStr=" + chilled2FromStr + "; chilled2ToStr=" + chilled2ToStr);
+                            } else {
+                                throw new RuntimeException("not matched CHILLED_PATTERN line: " + line2);
+                            }
+                        }
+                    }
+                } else {
+                    chilled2FromStr = chilled1FromStr;
+                    chilled1FromStr = null;
+                    chilled2ToStr = chilled1ToStr;
+                    chilled1ToStr = null;
                 }
 
                 String line1 = waitLineContained(blr, DIRECTION_ADJUSTED);
@@ -777,11 +867,13 @@ public class OscLogProcessor extends BaseChartPaint {
                         System.out.println("GOT DIRECTION_ADJUSTED: millisStr=" + millisStr + "; directionAdjustedStr=" + directionAdjustedStr);
                         Double boostedFrom = (boostedFromStr != null) ? Double.parseDouble(boostedFromStr) : null;
                         Double boostedTo = (boostedToStr != null) ? Double.parseDouble(boostedToStr) : null;
-                        Double chilledFrom = (chilledFromStr != null) ? Double.parseDouble(chilledFromStr) : null;
-                        Double chilledTo = (chilledToStr != null) ? Double.parseDouble(chilledToStr) : null;
+                        Double chilled1From = (chilled1FromStr != null) ? Double.parseDouble(chilled1FromStr) : null;
+                        Double chilled1To = (chilled1ToStr != null) ? Double.parseDouble(chilled1ToStr) : null;
+                        Double chilled2From = (chilled2FromStr != null) ? Double.parseDouble(chilled2FromStr) : null;
+                        Double chilled2To = (chilled2ToStr != null) ? Double.parseDouble(chilled2ToStr) : null;
                         long millis = Long.parseLong(millisStr);
                         double directionAdjusted = Double.parseDouble(directionAdjustedStr);
-                        s_directions.add(new DirectionsData(millis, boostedFrom, boostedTo, chilledFrom, chilledTo, directionAdjusted, s_lastMidPrice));
+                        s_directions.add(new DirectionsData(millis, boostedFrom, boostedTo, chilled1From, chilled1To, chilled2From, chilled2To, directionAdjusted, s_lastMidPrice));
                     } else {
                         throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
                     }
@@ -850,7 +942,8 @@ public class OscLogProcessor extends BaseChartPaint {
     private static class BufferedLineReader {
         private final BufferedReader m_bis;
         private final ArrayList<String> m_buffer = new ArrayList<String>();
-        private int index = 0;
+        private int m_index = 0;
+        public int m_linesReaded = 0;
 
         public BufferedLineReader(InputStream is) {
             m_bis = new BufferedReader(new InputStreamReader(is));
@@ -861,27 +954,28 @@ public class OscLogProcessor extends BaseChartPaint {
         }
 
         public String getLine() throws IOException {
-            if(index < m_buffer.size()) {
-                return m_buffer.get(index++);
+            if (m_index < m_buffer.size()) {
+                return m_buffer.get(m_index++);
             }
             return readLine();
         }
 
         private String readLine() throws IOException {
             String line = m_bis.readLine();
-            if(line != null) {
+            if (line != null) {
                 m_buffer.add(line);
-                index++;
+                m_index++;
+                m_linesReaded++;
             }
             return line;
         }
 
         public void removeLine() {
-            if(m_buffer.size() < 1) {
+            if (m_buffer.size() < 1) {
                 throw new RuntimeException("no lines to remove from buffer");
             }
             m_buffer.remove(0);
-            index=0;
+            m_index = 0;
         }
     }
 
@@ -925,20 +1019,25 @@ public class OscLogProcessor extends BaseChartPaint {
         private final long m_millis;
         private final Double m_boostedFrom;
         private final Double m_boostedTo;
-        private final Double m_chilledFrom;
-        private final Double m_chilledTo;
+        private final Double m_chilled1From;
+        private final Double m_chilled1To;
+        private final Double m_chilled2From;
+        private final Double m_chilled2To;
         private final double m_directionAdjusted;
         private final Double m_lastMidPrice;
 
         public DirectionsData(long millis,
                               Double boostedFrom, Double boostedTo,
-                              Double chilledFrom, Double chilledTo,
+                              Double chilled1From, Double chilled1To,
+                              Double chilled2From, Double chilled2To,
                               double directionAdjusted, Double lastMidPrice) {
             m_millis = millis;
             m_boostedFrom = boostedFrom;
             m_boostedTo = boostedTo;
-            m_chilledFrom = chilledFrom;
-            m_chilledTo = chilledTo;
+            m_chilled1From = chilled1From;
+            m_chilled1To = chilled1To;
+            m_chilled2From = chilled2From;
+            m_chilled2To = chilled2To;
             m_directionAdjusted = directionAdjusted;
             m_lastMidPrice = lastMidPrice;
         }
