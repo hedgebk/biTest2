@@ -12,4 +12,7 @@ public class Colors {
     public static final Color TRANSP_LIGHT_CYAN = new Color(150, 255, 255, 100);
     public static final Color SEMI_TRANSPARENT_GRAY = new Color(128, 128, 128, 128); // Color.gray
     public static final Color LIGHT_ORANGE = new Color(200, 100, 0, 90);
+    public static final Color LIGHT_MAGNETA = new Color(255, 0, 255, 100);
+    public static final Color BEGIE = new Color(255, 212, 63);
+    public static final Color SKY = new Color(35, 152, 255);
 }

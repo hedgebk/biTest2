@@ -524,6 +524,17 @@ public class Utils {
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+    public static class DoubleDoubleMinMaxCalculator extends DoubleMinMaxCalculator<Double> {
+        public DoubleDoubleMinMaxCalculator() {}
+
+        public DoubleDoubleMinMaxCalculator(Collection<Double> values) {
+            super(values);
+        }
+
+        @Override public Double getValue(Double value) { return value; }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static abstract class LongMinMaxCalculator<O> {
         public Long m_minValue;
         public Long m_maxValue;
@@ -593,6 +604,46 @@ public class Utils {
             }
         }
     }
+
+    public static class ArrayAverageCounter {
+        private final int m_maxNum;
+        private final LinkedList<Double> m_array = new LinkedList<Double>();
+        public boolean m_full;
+
+        public ArrayAverageCounter(int maxNum) {
+            m_maxNum = maxNum;
+        }
+
+        public void justAdd(double value) {
+            synchronized (m_array) {
+                m_array.add(value);
+            }
+            int size = m_array.size();
+            if (size == m_maxNum) {
+                m_full = true;
+            } else if (size > m_maxNum) {
+                synchronized (m_array) {
+                    m_array.removeFirst();
+                }
+            }
+        }
+
+        public double get() {
+            double summ = 0.0;
+            synchronized (m_array) {
+                for (double value : m_array) {
+                    summ += value;
+                }
+                return summ / m_array.size();
+            }
+        }
+
+        public double add(double addValue) {
+            justAdd(addValue);
+            return get();
+        }
+    }
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class AverageCounter extends SlidingValuesFrame {

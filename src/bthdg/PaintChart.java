@@ -160,7 +160,7 @@ public class PaintChart extends BaseChartPaint {
         long two = System.currentTimeMillis();
         System.out.println("PriceDiffs calculated in "+ Utils.millisToDHMSStr(two - one));
 
-        Utils.DoubleMinMaxCalculator<Double> priceDifCalc = new Utils.DoubleMinMaxCalculator<Double>(difMap.values()) {
+        Utils.DoubleMinMaxCalculator<Double> priceDifCalc = new Utils.DoubleDoubleMinMaxCalculator(difMap.values()) {
             @Override public Double getValue(Double priceDif) { return priceDif; }
         };
         double minDif = priceDifCalc.m_minValue;
