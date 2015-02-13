@@ -20,8 +20,8 @@ public class OkCoin extends BaseExch {
     private static String PARTNER;
     public static boolean LOG_PARSE = false;
     public static boolean JOIN_SMALL_QUOTES = false;
-    public static final int CONNECT_TIMEOUT = 8000;
-    public static final int READ_TIMEOUT = 12000;
+    public static final int CONNECT_TIMEOUT = 12000;
+    public static final int READ_TIMEOUT = 20000;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
