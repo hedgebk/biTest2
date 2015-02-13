@@ -164,13 +164,17 @@ class OscExecutor implements Runnable{
         setState(m_state.onDirection(this));
     }
 
-    private void checkLiveOrders() throws Exception {
+    private IIterationContext.BaseIterationContext checkLiveOrders() throws Exception {
         log("checkLiveOrders()");
         IIterationContext.BaseIterationContext iContext = null;
         if (!m_closeOrders.isEmpty()) {
             iContext = checkCloseOrdersState(null);
         }
-        setState(checkOrderState(iContext));
+        if (m_order != null) {
+            iContext = (iContext == null) ? getLiveOrdersContext() : iContext;
+            setState(checkOrderState(iContext));
+        }
+        return iContext;
     }
 
     private void gotTop() throws Exception {
@@ -293,10 +297,10 @@ class OscExecutor implements Runnable{
     }
 
     private State processDirection() throws Exception {
-        log("processDirection() direction=" + m_direction + ")");
         m_lastProcessDirectionTime = System.currentTimeMillis();
-
         double directionAdjustedIn = ((double)m_direction) / Osc.PHASES / Osc.BAR_SIZES.length; // directionAdjusted  [-1 ... 1]
+        log("processDirection() direction=" + m_direction + ") directionAdjustedIn=" + directionAdjustedIn);
+
         if ((directionAdjustedIn < -1) || (directionAdjustedIn > 1)) {
             log("ERROR: invalid directionAdjusted=" + directionAdjustedIn);
             if (directionAdjustedIn < -1) {
@@ -413,7 +417,7 @@ class OscExecutor implements Runnable{
         log("  buy=" + m_buy + "; sell=" + m_sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
         double midPrice = (m_buy + m_sell) / 2;
         double halfBidAskDiff = (m_sell - m_buy) / 2;
-        double directionEffect = (directionAdjusted + (needOrderSide.isBuy() ? -1 : 1)) / 2;
+        double directionEffect = (directionAdjusted + (needOrderSide.isBuy() ? -3 : 3)) / 4;
         double adjustedPrice = midPrice + directionEffect * halfBidAskDiff;
         log("   midPrice=" + midPrice + "; halfBidAskDiff=" + halfBidAskDiff + "; directionEffect=" + directionEffect + "; adjustedPrice=" + adjustedPrice);
         RoundingMode roundMode = needOrderSide.getPegRoundMode();
@@ -505,6 +509,7 @@ class OscExecutor implements Runnable{
                 String error = cancelOrder(m_order);
                 cancelAttempted = true;
                 if (error == null) {
+                    log("   order cancelled OK");
                     m_order = null;
                 } else {
                     log("ERROR in cancel order: " + error + "; " + m_order);
@@ -592,7 +597,8 @@ class OscExecutor implements Runnable{
                 double tradeSize = tData.m_amount;
                 log("   orderRemained=" + orderRemained + "; tradeSize=" + tradeSize);
 
-                return checkOrderState(inContext); //check orders state
+                IIterationContext.BaseIterationContext iContext = (inContext == null) ? getLiveOrdersContext() : inContext;
+                return checkOrderState(iContext); //check orders state
             } else {
                 if (tradePrice < m_buy) {
                     double buy = (m_buy * 2 + tradePrice) / 3;
@@ -651,45 +657,41 @@ class OscExecutor implements Runnable{
         return error;
     }
 
-    private State checkOrderState(IIterationContext.BaseIterationContext inContext) throws Exception {
-        if (m_order != null) {
-            IIterationContext.BaseIterationContext iContext = (inContext == null) ? getLiveOrdersContext() : inContext;
+    private State checkOrderState(IIterationContext.BaseIterationContext iContext) throws Exception {
+        Exchange exchange = m_ws.exchange();
+        m_order.checkState(iContext, exchange, m_account,
+                null, // TODO - implement exec listener, add partial support - to fire partial close orders
+                null);
+        log("  order state checked: " + m_order);
 
-            Exchange exchange = m_ws.exchange();
-            m_order.checkState(iContext, exchange, m_account,
-                    null, // TODO - implement exec listener, add partial support - to fire partial close orders
-                    null);
-            log("  order state checked: " + m_order);
+        if (m_order.isFilled()) {
+            log("$$$$$$   order FILLED: " + m_order);
+            if(Osc.DO_CLOSE_ORDERS) {
+                OrderSide orderSide = m_order.m_side;
+                OrderSide closeSide = orderSide.opposite();
+                double closePrice = m_order.m_price + (orderSide.isBuy() ? Osc.CLOSE_PRICE_DIFF : -Osc.CLOSE_PRICE_DIFF);
+                double closeSize = m_order.m_amount;
 
-            if (m_order.isFilled()) {
-                log("$$$$$$   order FILLED: " + m_order);
-                if(Osc.DO_CLOSE_ORDERS) {
-                    OrderSide orderSide = m_order.m_side;
-                    OrderSide closeSide = orderSide.opposite();
-                    double closePrice = m_order.m_price + (orderSide.isBuy() ? Osc.CLOSE_PRICE_DIFF : -Osc.CLOSE_PRICE_DIFF);
-                    double closeSize = m_order.m_amount;
+                OrderData closeOrder = new OrderData(Osc.PAIR, closeSide, closePrice, closeSize);
+                log("  placing closeOrder=" + closeOrder);
 
-                    OrderData closeOrder = new OrderData(Osc.PAIR, closeSide, closePrice, closeSize);
-                    log("  placing closeOrder=" + closeOrder);
-
-                    boolean placed = placeOrderToExchange(exchange, closeOrder);
-                    if (placed) {
-                        m_closeOrders.add(new CloseOrderWrapper(closeOrder, m_order));
-                        m_order = null;
-                        return State.NONE;
-                    } else {
-                        m_order = null;
-                        log("ERROR placing closeOrder=" + closeOrder);
-                        return State.ERROR;
-                    }
-                } else {
-                    logValuate(exchange);
+                boolean placed = placeOrderToExchange(exchange, closeOrder);
+                if (placed) {
+                    m_closeOrders.add(new CloseOrderWrapper(closeOrder, m_order));
                     m_order = null;
                     return State.NONE;
+                } else {
+                    m_order = null;
+                    log("ERROR placing closeOrder=" + closeOrder);
+                    return State.ERROR;
                 }
             } else {
-                log("   order not yet FILLED: " + m_order);
+                logValuate(exchange);
+                m_order = null;
+                return State.NONE;
             }
+        } else {
+            log("   order not yet FILLED: " + m_order);
         }
         return null; // no change
     }
@@ -711,9 +713,32 @@ class OscExecutor implements Runnable{
 
     private void onError() throws Exception {
         log("onError() resetting...  -------------------------- ");
+        IIterationContext.BaseIterationContext iContext = checkLiveOrders();
+        OrdersData liveOrders = iContext.getLiveOrders(m_ws.exchange());
+        if (liveOrders != null) {
+            log(" liveOrders " + liveOrders);
+            // we may have offline order, try to link
+            linkOfflineOrder(m_order, liveOrders);
+            for (CloseOrderWrapper wrapper : m_closeOrders) {
+                OrderData closeOrder = wrapper.m_closeOrder;
+                linkOfflineOrder(closeOrder, liveOrders);
+            }
+        }
         cancelAllOrders();
-        checkLiveOrders();
         initAccount();
+    }
+
+    private void linkOfflineOrder(OrderData order, OrdersData liveOrders) {
+        if ((order != null) && (order.m_orderId == null)) {
+            log("we have offline order - try to match " + order);
+            for (OrdersData.OrdData nextOrder : liveOrders.m_ords.values()) {
+                if (nextOrder.m_orderAmount == order.m_amount) {
+                    log("  found liveOrder with matched amount: " + nextOrder);
+                    order.m_orderId = nextOrder.m_orderId;
+                    break;
+                }
+            }
+        }
     }
 
     private void cancelAllOrders() throws Exception {
@@ -1022,9 +1047,10 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
     }
 
     private class AvgStochDirectionAdjuster {
-        public static final double SMALL_DIFFS_THRESHOLD = 0.005;
+        public static final double SMALL_DIFFS_THRESHOLD = 0.01;
 
-        private Utils.FadingAverageCounter m_avgCounter = new Utils.FadingAverageCounter(Osc.AVG_BAR_SIZE * 4 / 3);
+//        private Utils.FadingAverageCounter m_avgCounter = new Utils.FadingAverageCounter(Osc.AVG_BAR_SIZE * 4 / 3);
+        private Utils.ArrayAverageCounter m_avgCounter = new Utils.ArrayAverageCounter(8);
         private Double m_prevBlend;
         private OscLogProcessor.TrendWatcher m_avgStochTrendWatcher = new OscLogProcessor.TrendWatcher(SMALL_DIFFS_THRESHOLD);
 
@@ -1032,25 +1058,46 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
             double blend = m_avgCounter.add(avgStoch);
 log("updateAvgStoch(avgStoch=" + avgStoch + ") blend=" + blend + "; full=" + m_avgCounter.m_full);
             if (m_avgCounter.m_full) {
+                Direction prevDirection = m_avgStochTrendWatcher.m_direction;
                 m_avgStochTrendWatcher.update(blend);
+                Direction newDirection = m_avgStochTrendWatcher.m_direction;
+log(" peak=" + m_avgStochTrendWatcher.m_peak + "; direction=" + newDirection);
+                if ((prevDirection != null) && (newDirection != null) && (prevDirection != newDirection)) {
+log("  direction trend changed from " + prevDirection + "to " + newDirection);
+                }
                 m_prevBlend = blend;
             }
         }
 
         private static final double LEVEL1_TO = 0.7;
         private static final double LEVEL2_TO = 0.6;
-        private static final double LEVEL1 = 0.02; // [0 ... LEVEL1]      -> [0.8 ... 1]x    [LEVEL1_TO ... 1]
+        private static final double LEVEL1 = 0.03; // [0 ... LEVEL1]      -> [0.8 ... 1]x    [LEVEL1_TO ... 1]
         private static final double LEVEL2 = 0.10; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... LEVEL2_TO]
                                                    // [LEVEL2 ... 1]      -> +[0.6 ... 1]    +[LEVEL2_TO ... 1]
 
         public double adjustDirection(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
+log("  AvgStochDirectionAdjuster.adjustDirection() adjustDirection=" + directionAdjusted);
             double ret = directionAdjusted;
             Double peakAvgStoch = m_avgStochTrendWatcher.m_peak;
             if (peakAvgStoch != null) {
                 Direction avgStochDirection = m_avgStochTrendWatcher.m_direction;
+
+                if (avgStochDirection == Direction.FORWARD) {
+                    if (ret < 0) {
+log("  Direction.FORWARD with negative directionAdjusted=" + directionAdjusted + ". zeroed");
+                        ret = 0;
+                    }
+                } else if (avgStochDirection == Direction.BACKWARD) {
+                    if (ret > 0) {
+log("  Direction.BACKWARD with positive directionAdjusted=" + directionAdjusted + ". zeroed");
+                        ret = 0;
+                    }
+                }
+
                 double distanceFromPeak = avgStochDirection.applyDirection(m_prevBlend - peakAvgStoch);
 log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + avgStochDirection + "; peakAvgStoch=" + peakAvgStoch + "; m_prevBlend=" + m_prevBlend);
                 // distanceFromPeak  [0 ... 1]
+                double boosted;
                 if (distanceFromPeak < LEVEL1) {          //[0   ... 0.1]
 //                    double q = LEVEL1 - distanceFromPeak; //[0.1 ... 0  ]
 //                    double r = q / LEVEL1;                //[1   ... 0  ]
@@ -1065,16 +1112,17 @@ log("  first range: no change");
                     double r = q / (LEVEL2 - LEVEL1);     //[0   ... 1  ]
                     double w = r * LEVEL2_TO;             //[0   ... 0.6]
 log("  second range: w=" + w);
-                    ret = boostDirection(directionAdjusted, w, avgStochDirection);
+                    boosted = boostDirection(ret, w, avgStochDirection);
                 } else {                                  //[0.2 ... 1]
                     double q = distanceFromPeak - LEVEL2; //[0 ... 0.8]
                     double r  = q / (1 - LEVEL2);         //[0 ... 1  ]
                     double w = r * (1 - LEVEL2_TO);       //[0 ... 0.4]
                     double e = LEVEL2_TO + w;             //[0.6 ... 1]
 log("  third range: e=" + e);
-                    ret = boostDirection(directionAdjusted, e, avgStochDirection);
+                    boosted = boostDirection(ret, e, avgStochDirection);
                 }
-                log(" boosted from " + directionAdjusted + " to " + ret);
+                log(" boosted from " + ret + " to " + boosted);
+                ret = boosted;
             }
             return ret;
         }
