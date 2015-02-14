@@ -25,7 +25,7 @@ public class OscLogProcessor extends BaseChartPaint {
     public static int DIRECTION_MARK_RADIUS = 50;
     private static int OSCS_RADIUS;
     private static int OSCS_OFFSET;
-    public static final long AVG_PRICE_TIME = Utils.toMillis(20, 0);
+    public static final long AVG_PRICE_TIME = Utils.toMillis(7, 0);
     public static final double FILTER_GAIN_SPIKES_RATIO = 1.01; // filter out >1% gain spikes
 
     private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
