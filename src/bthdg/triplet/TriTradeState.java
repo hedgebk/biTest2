@@ -127,7 +127,7 @@ public enum TriTradeState {
         double gain = out / in;
 
         TopsData tops = iData.getTops();
-        double acctEval = account.evaluate(tops, startCurrency, Triplet.s_exchange);
+        double acctEval = account.evaluateAll(tops, startCurrency, Triplet.s_exchange);
 
         Triplet.s_totalRatio *= (1+plus/acctEval);
         Triplet.s_counter++;

@@ -123,9 +123,9 @@ class BiAlgo implements Runner.IAlgo {
 
                 TopData topData = Fetcher.fetchTop(exchange, PAIR);
                 TopsData tops = new TopsData(PAIR, topData);
-                double evaluate1 = accountData.evaluate(tops, currency1, exchange);
+                double evaluate1 = accountData.evaluateAll(tops, currency1, exchange);
                 putStartValuate(exchange, currency1, evaluate1);
-                double evaluate2 = accountData.evaluate(tops, currency2, exchange);
+                double evaluate2 = accountData.evaluateAll(tops, currency2, exchange);
                 putStartValuate(exchange, currency2, evaluate2);
                 log("Start account(" + exchange.m_name + "): " + accountData +
                                 "; evaluate" + Utils.capitalize(currency1.m_name) + ": " + Utils.format5(evaluate1) +
@@ -154,14 +154,14 @@ class BiAlgo implements Runner.IAlgo {
             MktDataHolder mdh = m_mdStorage.get(exchange, PAIR);
             TopData topData = mdh.topData();
             TopsData tops = new TopsData(PAIR, topData);
-            double evaluate1 = accountData.evaluate(tops, currency1, exchange);
-            double evaluate2 = accountData.evaluate(tops, currency2, exchange);
+            double evaluate1 = accountData.evaluateAll(tops, currency1, exchange);
+            double evaluate2 = accountData.evaluateAll(tops, currency2, exchange);
             Map<Currency, Double> startMap = s_startValuate.get(exchange);
             Double start1 = startMap.get(currency1);
             Double start2 = startMap.get(currency2);
             AccountData startAccountData = m_startAccountMap.get(exchange);
-            double sleep1 = startAccountData.evaluate(tops, currency1, exchange);
-            double sleep2 = startAccountData.evaluate(tops, currency2, exchange);
+            double sleep1 = startAccountData.evaluateAll(tops, currency1, exchange);
+            double sleep2 = startAccountData.evaluateAll(tops, currency2, exchange);
 
             log(" account(" + exchange.m_name + "): " + accountData + ":\n" +
                             "  evaluate" + Utils.capitalize(currency1.m_name) + ": " + Utils.format5(start1) + " -> " + Utils.format5(evaluate1) + "(" + Utils.format5(sleep1) + ")\n" +

@@ -196,14 +196,14 @@ public class AccountData {
     }
 
     public double evaluateEur(TopsData tops, Exchange exchange) {
-        return evaluate(tops, Currency.EUR, exchange);
+        return evaluateAll(tops, Currency.EUR, exchange);
     }
 
     public double evaluateUsd(TopsData tops, Exchange exchange) {
-        return evaluate(tops, Currency.USD, exchange);
+        return evaluateAll(tops, Currency.USD, exchange);
     }
 
-    public double evaluate(TopsData tops, Currency curr, Exchange exchange) {
+    public double evaluateAll(TopsData tops, Currency curr, Exchange exchange) {
         double allValue = 0;
         for (Currency currency : m_funds.keySet()) {
             double value = getAllValue(currency);

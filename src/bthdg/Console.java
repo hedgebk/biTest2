@@ -219,7 +219,7 @@ public class Console {
         Currency[] supportedCurrencies = s_exchange.supportedCurrencies();
         String s = "          ";
         for (Currency inCurrency : supportedCurrencies) {
-            double valuate = account.evaluate(tops, inCurrency, s_exchange);
+            double valuate = account.evaluateAll(tops, inCurrency, s_exchange);
             valuateMap.put(inCurrency, valuate);
             s += Utils.padLeft(inCurrency.toString(), 32);
         }

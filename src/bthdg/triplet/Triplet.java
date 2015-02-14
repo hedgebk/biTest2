@@ -353,7 +353,7 @@ public class Triplet {
         for (Currency currency : VALUATE_CURRENCIES) {
             boolean supports = s_exchange.supportsCurrency(currency);
             if (supports) {
-                Double startValuate = s_startAccount.evaluate(tops, currency, s_exchange);
+                Double startValuate = s_startAccount.evaluateAll(tops, currency, s_exchange);
                 s_startValuate.put(currency, startValuate);
                 buf.append(" evaluate" + Utils.capitalize(currency.m_name) + ": " + format5(startValuate));
             }
@@ -369,10 +369,10 @@ public class Triplet {
         StringBuffer buf = new StringBuffer();
         for (Currency currency : VALUATE_CURRENCIES) {
             if (s_exchange.supportsCurrency(currency)) {
-                double valuate = account.evaluate(tops, currency, s_exchange);
+                double valuate = account.evaluateAll(tops, currency, s_exchange);
                 Double startValuate = s_startValuate.get(currency);
                 double rate = valuate / startValuate;
-                double valuateSleep = s_startAccount.evaluate(tops, currency, s_exchange);
+                double valuateSleep = s_startAccount.evaluateAll(tops, currency, s_exchange);
                 double rateSleep = valuateSleep / startValuate;
                 double r = valuate / valuateSleep;
                 double d = Math.pow(r, pow);

@@ -20,7 +20,7 @@ public class FundMap {
                                  Currency[] currencies, double amountPart) {
         Map<Currency, Double> valuateMap = new HashMap<Currency, Double>();
         for (Currency inCurrency : currencies) {
-            double valuate = account.evaluate(tops, inCurrency, exchange);
+            double valuate = account.evaluateAll(tops, inCurrency, exchange);
             valuateMap.put(inCurrency, valuate);
         }
 
