@@ -22,7 +22,8 @@ public class OrderData {
     public double m_filled;
     public List<Execution> m_executions;
     // todo: add to serialize
-    public long m_time;
+    public long m_lastFillTime;
+    public long m_placeTime;
     public final Pair m_pair;
     public String m_orderId;
 
@@ -35,7 +36,8 @@ public class OrderData {
     }
 
     public boolean isActive() { return m_status.isActive(); }
-    public long time() { return m_time; }
+    public long placeTime() { return m_placeTime; }
+    public long lastFillTime() { return m_lastFillTime; }
     public String priceStr() { return Fetcher.format(m_price); }
     public double remained() { return m_amount - m_filled; }
 
@@ -62,10 +64,11 @@ public class OrderData {
             log("    all filled - become OrderStatus.FILLED.  remained=" + remainedStr + "; minAmountStep=" + roundAmountStr(exchange, minAmountStep));
             m_status = OrderStatus.FILLED;
             m_filled = m_amount; // to be equal
+            m_lastFillTime = System.currentTimeMillis();
         } else if (executions.size() == 1) { // just got the very first execution
             log("    some filled - become OrderStatus.PARTIALLY_FILLED.  remained=" + remainedStr + "; minAmountStep=" + roundAmountStr(exchange, minAmountStep));
             m_status = OrderStatus.PARTIALLY_FILLED;
-            m_time = System.currentTimeMillis();
+            m_lastFillTime = System.currentTimeMillis();
         }
     }
 

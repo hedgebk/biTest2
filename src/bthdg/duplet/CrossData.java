@@ -299,11 +299,11 @@ public class CrossData implements OrderState.IOrderExecListener {
         boolean buyStarted = m_buyOrder.isPartiallyFilled(buyExchange);
         boolean sellStarted = m_sellOrder.isPartiallyFilled(sellExchange);
         if (buyStarted) {
-            time = m_buyOrder.time();
+            time = m_buyOrder.lastFillTime();
             filled = m_buyOrder.m_filled;
             remained = m_buyOrder.remained();
             if (sellStarted) {
-                long time2 = m_sellOrder.time();
+                long time2 = m_sellOrder.lastFillTime();
                 if(time2 < time) {
                     time = time2;
                     filled = m_sellOrder.m_filled;
@@ -311,7 +311,7 @@ public class CrossData implements OrderState.IOrderExecListener {
                 }
             }
         } else if (sellStarted) {
-            time = m_sellOrder.time();
+            time = m_sellOrder.lastFillTime();
             filled = m_sellOrder.m_filled;
             remained = m_sellOrder.remained();
         } else {
@@ -329,15 +329,15 @@ public class CrossData implements OrderState.IOrderExecListener {
         boolean sellStarted = m_sellOrder.isPartiallyFilled(m_sellExch.m_exchange);
         long time;
         if (buyStarted) {
-            time = m_buyOrder.time();
+            time = m_buyOrder.lastFillTime();
             if (sellStarted) {
-                long time2 = m_sellOrder.time();
+                long time2 = m_sellOrder.lastFillTime();
                 if (time2 < time) {
                     time = time2;
                 }
             }
         } else if (sellStarted) {
-            time = m_sellOrder.time();
+            time = m_sellOrder.lastFillTime();
         } else {
             return false;
         }
