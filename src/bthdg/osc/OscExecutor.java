@@ -15,11 +15,22 @@ import java.util.List;
 import java.util.ListIterator;
 
 class OscExecutor implements Runnable{
-    public static final int MIN_REPROCESS_DIRECTION_TIME = 5000;
-    public static final double OPPOSITE_DIRECTION_FACTOR = 0.85;
-    public static final double AVG_PRICE_PERIOD_RATIO1 = 2.5;
-    public static final double AVG_PRICE_PERIOD_RATIO2 = 4.5;
-    private static final long MIN_ORDER_LIVE_TIME = 9000;
+    public static final int MIN_REPROCESS_DIRECTION_TIME = 4500;
+    public static final double OPPOSITE_DIRECTION_FACTOR = 0.75; // -20%
+    public static final double[] AVG_PRICE_PERIOD_RATIOS = new double[] { 1.2, 1.8, 2.7, 3.1 };
+    private static final long MIN_ORDER_LIVE_TIME = 11000;
+    // AvgPriceDirectionAdjuster
+    public static final double AVG_PRICE_TREND_TOLERANCE = 0.03;
+    private static final double DIRECTION_ADJUSTED_CENTER_TOLERANCE_RATIO = 3;
+    public static final double DIRECTION_ADJUSTED_TREND_TOLERANCE = 0.012;
+    // AvgStochDirectionAdjuster
+    public static final double AVG_STOCH_TREND_THRESHOLD = 0.015;
+    private static final double ADJUST_DIRECTION_LEVEL1 = 0.06; // [0 ... LEVEL1]      ->  [0.8 ... 1]x    [LEVEL1_TO ... 1]
+    private static final double ADJUST_DIRECTION_LEVEL2 = 0.25; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... ADJUST_DIRECTION_LEVEL2_TO]
+    // [LEVEL2 ... 1]      -> +[0.6 ... 1]    +[ADJUST_DIRECTION_LEVEL2_TO ... 1]
+    private static final double ADJUST_DIRECTION_LEVEL1_TO = 0.7;
+    private static final double ADJUST_DIRECTION_LEVEL2_TO = 0.6;
+    public static final int AVG_STOCH_COUNTER_POINTS = 8;
 
     private final IWs m_ws;
     private final long m_startMillis;
@@ -39,8 +50,7 @@ class OscExecutor implements Runnable{
     private OrderData m_order;
     private List<CloseOrderWrapper> m_closeOrders = new ArrayList<CloseOrderWrapper>();
     private boolean m_maySyncAccount = false;
-    private final Utils.AverageCounter m_avgPriceCounter1;
-    private final Utils.AverageCounter m_avgPriceCounter2;
+    private final Utils.AverageCounter[] m_avgPriceCounters = new Utils.AverageCounter[AVG_PRICE_PERIOD_RATIOS.length];
     final TrendCounter m_priceTrendCounter;
     private final Booster m_booster;
     private final AvgStochDirectionAdjuster m_avgStochDirectionAdjuster;
@@ -54,8 +64,10 @@ class OscExecutor implements Runnable{
     public OscExecutor(IWs ws) {
         m_avgStochDirectionAdjuster = new AvgStochDirectionAdjuster();
         m_avgPriceDirectionAdjuster = new AvgPriceDirectionAdjuster();
-        m_avgPriceCounter1 = new Utils.FadingAverageCounter((long) (Osc.AVG_BAR_SIZE * AVG_PRICE_PERIOD_RATIO1));
-        m_avgPriceCounter2 = new Utils.FadingAverageCounter((long) (Osc.AVG_BAR_SIZE * AVG_PRICE_PERIOD_RATIO2));
+        for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {
+            double avgPricePeriodRatio = AVG_PRICE_PERIOD_RATIOS[i];
+            m_avgPriceCounters[i] = new Utils.FadingAverageCounter((long) (Osc.AVG_BAR_SIZE * avgPricePeriodRatio));
+        }
         m_priceTrendCounter = new TrendCounter(Osc.AVG_BAR_SIZE);
         m_booster = new Booster();
         m_startMillis = System.currentTimeMillis();
@@ -188,12 +200,15 @@ class OscExecutor implements Runnable{
     private void gotTrade(TradeData tData) throws Exception {
         log("OscExecutor.gotTrade() tData=" + tData);
 
-        double avg1 = m_avgPriceCounter1.get();
-        double avg2 = m_avgPriceCounter2.get();
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {
+            double avg = m_avgPriceCounters[i].get();
+            builder.append(" avg"+(i+1)+"=" + avg);
+        }
         Double last = m_priceTrendCounter.getLast();
         Double oldest = m_priceTrendCounter.getOldest();
         double trend = last - oldest;
-        log(" avg1=" + avg1 + " avg2=" + avg2 + "; last=" + last + "; oldest=" + oldest + "; trend=" + trend);
+        log(builder.toString() + "; last=" + last + "; oldest=" + oldest + "; trend=" + trend);
 
         IIterationContext.BaseIterationContext iContext = checkCloseOrdersStateIfNeeded(tData, null);
         setState(m_state.onTrade(this, tData, iContext));
@@ -292,8 +307,9 @@ class OscExecutor implements Runnable{
 
     public void onTrade(TradeData tData) {
         long timestamp = tData.m_timestamp;
-        m_avgPriceCounter1.justAdd(timestamp, tData.m_price);
-        m_avgPriceCounter2.justAdd(timestamp, tData.m_price);
+        for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {
+            m_avgPriceCounters[i].justAdd(timestamp, tData.m_price);
+        }
         m_priceTrendCounter.addPoint(timestamp, tData.m_price);
         addTask(new TradeTask(tData));
     }
@@ -1079,17 +1095,14 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
     }
 
     private class AvgStochDirectionAdjuster {
-        public static final double SMALL_DIFFS_THRESHOLD = 0.015;
-
-//        private Utils.FadingAverageCounter m_avgCounter = new Utils.FadingAverageCounter(Osc.AVG_BAR_SIZE * 4 / 3);
-        private Utils.ArrayAverageCounter m_avgCounter = new Utils.ArrayAverageCounter(8);
+        private Utils.ArrayAverageCounter m_avgStochCounter = new Utils.ArrayAverageCounter(AVG_STOCH_COUNTER_POINTS);
         private Double m_prevBlend;
-        private OscLogProcessor.TrendWatcher m_avgStochTrendWatcher = new OscLogProcessor.TrendWatcher(SMALL_DIFFS_THRESHOLD);
+        private OscLogProcessor.TrendWatcher m_avgStochTrendWatcher = new OscLogProcessor.TrendWatcher(AVG_STOCH_TREND_THRESHOLD);
 
         public void updateAvgStoch(double avgStoch) {
-            double blend = m_avgCounter.add(avgStoch);
-log("updateAvgStoch(avgStoch=" + avgStoch + ") blend=" + blend + "; full=" + m_avgCounter.m_full);
-            if (m_avgCounter.m_full) {
+            double blend = m_avgStochCounter.add(avgStoch);
+log("updateAvgStoch(avgStoch=" + avgStoch + ") blend=" + blend + "; full=" + m_avgStochCounter.m_full);
+            if (m_avgStochCounter.m_full) {
                 Direction prevDirection = m_avgStochTrendWatcher.m_direction;
                 m_avgStochTrendWatcher.update(blend);
                 Direction newDirection = m_avgStochTrendWatcher.m_direction;
@@ -1100,12 +1113,6 @@ log("  direction trend changed from " + prevDirection + "to " + newDirection);
                 m_prevBlend = blend;
             }
         }
-
-        private static final double LEVEL1_TO = 0.7;
-        private static final double LEVEL2_TO = 0.6;
-        private static final double LEVEL1 = 0.05; // [0 ... LEVEL1]      -> [0.8 ... 1]x    [LEVEL1_TO ... 1]
-        private static final double LEVEL2 = 0.15; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... LEVEL2_TO]
-                                                   // [LEVEL2 ... 1]      -> +[0.6 ... 1]    +[LEVEL2_TO ... 1]
 
         public double adjustDirection(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
 log("  AvgStochDirectionAdjuster.adjustDirection() adjustDirection=" + directionAdjusted);
@@ -1130,7 +1137,7 @@ log("  avgStochDirection=BACKWARD with positive directionAdjusted=" + directionA
 log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + avgStochDirection + "; peakAvgStoch=" + peakAvgStoch + "; m_prevBlend=" + m_prevBlend);
                 // distanceFromPeak  [0 ... 1]
                 double boosted;
-                if (distanceFromPeak < LEVEL1) {          //[0   ... 0.1]
+                if (distanceFromPeak < ADJUST_DIRECTION_LEVEL1) {          //[0   ... 0.1]
 //                    double q = LEVEL1 - distanceFromPeak; //[0.1 ... 0  ]
 //                    double r = q / LEVEL1;                //[1   ... 0  ]
 //                    double w = r * (1 - LEVEL1_TO);       //[0.2 ... 0  ]
@@ -1139,17 +1146,17 @@ log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + avgStochDi
 //                    ret = directionAdjusted * e;
 log("  first range: no change");
                     return ret;
-                } else if (distanceFromPeak < LEVEL2) {   //[0.1 ... 0.2]
-                    double q = distanceFromPeak - LEVEL1; //[0   ... 0.1]
-                    double r = q / (LEVEL2 - LEVEL1);     //[0   ... 1  ]
-                    double w = r * LEVEL2_TO;             //[0   ... 0.6]
+                } else if (distanceFromPeak < ADJUST_DIRECTION_LEVEL2) {   //[0.1 ... 0.2]
+                    double q = distanceFromPeak - ADJUST_DIRECTION_LEVEL1; //[0   ... 0.1]
+                    double r = q / (ADJUST_DIRECTION_LEVEL2 - ADJUST_DIRECTION_LEVEL1);     //[0   ... 1  ]
+                    double w = r * ADJUST_DIRECTION_LEVEL2_TO;             //[0   ... 0.6]
 log("  second range: w=" + w);
                     boosted = boostDirection(ret, w, avgStochDirection);
                 } else {                                  //[0.2 ... 1]
-                    double q = distanceFromPeak - LEVEL2; //[0 ... 0.8]
-                    double r  = q / (1 - LEVEL2);         //[0 ... 1  ]
-                    double w = r * (1 - LEVEL2_TO);       //[0 ... 0.4]
-                    double e = LEVEL2_TO + w;             //[0.6 ... 1]
+                    double q = distanceFromPeak - ADJUST_DIRECTION_LEVEL2; //[0 ... 0.8]
+                    double r  = q / (1 - ADJUST_DIRECTION_LEVEL2);         //[0 ... 1  ]
+                    double w = r * (1 - ADJUST_DIRECTION_LEVEL2_TO);       //[0 ... 0.4]
+                    double e = ADJUST_DIRECTION_LEVEL2_TO + w;             //[0.6 ... 1]
 log("  third range: e=" + e);
                     boosted = boostDirection(ret, e, avgStochDirection);
                 }
@@ -1181,15 +1188,12 @@ log("    ret=" + ret);
     }
 
     private class AvgPriceDirectionAdjuster {
-        private static final double CENTER_TOLERANCE_RATIO = 3.5;
-
-        private OscLogProcessor.TrendWatcher m_avgPriceTrendWatcher1 = new OscLogProcessor.TrendWatcher(0.02);
-        private OscLogProcessor.TrendWatcher m_avgPriceTrendWatcher2 = new OscLogProcessor.TrendWatcher(0.02);
-        private OscLogProcessor.TrendWatcher m_directionAdjustedTrendWatcher = new OscLogProcessor.TrendWatcher(0.01) {
+        private OscLogProcessor.TrendWatcher[] m_avgPriceTrendWatchers = new OscLogProcessor.TrendWatcher[AVG_PRICE_PERIOD_RATIOS.length];
+        private OscLogProcessor.TrendWatcher m_directionAdjustedTrendWatcher = new OscLogProcessor.TrendWatcher(DIRECTION_ADJUSTED_TREND_TOLERANCE) {
             @Override protected double getTolerance(double value) { // [-1 ... 0 ... 1]
                 double absValue = Math.abs(value); // [1 ... 0 ... 1]
                 double distanceToEdge = 1 - absValue; // [0 ... 1 ... 0]
-                return m_tolerance * (1 + distanceToEdge * (CENTER_TOLERANCE_RATIO - 1));
+                return m_tolerance * (1 + distanceToEdge * (DIRECTION_ADJUSTED_CENTER_TOLERANCE_RATIO - 1));
             }
         };
 
@@ -1199,32 +1203,25 @@ log("    ret=" + ret);
             m_directionAdjustedTrendWatcher.update(directionAdjustedIn);
             Direction directionAdjustedDirection = m_directionAdjustedTrendWatcher.m_direction;
 
-            double avgPrice1 = m_avgPriceCounter1.get();
-            m_avgPriceTrendWatcher1.update(avgPrice1);
+            for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {
+                int index = i + 1;
+                double avgPrice = m_avgPriceCounters[i].get();
+                OscLogProcessor.TrendWatcher avgPriceTrendWatcher = m_avgPriceTrendWatchers[i];
+                if (avgPriceTrendWatcher == null) {
+                    avgPriceTrendWatcher = new OscLogProcessor.TrendWatcher(AVG_PRICE_TREND_TOLERANCE);
+                    m_avgPriceTrendWatchers[i] = avgPriceTrendWatcher;
+                }
+                avgPriceTrendWatcher.update(avgPrice);
+                Direction avgPriceDirection = avgPriceTrendWatcher.m_direction;
+                log(" avgPriceDirection" + index + "=" + avgPriceDirection + "; directionAdjustedDirection=" + directionAdjustedDirection);
 
-            Direction avgPriceDirection1 = m_avgPriceTrendWatcher1.m_direction;
-            log(" avgPriceDirection1=" + avgPriceDirection1 + "; directionAdjustedDirection=" + directionAdjustedDirection);
-
-            if ((avgPriceDirection1 != null) && (directionAdjustedDirection != null) && (avgPriceDirection1 != directionAdjustedDirection)) {
-log("  opposite directions. avgPrice1=" + avgPrice1 + "; avgPricePeak1=" + m_avgPriceTrendWatcher1.m_peak + "; directionAdjusted=" + directionAdjustedIn + "; directionAdjustedPeak=" + m_directionAdjustedTrendWatcher.m_peak);
-                double directionChilled = ret * OPPOSITE_DIRECTION_FACTOR;
-                log("  direction chilled1 from " + ret + " to " + directionChilled);
-                ret = directionChilled;
+                if ((avgPriceDirection != null) && (directionAdjustedDirection != null) && (avgPriceDirection != directionAdjustedDirection)) {
+                    log("  opposite directions. avgPrice" + index + "=" + avgPrice + "; avgPricePeak" + index + "=" + avgPriceTrendWatcher.m_peak + "; directionAdjusted=" + directionAdjustedIn + "; directionAdjustedPeak=" + m_directionAdjustedTrendWatcher.m_peak);
+                    double directionChilled = ret * OPPOSITE_DIRECTION_FACTOR;
+                    log("  direction chilled" + index + " from " + ret + " to " + directionChilled);
+                    ret = directionChilled;
+                }
             }
-
-            double avgPrice2 = m_avgPriceCounter2.get();
-            m_avgPriceTrendWatcher2.update(avgPrice2);
-
-            Direction avgPriceDirection2 = m_avgPriceTrendWatcher2.m_direction;
-            log(" avgPriceDirection2=" + avgPriceDirection2 + "; directionAdjustedDirection=" + directionAdjustedDirection);
-
-            if ((avgPriceDirection2 != null) && (directionAdjustedDirection != null) && (avgPriceDirection2 != directionAdjustedDirection)) {
-log("  opposite directions. avgPrice2=" + avgPrice2 + "; avgPricePeak2=" + m_avgPriceTrendWatcher2.m_peak + "; directionAdjusted=" + directionAdjustedIn + "; directionAdjustedPeak=" + m_directionAdjustedTrendWatcher.m_peak);
-                double directionChilled = ret * OPPOSITE_DIRECTION_FACTOR;
-                log("  direction chilled2 from " + ret + " to " + directionChilled);
-                ret = directionChilled;
-            }
-
             return ret;
         }
     }
