@@ -35,7 +35,7 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+),.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
     private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] bar\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
-    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d+\\.\\d+)\\savg2=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=([\\+\\-]?\\d+\\.[\\d+\\-E]+); trend=([-\\d]+\\.[\\d-E]+)");
+    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d+\\.\\d+)\\savg2=(\\d+\\.\\d+)\\savg3=(\\d+\\.\\d+)\\savg4=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=([\\+\\-]?\\d+\\.[\\d+\\-E]+); trend=([-\\d]+\\.[\\d-E]+)");
     private static final Pattern GAIN_PATTERN = Pattern.compile("(\\d+):\\s+GAIN: Btc=(\\d+\\.\\d+); Cnh=(\\d+\\.\\d+) CNH; avg=(\\d+\\.\\d+); projected=(\\d+\\.\\d+).*");
     private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
     private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled(\\d) from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
@@ -56,6 +56,8 @@ public class OscLogProcessor extends BaseChartPaint {
     private static TreeMap<Long,Double> s_avgPrice = new TreeMap<Long, Double>();
     private static TreeMap<Long, Double> s_avg1 = new TreeMap<Long, Double>(); // parsed avg price 1
     private static TreeMap<Long, Double> s_avg2 = new TreeMap<Long, Double>(); // parsed avg price 2
+    private static TreeMap<Long, Double> s_avg3 = new TreeMap<Long, Double>(); // parsed avg price 3
+    private static TreeMap<Long, Double> s_avg4 = new TreeMap<Long, Double>(); // parsed avg price 4
     private static TreeMap<Long, Double> s_gain = new TreeMap<Long, Double>(); // parsed gains
     private static Utils.DoubleMinMaxCalculator<Double> gainCalc = new Utils.DoubleDoubleMinMaxCalculator() { // calc min/max gain
         public Double getValue(Double val) {
@@ -217,6 +219,8 @@ public class OscLogProcessor extends BaseChartPaint {
         g.setStroke(gainStroke);
         paintAvg(s_avg1, priceAxe, timeAxe, g, Color.CYAN);
         paintAvg(s_avg2, priceAxe, timeAxe, g, Color.ORANGE);
+        paintAvg(s_avg3, priceAxe, timeAxe, g, Colors.LIGHT_BLUE);
+        paintAvg(s_avg4, priceAxe, timeAxe, g, Colors.BEGIE);
         g.setStroke(old);
     }
 
@@ -246,10 +250,10 @@ public class OscLogProcessor extends BaseChartPaint {
         int lastX = -1;
         int lastY = -1;
         int lastGainDeltaY = -1;
+        Double lastGain = null;
         for (Map.Entry<Long, Double> entry : s_gain.entrySet()) {
             Long time = entry.getKey();
             Double gain = entry.getValue();
-
             Map.Entry<Long, Double> avgEntry = s_avgPrice.floorEntry(time);
             if (avgEntry != null) {
                 Double avgPrice = avgEntry.getValue();
@@ -261,7 +265,7 @@ public class OscLogProcessor extends BaseChartPaint {
 
                 String str = gain.toString();
                 int strWidth = fontMetrics.stringWidth(str);
-                int textX = x + 2;
+                int textX = x;
                 int textY = y + 10 + strWidth;
 
                 AffineTransform orig = g.getTransform();
@@ -272,15 +276,18 @@ public class OscLogProcessor extends BaseChartPaint {
                 g.setTransform(orig);
 
                 if (lastX != -1) {
-                    Color color = (gainDeltaY > lastGainDeltaY) ? Color.RED : (gainDeltaY < lastGainDeltaY) ? Color.GREEN : Color.GRAY;
+                    Color color = (gain > lastGain) ? Color.GREEN : (gain < lastGain) ? Color.RED : Color.GRAY;
                     g.setPaint(color);
                     g.drawLine(lastX, lastY, x, y);
                     g.drawRect(x - 2, y - 2, 4, 4);
+                    int y2 = avgY + OSCS_OFFSET + lastGainDeltaY;
+                    g.drawLine(x, y2, x, y);
                 }
                 lastX = x;
                 lastY = y;
                 lastGainDeltaY = gainDeltaY;
             }
+            lastGain = gain;
         }
         g.setStroke(old);
     }
@@ -642,24 +649,31 @@ public class OscLogProcessor extends BaseChartPaint {
         // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
         // 1423530655990:  avg1=1370.9866478873241 avg2=1370.986655462185; last=1370.9866086956522; oldest=1371.0; trend=-0.013391304347805999
         // 1423792012676:  avg1=1371.4557287278853 avg2=1371.3990983606557; last=1371.460410958904; oldest=-4.320119642545493E14; trend=4.3201196425592075E14
+        // 1423792012676:  avg1=1371.4557287278853 avg2=1371.3990983606557 avg3=1371.3990983606557; last=1371.460410958904; oldest=-4.320119642545493E14; trend=4.3201196425592075E14
         Matcher matcher = AVG_TREND_PATTERN.matcher(line1);
         if (matcher.matches()) {
             String millisStr = matcher.group(1);
             String avgStr1 = matcher.group(2);
             String avgStr2 = matcher.group(3);
-            String lastStr = matcher.group(4);
-            String oldestStr = matcher.group(5);
-            String trendStr = matcher.group(6);
-            System.out.println("GOT OSC_BAR: millisStr=" + millisStr + "; avgStr1=" + avgStr1 + "; avgStr2=" + avgStr2 +
+            String avgStr3 = matcher.group(4);
+            String avgStr4 = matcher.group(5);
+            String lastStr = matcher.group(6);
+            String oldestStr = matcher.group(7);
+            String trendStr = matcher.group(8);
+            System.out.println("GOT OSC_BAR: millisStr=" + millisStr + "; avgStr1=" + avgStr1 + "; avgStr2=" + avgStr2 + "; avgStr3=" + avgStr3 + "; avgStr4=" + avgStr4 +
                                "; lastStr=" + lastStr + "; oldestStr=" + oldestStr + "; trendStr=" + trendStr);
             long millis = Long.parseLong(millisStr);
             double avg1 = Double.parseDouble(avgStr1);
             double avg2 = Double.parseDouble(avgStr2);
+            double avg3 = Double.parseDouble(avgStr3);
+            double avg4 = Double.parseDouble(avgStr4);
 //            double last = Double.parseDouble(lastStr);
 //            double oldest = Double.parseDouble(oldestStr);
 //            double trend = Double.parseDouble(trendStr);
             s_avg1.put(millis, avg1);
             s_avg2.put(millis, avg2);
+            s_avg3.put(millis, avg3);
+            s_avg4.put(millis, avg4);
         } else {
             throw new RuntimeException("not matched AVG_TREND line: " + line1);
         }
