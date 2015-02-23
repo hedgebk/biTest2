@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.ListIterator;
 
 class OscExecutor implements Runnable{
+    private static final double MIN_ORDER_SIZE = 0.1; // btc
     public static final int MIN_REPROCESS_DIRECTION_TIME = 4500;
     public static final double OPPOSITE_DIRECTION_FACTOR = 0.75; // -20%
     public static final double[] AVG_PRICE_PERIOD_RATIOS = new double[] { 1.2, 1.8, 2.7, 3.1 };
@@ -25,9 +26,10 @@ class OscExecutor implements Runnable{
     public static final double DIRECTION_ADJUSTED_TREND_TOLERANCE = 0.012;
     // AvgStochDirectionAdjuster
     public static final double AVG_STOCH_TREND_THRESHOLD = 0.015;
+    public static final double DIRECTION_TREND_THRESHOLD = 0.01;
     private static final double ADJUST_DIRECTION_LEVEL1 = 0.06; // [0 ... LEVEL1]      ->  [0.8 ... 1]x    [LEVEL1_TO ... 1]
-    private static final double ADJUST_DIRECTION_LEVEL2 = 0.25; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... ADJUST_DIRECTION_LEVEL2_TO]
-    // [LEVEL2 ... 1]      -> +[0.6 ... 1]    +[ADJUST_DIRECTION_LEVEL2_TO ... 1]
+    private static final double ADJUST_DIRECTION_LEVEL2 = 0.29; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... ADJUST_DIRECTION_LEVEL2_TO]
+                                                                // [LEVEL2 ... 1]      -> +[0.6 ... 1]    +[ADJUST_DIRECTION_LEVEL2_TO ... 1]
     private static final double ADJUST_DIRECTION_LEVEL1_TO = 0.7;
     private static final double ADJUST_DIRECTION_LEVEL2_TO = 0.6;
     public static final int AVG_STOCH_COUNTER_POINTS = 8;
@@ -422,35 +424,44 @@ class OscExecutor implements Runnable{
 
         double minOrderToCreate = exchange.minOrderToCreate(Osc.PAIR);
         if (placeOrderSize >= minOrderToCreate) {
-            boolean cancelAttempted = cancelOrderIfPresent(needOrderSide, placeOrderSize);
-            if (!cancelAttempted) { // cancel attempt was not performed
-                if (m_order == null) { // we should not have open order at this place
-                    cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
-                    if (!cancelAttempted) { // cancel attempt was not performed
-                        double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
-                        m_order = new OrderData(Osc.PAIR, needOrderSide, orderPrice, placeOrderSize);
-                        log("   orderData=" + m_order);
+            if (placeOrderSize >= MIN_ORDER_SIZE) {
+                boolean cancelAttempted = cancelOrderIfPresent(needOrderSide, placeOrderSize);
+                if (!cancelAttempted) { // cancel attempt was not performed
+                    if (m_order == null) { // we should not have open order at this place
+                        cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
+                        if (!cancelAttempted) { // cancel attempt was not performed
+                            double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
+                            m_order = new OrderData(Osc.PAIR, needOrderSide, orderPrice, placeOrderSize);
+                            log("   orderData=" + m_order);
 
-                        if (placeOrderToExchange(exchange, m_order)) {
-                            m_orderPlaceAttemptCouner++;
-                            log("    m_orderPlaceAttemptCouner=" + m_orderPlaceAttemptCouner);
-                            return State.ORDER;
+                            if (placeOrderToExchange(exchange, m_order)) {
+                                m_orderPlaceAttemptCouner++;
+                                log("    m_orderPlaceAttemptCouner=" + m_orderPlaceAttemptCouner);
+                                return State.ORDER;
+                            } else {
+                                log("order place error - switch to ERROR state");
+                                return State.ERROR;
+                            }
                         } else {
-                            log("order place error - switch to ERROR state");
-                            return State.ERROR;
+                            log("some orders maybe closed - post recheck direction");
+                            postRecheckDirection();
+                            // probably we should switch to NONE here ?
                         }
                     } else {
-                        log("some orders maybe closed - post recheck direction");
-                        postRecheckDirection();
-                        // probably we should switch to NONE here ?
+                        log("warning: order still exist - do nothing: " + m_order); // better to switch to ERROR?
                     }
                 } else {
-                    log("warning: order still exist - do nothing: " + m_order); // better to switch to ERROR?
+                    log("order cancel was attempted. time passed. posting recheck direction");
+                    postRecheckDirection();
+                    // probably we should switch to NONE here ?
                 }
             } else {
-                log("order cancel was attempted. time passed. posting recheck direction");
-                postRecheckDirection();
-                // probably we should switch to NONE here ?
+                log("warning: small order to create: placeOrderSize=" + placeOrderSize + "; MIN_ORDER_SIZE=" + MIN_ORDER_SIZE);
+                if (m_maySyncAccount) {
+                    log("no orders - we may re-check account");
+                    initAccount();
+                }
+                return State.NONE;
             }
         } else {
             log("warning: small order to create: placeOrderSize=" + placeOrderSize + "; minOrderToCreate=" + minOrderToCreate);
@@ -1098,6 +1109,7 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
         private Utils.ArrayAverageCounter m_avgStochCounter = new Utils.ArrayAverageCounter(AVG_STOCH_COUNTER_POINTS);
         private Double m_prevBlend;
         private OscLogProcessor.TrendWatcher m_avgStochTrendWatcher = new OscLogProcessor.TrendWatcher(AVG_STOCH_TREND_THRESHOLD);
+        private OscLogProcessor.TrendWatcher m_directionTrendWatcher = new OscLogProcessor.TrendWatcher(DIRECTION_TREND_THRESHOLD);
 
         public void updateAvgStoch(double avgStoch) {
             double blend = m_avgStochCounter.add(avgStoch);
@@ -1116,21 +1128,17 @@ log("  direction trend changed from " + prevDirection + "to " + newDirection);
 
         public double adjustDirection(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
 log("  AvgStochDirectionAdjuster.adjustDirection() adjustDirection=" + directionAdjusted);
+            m_directionTrendWatcher.update(directionAdjusted);
+            Double peakdirection = m_directionTrendWatcher.m_peak;
             double ret = directionAdjusted;
             Double peakAvgStoch = m_avgStochTrendWatcher.m_peak;
-            if (peakAvgStoch != null) {
+            if ((peakAvgStoch != null) && (peakdirection != null)) {
+                Direction directionDirection = m_directionTrendWatcher.m_direction;
                 Direction avgStochDirection = m_avgStochTrendWatcher.m_direction;
 
-                if (avgStochDirection == Direction.FORWARD) {
-                    if (ret < 0) {
-log("  avgStochDirection=FORWARD with negative directionAdjusted=" + directionAdjusted + ". zeroed");
+                if (avgStochDirection != directionDirection) {
+log("  opposite directions: avgStochDirection="+avgStochDirection+" directionDirection=" + directionDirection + ". zeroed");
                         return 0;
-                    }
-                } else if (avgStochDirection == Direction.BACKWARD) {
-                    if (ret > 0) {
-log("  avgStochDirection=BACKWARD with positive directionAdjusted=" + directionAdjusted + ". zeroed");
-                        return 0;
-                    }
                 }
 
                 double distanceFromPeak = avgStochDirection.applyDirection(m_prevBlend - peakAvgStoch);
