@@ -17,7 +17,7 @@ import java.util.ListIterator;
 class OscExecutor implements Runnable{
     private static final double MIN_ORDER_SIZE = 0.1; // btc
     public static final int MIN_REPROCESS_DIRECTION_TIME = 4500;
-    public static final double OPPOSITE_DIRECTION_FACTOR = 0.75; // -20%
+    public static final double OPPOSITE_DIRECTION_FACTOR = 0.75; // -25%
     public static final double[] AVG_PRICE_PERIOD_RATIOS = new double[] { 1.2, 1.8, 2.7, 3.1 };
     private static final long MIN_ORDER_LIVE_TIME = 11000;
     // AvgPriceDirectionAdjuster
@@ -478,15 +478,12 @@ class OscExecutor implements Runnable{
         // directionAdjusted [-1 ... 1]
         log("  buy=" + m_buy + "; sell=" + m_sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
         double midPrice = (m_buy + m_sell) / 2;
-        double halfBidAskDiff = (m_sell - m_buy) / 2;
-//        double directionEffect = (directionAdjusted + (needOrderSide.isBuy() ? -3 : 3)) / 4;
-//        double directionEffect = (directionAdjusted + (needOrderSide.isBuy() ? -1 : 1)) / 2;
-        double directionEffect = directionAdjusted * 0.5; // [-0.5 ... 0.5]
-        log("   midPrice=" + midPrice + "; halfBidAskDiff=" + halfBidAskDiff + "; directionEffect=" + directionEffect);
-        double mktPriceDistance = needOrderSide.isBuy() ? 1 - directionEffect : -1 - directionEffect;
-        double orderPriceCounterCorrection = mktPriceDistance / 5 * m_orderPlaceAttemptCouner ;
-        double adjustedPrice = midPrice + (directionEffect + orderPriceCounterCorrection) * halfBidAskDiff;
-        log("   mktPriceDistance=" + mktPriceDistance + "; orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
+        double bidAskDiff = m_sell - m_buy;
+        double followMktPrice = needOrderSide.isBuy() ? m_buy : m_sell;
+        log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff + "; followMktPrice=" + followMktPrice);
+        double orderPriceCounterCorrection = bidAskDiff / 5 * m_orderPlaceAttemptCouner;
+        double adjustedPrice = followMktPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
+        log("   orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
         RoundingMode roundMode = needOrderSide.getPegRoundMode();
         double orderPrice = exchange.roundPrice(adjustedPrice, Osc.PAIR, roundMode);
         log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
