@@ -15,6 +15,7 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,6 +41,8 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
     private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled(\\d) from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
     private static final Pattern START_LEVEL_PATTERN = Pattern.compile("(\\d+): \\[(\\d+)\\] start level reached for (\\w+); .*");
+    private static final Pattern AVG_STOCH_PATTERN = Pattern.compile("(\\d+):\\s+updateAvgStoch\\(avgStoch\\=(\\d\\.[\\d+\\-E]+)\\)\\s+blend\\=(\\d\\.[\\d+\\-E]+);.*");
+    private static final Pattern PEAK_PATTERN = Pattern.compile("(\\d+):\\s+peak\\=(\\d\\.[\\d+\\-E]+); direction\\=(\\w+)");
 
     public static final String DIRECTION_ADJUSTED = "   directionAdjusted=";
     public static final String DIRECTION_CHILLED = "direction chilled";
@@ -50,9 +53,10 @@ public class OscLogProcessor extends BaseChartPaint {
     private static ArrayList<PlaceOrderData> s_placeOrders = new ArrayList<PlaceOrderData>();
     private static HashMap<Long, Double> s_bidPrice = new HashMap<Long, Double>();
     private static HashMap<Long, Double> s_askPrice = new HashMap<Long, Double>();
-    private static Double s_lastMidPrice;
+    private static TreeMap<Long, Double> s_midPrice = new TreeMap<Long, Double>();
     private static ArrayList<OscData> s_oscs = new ArrayList<OscData>();
     private static int s_maxOscIndex = 0;
+    private static Utils.AverageCounter s_averageCounter = new Utils.AverageCounter(AVG_PRICE_TIME);
     private static TreeMap<Long,Double> s_avgPrice = new TreeMap<Long, Double>();
     private static TreeMap<Long, Double> s_avg1 = new TreeMap<Long, Double>(); // parsed avg price 1
     private static TreeMap<Long, Double> s_avg2 = new TreeMap<Long, Double>(); // parsed avg price 2
@@ -72,6 +76,7 @@ public class OscLogProcessor extends BaseChartPaint {
     };
     private static ArrayList<DirectionsData> s_directions = new ArrayList<DirectionsData>();
     private static Map<Integer, OscData> s_lastOscs = new HashMap<Integer, OscData>();
+    private static List<AvgStochData> s_avgStochs = new ArrayList<AvgStochData>();
 
     private static void initOscsRadiusOffset() {
         OSCS_RADIUS = DIRECTION_MARK_RADIUS * 4;
@@ -87,11 +92,11 @@ public class OscLogProcessor extends BaseChartPaint {
             File file = new File(logFile);
             FileInputStream fis = new FileInputStream(file);
             try {
-                BufferedLineReader blr = new BufferedLineReader(fis);
+                LineReader reader = new LineReader(fis);
                 try {
-                    processLines(blr);
+                    processLines(reader);
                 } finally {
-                    blr.close();
+                    reader.close();
                 }
             } finally {
                 fis.close();
@@ -127,28 +132,84 @@ public class OscLogProcessor extends BaseChartPaint {
         return logFile;
     }
 
-    private static void processLines(BufferedLineReader blr) throws IOException {
+    private static void processLines(LineReader reader) throws IOException, InterruptedException {
         long startTime = System.currentTimeMillis();
-        String line;
-        while( (line = blr.getLine()) != null ) {
-            processLine(line, blr);
-            blr.removeLine();
+
+        AtomicInteger semafore = new AtomicInteger();
+
+        new LineReaderThread(reader, semafore) {
+            @Override protected void processTheLine(String line, BufferedLineReader blr) {
+                if(line.contains("State.onTrade(tData=TradeData{amount=")) { // 1421188431875: State.onTrade(tData=TradeData{amount=0.50000, price=1350.00000, time=1421188436000, tid=0, type=BID}) on NONE *********************************************
+                    processTradeLine(line);
+                }
+            }
+        };
+        new LineReaderThread(reader, semafore) {
+            @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
+                if(line.contains("processDirection() direction=")) { // 1421192392632: processDirection() direction=-2)
+                    processDirectionLine(line, blr);
+                }
+            }
+        };
+        new LineReaderThread(reader, semafore) {
+            @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
+                if(line.contains(":    orderData=OrderData{status=NEW,")) { // 1421193272478:    orderData=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.08500, price=1347.99000, state=NONE, filled=0.00000}
+                    processPlaceOrderLine(line, blr);
+                }
+            }
+        };
+        new LineReaderThread(reader, semafore) {
+            @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
+                if(line.contains(":  topsData'=TopsData[")) { // 1421196514606:  topsData'=TopsData[BTC_CNH=Top{bid=1,326.2100, ask=1,326.2400, last=0.0000}; }
+                    processTopDataLine(line, blr);
+                }
+            }
+        };
+        new LineReaderThread(reader, semafore) {
+            @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
+                if (line.contains("] bar") && !line.contains("PREHEAT_BARS_NUM")) { // 1421372554483:  ------------ [3] bar    1421372505000   0.6458513387891542       0.5664781116721086
+                    processOscBar(line);
+                } else if (line.contains("start level reached for")) { // 1423187861490: [2] start level reached for SELL; stochDiff=0.02202571880404658; startLevel=0.11617121375916264
+                    processStartLevel(line);
+                }
+            }
+        };
+        new LineReaderThread(reader, semafore) {
+            @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
+                if(line.contains("; oldest=")) { // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
+                    processAvgAndTrend(line);
+                }
+            }
+        };
+        new LineReaderThread(reader, semafore) {
+            @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
+                if(line.contains("GAIN: ")) { // 1422133198048:   GAIN: Btc=0.975798088760157; Cnh=1.0289787120270006 CNH; avg=1.0023884003935788; projected=1.0051339148741418
+                    processGain(line);
+                }
+            }
+        };
+        new LineReaderThread(reader, semafore) {
+            @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
+                if(line.contains("updateAvgStoch(")) { // 1424179425710: updateAvgStoch(avgStoch=0.17086689019047155) blend=0.17095343524129952; full=true
+                    processAvgStoch(line, blr);
+                }
+            }
+        };
+
+        while (true) {
+            synchronized (semafore) {
+                int i = semafore.get();
+                if (i == 0) {
+                    break;
+                }
+                semafore.wait();
+            }
         }
-        postProcess();
-        int linesReaded = blr.m_linesReaded;
+
+        int linesReaded = reader.m_linesReaded;
         long takes = System.currentTimeMillis() - startTime;
         System.out.println("readed/processed " + linesReaded + " lines in " + takes + " ms (" + (linesReaded / (takes / 1000)) + " l/s)");
         paint();
-    }
-
-    private static void postProcess() {
-        Utils.AverageCounter averageCounter = new Utils.AverageCounter(AVG_PRICE_TIME);
-        for (TradeData trade : s_trades) {
-            long timestamp = trade.m_timestamp;
-            double price = trade.m_price;
-            double avg = averageCounter.add(timestamp, price);
-            s_avgPrice.put(timestamp, avg);
-        }
     }
 
     private static void paint() {
@@ -202,6 +263,7 @@ public class OscLogProcessor extends BaseChartPaint {
         paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
         paintOscs(priceAxe, timeAxe, g);
+        paintAvgStochs(priceAxe, timeAxe, g);
         paintDirections(priceAxe, timeAxe, g);
         paintTops(priceAxe, timeAxe, g);
         paintTrades(priceAxe, timeAxe, g);
@@ -328,14 +390,14 @@ public class OscLogProcessor extends BaseChartPaint {
                 lastY2[index] = y2;
             }
         }
-        TrendWatcher trendWatcher = new TrendWatcher(0.01);
+//        TrendWatcher trendWatcher = new TrendWatcher(0.01);
         Double[] midOscs = new Double[oscNum];
-        Integer prevAvgOscY = null;
-        int prevAvgOscX = 0;
-        Double prevPrevAvgOsc = null;
+//        Integer prevAvgOscY = null;
+//        int prevAvgOscX = 0;
         Double prevAvgOsc = null;
-        BasicStroke avgOscStroke = new BasicStroke(4);
-        Stroke old = g.getStroke();
+        Double prevPrevAvgOsc = null;
+//        BasicStroke avgOscStroke = new BasicStroke(4);
+//        Stroke old = g.getStroke();
         TreeMap<Long, Double> avgOscDeltas = new TreeMap<Long, Double>();
         Utils.DoubleDoubleMinMaxCalculator avgOscDeltasCalc = new Utils.DoubleDoubleMinMaxCalculator();
         for (OscData osc : s_oscs) {
@@ -343,10 +405,10 @@ public class OscLogProcessor extends BaseChartPaint {
             long time = osc.m_millis;
             Map.Entry<Long, Double> entry = s_avgPrice.floorEntry(time);
             if (entry != null) {
-                Double avgPrice = entry.getValue();
-                int x = timeAxe.getPoint(time);
-                int y = priceAxe.getPointReverse(avgPrice);
-
+//                Double avgPrice = entry.getValue();
+//                int x = timeAxe.getPoint(time);
+//                int y = priceAxe.getPointReverse(avgPrice);
+//
                 double osc1 = osc.m_osc1;
                 double osc2 = osc.m_osc2;
                 double oscMid = (osc1 + osc2) / 2;
@@ -362,21 +424,21 @@ public class OscLogProcessor extends BaseChartPaint {
                 }
                 if (avgOsc != null) {
                     avgOsc /= oscNum;
-                    trendWatcher.update(avgOsc);
+//                    trendWatcher.update(avgOsc);
                     if ((prevAvgOsc != null) && (prevPrevAvgOsc != null)) {
                         double blendAvgOsc = (avgOsc + prevAvgOsc + prevPrevAvgOsc) / 3; // blend 3 last values
-                        int avgOscY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * blendAvgOsc));
-                        Direction direction = trendWatcher.m_direction;
-                        if (direction != null) {
-                            g.setStroke(avgOscStroke);
-                            g.setPaint((direction == Direction.FORWARD) ? Colors.DARK_GREEN : Color.red);
-                            g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
-                            g.setStroke(old);
-                        }
-
-                        prevAvgOscY = avgOscY;
-                        prevAvgOscX = x;
-
+//                        int avgOscY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * blendAvgOsc));
+//                        Direction direction = trendWatcher.m_direction;
+//                        if (direction != null) {
+//                            g.setStroke(avgOscStroke);
+//                            g.setPaint((direction == Direction.FORWARD) ? Colors.DARK_GREEN : Color.red);
+//                            g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
+//                            g.setStroke(old);
+//                        }
+//
+//                        prevAvgOscY = avgOscY;
+//                        prevAvgOscX = x;
+//
                         double avgOscDelta = blendAvgOsc - prevPrevAvgOsc;
                         avgOscDeltas.put(time, avgOscDelta);
                         avgOscDeltasCalc.calculate(avgOscDelta);
@@ -386,40 +448,76 @@ public class OscLogProcessor extends BaseChartPaint {
                 }
             }
         }
-        g.setStroke(old);
+//        g.setStroke(old);
 
         Double minAvgOscDelta = avgOscDeltasCalc.m_minValue;
         Double maxAvgOscDelta = avgOscDeltasCalc.m_maxValue;
         System.out.println("minAvgOscDelta = " + minAvgOscDelta + ", maxAvgOscDelta = " + maxAvgOscDelta);
         ChartAxe avgOscDeltaAxe = new PaintChart.ChartAxe(minAvgOscDelta, maxAvgOscDelta, DIRECTION_MARK_RADIUS*2);
 
+        Utils.ArrayAverageCounter avgAvgOscDeltasCounter = new Utils.ArrayAverageCounter(10);
         Integer prevX = null;
         Integer prevPaintY = null;
+        Integer prevPaintYSmooth = null;
         Integer prevPaintZeroY = null;
         int yDeltaZero = avgOscDeltaAxe.getPointReverse(0);
         for (Map.Entry<Long, Double> entry : avgOscDeltas.entrySet()) {
             Long time = entry.getKey();
             Double avgOscDelta = entry.getValue();
+            double smoothAvgOscDelta = avgAvgOscDeltasCounter.add(avgOscDelta);
             Map.Entry<Long, Double> entry2 = s_avgPrice.floorEntry(time);
             if (entry2 != null) {
                 Double avgPrice = entry2.getValue();
                 int x = timeAxe.getPoint(time);
                 int y = priceAxe.getPointReverse(avgPrice);
                 int yDelta = avgOscDeltaAxe.getPoint(avgOscDelta);
+                int yDeltaSmooth = avgOscDeltaAxe.getPoint(smoothAvgOscDelta);
                 int basePaintY = y - OSCS_OFFSET - OSCS_RADIUS;
                 int paintY = basePaintY - yDelta;
+                int paintYSmooth = basePaintY - yDeltaSmooth;
                 int paintZeroY = basePaintY - yDeltaZero;
                 if (prevX != null) {
                     g.setPaint((avgOscDelta > 0) ? Color.green : Color.red);
                     g.drawLine(prevX, prevPaintY, x, paintY);
+                    g.setPaint(Color.BLACK);
+                    g.drawLine(prevX, prevPaintYSmooth, x, paintYSmooth);
                     g.setPaint(Colors.DARK_BLUE);
                     g.drawLine(prevX, prevPaintZeroY, x, paintZeroY);
                 }
                 prevX = x;
                 prevPaintY = paintY;
+                prevPaintYSmooth = paintYSmooth;
                 prevPaintZeroY = paintZeroY;
             }
         }
+    }
+
+    private static void paintAvgStochs(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        Stroke old = g.getStroke();
+        BasicStroke avgStochsStroke = new BasicStroke(4);
+        g.setStroke(avgStochsStroke);
+g.setPaint(Color.orange);
+        Integer prevAvgStochBlendY = null;
+        Integer prevAvgStochX = null;
+        for (AvgStochData avgStochData : s_avgStochs) {
+            Long time = avgStochData.m_millis;
+            Map.Entry<Long, Double> entry2 = s_avgPrice.floorEntry(time);
+            if (entry2 != null) {
+                Double avgPrice = entry2.getValue();
+                int x = timeAxe.getPoint(time);
+                int y = priceAxe.getPointReverse(avgPrice);
+                Double avgStochBlend = avgStochData.m_blend;
+                int avgStochBlendY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * avgStochBlend));
+                if (prevAvgStochBlendY != null) {
+                    boolean directionForward = avgStochData.m_directionForward;
+                    g.setPaint(directionForward? Colors.DARK_GREEN : Color.red);
+                    g.drawLine(prevAvgStochX, prevAvgStochBlendY, x, avgStochBlendY);
+                }
+                prevAvgStochBlendY = avgStochBlendY;
+                prevAvgStochX = x;
+            }
+        }
+        g.setStroke(old);
     }
 
     private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, ChartAxe gainAxe) {
@@ -524,11 +622,12 @@ public class OscLogProcessor extends BaseChartPaint {
         Integer prevX = null;
         Integer prevY = null;
         for (DirectionsData dData : s_directions) {
-            Double basePrice = dData.m_lastMidPrice;
-            if (basePrice == null) {
+            Long stamp = dData.m_millis;
+            Map.Entry<Long, Double> entry = s_midPrice.floorEntry(stamp);
+            if(entry == null) {
                 continue;
             }
-            Long stamp = dData.m_millis;
+            Double basePrice = entry.getValue();
             Double direction = dData.m_directionAdjusted;
             Double boostedFrom = dData.m_boostedFrom;
             Double boostedTo = dData.m_boostedTo;
@@ -604,25 +703,37 @@ public class OscLogProcessor extends BaseChartPaint {
         }
     }
 
-    private static void processLine(String line, BufferedLineReader blr) throws IOException {
-        if(line.contains("State.onTrade(tData=TradeData{amount=")) { // 1421188431875: State.onTrade(tData=TradeData{amount=0.50000, price=1350.00000, time=1421188436000, tid=0, type=BID}) on NONE *********************************************
-            processTradeLine(line);
-        } else if(line.contains("processDirection() direction=")) { // 1421192392632: processDirection() direction=-2)
-            processDirectionLine(line, blr);
-        } else if(line.contains(":    orderData=OrderData{status=NEW,")) { // 1421193272478:    orderData=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.08500, price=1347.99000, state=NONE, filled=0.00000}
-            processPlaceOrderLine(line, blr);
-        } else if(line.contains(":  topsData'=TopsData[")) { // 1421196514606:  topsData'=TopsData[BTC_CNH=Top{bid=1,326.2100, ask=1,326.2400, last=0.0000}; }
-            processTopDataLine(line, blr);
-        } else if(line.contains("] bar") && !line.contains("PREHEAT_BARS_NUM")) { // 1421372554483:  ------------ [3] bar    1421372505000   0.6458513387891542       0.5664781116721086
-            processOscBar(line);
-        } else if(line.contains("; oldest=")) { // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
-            processAvgAndTrend(line);
-        } else if(line.contains("GAIN: ")) { // 1422133198048:   GAIN: Btc=0.975798088760157; Cnh=1.0289787120270006 CNH; avg=1.0023884003935788; projected=1.0051339148741418
-            processGain(line);
-        } else if(line.contains("start level reached for")) { // 1423187861490: [2] start level reached for SELL; stochDiff=0.02202571880404658; startLevel=0.11617121375916264
-            processStartLevel(line);
+    private static void processAvgStoch(String line1, BufferedLineReader blr) throws IOException {
+//        1424179425710: updateAvgStoch(avgStoch=0.17086689019047155) blend=0.17095343524129952; full=true
+//        1424179425710:  peak=0.012103220500638723; direction=FORWARD
+        Matcher matcher = AVG_STOCH_PATTERN.matcher(line1);
+        if (matcher.matches()) {
+            String millisStr = matcher.group(1);
+            String avgStochStr = matcher.group(2);
+            String blendStr = matcher.group(3);
+            System.out.println("GOT AVG_STOCH: millisStr=" + millisStr + "; avgStochStr=" + avgStochStr + "; blendStr=" + blendStr);
+            String line2 = waitLineContained(blr, ":  peak=");
+            if (line2 != null) {
+                System.out.println("GOT peak: " + line2);
+                matcher = PEAK_PATTERN.matcher(line2);
+                if (matcher.matches()) {
+                    matcher.group(1);
+                    String peakStr = matcher.group(2);
+                    String directionStr = matcher.group(3);
+                    System.out.println(" GOT PEAK_PATTERN: peakStr=" + peakStr + "; directionStr=" + directionStr);
+
+                    long millis = Long.parseLong(millisStr);
+                    double avgStoch = Double.parseDouble(avgStochStr);
+                    double blend = Double.parseDouble(blendStr);
+                    boolean directionForward = directionStr.equals("FORWARD");
+                    AvgStochData avgStochData = new AvgStochData(millis, avgStoch, blend, directionForward);
+                    s_avgStochs.add(avgStochData);
+                } else {
+                    throw new RuntimeException("not matched PEAK_PATTERN line: " + line2);
+                }
+            }
         } else {
-            System.out.println("-------- skip line: " + line);
+            throw new RuntimeException("not matched AVG_STOCH line: " + line1);
         }
     }
 
@@ -735,7 +846,7 @@ public class OscLogProcessor extends BaseChartPaint {
             double ask = Double.parseDouble(askStr.replace(",", ""));
             s_bidPrice.put(millis, bid);
             s_askPrice.put(millis, ask);
-            s_lastMidPrice = (bid+ask)/2;
+            s_midPrice.put(millis, (bid+ask)/2);
         } else {
             throw new RuntimeException("not matched TOP_DATA_PATTERN line: " + line1);
         }
@@ -757,10 +868,10 @@ public class OscLogProcessor extends BaseChartPaint {
             PlaceOrderData opd = new PlaceOrderData(millis, price, side, size);
             s_placeOrders.add(opd);
 
+            // PlaceOrderData: PlaceOrderData{orderId=96465911, remains=0.0, received=0.0}
             String line2 = waitLineContained(blr, "PlaceOrderData: PlaceOrderData{");
             if (line2 != null) {
                 System.out.println("GOT PlaceOrderData: " + line2);
-//                // PlaceOrderData: PlaceOrderData{orderId=96465911, remains=0.0, received=0.0}
                 int indx1 = line2.indexOf("orderId=");
                 if (indx1 != -1) {
                     int indx2 = line2.indexOf(",", indx1);
@@ -768,20 +879,25 @@ public class OscLogProcessor extends BaseChartPaint {
                     System.out.println(" orderId: " + orderId);
                     opd.m_orderId = orderId;
 
+                    // 1424436729381: cancelOrder() OrderData{id=346405765 status=SUBMITTED, pair=BTC_CNH, side=BUY, amount=0.09700, price=1518.16000, state=LIMIT_PLACED, filled=0.00000}
                     // 1421411215853: $$$$$$   order FILLED: OrderData{id=96872920 status=FILLED, pair=BTC_CNH, side=BUY, amount=0.05580, price=1279.27000, state=NONE, filled=0.05580}
-                    String line3 = waitLineContained(blr, "order FILLED: OrderData{id=" + orderId);
-                    if (line3 != null) {
-                        System.out.println("  GOT order FILLED: " + line3);
-                        int indx3 = line3.indexOf(":");
-                        if (indx3 != -1) {
-                            String time = line3.substring(0, indx3);
-                            Long millis2 = Long.parseLong(time);
-                            System.out.println("   extracted time : " + millis2);
-                            opd.m_fillTime = millis2;
+                    Map.Entry<Integer, String> wait = waitLineContained(blr, new String[]{"order FILLED: OrderData{id=" + orderId,
+                                                                                          "cancelOrder() OrderData{id=" + orderId});
+                    if (wait != null) {
+                        Integer key = wait.getKey();
+                        String line3 = wait.getValue();
+                        if (key == 0) {
+                            System.out.println("  GOT order FILLED: " + line3);
+                            int indx3 = line3.indexOf(":");
+                            if (indx3 != -1) {
+                                String time = line3.substring(0, indx3);
+                                Long millis2 = Long.parseLong(time);
+                                System.out.println("   extracted time : " + millis2);
+                                opd.m_fillTime = millis2;
+                            }
                         }
                     }
                 } else {
-                    // PlaceOrderData: PlaceOrderData{error='place order error: javax.net.ssl.SSLHandshakeException: Remote host closed connection during handshake'}
                     // PlaceOrderData: PlaceOrderData{error='place order error: javax.net.ssl.SSLHandshakeException: Remote host closed connection during handshake'}
                     int indx2 = line2.indexOf("error='");
                     if (indx2 != -1) {
@@ -887,7 +1003,7 @@ public class OscLogProcessor extends BaseChartPaint {
                         Double chilled2To = (chilled2ToStr != null) ? Double.parseDouble(chilled2ToStr) : null;
                         long millis = Long.parseLong(millisStr);
                         double directionAdjusted = Double.parseDouble(directionAdjustedStr);
-                        s_directions.add(new DirectionsData(millis, boostedFrom, boostedTo, chilled1From, chilled1To, chilled2From, chilled2To, directionAdjusted, s_lastMidPrice));
+                        s_directions.add(new DirectionsData(millis, boostedFrom, boostedTo, chilled1From, chilled1To, chilled2From, chilled2To, directionAdjusted));
                     } else {
                         throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
                     }
@@ -948,18 +1064,47 @@ public class OscLogProcessor extends BaseChartPaint {
             double price = Double.parseDouble(priceStr);
             TradeData tradeData = new TradeData(0, price, millis);
             s_trades.add(tradeData);
+
+            double avg = s_averageCounter.add(millis, price);
+            s_avgPrice.put(millis, avg);
         } else {
             throw new RuntimeException("not matched TRADE_PATTERN line: " + line);
         }
     }
 
     private static class BufferedLineReader {
+        private final LineReader m_reader;
+        private int m_start = 0;
+        private int m_index = 0;
+
+        public BufferedLineReader(LineReader reader) {
+            m_reader = reader;
+        }
+
+        public void close() throws IOException {
+            m_reader.close();
+        }
+
+        public String getLine() throws IOException {
+            String line = m_reader.getLine(m_index);
+            if (line != null) {
+                m_index++;
+            }
+            return line;
+        }
+
+        public void removeLine() {
+            m_start++;
+            m_index = m_start;
+        }
+    }
+
+    private static class LineReader {
         private final BufferedReader m_bis;
         private final ArrayList<String> m_buffer = new ArrayList<String>();
-        private int m_index = 0;
         public int m_linesReaded = 0;
 
-        public BufferedLineReader(InputStream is) {
+        public LineReader(InputStream is) {
             m_bis = new BufferedReader(new InputStreamReader(is));
         }
 
@@ -967,9 +1112,9 @@ public class OscLogProcessor extends BaseChartPaint {
             m_bis.close();
         }
 
-        public String getLine() throws IOException {
-            if (m_index < m_buffer.size()) {
-                return m_buffer.get(m_index++);
+        public synchronized String getLine(int index) throws IOException {
+            if (index < m_buffer.size()) {
+                return m_buffer.get(index);
             }
             return readLine();
         }
@@ -978,18 +1123,9 @@ public class OscLogProcessor extends BaseChartPaint {
             String line = m_bis.readLine();
             if (line != null) {
                 m_buffer.add(line);
-                m_index++;
                 m_linesReaded++;
             }
             return line;
-        }
-
-        public void removeLine() {
-            if (m_buffer.size() < 1) {
-                throw new RuntimeException("no lines to remove from buffer");
-            }
-            m_buffer.remove(0);
-            m_index = 0;
         }
     }
 
@@ -1038,13 +1174,12 @@ public class OscLogProcessor extends BaseChartPaint {
         private final Double m_chilled2From;
         private final Double m_chilled2To;
         private final double m_directionAdjusted;
-        private final Double m_lastMidPrice;
 
         public DirectionsData(long millis,
                               Double boostedFrom, Double boostedTo,
                               Double chilled1From, Double chilled1To,
                               Double chilled2From, Double chilled2To,
-                              double directionAdjusted, Double lastMidPrice) {
+                              double directionAdjusted) {
             m_millis = millis;
             m_boostedFrom = boostedFrom;
             m_boostedTo = boostedTo;
@@ -1053,7 +1188,6 @@ public class OscLogProcessor extends BaseChartPaint {
             m_chilled2From = chilled2From;
             m_chilled2To = chilled2To;
             m_directionAdjusted = directionAdjusted;
-            m_lastMidPrice = lastMidPrice;
         }
     }
 
@@ -1107,5 +1241,52 @@ public class OscLogProcessor extends BaseChartPaint {
         protected double getTolerance(double value) {
             return m_tolerance;
         }
+    }
+
+    private static class AvgStochData {
+        long m_millis;
+        double m_avgStoch;
+        double m_blend;
+        boolean m_directionForward;
+
+        public AvgStochData(long millis, double avgStoch, double blend, boolean directionForward) {
+            m_millis = millis;
+            m_avgStoch = avgStoch;
+            m_blend = blend;
+            m_directionForward = directionForward;
+        }
+    }
+
+    private static abstract class LineReaderThread extends Thread {
+        private final BufferedLineReader m_blr;
+        private final AtomicInteger m_semafore;
+
+        public LineReaderThread(LineReader reader, AtomicInteger semafore) {
+            m_blr = new BufferedLineReader(reader);
+            m_semafore = semafore;
+            synchronized (semafore) {
+                semafore.incrementAndGet();
+            }
+            start();
+        }
+
+        @Override public void run() {
+            try {
+                String line;
+                while( (line = m_blr.getLine()) != null ) {
+                    processTheLine(line, m_blr);
+                    m_blr.removeLine();
+                }
+            } catch (IOException e) {
+                System.out.println("Error processing line");
+                e.printStackTrace();
+            }
+            synchronized (m_semafore) {
+                m_semafore.decrementAndGet();
+                m_semafore.notify();
+            }
+        }
+
+        protected abstract void processTheLine(String line, BufferedLineReader blr) throws IOException;
     }
 }
