@@ -330,12 +330,8 @@ public class OscLogProcessor extends BaseChartPaint {
                 int textX = x;
                 int textY = y + 10 + strWidth;
 
-                AffineTransform orig = g.getTransform();
-                g.translate(textX, textY);
-                g.rotate(-Math.PI / 2);
                 g.setColor(Color.darkGray);
-                g.drawString(str, 0, 0);
-                g.setTransform(orig);
+                paint90GradRotatedString(g, str, textX, textY);
 
                 if (lastX != -1) {
                     Color color = (gain > lastGain) ? Color.GREEN : (gain < lastGain) ? Color.RED : Color.GRAY;
@@ -390,25 +386,16 @@ public class OscLogProcessor extends BaseChartPaint {
                 lastY2[index] = y2;
             }
         }
-//        TrendWatcher trendWatcher = new TrendWatcher(0.01);
         Double[] midOscs = new Double[oscNum];
-//        Integer prevAvgOscY = null;
-//        int prevAvgOscX = 0;
         Double prevAvgOsc = null;
         Double prevPrevAvgOsc = null;
-//        BasicStroke avgOscStroke = new BasicStroke(4);
-//        Stroke old = g.getStroke();
         TreeMap<Long, Double> avgOscDeltas = new TreeMap<Long, Double>();
-        Utils.DoubleDoubleMinMaxCalculator avgOscDeltasCalc = new Utils.DoubleDoubleMinMaxCalculator();
+        Utils.DoubleDoubleMinMaxCalculator avgOscDeltasMinMaxCalc = new Utils.DoubleDoubleMinMaxCalculator();
         for (OscData osc : s_oscs) {
             int index = osc.m_index;
             long time = osc.m_millis;
             Map.Entry<Long, Double> entry = s_avgPrice.floorEntry(time);
             if (entry != null) {
-//                Double avgPrice = entry.getValue();
-//                int x = timeAxe.getPoint(time);
-//                int y = priceAxe.getPointReverse(avgPrice);
-//
                 double osc1 = osc.m_osc1;
                 double osc2 = osc.m_osc2;
                 double oscMid = (osc1 + osc2) / 2;
@@ -424,37 +411,25 @@ public class OscLogProcessor extends BaseChartPaint {
                 }
                 if (avgOsc != null) {
                     avgOsc /= oscNum;
-//                    trendWatcher.update(avgOsc);
                     if ((prevAvgOsc != null) && (prevPrevAvgOsc != null)) {
                         double blendAvgOsc = (avgOsc + prevAvgOsc + prevPrevAvgOsc) / 3; // blend 3 last values
-//                        int avgOscY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * blendAvgOsc));
-//                        Direction direction = trendWatcher.m_direction;
-//                        if (direction != null) {
-//                            g.setStroke(avgOscStroke);
-//                            g.setPaint((direction == Direction.FORWARD) ? Colors.DARK_GREEN : Color.red);
-//                            g.drawLine(prevAvgOscX, prevAvgOscY, x, avgOscY);
-//                            g.setStroke(old);
-//                        }
-//
-//                        prevAvgOscY = avgOscY;
-//                        prevAvgOscX = x;
-//
                         double avgOscDelta = blendAvgOsc - prevPrevAvgOsc;
                         avgOscDeltas.put(time, avgOscDelta);
-                        avgOscDeltasCalc.calculate(avgOscDelta);
+                        avgOscDeltasMinMaxCalc.calculate(avgOscDelta);
                     }
                     prevPrevAvgOsc = prevAvgOsc;
                     prevAvgOsc = avgOsc;
                 }
             }
         }
-//        g.setStroke(old);
 
-        Double minAvgOscDelta = avgOscDeltasCalc.m_minValue;
-        Double maxAvgOscDelta = avgOscDeltasCalc.m_maxValue;
+        Double minAvgOscDelta = avgOscDeltasMinMaxCalc.m_minValue;
+        Double maxAvgOscDelta = avgOscDeltasMinMaxCalc.m_maxValue;
         System.out.println("minAvgOscDelta = " + minAvgOscDelta + ", maxAvgOscDelta = " + maxAvgOscDelta);
         ChartAxe avgOscDeltaAxe = new PaintChart.ChartAxe(minAvgOscDelta, maxAvgOscDelta, DIRECTION_MARK_RADIUS*2);
 
+        // paint osc diffs
+        g.setFont(g.getFont().deriveFont(10f));
         Utils.ArrayAverageCounter avgAvgOscDeltasCounter = new Utils.ArrayAverageCounter(10);
         Integer prevX = null;
         Integer prevPaintY = null;
@@ -477,6 +452,14 @@ public class OscLogProcessor extends BaseChartPaint {
                 int paintYSmooth = basePaintY - yDeltaSmooth;
                 int paintZeroY = basePaintY - yDeltaZero;
                 if (prevX != null) {
+                    //----------------
+                    int textX = x;
+                    int textY = paintY - 10;
+
+                    g.setColor(Color.darkGray);
+                    String str = avgOscDelta.toString();
+                    paint90GradRotatedString(g, str, textX, textY);
+
                     g.setPaint((avgOscDelta > 0) ? Color.green : Color.red);
                     g.drawLine(prevX, prevPaintY, x, paintY);
                     g.setPaint(Color.BLACK);
@@ -606,15 +589,18 @@ g.setPaint(Color.orange);
                 int strWidth = fontMetrics.stringWidth(str);
                 int textX = x + 2;
                 int textY = y + DIRECTION_MARK_RADIUS + 10 + strWidth;
-
-                AffineTransform orig = g.getTransform();
-                g.translate(textX, textY);
-                g.rotate(-Math.PI / 2);
                 g.setColor(Color.darkGray);
-                g.drawString(str, 0, 0);
-                g.setTransform(orig);
+                paint90GradRotatedString(g, str, textX, textY);
             }
         }
+    }
+
+    private static void paint90GradRotatedString(Graphics2D g, String str, double textX, double textY) {
+        AffineTransform orig = g.getTransform();
+        g.translate(textX, textY);
+        g.rotate(-Math.PI / 2);
+        g.drawString(str, 0, 0);
+        g.setTransform(orig);
     }
 
     private static void paintDirections(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
@@ -682,13 +668,9 @@ g.setPaint(Color.orange);
             //----------------
             int textX = x;
             int textY = y - DIRECTION_MARK_RADIUS - 10;
-
-            AffineTransform orig = g.getTransform();
-            g.translate(textX, textY);
-            g.rotate(-Math.PI / 2);
             g.setColor(Color.darkGray);
-            g.drawString(buff.toString(), 0, 0);
-            g.setTransform(orig);
+            String str = buff.toString();
+            paint90GradRotatedString(g, str, textX, textY);
         }
     }
 
@@ -699,7 +681,8 @@ g.setPaint(Color.orange);
             int y = priceAxe.getPointReverse(price);
             long stamp = trade.m_timestamp;
             int x = timeAxe.getPoint(stamp);
-            g.drawLine(x, y, x, y);
+            g.drawLine(x-1, y-1, x+1, y+1);
+            g.drawLine(x+1, y-1, x-1, y+1);
         }
     }
 
