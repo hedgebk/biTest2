@@ -59,7 +59,7 @@ class OscExecutor implements Runnable{
     private final AvgPriceDirectionAdjuster m_avgPriceDirectionAdjuster;
     private long m_lastProcessDirectionTime;
     private boolean m_feeding;
-    private int m_orderPlaceAttemptCouner;
+    private int m_orderPlaceAttemptCounter;
 
     private static void log(String s) { Log.log(s); }
 
@@ -319,7 +319,7 @@ class OscExecutor implements Runnable{
     private State processDirection() throws Exception {
         m_lastProcessDirectionTime = System.currentTimeMillis();
         double directionAdjustedIn = ((double)m_direction) / Osc.PHASES / Osc.BAR_SIZES.length; // directionAdjusted  [-1 ... 1]
-        log("processDirection() direction=" + m_direction + ") directionAdjustedIn=" + directionAdjustedIn);
+        log("processDirection() direction=" + m_direction + "; directionAdjustedIn=" + directionAdjustedIn);
 
         if ((directionAdjustedIn < -1) || (directionAdjustedIn > 1)) {
             log("ERROR: invalid directionAdjusted=" + directionAdjustedIn);
@@ -422,41 +422,36 @@ class OscExecutor implements Runnable{
             }
         }
 
-        double minOrderToCreate = exchange.minOrderToCreate(Osc.PAIR);
-        if (placeOrderSize >= minOrderToCreate) {
-            if (placeOrderSize >= MIN_ORDER_SIZE) {
-                boolean cancelAttempted = cancelOrderIfPresent(needOrderSide, placeOrderSize);
-                if (!cancelAttempted) { // cancel attempt was not performed
-                    if (m_order == null) { // we should not have open order at this place
-                        cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
-                        if (!cancelAttempted) { // cancel attempt was not performed
-                            double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
-                            m_order = new OrderData(Osc.PAIR, needOrderSide, orderPrice, placeOrderSize);
-                            log("   orderData=" + m_order);
+        boolean cancelAttempted = cancelOrderIfPresent();
+        if (!cancelAttempted) { // cancel attempt was not performed
+            double minOrderToCreate = exchange.minOrderToCreate(Osc.PAIR);
+            if ((placeOrderSize >= minOrderToCreate) || (placeOrderSize >= MIN_ORDER_SIZE)) {
+                if (m_order == null) { // we should not have open order at this place
+                    cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
+                    if (!cancelAttempted) { // cancel attempt was not performed
+                        double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
+                        m_order = new OrderData(Osc.PAIR, needOrderSide, orderPrice, placeOrderSize);
+                        log("   orderData=" + m_order);
 
-                            if (placeOrderToExchange(exchange, m_order)) {
-                                m_orderPlaceAttemptCouner++;
-                                log("    m_orderPlaceAttemptCouner=" + m_orderPlaceAttemptCouner);
-                                return State.ORDER;
-                            } else {
-                                log("order place error - switch to ERROR state");
-                                return State.ERROR;
-                            }
+                        if (placeOrderToExchange(exchange, m_order)) {
+                            m_orderPlaceAttemptCounter++;
+                            log("    m_orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
+                            return State.ORDER;
                         } else {
-                            log("some orders maybe closed - post recheck direction");
-                            postRecheckDirection();
-                            // probably we should switch to NONE here ?
+                            log("order place error - switch to ERROR state");
+                            return State.ERROR;
                         }
                     } else {
-                        log("warning: order still exist - do nothing: " + m_order); // better to switch to ERROR?
+                        log("some orders maybe closed - post recheck direction");
+                        postRecheckDirection();
+                        // probably we should switch to NONE here ?
                     }
                 } else {
-                    log("order cancel was attempted. time passed. posting recheck direction");
-                    postRecheckDirection();
-                    // probably we should switch to NONE here ?
+                    log("warning: order still exist - switch to ERROR state: " + m_order);
+                    return State.NONE;
                 }
             } else {
-                log("warning: small order to create: placeOrderSize=" + placeOrderSize + "; MIN_ORDER_SIZE=" + MIN_ORDER_SIZE);
+                log("warning: small order to create: placeOrderSize=" + placeOrderSize + "; minOrderToCreate=" + minOrderToCreate + "; MIN_ORDER_SIZE=" + MIN_ORDER_SIZE);
                 if (m_maySyncAccount) {
                     log("no orders - we may re-check account");
                     initAccount();
@@ -464,14 +459,11 @@ class OscExecutor implements Runnable{
                 return State.NONE;
             }
         } else {
-            log("warning: small order to create: placeOrderSize=" + placeOrderSize + "; minOrderToCreate=" + minOrderToCreate);
-            if (m_maySyncAccount) {
-                log("no orders - we may re-check account");
-                initAccount();
-            }
-            return State.NONE;
+            log("order cancel was attempted. time passed. posting recheck direction");
+            postRecheckDirection();
+            // probably we should switch to NONE here ?
         }
-        return null;
+        return null; // no change
     }
 
     private double calcOrderPrice(Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
@@ -481,7 +473,7 @@ class OscExecutor implements Runnable{
         double bidAskDiff = m_sell - m_buy;
         double followMktPrice = needOrderSide.isBuy() ? m_buy : m_sell;
         log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff + "; followMktPrice=" + followMktPrice);
-        double orderPriceCounterCorrection = bidAskDiff / 5 * m_orderPlaceAttemptCouner;
+        double orderPriceCounterCorrection = bidAskDiff / 5 * m_orderPlaceAttemptCounter;
         double adjustedPrice = followMktPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
         log("   orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
         RoundingMode roundMode = needOrderSide.getPegRoundMode();
@@ -548,8 +540,7 @@ class OscExecutor implements Runnable{
         return cancelAttempted;
     }
 
-    private boolean cancelOrderIfPresent(OrderSide needOrderSide, double needOrderSize) throws Exception {
-        log("cancelOrderIfPresent() order=" + m_order);
+    private boolean cancelOrderIfPresent() throws Exception {
         if (m_order != null) {
             log("  need cancel existing order: " + m_order);
             String error = cancelOrder(m_order);
@@ -720,7 +711,7 @@ class OscExecutor implements Runnable{
         log("  order state checked: " + m_order);
 
         if (m_order.isFilled()) {
-            m_orderPlaceAttemptCouner = 0;
+            m_orderPlaceAttemptCounter = 0;
             log("$$$$$$   order FILLED: " + m_order);
             if (Osc.DO_CLOSE_ORDERS) {
                 OrderSide orderSide = m_order.m_side;
@@ -1104,14 +1095,18 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
 
     private class AvgStochDirectionAdjuster {
         private Utils.ArrayAverageCounter m_avgStochCounter = new Utils.ArrayAverageCounter(AVG_STOCH_COUNTER_POINTS);
+        private Utils.ArrayAverageCounter m_avgStochCounter2 = new Utils.ArrayAverageCounter(3);
+        private Utils.ArrayAverageCounter m_avgStochDeltaBlender = new Utils.ArrayAverageCounter(310);
         private Double m_prevBlend;
+        private Double m_prevBlend2;
         private OscLogProcessor.TrendWatcher m_avgStochTrendWatcher = new OscLogProcessor.TrendWatcher(AVG_STOCH_TREND_THRESHOLD);
         private OscLogProcessor.TrendWatcher m_directionTrendWatcher = new OscLogProcessor.TrendWatcher(DIRECTION_TREND_THRESHOLD);
 
         public void updateAvgStoch(double avgStoch) {
             double blend = m_avgStochCounter.add(avgStoch);
-log("updateAvgStoch(avgStoch=" + avgStoch + ") blend=" + blend + "; full=" + m_avgStochCounter.m_full);
-            if (m_avgStochCounter.m_full) {
+            boolean full = m_avgStochCounter.m_full;
+            log("updateAvgStoch(avgStoch=" + avgStoch + ") blend=" + blend + "; full=" + full);
+            if (full) {
                 Direction prevDirection = m_avgStochTrendWatcher.m_direction;
                 m_avgStochTrendWatcher.update(blend);
                 Direction newDirection = m_avgStochTrendWatcher.m_direction;
@@ -1120,6 +1115,20 @@ log(" peak=" + m_avgStochTrendWatcher.m_peak + "; direction=" + newDirection);
 log("  direction trend changed from " + prevDirection + "to " + newDirection);
                 }
                 m_prevBlend = blend;
+            }
+            double blend2 = m_avgStochCounter2.add(avgStoch);
+            boolean full2 = m_avgStochCounter2.m_full;
+            log(" avgStoch=" + avgStoch + "; blend2=" + blend2 + "; full2=" + full2);
+            if (full2) {
+                if(m_prevBlend2!=null){
+                    double avgStochDelta = blend2 - m_prevBlend2;
+                    log("  m_prevBlend2=" + m_prevBlend2 + "; blend2=" + blend2 + "; avgStochDelta=" + Utils.format5(avgStochDelta));
+                    double avgStochDeltaBlend = m_avgStochDeltaBlender.add(avgStochDelta);
+                    if(m_avgStochDeltaBlender.m_full) {
+                        log("   avgStochDeltaBlend=" + Utils.format8(avgStochDeltaBlend));
+                    }
+                }
+                m_prevBlend2 = blend2;
             }
         }
 
