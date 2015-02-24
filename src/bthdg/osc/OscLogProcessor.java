@@ -20,6 +20,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OscLogProcessor extends BaseChartPaint {
+    private static final Color[] CHILL_COLORS = new Color[] {Color.red, Color.CYAN, Color.ORANGE, Color.white};
     private static int WIDTH = 16000;
     public static int HEIGHT = 1000;
     public static final int X_FACTOR = 5; // more points
@@ -29,7 +30,16 @@ public class OscLogProcessor extends BaseChartPaint {
     public static final long AVG_PRICE_TIME = Utils.toMillis(7, 0);
     public static final double FILTER_GAIN_SPIKES_RATIO = 1.01; // filter out >1% gain spikes
 
-    private static final Color[] OSC_COLORS = new Color[]{Color.ORANGE, Color.BLUE, Color.MAGENTA, Color.PINK, Color.CYAN, Color.GRAY, Color.YELLOW, Color.GREEN};
+    private static final Color[] OSC_COLORS = new Color[]{
+            Colors.setAlpha(Color.ORANGE, 100),
+            Colors.setAlpha(Color.BLUE, 100),
+            Colors.setAlpha(Color.MAGENTA, 100),
+            Colors.setAlpha(Color.PINK, 100),
+            Colors.setAlpha(Color.CYAN, 100),
+            Colors.setAlpha(Color.GRAY, 100),
+            Colors.setAlpha(Color.YELLOW, 100),
+            Colors.setAlpha(Color.GREEN, 100)
+    };
 
     private static final Pattern TRADE_PATTERN = Pattern.compile("(\\d+): State.onTrade\\(tData=TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+).+");
     private static final Pattern DIRECTION_ADJUSTED_PATTERN = Pattern.compile("(\\d+):   directionAdjusted=([\\+\\-]?\\d+\\.[\\d\\-E]+);.*");
@@ -383,13 +393,13 @@ public class OscLogProcessor extends BaseChartPaint {
                         g.drawLine(x, y1, x, y1 + (startLevelBuy ? -1 : 1) * OSCS_RADIUS / 3);
                     }
                 }
-// not here
-                String str = "<" + time + ">";
-                int strWidth = fontMetrics.stringWidth(str);
-                int textX = x + 2;
-                int textY = y + DIRECTION_MARK_RADIUS*2 + 10 + strWidth;
-                g.setColor(Color.darkGray);
-                paint90GradRotatedString(g, str, textX, textY);
+// not here X
+//                String str = "<" + time + ">";
+//                int strWidth = fontMetrics.stringWidth(str);
+//                int textX = x + 2;
+//                int textY = y + DIRECTION_MARK_RADIUS*2 + 10 + strWidth;
+//                g.setColor(Color.darkGray);
+//                paint90GradRotatedString(g, str, textX, textY);
 
                 lastX[index] = x;
                 lastY1[index] = y1;
@@ -440,6 +450,8 @@ public class OscLogProcessor extends BaseChartPaint {
 
         // paint osc diffs
         g.setFont(g.getFont().deriveFont(10f));
+        BasicStroke doubleStroke = new BasicStroke(2);
+        Stroke old = g.getStroke();
         Utils.ArrayAverageCounter avgAvgOscDeltasCounter = new Utils.ArrayAverageCounter(10);
         Integer prevX = null;
         Integer prevPaintY = null;
@@ -463,17 +475,18 @@ public class OscLogProcessor extends BaseChartPaint {
                 int paintZeroY = basePaintY - yDeltaZero;
                 if (prevX != null) {
                     //----------------
-                    int textX = x;
-                    int textY = paintY - 10;
-
-                    g.setColor(Color.darkGray);
-                    String str = avgOscDelta.toString();
-                    paint90GradRotatedString(g, str, textX, textY);
+//                    int textX = x;
+//                    int textY = paintY - 10;
+//                    g.setColor(Color.darkGray);
+//                    String str = avgOscDelta.toString();
+//                    paint90GradRotatedString(g, str, textX, textY);
 
                     g.setPaint((avgOscDelta > 0) ? Color.green : Color.red);
                     g.drawLine(prevX, prevPaintY, x, paintY);
                     g.setPaint(Color.BLACK);
+                    g.setStroke(doubleStroke);
                     g.drawLine(prevX, prevPaintYSmooth, x, paintYSmooth);
+                    g.setStroke(old);
                     g.setPaint(Colors.DARK_BLUE);
                     g.drawLine(prevX, prevPaintZeroY, x, paintZeroY);
                 }
@@ -514,6 +527,8 @@ g.setPaint(Color.orange);
     }
 
     private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, ChartAxe gainAxe) {
+        Stroke old = g.getStroke();
+        BasicStroke dblStroke = new BasicStroke(4);
         double m_max = gainAxe.m_max;
         double m_min = gainAxe.m_min; // [min ... 1 ... max]
 
@@ -553,7 +568,9 @@ g.setPaint(Color.orange);
                 }
                 g.setPaint(Colors.LIGHT_BLUE);
                 int zeroGainOffset = gainAxe.getPoint(1);
+                g.setStroke(dblStroke);
                 g.drawLine(lastX, lastY + dy2 - zeroGainOffset, x, y + dy2 - zeroGainOffset);
+                g.setStroke(old);
             }
             lastX = x;
             lastY = y;
@@ -590,6 +607,15 @@ g.setPaint(Color.orange);
             if (fillTime != null) {
                 int x2 = timeAxe.getPoint(fillTime);
                 g.drawLine(x, y, x2, y);
+            } else {
+                Long cancelTime = placeOrder.m_cancelTime;
+                if (cancelTime != null) {
+                    int x2 = timeAxe.getPoint(cancelTime);
+                    g.setPaint(Color.gray);
+                    g.drawLine(x, y, x2, y);
+                    g.drawLine(x2 - 1, y - 1, x2 + 1, y + 1);
+                    g.drawLine(x2-1, y+1, x2+1, y-1);
+                }
             }
 
             String orderId = placeOrder.m_orderId;
@@ -614,7 +640,8 @@ g.setPaint(Color.orange);
     }
 
     private static void paintDirections(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        g.setFont(g.getFont().deriveFont(9f));
+        g.setFont(g.getFont().deriveFont(10f));
+        FontMetrics fontMetrics = g.getFontMetrics();
         Integer prevX = null;
         Integer prevY = null;
         for (DirectionsData dData : s_directions) {
@@ -627,10 +654,7 @@ g.setPaint(Color.orange);
             Double direction = dData.m_directionAdjusted;
             Double boostedFrom = dData.m_boostedFrom;
             Double boostedTo = dData.m_boostedTo;
-            Double chilled1From = dData.m_chilled1From;
-            Double chilled1To = dData.m_chilled1To;
-            Double chilled2From = dData.m_chilled2From;
-            Double chilled2To = dData.m_chilled2To;
+            List<ChilledData> chilled = dData.m_chilled;
             int x = timeAxe.getPoint(stamp);
             int y = priceAxe.getPointReverse(basePrice);
             g.setPaint(Color.lightGray);
@@ -640,7 +664,7 @@ g.setPaint(Color.orange);
             if (prevX != null) {
                 g.drawLine(prevX, prevY, x, y2);
             }
-            g.setPaint((direction > 0) ? Color.green : Color.red);
+            g.setPaint((direction > 0) ? Colors.DARK_GREEN: Color.red);
             g.drawLine(x, y, x, y2);
             int dx = 1;
             StringBuilder buff = new StringBuilder();
@@ -653,24 +677,22 @@ g.setPaint(Color.orange);
                 dx++;
                 buff.append(" b ").append(Utils.format5(boostedFrom)).append("->").append(Utils.format5(boostedTo)).append(" |");
             }
-            if ((chilled1From != null) && (chilled1To != null)) {
-                g.setPaint(Color.red);
-                int y3 = y - (int) (DIRECTION_MARK_RADIUS * chilled1From);
-                int y4 = y - (int) (DIRECTION_MARK_RADIUS * chilled1To);
-                int x1 = x + dx;
-                g.drawLine(x1, y3, x1, y4);
-                dx++;
-                buff.append(" c1 ").append(Utils.format5(chilled1From)).append("->").append(Utils.format5(chilled1To)).append(" |");
+            if(chilled != null) {
+                for(ChilledData chillData: chilled) {
+                    int index = chillData.m_index;
+                    double chilledFrom = chillData.m_chilledFrom;
+                    double chilledTo = chillData.m_chilledTo;
+                    Color color = CHILL_COLORS[index%CHILL_COLORS.length];
+                    g.setPaint(color);
+                    int y3 = y - (int) (DIRECTION_MARK_RADIUS * chilledFrom);
+                    int y4 = y - (int) (DIRECTION_MARK_RADIUS * chilledTo);
+                    int x1 = x + dx;
+                    g.drawLine(x1, y3, x1, y4);
+                    dx++;
+                    buff.append(" c").append(index).append(" ").append(Utils.format5(chilledFrom)).append("->").append(Utils.format5(chilledTo)).append(" |");
+                }
             }
-            if ((chilled2From != null) && (chilled2To != null)) {
-                g.setPaint(Color.CYAN);
-                int y3 = y - (int) (DIRECTION_MARK_RADIUS * chilled2From);
-                int y4 = y - (int) (DIRECTION_MARK_RADIUS * chilled2To);
-                int x1 = x + dx;
-                g.drawLine(x1, y3, x1, y4);
-                dx++;
-                buff.append(" c2 ").append(Utils.format5(chilled2From)).append("->").append(Utils.format5(chilled2To)).append(" |");
-            }
+
             prevY = y2;
             prevX = x;
             buff.append(" ").append(Utils.format5(direction));
@@ -680,6 +702,12 @@ g.setPaint(Color.orange);
             int textY = y - DIRECTION_MARK_RADIUS - 10;
             g.setColor(Color.darkGray);
             String str = buff.toString();
+            paint90GradRotatedString(g, str, textX, textY);
+
+            str = "<" + stamp + ">";
+            int strWidth = fontMetrics.stringWidth(str);
+            textY = y + DIRECTION_MARK_RADIUS * 2 + strWidth;
+            g.setColor(Color.darkGray);
             paint90GradRotatedString(g, str, textX, textY);
         }
     }
@@ -888,6 +916,15 @@ g.setPaint(Color.orange);
                                 System.out.println("   extracted time : " + millis2);
                                 opd.m_fillTime = millis2;
                             }
+                        } if (key == 1) {
+                            System.out.println("  GOT order CANCEL: " + line3);
+                            int indx3 = line3.indexOf(":");
+                            if (indx3 != -1) {
+                                String time = line3.substring(0, indx3);
+                                Long millis2 = Long.parseLong(time);
+                                System.out.println("   extracted time : " + millis2);
+                                opd.m_cancelTime = millis2;
+                            }
                         }
                     }
                 } else {
@@ -907,107 +944,67 @@ g.setPaint(Color.orange);
     }
 
     private static void processDirectionLine(String line0, BufferedLineReader blr) throws IOException {
+        List<ChilledData> chilled = null; // lazzy
+        Double boostedFrom = null;
+        Double boostedTo = null;
         // 1421192392632: processDirection() direction=-2)
 
         // 1422502222987:  boosted from 0.9166666666666666 to 0.7333861125264423
         // 1422986746884:   direction chilledX from -0.5599999999999999 to -0.33599999999999997
         // 1421192392632:   directionAdjusted=-1.0; needBuyBtc=-0.3281232434687124; needSellCnh=-442.251070012
-        Map.Entry<Integer, String> entry = waitLineContained(blr, AFTER_DIRECTION); // boosted | chilled | adjusted
-        if (entry != null) {
-            String boostedFromStr;
-            String boostedToStr;
-            int index = entry.getKey();
-            if (index == 0) { // found 'boosted' first
-                String line2 = entry.getValue();
-                Matcher matcher = BOOSTED_PATTERN.matcher(line2);
-                if (matcher.matches()) {
-                    boostedFromStr = matcher.group(2);
-                    boostedToStr = matcher.group(3);
-                    System.out.println("GOT BOOSTED: boostedFromStr=" + boostedFromStr + "; boostedToStr=" + boostedToStr);
-                } else {
-                    throw new RuntimeException("not matched BOOSTED_PATTERN line: " + line2);
-                }
-            } else {
-                boostedFromStr = null;
-                boostedToStr = null;
-            }
-
-            entry = waitLineContained(blr, AFTER_BOOSTED); // chilled | adjusted
+        while(true) {
+            Map.Entry<Integer, String> entry = waitLineContained(blr, AFTER_DIRECTION); // boosted | chilled* | adjusted
             if (entry != null) {
-                String chilled1FromStr;
-                String chilled1ToStr;
-                String numberStr;
-                index = entry.getKey();
-                if (index == 0) { // found 'chilled' first
-                    String line2 = entry.getValue();
+                int index = entry.getKey();
+                String line2 = entry.getValue();
+                if (index == 0) { // got 'boosted'
+                    Matcher matcher = BOOSTED_PATTERN.matcher(line2);
+                    if (matcher.matches()) {
+                        String boostedFromStr = matcher.group(2);
+                        String boostedToStr = matcher.group(3);
+                        System.out.println("GOT BOOSTED: boostedFromStr=" + boostedFromStr + "; boostedToStr=" + boostedToStr);
+                        boostedFrom = Double.parseDouble(boostedFromStr);
+                        boostedTo = Double.parseDouble(boostedToStr);
+                    } else {
+                        throw new RuntimeException("not matched BOOSTED_PATTERN line: " + line2);
+                    }
+                } else if (index == 1) { // got 'chilled'
                     Matcher matcher = CHILLED_PATTERN.matcher(line2);
                     if (matcher.matches()) {
-                        numberStr = matcher.group(2);
-                        chilled1FromStr = matcher.group(3);
-                        chilled1ToStr = matcher.group(4);
+                        String numberStr = matcher.group(2);
+                        String chilled1FromStr = matcher.group(3);
+                        String chilled1ToStr = matcher.group(4);
                         System.out.println("GOT CHILLED: numberStr=" + numberStr + "; chilledFromStr=" + chilled1FromStr + "; chilledToStr=" + chilled1ToStr);
+                        int number = Integer.parseInt(numberStr);
+                        double chilledFrom = Double.parseDouble(chilled1FromStr);
+                        double chilledTo = Double.parseDouble(chilled1ToStr);
+                        ChilledData chilledData = new ChilledData(number, chilledFrom, chilledTo);
+                        if(chilled == null) {
+                            chilled = new ArrayList<ChilledData>();
+                        }
+                        chilled.add(chilledData);
                     } else {
                         throw new RuntimeException("not matched CHILLED_PATTERN line: " + line2);
                     }
-                } else {
-                    chilled1FromStr = null;
-                    chilled1ToStr = null;
-                    numberStr = null;
-                }
-
-                String chilled2FromStr = null;
-                String chilled2ToStr = null;
-                if ("1".equals(numberStr)) { // got chilled1
-                    entry = waitLineContained(blr, AFTER_BOOSTED); // chilled | adjusted
-                    if (entry != null) {
-                        index = entry.getKey();
-                        if (index == 0) { // found 'chilled' first
-                            String line2 = entry.getValue();
-                            Matcher matcher = CHILLED_PATTERN.matcher(line2);
-                            if (matcher.matches()) {
-                                numberStr = matcher.group(2);
-                                chilled2FromStr = matcher.group(3);
-                                chilled2ToStr = matcher.group(4);
-                                System.out.println("GOT CHILLED: numberStr=" + numberStr + "; chilled2FromStr=" + chilled2FromStr + "; chilled2ToStr=" + chilled2ToStr);
-                            } else {
-                                throw new RuntimeException("not matched CHILLED_PATTERN line: " + line2);
-                            }
-                        }
-                    }
-                } else {
-                    chilled2FromStr = chilled1FromStr;
-                    chilled1FromStr = null;
-                    chilled2ToStr = chilled1ToStr;
-                    chilled1ToStr = null;
-                }
-
-                String line1 = waitLineContained(blr, DIRECTION_ADJUSTED);
-                if (line1 != null) {
-                    Matcher matcher = DIRECTION_ADJUSTED_PATTERN.matcher(line1);
+                } else if (index == 2) { // got 'adjusted'
+                    Matcher matcher = DIRECTION_ADJUSTED_PATTERN.matcher(line2);
                     if(matcher.matches()) {
                         String millisStr = matcher.group(1);
                         String directionAdjustedStr = matcher.group(2);
                         System.out.println("GOT DIRECTION_ADJUSTED: millisStr=" + millisStr + "; directionAdjustedStr=" + directionAdjustedStr);
-                        Double boostedFrom = (boostedFromStr != null) ? Double.parseDouble(boostedFromStr) : null;
-                        Double boostedTo = (boostedToStr != null) ? Double.parseDouble(boostedToStr) : null;
-                        Double chilled1From = (chilled1FromStr != null) ? Double.parseDouble(chilled1FromStr) : null;
-                        Double chilled1To = (chilled1ToStr != null) ? Double.parseDouble(chilled1ToStr) : null;
-                        Double chilled2From = (chilled2FromStr != null) ? Double.parseDouble(chilled2FromStr) : null;
-                        Double chilled2To = (chilled2ToStr != null) ? Double.parseDouble(chilled2ToStr) : null;
                         long millis = Long.parseLong(millisStr);
                         double directionAdjusted = Double.parseDouble(directionAdjustedStr);
-                        s_directions.add(new DirectionsData(millis, boostedFrom, boostedTo, chilled1From, chilled1To, chilled2From, chilled2To, directionAdjusted));
+                        s_directions.add(new DirectionsData(millis, boostedFrom, boostedTo, chilled, directionAdjusted));
+                        break;
                     } else {
-                        throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line1);
+                        throw new RuntimeException("not matched DIRECTION_ADJUSTED_PATTERN line: " + line2);
                     }
                 } else {
-                    System.out.println("ERROR: not found expected 'directionAdjusted'");
+                    break;
                 }
             } else {
-                System.out.println("ERROR: not found expected 'directionAdjusted' or 'chilled'");
+                break;
             }
-        } else {
-            System.out.println("ERROR: not found expected 'directionAdjusted' or 'boosted' or 'chilled'");
         }
     }
 
@@ -1130,6 +1127,7 @@ g.setPaint(Color.orange);
         public String m_orderId;
         public String m_error;
         public Long m_fillTime;
+        public Long m_cancelTime;
 
         public PlaceOrderData(long millis, double price, OrderSide side, double size) {
             m_placeMillis = millis;
@@ -1158,28 +1156,33 @@ g.setPaint(Color.orange);
         }
     }
 
+    public static class ChilledData {
+        public int m_index;
+        public final double m_chilledFrom;
+        public final double m_chilledTo;
+
+        public ChilledData(int index, double chilledFrom, double chilledTo) {
+            m_index = index;
+            m_chilledFrom = chilledFrom;
+            m_chilledTo = chilledTo;
+        }
+    }
+
     private static class DirectionsData {
         private final long m_millis;
         private final Double m_boostedFrom;
         private final Double m_boostedTo;
-        private final Double m_chilled1From;
-        private final Double m_chilled1To;
-        private final Double m_chilled2From;
-        private final Double m_chilled2To;
+        private final List<ChilledData> m_chilled;
         private final double m_directionAdjusted;
 
         public DirectionsData(long millis,
                               Double boostedFrom, Double boostedTo,
-                              Double chilled1From, Double chilled1To,
-                              Double chilled2From, Double chilled2To,
+                              List<ChilledData> chilled,
                               double directionAdjusted) {
             m_millis = millis;
             m_boostedFrom = boostedFrom;
             m_boostedTo = boostedTo;
-            m_chilled1From = chilled1From;
-            m_chilled1To = chilled1To;
-            m_chilled2From = chilled2From;
-            m_chilled2To = chilled2To;
+            m_chilled = chilled;
             m_directionAdjusted = directionAdjusted;
         }
     }
