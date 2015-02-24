@@ -352,6 +352,8 @@ public class OscLogProcessor extends BaseChartPaint {
 
 
     private static void paintOscs(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        g.setFont(g.getFont().deriveFont(10f));
+        FontMetrics fontMetrics = g.getFontMetrics();
         int oscNum = s_maxOscIndex + 1;
         int[] lastX = new int[oscNum];
         int[] lastY1 = new int[oscNum];
@@ -381,6 +383,14 @@ public class OscLogProcessor extends BaseChartPaint {
                         g.drawLine(x, y1, x, y1 + (startLevelBuy ? -1 : 1) * OSCS_RADIUS / 3);
                     }
                 }
+// not here
+                String str = "<" + time + ">";
+                int strWidth = fontMetrics.stringWidth(str);
+                int textX = x + 2;
+                int textY = y + DIRECTION_MARK_RADIUS*2 + 10 + strWidth;
+                g.setColor(Color.darkGray);
+                paint90GradRotatedString(g, str, textX, textY);
+
                 lastX[index] = x;
                 lastY1[index] = y1;
                 lastY2[index] = y2;
