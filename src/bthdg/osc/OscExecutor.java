@@ -187,10 +187,14 @@ class OscExecutor implements Runnable{
             iContext = checkCloseOrdersState(null);
         }
         if (m_order != null) {
-            iContext = (iContext == null) ? getLiveOrdersContext() : iContext;
+            iContext = getLiveOrdersContextIfNeeded(iContext);
             setState(checkOrderState(iContext));
         }
         return iContext;
+    }
+
+    private IIterationContext.BaseIterationContext getLiveOrdersContextIfNeeded(IIterationContext.BaseIterationContext iContext) throws Exception {
+        return (iContext == null) ? getLiveOrdersContext() : iContext;
     }
 
     private void gotTop() throws Exception {
@@ -245,7 +249,7 @@ class OscExecutor implements Runnable{
     }
 
     private IIterationContext.BaseIterationContext checkCloseOrdersState(IIterationContext.BaseIterationContext inContext) throws Exception {
-        IIterationContext.BaseIterationContext iContext = (inContext == null) ? getLiveOrdersContext() : inContext;
+        IIterationContext.BaseIterationContext iContext = getLiveOrdersContextIfNeeded(inContext);
         Exchange exchange = m_ws.exchange();
         log(" checking close orders state...");
         boolean closed = false;
@@ -637,7 +641,7 @@ class OscExecutor implements Runnable{
                 double tradeSize = tData.m_amount;
                 log("   orderRemained=" + orderRemained + "; tradeSize=" + tradeSize);
 
-                IIterationContext.BaseIterationContext iContext = (inContext == null) ? getLiveOrdersContext() : inContext;
+                IIterationContext.BaseIterationContext iContext = getLiveOrdersContextIfNeeded(inContext);
                 return checkOrderState(iContext); //check orders state
             } else {
                 if (tradePrice < m_buy) {
@@ -761,6 +765,7 @@ class OscExecutor implements Runnable{
     private void onError() throws Exception {
         log("onError() resetting...  -------------------------- ");
         IIterationContext.BaseIterationContext iContext = checkLiveOrders();
+        iContext = getLiveOrdersContextIfNeeded(iContext);
         OrdersData liveOrders = iContext.getLiveOrders(m_ws.exchange());
         if (liveOrders != null) {
             log(" liveOrders " + liveOrders);
