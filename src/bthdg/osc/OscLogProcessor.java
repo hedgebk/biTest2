@@ -2,10 +2,7 @@ package bthdg.osc;
 
 import bthdg.BaseChartPaint;
 import bthdg.PaintChart;
-import bthdg.exch.BaseExch;
-import bthdg.exch.Direction;
-import bthdg.exch.OrderSide;
-import bthdg.exch.TradeData;
+import bthdg.exch.*;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
 
@@ -53,6 +50,8 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final Pattern START_LEVEL_PATTERN = Pattern.compile("(\\d+): \\[(\\d+)\\] start level reached for (\\w+); .*");
     private static final Pattern AVG_STOCH_PATTERN = Pattern.compile("(\\d+):\\s+updateAvgStoch\\(avgStoch\\=(\\d\\.[\\d+\\-E]+)\\)\\s+blend\\=(\\d\\.[\\d+\\-E]+);.*");
     private static final Pattern PEAK_PATTERN = Pattern.compile("(\\d+):\\s+peak\\=(\\d\\.[\\d+\\-E]+); direction\\=(\\w+)");
+    private static final Pattern AVG_STOCH_DELTA_BLEND_PATTERN = Pattern.compile("(\\d+):\\s+avgStochDeltaBlend\\=([\\+\\-]?\\d\\.[\\d+\\-E]+)");
+    private static final Pattern AVG_STOCH_DELTA_PATTERN = Pattern.compile("(\\d+):.+; avgStochDelta\\=([\\+\\-]?\\d\\.[\\d+\\-E]+)");
 
     public static final String DIRECTION_ADJUSTED = "   directionAdjusted=";
     public static final String DIRECTION_CHILLED = "direction chilled";
@@ -61,9 +60,6 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static final List<TradeData> s_trades = new ArrayList<TradeData>();
     private static ArrayList<PlaceOrderData> s_placeOrders = new ArrayList<PlaceOrderData>();
-    private static HashMap<Long, Double> s_bidPrice = new HashMap<Long, Double>();
-    private static HashMap<Long, Double> s_askPrice = new HashMap<Long, Double>();
-    private static TreeMap<Long, Double> s_midPrice = new TreeMap<Long, Double>();
     private static ArrayList<OscData> s_oscs = new ArrayList<OscData>();
     private static int s_maxOscIndex = 0;
     private static Utils.AverageCounter s_averageCounter = new Utils.AverageCounter(AVG_PRICE_TIME);
@@ -87,6 +83,10 @@ public class OscLogProcessor extends BaseChartPaint {
     private static ArrayList<DirectionsData> s_directions = new ArrayList<DirectionsData>();
     private static Map<Integer, OscData> s_lastOscs = new HashMap<Integer, OscData>();
     private static List<AvgStochData> s_avgStochs = new ArrayList<AvgStochData>();
+    private static Utils.DoubleDoubleMinMaxCalculator s_avgStochDeltaBlendsMinMaxCalc = new Utils.DoubleDoubleMinMaxCalculator();
+    private static TreeMap<Long, double[]> s_avgStochDeltas = new TreeMap<Long, double[]>();
+    private static List<Throwable> s_errors = new ArrayList<Throwable>();
+    private static TreeMap<Long, TopData> s_topData = new TreeMap<Long, TopData>();
 
     private static void initOscsRadiusOffset() {
         OSCS_RADIUS = DIRECTION_MARK_RADIUS * 4;
@@ -219,7 +219,16 @@ public class OscLogProcessor extends BaseChartPaint {
         int linesReaded = reader.m_linesReaded;
         long takes = System.currentTimeMillis() - startTime;
         System.out.println("readed/processed " + linesReaded + " lines in " + takes + " ms (" + (linesReaded / (takes / 1000)) + " l/s)");
-        paint();
+
+        if (s_errors.isEmpty()) {
+            paint();
+        } else {
+            System.out.println("got errors:");
+            for (Throwable error : s_errors) {
+                System.out.println("error:" + error);
+                error.printStackTrace();
+            }
+        }
     }
 
     private static void paint() {
@@ -273,14 +282,25 @@ public class OscLogProcessor extends BaseChartPaint {
         paintTimeAxeLabels(minTimestamp, maxTimestamp, timeAxe, g, HEIGHT, X_FACTOR);
 
         paintOscs(priceAxe, timeAxe, g);
+        System.out.println("paintOscs DONE");
         paintAvgStochs(priceAxe, timeAxe, g);
+        System.out.println("paintAvgStochs DONE");
         paintDirections(priceAxe, timeAxe, g);
+        System.out.println("paintDirections DONE");
         paintTops(priceAxe, timeAxe, g);
+        System.out.println("paintTops DONE");
         paintTrades(priceAxe, timeAxe, g);
+        System.out.println("paintTrades DONE");
         paintAvg(priceAxe, timeAxe, g);
+        System.out.println("paintAvg DONE");
         paintPlaceOrder(priceAxe, timeAxe, g);
+        System.out.println("paintPlaceOrder DONE");
         paintAvgPrice(priceAxe, timeAxe, g, gainAxe);
+        System.out.println("paintAvgPrice DONE");
         paintGain(priceAxe, timeAxe, gainAxe, g);
+        System.out.println("paintGain DONE");
+        paintAvgStochDelta(priceAxe, timeAxe, g);
+        System.out.println("paintAvgStochDelta DONE");
 
         writeAndShowImage(image);
     }
@@ -363,7 +383,6 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static void paintOscs(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
         g.setFont(g.getFont().deriveFont(10f));
-        FontMetrics fontMetrics = g.getFontMetrics();
         int oscNum = s_maxOscIndex + 1;
         int[] lastX = new int[oscNum];
         int[] lastY1 = new int[oscNum];
@@ -393,14 +412,6 @@ public class OscLogProcessor extends BaseChartPaint {
                         g.drawLine(x, y1, x, y1 + (startLevelBuy ? -1 : 1) * OSCS_RADIUS / 3);
                     }
                 }
-// not here X
-//                String str = "<" + time + ">";
-//                int strWidth = fontMetrics.stringWidth(str);
-//                int textX = x + 2;
-//                int textY = y + DIRECTION_MARK_RADIUS*2 + 10 + strWidth;
-//                g.setColor(Color.darkGray);
-//                paint90GradRotatedString(g, str, textX, textY);
-
                 lastX[index] = x;
                 lastY1[index] = y1;
                 lastY2[index] = y2;
@@ -445,8 +456,8 @@ public class OscLogProcessor extends BaseChartPaint {
 
         Double minAvgOscDelta = avgOscDeltasMinMaxCalc.m_minValue;
         Double maxAvgOscDelta = avgOscDeltasMinMaxCalc.m_maxValue;
-        System.out.println("minAvgOscDelta = " + minAvgOscDelta + ", maxAvgOscDelta = " + maxAvgOscDelta);
-        ChartAxe avgOscDeltaAxe = new PaintChart.ChartAxe(minAvgOscDelta, maxAvgOscDelta, DIRECTION_MARK_RADIUS*2);
+        System.out.println("minAvgOscDelta = " + Utils.format8(minAvgOscDelta) + ", maxAvgOscDelta = " + Utils.format8(maxAvgOscDelta));
+        ChartAxe avgOscDeltaAxe = new PaintChart.ChartAxe(minAvgOscDelta, maxAvgOscDelta, DIRECTION_MARK_RADIUS * 2);
 
         // paint osc diffs
         g.setFont(g.getFont().deriveFont(10f));
@@ -457,7 +468,11 @@ public class OscLogProcessor extends BaseChartPaint {
         Integer prevPaintY = null;
         Integer prevPaintYSmooth = null;
         Integer prevPaintZeroY = null;
-        int yDeltaZero = avgOscDeltaAxe.getPointReverse(0);
+        Integer prevPaintTopY = null;
+        Integer prevPaintBtmY = null;
+        int yDeltaZero = avgOscDeltaAxe.getPoint(0);
+        int yDeltaTop = avgOscDeltaAxe.getPoint(0.001);
+        int yDeltaBtm = avgOscDeltaAxe.getPoint(-0.001);
         for (Map.Entry<Long, Double> entry : avgOscDeltas.entrySet()) {
             Long time = entry.getKey();
             Double avgOscDelta = entry.getValue();
@@ -473,14 +488,10 @@ public class OscLogProcessor extends BaseChartPaint {
                 int paintY = basePaintY - yDelta;
                 int paintYSmooth = basePaintY - yDeltaSmooth;
                 int paintZeroY = basePaintY - yDeltaZero;
+                int paintTopY = basePaintY - yDeltaTop;
+                int paintBtmY = basePaintY - yDeltaBtm;
                 if (prevX != null) {
                     //----------------
-//                    int textX = x;
-//                    int textY = paintY - 10;
-//                    g.setColor(Color.darkGray);
-//                    String str = avgOscDelta.toString();
-//                    paint90GradRotatedString(g, str, textX, textY);
-
                     g.setPaint((avgOscDelta > 0) ? Color.green : Color.red);
                     g.drawLine(prevX, prevPaintY, x, paintY);
                     g.setPaint(Color.BLACK);
@@ -489,11 +500,15 @@ public class OscLogProcessor extends BaseChartPaint {
                     g.setStroke(old);
                     g.setPaint(Colors.DARK_BLUE);
                     g.drawLine(prevX, prevPaintZeroY, x, paintZeroY);
+                    g.drawLine(prevX, prevPaintTopY, x, paintTopY);
+                    g.drawLine(prevX, prevPaintBtmY, x, paintBtmY);
                 }
                 prevX = x;
                 prevPaintY = paintY;
                 prevPaintYSmooth = paintYSmooth;
                 prevPaintZeroY = paintZeroY;
+                prevPaintTopY = paintTopY;
+                prevPaintBtmY = paintBtmY;
             }
         }
     }
@@ -502,7 +517,7 @@ public class OscLogProcessor extends BaseChartPaint {
         Stroke old = g.getStroke();
         BasicStroke avgStochsStroke = new BasicStroke(4);
         g.setStroke(avgStochsStroke);
-g.setPaint(Color.orange);
+//g.setPaint(Color.orange);
         Integer prevAvgStochBlendY = null;
         Integer prevAvgStochX = null;
         for (AvgStochData avgStochData : s_avgStochs) {
@@ -524,6 +539,88 @@ g.setPaint(Color.orange);
             }
         }
         g.setStroke(old);
+    }
+
+    private static void paintAvgStochDelta(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
+        g.setFont(g.getFont().deriveFont(10f));
+        Stroke old = g.getStroke();
+        BasicStroke doubleStroke = new BasicStroke(2);
+
+        Double minAvgStochDeltaBlend = s_avgStochDeltaBlendsMinMaxCalc.m_minValue;
+        Double maxAvgStochDeltaBlend = s_avgStochDeltaBlendsMinMaxCalc.m_maxValue;
+        System.out.println("minAvgStochDeltaBlend = " + Utils.format8(minAvgStochDeltaBlend) + ", maxAvgStochDeltaBlend = " + Utils.format8(maxAvgStochDeltaBlend));
+        ChartAxe avgStochDeltaBlendAxe = new PaintChart.ChartAxe(minAvgStochDeltaBlend, maxAvgStochDeltaBlend, DIRECTION_MARK_RADIUS * 2);
+
+        int yDeltaZero = avgStochDeltaBlendAxe.getPoint(0);
+        int yDeltaTop = avgStochDeltaBlendAxe.getPoint(0.001);
+        int yDeltaBtm = avgStochDeltaBlendAxe.getPoint(-0.001);
+        int yDeltaMin = avgStochDeltaBlendAxe.getPoint(minAvgStochDeltaBlend);
+        int yDeltaMax = avgStochDeltaBlendAxe.getPoint(maxAvgStochDeltaBlend);
+        Integer prevX = null;
+        int prevPaintY = 0;
+        int prevPaintYblend = 0;
+        int prevPaintZeroY = 0;
+        int prevPaintTopY = 0;
+        int prevPaintBtmY = 0;
+        int prevPaintMinY = 0;
+        int prevPaintMaxY = 0;
+        Integer nextTextX = null;
+        for (Map.Entry<Long, double[]> entry : s_avgStochDeltas.entrySet()) {
+            Long time = entry.getKey();
+            Map.Entry<Long, Double> entry2 = s_avgPrice.floorEntry(time);
+            if (entry2 != null) {
+                Double avgPrice = entry2.getValue();
+                int x = timeAxe.getPoint(time);
+                int y = priceAxe.getPointReverse(avgPrice);
+
+                double[] array = entry.getValue();
+                double avgStochDelta = array[0];
+                double avgStochDeltaBlend = array[1];
+                int yDelta = avgStochDeltaBlendAxe.getPoint(avgStochDelta);
+                int yDeltaBlend = avgStochDeltaBlendAxe.getPoint(avgStochDeltaBlend);
+
+                int basePaintY = y - OSCS_OFFSET - OSCS_RADIUS * 2;
+                int paintY = basePaintY - yDelta;
+                int paintYblend = basePaintY - yDeltaBlend;
+                int paintZeroY = basePaintY - yDeltaZero;
+                int paintTopY = basePaintY - yDeltaTop;
+                int paintBtmY = basePaintY - yDeltaBtm;
+                int paintMinY = basePaintY - yDeltaMin;
+                int paintMaxY = basePaintY - yDeltaMax;
+                if (prevX != null) {
+                    //----------------
+                    g.setPaint(Colors.DARK_BLUE);
+                    g.drawLine(prevX, prevPaintZeroY, x, paintZeroY);
+                    g.drawLine(prevX, prevPaintTopY, x, paintTopY);
+                    g.drawLine(prevX, prevPaintBtmY, x, paintBtmY);
+                    g.drawLine(prevX, prevPaintMinY, x, paintMinY);
+                    g.drawLine(prevX, prevPaintMaxY, x, paintMaxY);
+                    g.setPaint((avgStochDelta > 0) ? Color.green : Color.red);
+                    g.drawLine(prevX, prevPaintY, x, paintY);
+                    g.setStroke(doubleStroke);
+                    g.setPaint((avgStochDeltaBlend > 0) ? Colors.DARK_GREEN: Colors.DARK_RED);
+                    g.drawLine(prevX, prevPaintYblend, x, paintYblend);
+                    g.setStroke(old);
+
+                    int textX = x + 2;
+                    if ((nextTextX == null) || (textX >= nextTextX)) {
+                        int textY = paintMaxY - 6;
+                        g.setColor(Color.darkGray);
+                        String str = Utils.format8(avgStochDelta) + "; " + Utils.format8(avgStochDeltaBlend);
+                        paint90GradRotatedString(g, str, textX, textY);
+                        nextTextX = textX + 11;
+                    }
+                }
+                prevX = x;
+                prevPaintY = paintY;
+                prevPaintYblend = paintYblend;
+                prevPaintZeroY = paintZeroY;
+                prevPaintTopY = paintTopY;
+                prevPaintBtmY = paintBtmY;
+                prevPaintMinY = paintMinY;
+                prevPaintMaxY = paintMaxY;
+            }
+        }
     }
 
     private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, ChartAxe gainAxe) {
@@ -579,10 +676,11 @@ g.setPaint(Color.orange);
 
     private static void paintTops(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
         g.setPaint(Color.orange);
-        for (Map.Entry<Long, Double> entry : s_bidPrice.entrySet()) {
+        for (Map.Entry<Long, TopData> entry : s_topData.entrySet()) {
             Long stamp = entry.getKey();
-            Double bidPrice = entry.getValue();
-            Double askPrice = s_askPrice.get(stamp);
+            TopData topData = entry.getValue();
+            double bidPrice = topData.m_bid;
+            double askPrice = topData.m_ask;
             int x = timeAxe.getPoint(stamp);
             int y1 = priceAxe.getPointReverse(bidPrice);
             int y2 = priceAxe.getPointReverse(askPrice);
@@ -646,11 +744,12 @@ g.setPaint(Color.orange);
         Integer prevY = null;
         for (DirectionsData dData : s_directions) {
             Long stamp = dData.m_millis;
-            Map.Entry<Long, Double> entry = s_midPrice.floorEntry(stamp);
-            if(entry == null) {
+            Map.Entry<Long, TopData> entry = s_topData.floorEntry(stamp);
+            if (entry == null) {
                 continue;
             }
-            Double basePrice = entry.getValue();
+            TopData topData = entry.getValue();
+            double basePrice = topData.getMid();
             Double direction = dData.m_directionAdjusted;
             Double boostedFrom = dData.m_boostedFrom;
             Double boostedTo = dData.m_boostedTo;
@@ -727,6 +826,9 @@ g.setPaint(Color.orange);
     private static void processAvgStoch(String line1, BufferedLineReader blr) throws IOException {
 //        1424179425710: updateAvgStoch(avgStoch=0.17086689019047155) blend=0.17095343524129952; full=true
 //        1424179425710:  peak=0.012103220500638723; direction=FORWARD
+//        1424800508226:   m_prevBlend2=0.34408374628441835; blend2=0.34427002718034433; avgStochDelta=0.00019
+//        1424800508226:    avgStochDeltaBlend=0.00021488
+
         Matcher matcher = AVG_STOCH_PATTERN.matcher(line1);
         if (matcher.matches()) {
             String millisStr = matcher.group(1);
@@ -749,6 +851,38 @@ g.setPaint(Color.orange);
                     boolean directionForward = directionStr.equals("FORWARD");
                     AvgStochData avgStochData = new AvgStochData(millis, avgStoch, blend, directionForward);
                     s_avgStochs.add(avgStochData);
+
+                    String line3 = waitLineContained(blr, "; avgStochDelta=");
+                    if (line3 != null) {
+                        System.out.println("GOT avgStochDelta: " + line3);
+                        matcher = AVG_STOCH_DELTA_PATTERN.matcher(line3);
+                        if (matcher.matches()) {
+                            millisStr = matcher.group(1);
+                            String avgStochDeltaStr = matcher.group(2);
+                            System.out.println(" GOT AVG_STOCH_DELTA: millisStr=" + millisStr + "; avgStochDeltaStr=" + avgStochDeltaStr);
+                            millis = Long.parseLong(millisStr);
+                            double avgStochDelta = Double.parseDouble(avgStochDeltaStr);
+
+                            String line4 = waitLineContained(blr, "avgStochDeltaBlend=");
+                            if (line4 != null) {
+                                System.out.println("GOT avgStochDeltaBlend: " + line4);
+                                matcher = AVG_STOCH_DELTA_BLEND_PATTERN.matcher(line4);
+                                if (matcher.matches()) {
+                                    millisStr = matcher.group(1);
+                                    String avgStochDeltaBlendStr = matcher.group(2);
+                                    System.out.println(" GOT AVG_STOCH_DELTA_BLEND: millisStr=" + millisStr + "; avgStochDeltaBlendStr=" + avgStochDeltaBlendStr);
+                                    millis = Long.parseLong(millisStr);
+                                    double avgStochDeltaBlend = Double.parseDouble(avgStochDeltaBlendStr);
+                                    s_avgStochDeltas.put(millis, new double[] {avgStochDelta, avgStochDeltaBlend});
+                                    s_avgStochDeltaBlendsMinMaxCalc.calculate(avgStochDeltaBlend);
+                                } else {
+                                    throw new RuntimeException("not matched AVG_STOCH_DELTA_BLEND_PATTERN line: " + line4);
+                                }
+                            }
+                        } else {
+                            throw new RuntimeException("not matched AVG_STOCH_DELTA_PATTERN line: " + line3);
+                        }
+                    }
                 } else {
                     throw new RuntimeException("not matched PEAK_PATTERN line: " + line2);
                 }
@@ -863,14 +997,19 @@ g.setPaint(Color.orange);
             String askStr = matcher.group(3);
             System.out.println("GOT TOP_DATA: millisStr=" + millisStr + "; bidStr=" + bidStr + "; askStr=" + askStr);
             long millis = Long.parseLong(millisStr);
-            double bid = Double.parseDouble(bidStr.replace(",", ""));
-            double ask = Double.parseDouble(askStr.replace(",", ""));
-            s_bidPrice.put(millis, bid);
-            s_askPrice.put(millis, ask);
-            s_midPrice.put(millis, (bid+ask)/2);
+            double bid = parseDouble(bidStr);
+            double ask = parseDouble(askStr);
+            s_topData.put(millis, new TopData(bid, ask));
         } else {
             throw new RuntimeException("not matched TOP_DATA_PATTERN line: " + line1);
         }
+    }
+
+    private static double parseDouble(String str) {
+        if (str.indexOf(',') == -1) {
+            return Double.parseDouble(str);
+        }
+        return Double.parseDouble(str.replace(",", ""));
     }
 
     private static void processPlaceOrderLine(String line1, BufferedLineReader blr) throws IOException {
@@ -1273,13 +1412,15 @@ g.setPaint(Color.orange);
                     processTheLine(line, m_blr);
                     m_blr.removeLine();
                 }
-            } catch (IOException e) {
-                System.out.println("Error processing line");
-                e.printStackTrace();
-            }
-            synchronized (m_semafore) {
-                m_semafore.decrementAndGet();
-                m_semafore.notify();
+            } catch (Throwable t) {
+                System.out.println("Error processing line: " + t);
+                t.printStackTrace();
+                s_errors.add(t);
+            } finally {
+                synchronized (m_semafore) {
+                    m_semafore.decrementAndGet();
+                    m_semafore.notify();
+                }
             }
         }
 
