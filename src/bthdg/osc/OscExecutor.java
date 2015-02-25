@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.ListIterator;
 
 class OscExecutor implements Runnable{
-    private static final double MIN_ORDER_SIZE = 0.1; // btc
+    private static final double MIN_ORDER_SIZE = 0.075; // btc
     public static final int MIN_REPROCESS_DIRECTION_TIME = 4500;
     public static final double OPPOSITE_DIRECTION_FACTOR = 0.75; // -25%
     public static final double[] AVG_PRICE_PERIOD_RATIOS = new double[] { 1.2, 1.8, 2.7, 3.1 };
@@ -1101,7 +1101,7 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
     private class AvgStochDirectionAdjuster {
         private Utils.ArrayAverageCounter m_avgStochCounter = new Utils.ArrayAverageCounter(AVG_STOCH_COUNTER_POINTS);
         private Utils.ArrayAverageCounter m_avgStochCounter2 = new Utils.ArrayAverageCounter(3);
-        private Utils.ArrayAverageCounter m_avgStochDeltaBlender = new Utils.ArrayAverageCounter(310);
+        private Utils.ArrayAverageCounter m_avgStochDeltaBlender = new Utils.ArrayAverageCounter(10);
         private Double m_prevBlend;
         private Double m_prevBlend2;
         private OscLogProcessor.TrendWatcher m_avgStochTrendWatcher = new OscLogProcessor.TrendWatcher(AVG_STOCH_TREND_THRESHOLD);
@@ -1125,11 +1125,11 @@ log("  direction trend changed from " + prevDirection + "to " + newDirection);
             boolean full2 = m_avgStochCounter2.m_full;
             log(" avgStoch=" + avgStoch + "; blend2=" + blend2 + "; full2=" + full2);
             if (full2) {
-                if(m_prevBlend2!=null){
+                if (m_prevBlend2 != null) {
                     double avgStochDelta = blend2 - m_prevBlend2;
-                    log("  m_prevBlend2=" + m_prevBlend2 + "; blend2=" + blend2 + "; avgStochDelta=" + Utils.format5(avgStochDelta));
+                    log("  m_prevBlend2=" + m_prevBlend2 + "; blend2=" + blend2 + "; avgStochDelta=" + Utils.format8(avgStochDelta));
                     double avgStochDeltaBlend = m_avgStochDeltaBlender.add(avgStochDelta);
-                    if(m_avgStochDeltaBlender.m_full) {
+                    if (m_avgStochDeltaBlender.m_full) {
                         log("   avgStochDeltaBlend=" + Utils.format8(avgStochDeltaBlend));
                     }
                 }
