@@ -155,6 +155,8 @@ public class BaseChartPaint extends DbReady {
         try {
             long millis = System.currentTimeMillis();
 
+            System.out.println("writing image...");
+
             File output = new File("imgout/" + Long.toString(millis, 32) + ".png");
             ImageIO.write(image, "png", output);
 
