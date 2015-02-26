@@ -19,13 +19,13 @@ import java.util.regex.Pattern;
 public class OscLogProcessor extends BaseChartPaint {
     private static final Color[] CHILL_COLORS = new Color[] {Color.red, Color.CYAN, Color.ORANGE, Color.white};
     private static int WIDTH = 16000;
-    public static int HEIGHT = 1000;
+    public static int HEIGHT = 1100;
     public static final int X_FACTOR = 5; // more points
     public static int DIRECTION_MARK_RADIUS = 50;
     private static int OSCS_RADIUS;
     private static int OSCS_OFFSET;
     public static final long AVG_PRICE_TIME = Utils.toMillis(7, 0);
-    public static final double FILTER_GAIN_SPIKES_RATIO = 1.01; // filter out >1% gain spikes
+    public static final double FILTER_GAIN_SPIKES_RATIO = 1.009; // filter out >0.9% gain spikes
 
     private static final Color[] OSC_COLORS = new Color[]{
             Colors.setAlpha(Color.ORANGE, 100),
@@ -235,8 +235,6 @@ public class OscLogProcessor extends BaseChartPaint {
         Utils.DoubleMinMaxCalculator<TradeData> priceCalc = new Utils.DoubleMinMaxCalculator<TradeData>(s_trades) {
             @Override public Double getValue(TradeData tick) { return tick.m_price; }
         };
-        double minPrice = priceCalc.m_minValue;
-        double maxPrice = priceCalc.m_maxValue;
 
         Utils.LongMinMaxCalculator<TradeData> timeCalc = new Utils.LongMinMaxCalculator<TradeData>(s_trades) {
             @Override public Long getValue(TradeData tick) { return tick.m_timestamp; }
@@ -245,17 +243,19 @@ public class OscLogProcessor extends BaseChartPaint {
         long maxTimestamp = timeCalc.m_maxValue;
 
         long timeDiff = maxTimestamp - minTimestamp;
+        double minPrice = priceCalc.m_minValue;
+        double maxPrice = priceCalc.m_maxValue;
         double priceDiff = maxPrice - minPrice;
         System.out.println("min timestamp: " + minTimestamp + ", max timestamp: " + maxTimestamp + ", timestamp diff: " + timeDiff);
         System.out.println("minPrice = " + minPrice + ", maxPrice = " + maxPrice + ", priceDiff = " + priceDiff);
 
         ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT - OSCS_RADIUS * 3);
-        priceAxe.m_offset = OSCS_RADIUS * 3 / 2;
+        ChartAxe priceAxe = new PaintChart.ChartAxe(priceCalc, HEIGHT - OSCS_RADIUS * 3 - DIRECTION_MARK_RADIUS);
+        priceAxe.m_offset = OSCS_RADIUS * 3 / 2 + DIRECTION_MARK_RADIUS;
+        ChartAxe gainAxe = new PaintChart.ChartAxe(gainCalc, OSCS_RADIUS);
+
         Double minGain = gainCalc.m_minValue;
         Double maxGain = gainCalc.m_maxValue;
-        ChartAxe gainAxe = new PaintChart.ChartAxe(minGain, maxGain, OSCS_RADIUS);
-
         System.out.println("minGain: " + minGain + "; maxGain=" + maxGain);
         System.out.println("time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale));
 
@@ -457,7 +457,7 @@ public class OscLogProcessor extends BaseChartPaint {
         Double minAvgOscDelta = avgOscDeltasMinMaxCalc.m_minValue;
         Double maxAvgOscDelta = avgOscDeltasMinMaxCalc.m_maxValue;
         System.out.println("minAvgOscDelta = " + Utils.format8(minAvgOscDelta) + ", maxAvgOscDelta = " + Utils.format8(maxAvgOscDelta));
-        ChartAxe avgOscDeltaAxe = new PaintChart.ChartAxe(minAvgOscDelta, maxAvgOscDelta, DIRECTION_MARK_RADIUS * 2);
+        ChartAxe avgOscDeltaAxe = new PaintChart.ChartAxe(avgOscDeltasMinMaxCalc, DIRECTION_MARK_RADIUS * 2);
 
         // paint osc diffs
         g.setFont(g.getFont().deriveFont(10f));
@@ -549,7 +549,7 @@ public class OscLogProcessor extends BaseChartPaint {
         Double minAvgStochDeltaBlend = s_avgStochDeltaBlendsMinMaxCalc.m_minValue;
         Double maxAvgStochDeltaBlend = s_avgStochDeltaBlendsMinMaxCalc.m_maxValue;
         System.out.println("minAvgStochDeltaBlend = " + Utils.format8(minAvgStochDeltaBlend) + ", maxAvgStochDeltaBlend = " + Utils.format8(maxAvgStochDeltaBlend));
-        ChartAxe avgStochDeltaBlendAxe = new PaintChart.ChartAxe(minAvgStochDeltaBlend, maxAvgStochDeltaBlend, DIRECTION_MARK_RADIUS * 2);
+        ChartAxe avgStochDeltaBlendAxe = new PaintChart.ChartAxe(s_avgStochDeltaBlendsMinMaxCalc, DIRECTION_MARK_RADIUS * 2);
 
         int yDeltaZero = avgStochDeltaBlendAxe.getPoint(0);
         int yDeltaTop = avgStochDeltaBlendAxe.getPoint(0.001);

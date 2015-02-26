@@ -184,8 +184,8 @@ public class PaintChart extends BaseChartPaint {
         System.out.println("min priceDif: " + minDif + ", max priceDif: " + maxDif + ", priceDif diff: " + difDiff + ", averagePriceDif = " + averagePriceDif);
 
         ChartAxe timeAxe = new ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        ChartAxe priceAxe = new ChartAxe(minPrice, maxPrice, HEIGHT);
-        ChartAxe difAxe = new ChartAxe(minDif, maxDif, HEIGHT);
+        ChartAxe priceAxe = new ChartAxe(priceCalc, HEIGHT);
+        ChartAxe difAxe = new ChartAxe(priceDifCalc, HEIGHT);
         String timePpStr = "time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale);
         System.out.println(timePpStr);
 

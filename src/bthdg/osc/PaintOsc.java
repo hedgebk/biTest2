@@ -112,7 +112,7 @@ public class PaintOsc extends BaseChartPaint {
         System.out.println("minPrice = " + minPrice + ", maxPrice = " + maxPrice + ", priceDiff = " + priceDiff);
 
         ChartAxe timeAxe = new PaintChart.ChartAxe(minBarTimestamp, maxBarTimestamp, WIDTH);
-        ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice, maxPrice, HEIGHT);
+        ChartAxe priceAxe = new PaintChart.ChartAxe(priceCalc, HEIGHT);
         PaintChart.ChartAxe oscAxe = new PaintChart.ChartAxe(0, 1, HEIGHT);
         System.out.println("time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale));
 

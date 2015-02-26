@@ -215,6 +215,10 @@ public class BaseChartPaint extends DbReady {
         public final double m_scale;
         public int m_offset;
 
+        public ChartAxe(Utils.DoubleMinMaxCalculator calculator, int size) {
+            this(calculator.m_minValue, calculator.m_maxValue, size);
+        }
+
         public ChartAxe(double min, double max, int size) {
             m_min = min;
             m_max = max;
