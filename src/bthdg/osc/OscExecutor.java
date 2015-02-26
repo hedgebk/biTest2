@@ -1148,12 +1148,12 @@ log("  AvgStochDirectionAdjuster.adjustDirection() adjustDirection=" + direction
                 Direction avgStochDirection = m_avgStochTrendWatcher.m_direction;
 
                 if (avgStochDirection != directionDirection) {
-log("  opposite directions: avgStochDirection="+avgStochDirection+" directionDirection=" + directionDirection + ". zeroed");
-                        return 0;
+                    log("  opposite directions: avgStochDirection=" + avgStochDirection + " directionDirection=" + directionDirection + ". halved");
+                    ret = ret / 2;
                 }
 
                 double distanceFromPeak = avgStochDirection.applyDirection(m_prevBlend - peakAvgStoch);
-log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + avgStochDirection + "; peakAvgStoch=" + peakAvgStoch + "; m_prevBlend=" + m_prevBlend);
+                log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + avgStochDirection + "; peakAvgStoch=" + peakAvgStoch + "; m_prevBlend=" + m_prevBlend);
                 // distanceFromPeak  [0 ... 1]
                 double boosted;
                 if (distanceFromPeak < ADJUST_DIRECTION_LEVEL1) {          //[0   ... 0.1]
