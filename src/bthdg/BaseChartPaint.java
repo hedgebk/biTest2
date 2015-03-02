@@ -16,6 +16,7 @@ import java.util.Calendar;
 
 public class BaseChartPaint extends DbReady {
     public static final BasicStroke DASHED_STROKE = new BasicStroke(1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{10.0f}, 0.0f);
+    public static final BasicStroke DASHED_BOLD_STROKE = new BasicStroke(3.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{15.0f}, 0.0f);
 
     public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
                                               Graphics2D g, double priceStep, double priceStart, int width) {
@@ -23,11 +24,11 @@ public class BaseChartPaint extends DbReady {
     }
 
     public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
-                                              Graphics2D g, double priceStep, double priceStart, int width, Double highlightY) {
+                                           Graphics2D g, double priceStep, double priceStart, int width, Double highlightY) {
         Stroke oldStroke = g.getStroke();
-        g.setStroke(DASHED_STROKE);
         for (double price = priceStart; price < maxPrice; price += priceStep) {
-            if (price > minPrice) {
+            if ((price >= minPrice) && (price <= maxPrice)) {
+                g.setStroke((price % 10 == 0) ? DASHED_BOLD_STROKE : DASHED_STROKE);
                 int y = priceAxe.getPointReverse(price);
                 boolean highlight = (highlightY != null) && (Math.abs(highlightY - price) < priceStep / 10);
                 g.setPaint(highlight ? Color.BLACK : Colors.SEMI_TRANSPARENT_GRAY);
