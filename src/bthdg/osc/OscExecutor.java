@@ -25,14 +25,16 @@ class OscExecutor implements Runnable{
     private static final double DIRECTION_ADJUSTED_CENTER_TOLERANCE_RATIO = 3;
     public static final double DIRECTION_ADJUSTED_TREND_TOLERANCE = 0.012;
     // AvgStochDirectionAdjuster
-    public static final double AVG_STOCH_TREND_THRESHOLD = 0.015;
-    public static final double DIRECTION_TREND_THRESHOLD = 0.01;
+    public static final double AVG_STOCH_TREND_THRESHOLD = 0.022;
+    public static final double DIRECTION_TREND_THRESHOLD = 0.017;
     private static final double ADJUST_DIRECTION_LEVEL1 = 0.06; // [0 ... LEVEL1]      ->  [0.8 ... 1]x    [LEVEL1_TO ... 1]
     private static final double ADJUST_DIRECTION_LEVEL2 = 0.29; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... ADJUST_DIRECTION_LEVEL2_TO]
                                                                 // [LEVEL2 ... 1]      -> +[0.6 ... 1]    +[ADJUST_DIRECTION_LEVEL2_TO ... 1]
     private static final double ADJUST_DIRECTION_LEVEL1_TO = 0.7;
     private static final double ADJUST_DIRECTION_LEVEL2_TO = 0.6;
     public static final int AVG_STOCH_COUNTER_POINTS = 8;
+    private static final double AVG_STOCH_DELTA_THREZHOLD = 0.0008;
+    private static final double AVG_STOCH_THREZHOLD_LEVEL_BOOST = 0.4; // +50%
 
     private final IWs m_ws;
     private final long m_startMillis;
@@ -429,7 +431,7 @@ class OscExecutor implements Runnable{
         boolean cancelAttempted = cancelOrderIfPresent();
         if (!cancelAttempted) { // cancel attempt was not performed
             double minOrderToCreate = exchange.minOrderToCreate(Osc.PAIR);
-            if ((placeOrderSize >= minOrderToCreate) || (placeOrderSize >= MIN_ORDER_SIZE)) {
+            if ((placeOrderSize >= minOrderToCreate) && (placeOrderSize >= MIN_ORDER_SIZE)) {
                 if (m_order == null) { // we should not have open order at this place
                     cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
                     if (!cancelAttempted) { // cancel attempt was not performed
@@ -1106,6 +1108,9 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
         private Double m_prevBlend2;
         private OscLogProcessor.TrendWatcher m_avgStochTrendWatcher = new OscLogProcessor.TrendWatcher(AVG_STOCH_TREND_THRESHOLD);
         private OscLogProcessor.TrendWatcher m_directionTrendWatcher = new OscLogProcessor.TrendWatcher(DIRECTION_TREND_THRESHOLD);
+        private Double m_lastAvgStochDeltaBlend;
+        private double m_minAvgStochDeltaBlend = 0;
+        private double m_maxAvgStochDeltaBlend = 0;
 
         public void updateAvgStoch(double avgStoch) {
             double blend = m_avgStochCounter.add(avgStoch);
@@ -1131,6 +1136,7 @@ log("  direction trend changed from " + prevDirection + "to " + newDirection);
                     double avgStochDeltaBlend = m_avgStochDeltaBlender.add(avgStochDelta);
                     if (m_avgStochDeltaBlender.m_full) {
                         log("   avgStochDeltaBlend=" + Utils.format8(avgStochDeltaBlend));
+                        m_lastAvgStochDeltaBlend = avgStochDeltaBlend;
                     }
                 }
                 m_prevBlend2 = blend2;
@@ -1138,24 +1144,25 @@ log("  direction trend changed from " + prevDirection + "to " + newDirection);
         }
 
         public double adjustDirection(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
-log("  AvgStochDirectionAdjuster.adjustDirection() adjustDirection=" + directionAdjusted);
+            log("  AvgStochDirectionAdjuster.adjustDirection() adjustDirection=" + directionAdjusted);
             m_directionTrendWatcher.update(directionAdjusted);
-            Double peakdirection = m_directionTrendWatcher.m_peak;
+            Double peakDirection = m_directionTrendWatcher.m_peak;
             double ret = directionAdjusted;
             Double peakAvgStoch = m_avgStochTrendWatcher.m_peak;
-            if ((peakAvgStoch != null) && (peakdirection != null)) {
+            if ((peakAvgStoch != null) && (peakDirection != null)) {
                 Direction directionDirection = m_directionTrendWatcher.m_direction;
                 Direction avgStochDirection = m_avgStochTrendWatcher.m_direction;
 
                 if (avgStochDirection != directionDirection) {
-                    log("  opposite directions: avgStochDirection=" + avgStochDirection + " directionDirection=" + directionDirection + ". halved");
+                    log("  opposite directions: avgStochDirection=" + avgStochDirection + " directionDirection=" + directionDirection +
+                        ". halved from " + directionAdjusted + " to " + ret);
                     ret = ret / 2;
                 }
 
                 double distanceFromPeak = avgStochDirection.applyDirection(m_prevBlend - peakAvgStoch);
                 log("boost?: distanceFromPeak=" + distanceFromPeak + "; direction=" + avgStochDirection + "; peakAvgStoch=" + peakAvgStoch + "; m_prevBlend=" + m_prevBlend);
                 // distanceFromPeak  [0 ... 1]
-                double boosted;
+                Double boosted;
                 if (distanceFromPeak < ADJUST_DIRECTION_LEVEL1) {          //[0   ... 0.1]
 //                    double q = LEVEL1 - distanceFromPeak; //[0.1 ... 0  ]
 //                    double r = q / LEVEL1;                //[1   ... 0  ]
@@ -1164,7 +1171,7 @@ log("  AvgStochDirectionAdjuster.adjustDirection() adjustDirection=" + direction
 //log("  first range: e=" + e);
 //                    ret = directionAdjusted * e;
 log("  first range: no change");
-                    return ret;
+                    boosted = null;
                 } else if (distanceFromPeak < ADJUST_DIRECTION_LEVEL2) {   //[0.1 ... 0.2]
                     double q = distanceFromPeak - ADJUST_DIRECTION_LEVEL1; //[0   ... 0.1]
                     double r = q / (ADJUST_DIRECTION_LEVEL2 - ADJUST_DIRECTION_LEVEL1);     //[0   ... 1  ]
@@ -1178,6 +1185,49 @@ log("  second range: w=" + w);
                     double e = ADJUST_DIRECTION_LEVEL2_TO + w;             //[0.6 ... 1]
 log("  third range: e=" + e);
                     boosted = boostDirection(ret, e, avgStochDirection);
+                }
+                if (boosted != null) {
+                    log(" boosted from " + ret + " to " + boosted);
+                    ret = boosted;
+                }
+            }
+
+            if (m_lastAvgStochDeltaBlend != null) {
+                m_minAvgStochDeltaBlend = Math.min(m_minAvgStochDeltaBlend, m_lastAvgStochDeltaBlend);
+                m_maxAvgStochDeltaBlend = Math.max(m_maxAvgStochDeltaBlend, m_lastAvgStochDeltaBlend);
+                log("lastAvgStochDeltaBlend=" + Utils.format8(m_lastAvgStochDeltaBlend)
+                        + " minAvgStochDeltaBlend=" + Utils.format8(m_minAvgStochDeltaBlend)
+                        + " maxAvgStochDeltaBlend=" + Utils.format8(m_maxAvgStochDeltaBlend));
+                double boosted;
+                double add;
+                if (m_lastAvgStochDeltaBlend > 0) {
+                    double distanceToOne = 1 - ret;
+                    if (m_lastAvgStochDeltaBlend > AVG_STOCH_DELTA_THREZHOLD) {
+                        double topAvgStochDeltaBlend = Math.max(m_maxAvgStochDeltaBlend, 2 * AVG_STOCH_DELTA_THREZHOLD);
+                        add = (m_lastAvgStochDeltaBlend - AVG_STOCH_DELTA_THREZHOLD)
+                                / (topAvgStochDeltaBlend - AVG_STOCH_DELTA_THREZHOLD)
+                                * (1 - AVG_STOCH_THREZHOLD_LEVEL_BOOST)
+                                + AVG_STOCH_THREZHOLD_LEVEL_BOOST;
+                        log(" zoneA: add=" + Utils.format8(add) + "; distanceToOne=" + Utils.format8(distanceToOne));
+                    } else {
+                        add = m_lastAvgStochDeltaBlend / AVG_STOCH_DELTA_THREZHOLD * AVG_STOCH_THREZHOLD_LEVEL_BOOST;
+                        log(" zoneB: add=" + Utils.format8(add) + "; distanceToOne=" + Utils.format8(distanceToOne));
+                    }
+                    boosted = ret + distanceToOne * add;
+                } else {
+                    double distanceToOne = 1 + ret;
+                    if (m_lastAvgStochDeltaBlend < -AVG_STOCH_DELTA_THREZHOLD) {
+                        double bottomAvgStochDeltaBlend = Math.min(m_minAvgStochDeltaBlend, -2 * AVG_STOCH_DELTA_THREZHOLD);
+                        add = (m_lastAvgStochDeltaBlend - AVG_STOCH_DELTA_THREZHOLD)
+                                / (bottomAvgStochDeltaBlend - AVG_STOCH_DELTA_THREZHOLD)
+                                * (1 - AVG_STOCH_THREZHOLD_LEVEL_BOOST)
+                                + AVG_STOCH_THREZHOLD_LEVEL_BOOST;
+                        log(" zoneC: add=" + Utils.format8(add) + "; distanceToOne=" + Utils.format8(distanceToOne));
+                    } else {
+                        add = -m_lastAvgStochDeltaBlend / AVG_STOCH_DELTA_THREZHOLD * AVG_STOCH_THREZHOLD_LEVEL_BOOST;
+                        log(" zoneD: add=" + Utils.format8(add) + "; distanceToOne=" + Utils.format8(distanceToOne));
+                    }
+                    boosted = ret - distanceToOne * add;
                 }
                 log(" boosted from " + ret + " to " + boosted);
                 ret = boosted;
@@ -1235,10 +1285,17 @@ log("    ret=" + ret);
                 log(" avgPriceDirection" + index + "=" + avgPriceDirection + "; directionAdjustedDirection=" + directionAdjustedDirection);
 
                 if ((avgPriceDirection != null) && (directionAdjustedDirection != null) && (avgPriceDirection != directionAdjustedDirection)) {
-                    log("  opposite directions. avgPrice" + index + "=" + avgPrice + "; avgPricePeak" + index + "=" + avgPriceTrendWatcher.m_peak + "; directionAdjusted=" + directionAdjustedIn + "; directionAdjustedPeak=" + m_directionAdjustedTrendWatcher.m_peak);
-                    double directionChilled = ret * OPPOSITE_DIRECTION_FACTOR;
-                    log("  direction chilled" + index + " from " + ret + " to " + directionChilled);
-                    ret = directionChilled;
+                    if ((directionAdjustedDirection.isBackward() && avgPriceDirection.isForward() && (directionAdjustedIn < 0.8)) ||
+                        (directionAdjustedDirection.isForward() && avgPriceDirection.isBackward() && (directionAdjustedIn > -0.8))) {
+                        log("  opposite directions. avgPrice" + index + "=" + avgPrice + "; avgPricePeak" + index + "=" + avgPriceTrendWatcher.m_peak +
+                                "; directionAdjusted=" + directionAdjustedIn + "; directionAdjustedPeak=" + m_directionAdjustedTrendWatcher.m_peak);
+                        double directionChilled = ret * OPPOSITE_DIRECTION_FACTOR;
+                        log("  direction chilled" + index + " from " + ret + " to " + directionChilled);
+                        ret = directionChilled;
+                    } else {
+                        log("  skipped oppositeDirections - in edge top zone. avgPrice" + index + "=" + avgPrice + "; avgPricePeak" + index + "=" + avgPriceTrendWatcher.m_peak +
+                                "; directionAdjusted=" + directionAdjustedIn + "; directionAdjustedPeak=" + m_directionAdjustedTrendWatcher.m_peak);
+                    }
                 }
             }
             return ret;
