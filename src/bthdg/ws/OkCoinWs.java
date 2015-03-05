@@ -17,6 +17,11 @@ import java.util.*;
 // http://img.okcoin.cn/about/ws_api.do
 //  error codes: https://www.okcoin.cn/about/ws_request.do
 //  ping, okcoin.com: https://www.okcoin.com/about/ws_faq.do
+//
+// ! How to know whether connection is lost?
+//     OKCoin provides heartbeat verification process. Clients send: {'event':'ping'}, the server returns heartbeats {"event":"pong"} to indicate connection between the clients and the server. If the clients stop receiving the heartbeats, then they will need to reconnect with the server.
+//
+// https://github.com/OKCoin/websocket/blob/master/java/src/com/okcoin/websocket/WebSocketBase.java
 public class OkCoinWs extends BaseWs {
     private static final TimeZone TZ = TimeZone.getTimeZone("Asia/Hong_Kong"); // utc+08:00 Beijing, Hong Kong, Urumqi
     private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH); // 09:26:02
