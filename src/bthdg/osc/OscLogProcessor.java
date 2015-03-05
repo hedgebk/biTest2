@@ -47,7 +47,7 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d+\\.\\d+)\\savg2=(\\d+\\.\\d+)\\savg3=(\\d+\\.\\d+)\\savg4=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=([\\+\\-]?\\d+\\.[\\d+\\-E]+); trend=([-\\d]+\\.[\\d-E]+)");
     private static final Pattern GAIN_PATTERN = Pattern.compile("(\\d+):\\s+GAIN: Btc=(\\d+\\.\\d+); Cnh=(\\d+\\.\\d+) CNH; avg=(\\d+\\.\\d+); projected=(\\d+\\.\\d+).*");
     private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
-    private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled(\\d) from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
+    private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled(\\w) from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
     private static final Pattern START_LEVEL_PATTERN = Pattern.compile("(\\d+): \\[(\\d+)\\] start level reached for (\\w+); .*");
     private static final Pattern AVG_STOCH_PATTERN = Pattern.compile("(\\d+):\\s+updateAvgStoch\\(avgStoch\\=(\\d\\.[\\d+\\-E]+)\\)\\s+blend\\=(\\d\\.[\\d+\\-E]+);.*");
     private static final Pattern PEAK_PATTERN = Pattern.compile("(\\d+):\\s+peak\\=(\\d\\.[\\d+\\-E]+); direction\\=(\\w+)");
@@ -187,7 +187,8 @@ public class OscLogProcessor extends BaseChartPaint {
         };
         new LineReaderThread(reader, semafore) {
             @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
-                if(line.contains("; oldest=")) { // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
+                // 1421691271077:  avg=1291.1247878050997; last=1291.1247878050997; oldest=1289.7241994383135; trend=1.4005883667862236
+                if(line.contains("; oldest=") && !line.contains("Infinity")) {
                     processAvgAndTrend(line);
                 }
             }
@@ -532,7 +533,8 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, ChartAxe gainAxe) {
         Stroke old = g.getStroke();
-        BasicStroke dblStroke = new BasicStroke(4);
+        BasicStroke dblStroke = new BasicStroke(2);
+        BasicStroke quadStroke = new BasicStroke(4);
         double m_max = gainAxe.m_max;
         double m_min = gainAxe.m_min; // [min ... 1 ... max]
 
@@ -552,17 +554,22 @@ public class OscLogProcessor extends BaseChartPaint {
             int x = timeAxe.getPoint(time);
             int y = priceAxe.getPointReverse(price);
             if (lastX != -1) {
-                g.setPaint(Color.orange);
-                g.drawLine(lastX, lastY, x, y);
-                g.setPaint(Color.lightGray);
-                g.drawLine(lastX, lastY - dy3, x, y - dy3);
-                g.drawLine(lastX, lastY - dy4, x, y - dy4);
+                {
+                    g.setStroke(dblStroke);
+                    g.setPaint(Color.orange); // avg price
+                    g.drawLine(lastX, lastY, x, y);
+                    g.setPaint(Color.lightGray);
+                    g.drawLine(lastX, lastY - dy3, x, y - dy3); // osc borders
+                    g.drawLine(lastX, lastY - dy4, x, y - dy4);
+                    g.setPaint(Color.black);
+                    g.drawLine(lastX, lastY - dy1, x, y - dy1); // osc levels
+                    g.drawLine(lastX, lastY - dy2, x, y - dy2);
+                    g.setStroke(old);
+                }
                 g.setPaint(Color.gray);
-                g.drawLine(lastX, lastY - dy1, x, y - dy1);
-                g.drawLine(lastX, lastY - dy2, x, y - dy2);
                 g.drawLine(lastX, lastY - dy5, x, y - dy5);
                 g.setPaint(Colors.LIGHT_MAGNETA);
-                g.drawLine(lastX, lastY + dy1, x, y + dy1);
+                g.drawLine(lastX, lastY + dy1, x, y + dy1); // gain borders
                 g.drawLine(lastX, lastY + dy2, x, y + dy2);
                 for (int k = from; k <= to; k++) {
                     if (k != 1) {
@@ -572,9 +579,11 @@ public class OscLogProcessor extends BaseChartPaint {
                 }
                 g.setPaint(Colors.LIGHT_BLUE);
                 int zeroGainOffset = gainAxe.getPoint(1);
-                g.setStroke(dblStroke);
-                g.drawLine(lastX, lastY + dy2 - zeroGainOffset, x, y + dy2 - zeroGainOffset);
-                g.setStroke(old);
+                {
+                    g.setStroke(quadStroke);
+                    g.drawLine(lastX, lastY + dy2 - zeroGainOffset, x, y + dy2 - zeroGainOffset);
+                    g.setStroke(old);
+                }
             }
             lastX = x;
             lastY = y;
@@ -591,8 +600,8 @@ public class OscLogProcessor extends BaseChartPaint {
             int x = timeAxe.getPoint(stamp);
             int y1 = priceAxe.getPointReverse(bidPrice);
             int y2 = priceAxe.getPointReverse(askPrice);
-            g.drawLine(x, y1, x, y1);
-            g.drawLine(x, y2, x, y2);
+            drawX(g, x, y1, 1);
+            drawX(g, x, y2, 1);
         }
     }
 
@@ -665,7 +674,7 @@ public class OscLogProcessor extends BaseChartPaint {
             int y = priceAxe.getPointReverse(basePrice);
             g.setPaint(Color.lightGray);
             g.drawLine(x, y - DIRECTION_MARK_RADIUS, x, y + DIRECTION_MARK_RADIUS);
-            g.drawLine(x - 1, y, x + 1, y);
+            g.drawLine(x - 2, y, x + 2, y);
             int y2 = y - (int) (DIRECTION_MARK_RADIUS * direction);
             if (prevX != null) {
                 g.drawLine(prevX, prevY, x, y2);
@@ -684,11 +693,12 @@ public class OscLogProcessor extends BaseChartPaint {
                 buff.append(" b ").append(Utils.format5(boostedFrom)).append("->").append(Utils.format5(boostedTo)).append(" |");
             }
             if(chilled != null) {
-                for(ChilledData chillData: chilled) {
-                    int index = chillData.m_index;
+                for (int i = 0; i < chilled.size(); i++) {
+                    ChilledData chillData = chilled.get(i);
+                    String index = chillData.m_index;
                     double chilledFrom = chillData.m_chilledFrom;
                     double chilledTo = chillData.m_chilledTo;
-                    Color color = CHILL_COLORS[index%CHILL_COLORS.length];
+                    Color color = CHILL_COLORS[i % CHILL_COLORS.length];
                     g.setPaint(color);
                     int y3 = y - (int) (DIRECTION_MARK_RADIUS * chilledFrom);
                     int y4 = y - (int) (DIRECTION_MARK_RADIUS * chilledTo);
@@ -1017,14 +1027,13 @@ public class OscLogProcessor extends BaseChartPaint {
                 } else if (index == 1) { // got 'chilled'
                     Matcher matcher = CHILLED_PATTERN.matcher(line2);
                     if (matcher.matches()) {
-                        String numberStr = matcher.group(2);
+                        String indexStr = matcher.group(2);
                         String chilled1FromStr = matcher.group(3);
                         String chilled1ToStr = matcher.group(4);
-                        System.out.println("GOT CHILLED: numberStr=" + numberStr + "; chilledFromStr=" + chilled1FromStr + "; chilledToStr=" + chilled1ToStr);
-                        int number = Integer.parseInt(numberStr);
+                        System.out.println("GOT CHILLED: indexStr=" + indexStr + "; chilledFromStr=" + chilled1FromStr + "; chilledToStr=" + chilled1ToStr);
                         double chilledFrom = Double.parseDouble(chilled1FromStr);
                         double chilledTo = Double.parseDouble(chilled1ToStr);
-                        ChilledData chilledData = new ChilledData(number, chilledFrom, chilledTo);
+                        ChilledData chilledData = new ChilledData(indexStr, chilledFrom, chilledTo);
                         if(chilled == null) {
                             chilled = new ArrayList<ChilledData>();
                         }
@@ -1203,11 +1212,11 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     public static class ChilledData {
-        public int m_index;
+        public final String m_index;
         public final double m_chilledFrom;
         public final double m_chilledTo;
 
-        public ChilledData(int index, double chilledFrom, double chilledTo) {
+        public ChilledData(String index, double chilledFrom, double chilledTo) {
             m_index = index;
             m_chilledFrom = chilledFrom;
             m_chilledTo = chilledTo;
