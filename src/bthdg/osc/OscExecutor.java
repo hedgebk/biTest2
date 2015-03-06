@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.ListIterator;
 
 class OscExecutor implements Runnable{
-    private static final double MIN_ORDER_SIZE = 0.065; // btc
+    private static final double MIN_ORDER_SIZE = 0.04; // btc
     public static final int MIN_REPROCESS_DIRECTION_TIME = 4500;
     public static final double OPPOSITE_DIRECTION_FACTOR = 0.77; // -23%
     public static final double[] AVG_PRICE_PERIOD_RATIOS = new double[] { 0.8, 1.4, 2.0, 2.6, 3.2 };
@@ -255,7 +255,7 @@ class OscExecutor implements Runnable{
         IIterationContext.BaseIterationContext iContext = getLiveOrdersContextIfNeeded(inContext);
         Exchange exchange = m_ws.exchange();
         log(" checking close orders state...");
-        boolean closed = false;
+        boolean someCloseFilled = false;
         for( ListIterator<CloseOrderWrapper> it = m_closeOrders.listIterator(); it.hasNext(); ) {
             CloseOrderWrapper closeOrderWrapper = it.next();
             OrderData closeOrder = closeOrderWrapper.m_closeOrder;
@@ -267,11 +267,14 @@ class OscExecutor implements Runnable{
                 OrderData openOrder = closeOrderWrapper.m_order;
                 log("$$$$$$   closeOrder FILLED: " + closeOrder + "; open order: " + openOrder);
                 it.remove();
-                closed = true;
+                someCloseFilled = true;
             }
         }
-        if(closed) {
-            log("some orders closed - post recheck direction");
+        if(someCloseFilled) {
+            log("some close order filled - resync account");
+            // here we may have desync case - resync account to prevent.
+            initAccount();
+            log("post recheck direction");
             postRecheckDirection();
             logValuate(exchange);
         }
@@ -381,12 +384,7 @@ class OscExecutor implements Runnable{
 
         double placeOrderSize = 0;
         if (orderSize != 0) {
-            double cumCancelOrdersSize = getCumCancelOrdersSize(needOrderSide);
-            double orderSizeAdjusted = orderSize - cumCancelOrdersSize;
-            if (cumCancelOrdersSize != 0) {
-                log("    orderSize=" + Utils.format8(orderSize) + "; cumCancelOrdersSize=" + cumCancelOrdersSize + "; orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted));
-            }
-
+            double orderSizeAdjusted = orderSize;
             if (orderSizeAdjusted > 0) {
                 orderSizeAdjusted = (needOrderSide == OrderSide.BUY) ? orderSizeAdjusted : -orderSizeAdjusted;
                 log("     signed orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted));
@@ -401,8 +399,8 @@ class OscExecutor implements Runnable{
                         log("       remained=" + remained + "; orderSizeDiff=" + orderSizeDiff);
                         if (orderSizeDiff > 0) {
                             double adjusted = adjustSizeToAvailable(orderSizeDiff, exchange);
-                            if(orderSizeDiff != adjusted ) {
-                                log("        orderSizeDiff adjusted by available: from " + orderSizeDiff + " to "+adjusted);
+                            if (orderSizeDiff != adjusted) {
+                                log("        orderSizeDiff adjusted by available: from " + orderSizeDiff + " to " + adjusted);
                                 orderSizeDiff = adjusted;
                             }
                             orderSize = remained + orderSizeDiff;
@@ -418,42 +416,47 @@ class OscExecutor implements Runnable{
                         }
                     }
                 }
-
-                orderSizeAdjusted = adjustSizeToAvailable(needBuyBtc, exchange);
-                log("      available adjusted orderSize=" + Utils.format8(orderSizeAdjusted));
-
-                orderSizeAdjusted *= Osc.USE_FUNDS_FROM_AVAILABLE; // do not use ALL available funds
-                log("       fund ratio adjusted orderSize=" + Utils.format8(orderSizeAdjusted));
-
-                double orderSizeRound = exchange.roundAmount(orderSizeAdjusted, Osc.PAIR);
-                placeOrderSize = Math.abs(orderSizeRound);
-                log("        orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
             }
         }
 
-        boolean cancelAttempted = cancelOrderIfPresent();
-        if (!cancelAttempted) { // cancel attempt was not performed
+        State ret = cancelOrderIfPresent();
+        if (ret == null) { // cancel attempt was not performed
+
+            double canBuyBtc = adjustSizeToAvailable(needBuyBtc, exchange);
+            log("      needBuyBtc " + Utils.format8(needBuyBtc) + " adjusted by Available: canBuyBtc=" + Utils.format8(canBuyBtc));
+            double notEnough = Math.abs(needBuyBtc - canBuyBtc);
+            if (notEnough > MIN_ORDER_SIZE) {
+                double cumCancelOrdersSize = getCumCancelOrdersSize(needOrderSide);
+                log("      notEnough="+notEnough+" for needOrderSide=" + needOrderSide + " we have cumCancelOrdersSize=" + Utils.format8(cumCancelOrdersSize));
+                if (cumCancelOrdersSize > 0) {
+                    cancelFarestSameDirectionCloseOrder(needOrderSide);
+                    log("order cancel was attempted. time passed. posting recheck direction");
+                    postRecheckDirection();
+                    return null;
+                }
+            }
+
+            canBuyBtc *= Osc.USE_FUNDS_FROM_AVAILABLE; // do not use ALL available funds
+            log("       fund ratio adjusted: canBuyBtc=" + Utils.format8(canBuyBtc));
+
+            double orderSizeRound = exchange.roundAmount(canBuyBtc, Osc.PAIR);
+            placeOrderSize = Math.abs(orderSizeRound);
+            log("        orderSizeAdjusted=" + Utils.format8(canBuyBtc) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
+
             double minOrderToCreate = exchange.minOrderToCreate(Osc.PAIR);
             if ((placeOrderSize >= minOrderToCreate) && (placeOrderSize >= MIN_ORDER_SIZE)) {
                 if (m_order == null) { // we should not have open order at this place
-                    cancelAttempted = cancelSameDirectionCloseOrders(needOrderSide);
-                    if (!cancelAttempted) { // cancel attempt was not performed
-                        double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
-                        m_order = new OrderData(Osc.PAIR, needOrderSide, orderPrice, placeOrderSize);
-                        log("   orderData=" + m_order);
+                    double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
+                    m_order = new OrderData(Osc.PAIR, needOrderSide, orderPrice, placeOrderSize);
+                    log("   orderData=" + m_order);
 
-                        if (placeOrderToExchange(exchange, m_order)) {
-                            m_orderPlaceAttemptCounter++;
-                            log("    m_orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
-                            return State.ORDER;
-                        } else {
-                            log("order place error - switch to ERROR state");
-                            return State.ERROR;
-                        }
+                    if (placeOrderToExchange(exchange, m_order)) {
+                        m_orderPlaceAttemptCounter++;
+                        log("    m_orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
+                        return State.ORDER;
                     } else {
-                        log("some orders maybe closed - post recheck direction");
-                        postRecheckDirection();
-                        // probably we should switch to NONE here ?
+                        log("order place error - switch to ERROR state");
+                        return State.ERROR;
                     }
                 } else {
                     log("warning: order still exist - switch to ERROR state: " + m_order);
@@ -470,9 +473,8 @@ class OscExecutor implements Runnable{
         } else {
             log("order cancel was attempted. time passed. posting recheck direction");
             postRecheckDirection();
-            // probably we should switch to NONE here ?
         }
-        return null; // no change
+        return ret;
     }
 
     private double calcOrderPrice(Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
@@ -518,56 +520,63 @@ class OscExecutor implements Runnable{
         return buyBtc;
     }
 
-    private boolean cancelSameDirectionCloseOrders(OrderSide needOrderSide) throws Exception {
-        log("  cancelSameDirectionCloseOrders() size=" + m_closeOrders.size());
-        boolean cancelAttempted = false;
+    private void cancelFarestSameDirectionCloseOrder(OrderSide needOrderSide) throws Exception {
+        log("  cancelFarestSameDirectionCloseOrder(needOrderSide=" + needOrderSide + ") size=" + m_closeOrders.size());
         if (!m_closeOrders.isEmpty() && (needOrderSide != null)) {
             boolean hadError = false;
+            Double farestPrice = null;
+            CloseOrderWrapper farestCloseOrder = null;
             for (ListIterator<CloseOrderWrapper> iterator = m_closeOrders.listIterator(); iterator.hasNext(); ) {
                 CloseOrderWrapper next = iterator.next();
                 OrderData closeOrder = next.m_closeOrder;
                 OrderSide closeOrderSide = closeOrder.m_side;
                 log("   next closeOrder " + closeOrder);
                 if (closeOrderSide == needOrderSide) {
-                    log("    need cancel existing close order: " + closeOrder);
-                    String error = cancelOrder(closeOrder);
-                    if (error == null) {
-                        iterator.remove();
-                    } else {
-                        // basically we may have no such order error here - when executed concurrently
-                        log("ERROR canceling close order: " + error + "; " + m_order);
-                        hadError = true;
+                    double closeOrderPrice = closeOrder.m_price;
+                    if ((farestPrice == null) || (needOrderSide.isBuy() ? (farestPrice > closeOrderPrice) : (farestPrice < closeOrderPrice))) {
+                        farestPrice = closeOrderPrice;
+                        log("    farestPrice updated " + farestPrice);
+                        farestCloseOrder = next;
                     }
-                    cancelAttempted = true;
                 }
             }
-            if (hadError) {
-                log("we had problems canceling close orders - re-check close orders state...");
-                checkCloseOrdersState(null);
+            if (farestCloseOrder != null) {
+                log("   got farestCloseOrder " + farestCloseOrder);
+                OrderData closeOrder = farestCloseOrder.m_closeOrder;
+                log("    need cancel existing close order: " + closeOrder);
+                String error = cancelOrder(closeOrder);
+                if (error == null) {
+                    m_closeOrders.remove(farestCloseOrder);
+                } else {
+                    // basically we may have no such order error here - when executed concurrently
+                    log("ERROR canceling close order: " + error + "; " + m_order);
+                    log("we had problems canceling close orders - re-check close orders state...");
+                    checkCloseOrdersState(null);
+                }
             }
         }
-        return cancelAttempted;
     }
 
-    private boolean cancelOrderIfPresent() throws Exception {
+    private State cancelOrderIfPresent() throws Exception {
         if (m_order != null) {
             log("  need cancel existing order: " + m_order);
             String error = cancelOrder(m_order);
+            State ret;
             if (error == null) {
                 log("   order cancelled OK: " + m_order);
                 m_order = null;
+                // here we may have desync case - we sent order; the order is partially executed; but we do not know this yet;
+                // we cancel order; internally release funds performed, but since part of order is already executed - we may have
+                // account mismatch here - resync account to prevent.
+                initAccount();
+                ret = State.NONE;
             } else {
                 log("ERROR in cancel order: " + error + "; " + m_order);
-                // the order can be already executed (partially)
-                checkLiveOrders();
+                ret = State.ERROR;
             }
-            // here we may have desync case - we sent order; the order is partially executed; but we do nto know this yet;
-            // we cancel order; internally release funds performed, but since part of order is already executed - we may have
-            // account mismatch here - resync account to prevent.
-            initAccount();
-            return true;
+            return ret;
         }
-        return false;
+        return null;
     }
 
     private double getCumCancelOrdersSize(OrderSide haveOrderSide) {
@@ -575,7 +584,7 @@ class OscExecutor implements Runnable{
         for (CloseOrderWrapper close : m_closeOrders) {
             OrderData closeOrder = close.m_closeOrder;
             OrderSide cancelOrderSide = closeOrder.m_side;
-            if (haveOrderSide != cancelOrderSide) {
+            if (haveOrderSide == cancelOrderSide) {
                 double size = closeOrder.remained();
                 cumCancelOrdersSize += size;
             }
@@ -722,11 +731,13 @@ class OscExecutor implements Runnable{
         if (m_order.isFilled()) {
             m_orderPlaceAttemptCounter = 0;
             log("$$$$$$   order FILLED: " + m_order);
+            logValuate(exchange);
             if (Osc.DO_CLOSE_ORDERS) {
                 OrderSide orderSide = m_order.m_side;
                 OrderSide closeSide = orderSide.opposite();
                 double closePrice = m_order.m_price + (orderSide.isBuy() ? Osc.CLOSE_PRICE_DIFF : -Osc.CLOSE_PRICE_DIFF);
-                double closeSize = m_order.m_amount;
+                // todo: correct price if it is not outside bid-ask
+                double closeSize = m_order.m_amount * Osc.USE_FUNDS_FROM_AVAILABLE; // do not use ALL available funds
 
                 OrderData closeOrder = new OrderData(Osc.PAIR, closeSide, closePrice, closeSize);
                 log("  placing closeOrder=" + closeOrder);
@@ -742,7 +753,6 @@ class OscExecutor implements Runnable{
                     return State.ERROR;
                 }
             } else {
-                logValuate(exchange);
                 m_order = null;
                 return State.NONE;
             }
@@ -1071,6 +1081,10 @@ class OscExecutor implements Runnable{
             m_closeOrder = closeOrder;
             m_order = order;
         }
+
+        @Override public String toString() {
+            return "CloseOrderWrapper[m_closeOrder=" + m_closeOrder + "; m_order=" + m_order + "]";
+        }
     }
 
     private static class Booster {
@@ -1155,11 +1169,11 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
             if ((peakAvgStoch != null) && (peakDirection != null)) {
                 Direction directionDirection = m_directionTrendWatcher.m_direction;
                 Direction avgStochDirection = m_avgStochTrendWatcher.m_direction;
+                log("  directions: avgStochDirection=" + avgStochDirection + " directionDirection=" + directionDirection );
 
                 if (avgStochDirection != directionDirection) {
-                    log("  opposite directions: avgStochDirection=" + avgStochDirection + " directionDirection=" + directionDirection +
-                        ". halved from " + directionAdjusted + " to " + ret);
                     ret = ret / 2;
+                    log("   opposite directions: halved from " + directionAdjusted + " to " + ret);
                 }
 
                 double distanceFromPeak = avgStochDirection.applyDirection(m_prevBlend - peakAvgStoch);

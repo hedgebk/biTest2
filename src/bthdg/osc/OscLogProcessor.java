@@ -20,7 +20,7 @@ public class OscLogProcessor extends BaseChartPaint {
     private static final Color[] CHILL_COLORS = new Color[] {Color.red, Color.CYAN, Color.ORANGE, Color.white};
     private static int WIDTH = 16000;
     public static int HEIGHT = 1100;
-    public static final int X_FACTOR = 10; // more points
+    public static final int X_FACTOR = 8; // more points
     public static int DIRECTION_MARK_RADIUS = 50;
     private static int OSCS_RADIUS;
     private static int OSCS_OFFSET;
@@ -57,7 +57,6 @@ public class OscLogProcessor extends BaseChartPaint {
     public static final String DIRECTION_ADJUSTED = "   directionAdjusted=";
     public static final String DIRECTION_CHILLED = "direction chilled";
     public static final String[] AFTER_DIRECTION = new String[]{"boosted from ", DIRECTION_CHILLED, DIRECTION_ADJUSTED};
-    public static final String[] AFTER_BOOSTED = new String[]{DIRECTION_CHILLED, DIRECTION_ADJUSTED};
 
     private static final List<TradeData> s_trades = new ArrayList<TradeData>();
     private static ArrayList<PlaceOrderData> s_placeOrders = new ArrayList<PlaceOrderData>();
@@ -489,7 +488,7 @@ public class OscLogProcessor extends BaseChartPaint {
                 int yDelta = avgStochDeltaBlendAxe.getPoint(avgStochDelta);
                 int yDeltaBlend = avgStochDeltaBlendAxe.getPoint(avgStochDeltaBlend);
 
-                int basePaintY = y - OSCS_OFFSET - OSCS_RADIUS - DIRECTION_MARK_RADIUS * 3;
+                int basePaintY = y - OSCS_OFFSET - OSCS_RADIUS - DIRECTION_MARK_RADIUS * 2;
                 int paintY = basePaintY - yDelta;
                 int paintYblend = basePaintY - yDeltaBlend;
                 int paintZeroY = basePaintY - yDeltaZero;
@@ -568,8 +567,8 @@ public class OscLogProcessor extends BaseChartPaint {
                     g.drawLine(lastX, lastY - dy2, x, y - dy2);
                     g.setStroke(old);
                 }
-                g.setPaint(Color.gray);
-                g.drawLine(lastX, lastY - dy5, x, y - dy5);
+//                g.setPaint(Color.gray);
+//                g.drawLine(lastX, lastY - dy5, x, y - dy5);
                 g.setPaint(Colors.LIGHT_MAGNETA);
                 g.drawLine(lastX, lastY + dy1, x, y + dy1); // gain borders
                 g.drawLine(lastX, lastY + dy2, x, y + dy2);

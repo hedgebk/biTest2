@@ -33,10 +33,10 @@ public class Osc {
 
     public static final int INIT_BARS_BEFORE = 4;
     public static final Pair PAIR = Pair.BTC_CNH; // TODO: BTC is hardcoded below
-    public static final double CLOSE_PRICE_DIFF = 1.25;
-    static final double ORDER_SIZE_TOLERANCE = 0.15;
+    public static final double CLOSE_PRICE_DIFF = 0.9;
+    static final double ORDER_SIZE_TOLERANCE = 0.13;
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
-    static final boolean DO_CLOSE_ORDERS = false;
+    static final boolean DO_CLOSE_ORDERS = true;
 
     private static Osc s_osc; // instance
 
