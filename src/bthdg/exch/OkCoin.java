@@ -257,12 +257,13 @@ public class OkCoin extends BaseExch {
         JSONObject info = (JSONObject) jObj.get("info");
         JSONObject funds = (JSONObject) info.get("funds");
         JSONObject free = (JSONObject) funds.get("free");
-        AccountData accountData = parseFunds(free);
+        JSONObject freezed = (JSONObject) funds.get("freezed");
+        AccountData accountData = parseFunds(free, freezed);
         return accountData;
 
         // {"info":{"funds":{"free":{"btc":"0","cny":"0","ltc":"0"},"freezed":{"btc":"0","cny":"0","ltc":"0"}}},"result":true}
     }
-    private static AccountData parseFunds(JSONObject free) {
+    private static AccountData parseFunds(JSONObject free, JSONObject freezed) {
         AccountData accountData = new AccountData(Exchange.OKCOIN, Double.MAX_VALUE);
         double btc = Utils.getDouble(free.get("btc"));
         accountData.setAvailable(Currency.BTC, btc);
@@ -270,6 +271,13 @@ public class OkCoin extends BaseExch {
         accountData.setAvailable(Currency.LTC, ltc);
         double cny = Utils.getDouble(free.get("cny"));
         accountData.setAvailable(Currency.CNH, cny);
+
+        double btcAllocated = Utils.getDouble(freezed.get("btc"));
+        accountData.setAllocated(Currency.BTC, btcAllocated);
+        double ltcAllocated = Utils.getDouble(freezed.get("ltc"));
+        accountData.setAllocated(Currency.LTC, ltcAllocated);
+        double cnyAllocated = Utils.getDouble(freezed.get("cny"));
+        accountData.setAllocated(Currency.CNH, cnyAllocated);
         return accountData;
     }
 
