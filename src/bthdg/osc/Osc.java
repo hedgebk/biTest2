@@ -26,17 +26,15 @@ public class Osc {
     public static double STOP_LEVEL = 0.005;
     public static double START_STOP_LEVEL_MULTIPLY = 3;
     static boolean STICK_TOP_BOTTOM = false;
-//    static boolean DELAY_REVERSE_START = false;
-//    static double RATIO_POWER = 1;
 
     public static int PREHEAT_BARS_NUM = calcPreheatBarsNum();
 
     public static final int INIT_BARS_BEFORE = 4;
     public static final Pair PAIR = Pair.BTC_CNH; // TODO: BTC is hardcoded below
-    public static final double CLOSE_PRICE_DIFF = 0.9;
-    static final double ORDER_SIZE_TOLERANCE = 0.13;
+    public static final double CLOSE_PRICE_DIFF = 0.6;
+    static final double ORDER_SIZE_TOLERANCE = 0.1;
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
-    static final boolean DO_CLOSE_ORDERS = true;
+    static final boolean DO_CLOSE_ORDERS = false;
 
     private static Osc s_osc; // instance
 

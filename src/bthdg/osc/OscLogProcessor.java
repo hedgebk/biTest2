@@ -41,10 +41,9 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static final Pattern TRADE_PATTERN = Pattern.compile("(\\d+): State.onTrade\\(tData=TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+).+");
     private static final Pattern DIRECTION_ADJUSTED_PATTERN = Pattern.compile("(\\d+):   directionAdjusted=([\\+\\-]?\\d+\\.[\\d\\-E]+);.*");
-    private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):    orderData=OrderData\\{status=NEW,.*side=(.*), amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+),.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
     private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] bar\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
-    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d+\\.\\d+)\\savg2=(\\d+\\.\\d+)\\savg3=(\\d+\\.\\d+)\\savg4=(\\d+\\.\\d+)\\savg5=(\\d+\\.\\d+);\\slast=(\\d+\\.\\d+);\\soldest=([\\+\\-]?\\d+\\.[\\d+\\-E]+); trend=([-\\d]+\\.[\\d-E]+)");
+    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d\\.[\\d+\\-E]+)\\savg2=(\\d\\.[\\d+\\-E]+)\\savg3=(\\d\\.[\\d+\\-E]+)\\savg4=(\\d\\.[\\d+\\-E]+)\\savg5=(\\d\\.[\\d+\\-E]+);\\slast=(\\d+\\.\\d+);\\soldest=([\\+\\-]?\\d+\\.[\\d+\\-E]+); trend=([-\\d]+\\.[\\d-E]+)");
     private static final Pattern GAIN_PATTERN = Pattern.compile("(\\d+):\\s+GAIN: Btc=(\\d+\\.\\d+); Cnh=(\\d+\\.\\d+) CNH; avg=(\\d+\\.\\d+); projected=(\\d+\\.\\d+).*");
     private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
     private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled(\\w) from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
@@ -164,8 +163,8 @@ public class OscLogProcessor extends BaseChartPaint {
         };
         new LineReaderThread(reader, semafore) {
             @Override protected void processTheLine(String line, BufferedLineReader blr) throws IOException {
-                if(line.contains(":    orderData=OrderData{status=NEW,")) { // 1421193272478:    orderData=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.08500, price=1347.99000, state=NONE, filled=0.00000}
-                    processPlaceOrderLine(line, blr);
+                if(line.contains("OrderData{status=NEW,")) { // 1421193272478:    orderData=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.08500, price=1347.99000, state=NONE, filled=0.00000}
+                    processPlaceOrderLine(line, blr);        // // 1425778629766:   placing closeOrder=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.04465, price=1717.40000, state=NONE, filled=0.00000}
                 }
             }
         };
@@ -934,8 +933,11 @@ public class OscLogProcessor extends BaseChartPaint {
         return Double.parseDouble(str.replace(",", ""));
     }
 
+    private static final Pattern PLACE_ORDER_PATTERN = Pattern.compile("(\\d+):.*=OrderData\\{status=NEW,.*side=(.*), amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+),.*");
+
     private static void processPlaceOrderLine(String line1, BufferedLineReader blr) throws IOException {
         // 1421193272478:    orderData=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.08500, price=1347.99000, state=NONE, filled=0.00000}
+        // 1425778629766:   placing closeOrder=OrderData{status=NEW, pair=BTC_CNH, side=BUY, amount=0.04465, price=1717.40000, state=NONE, filled=0.00000}
         Matcher matcher = PLACE_ORDER_PATTERN.matcher(line1);
         if (matcher.matches()) {
             String millisStr = matcher.group(1);

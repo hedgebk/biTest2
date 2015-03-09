@@ -15,26 +15,26 @@ import java.util.List;
 import java.util.ListIterator;
 
 class OscExecutor implements Runnable{
-    private static final double MIN_ORDER_SIZE = 0.04; // btc
+    private static final double MIN_ORDER_SIZE = 0.1; // btc
     public static final int MIN_REPROCESS_DIRECTION_TIME = 4500;
-    public static final double OPPOSITE_DIRECTION_FACTOR = 0.77; // -23%
-    public static final double[] AVG_PRICE_PERIOD_RATIOS = new double[] { 0.8, 1.4, 2.0, 2.6, 3.2 };
-    private static final long MIN_ORDER_LIVE_TIME = 11000;
+    public static final double OPPOSITE_DIRECTION_FACTOR = 0.7; // -30%
+    public static final double[] AVG_PRICE_PERIOD_RATIOS = new double[] { 0.4, 1.0, 1.7, 2.5, 3.4 };
+    private static final long MIN_ORDER_LIVE_TIME = 13000;
     // AvgPriceDirectionAdjuster
-    public static final double AVG_PRICE_TREND_TOLERANCE = 0.03;
+    public static final double AVG_PRICE_TREND_TOLERANCE = 0.04;
     private static final double DIRECTION_ADJUSTED_CENTER_TOLERANCE_RATIO = 3;
-    public static final double DIRECTION_ADJUSTED_TREND_TOLERANCE = 0.012;
+    public static final double DIRECTION_ADJUSTED_TREND_TOLERANCE = 0.014;
     // AvgStochDirectionAdjuster
-    public static final double AVG_STOCH_TREND_THRESHOLD = 0.023;
-    public static final double DIRECTION_TREND_THRESHOLD = 0.018;
-    private static final double ADJUST_DIRECTION_LEVEL1 = 0.06; // [0 ... LEVEL1]      ->  [0.8 ... 1]x    [LEVEL1_TO ... 1]
-    private static final double ADJUST_DIRECTION_LEVEL2 = 0.29; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... ADJUST_DIRECTION_LEVEL2_TO]
+    public static final double AVG_STOCH_TREND_THRESHOLD = 0.025;
+    public static final double DIRECTION_TREND_THRESHOLD = 0.02;
+    private static final double ADJUST_DIRECTION_LEVEL1 = 0.08; // [0 ... LEVEL1]      ->  [0.8 ... 1]x    [LEVEL1_TO ... 1]
+    private static final double ADJUST_DIRECTION_LEVEL2 = 0.25; // [LEVEL1 ... LEVEL2] -> +[0 ... 0.6]    +[0 ... ADJUST_DIRECTION_LEVEL2_TO]
                                                                 // [LEVEL2 ... 1]      -> +[0.6 ... 1]    +[ADJUST_DIRECTION_LEVEL2_TO ... 1]
     private static final double ADJUST_DIRECTION_LEVEL1_TO = 0.7;
-    private static final double ADJUST_DIRECTION_LEVEL2_TO = 0.6;
-    public static final int AVG_STOCH_COUNTER_POINTS = 10;
-    private static final double AVG_STOCH_DELTA_THREZHOLD = 0.0008;
-    private static final double AVG_STOCH_THREZHOLD_LEVEL_BOOST = 0.45; // +45%
+    private static final double ADJUST_DIRECTION_LEVEL2_TO = 0.5;
+    public static final int AVG_STOCH_COUNTER_POINTS = 11;
+    private static final double AVG_STOCH_DELTA_THREZHOLD = 0.0009;
+    private static final double AVG_STOCH_THREZHOLD_LEVEL_BOOST = 0.4; // +40%
 
     private final IWs m_ws;
     private final long m_startMillis;
@@ -238,10 +238,10 @@ class OscExecutor implements Runnable{
             boolean gotMatchedPrice = false;
             for (CloseOrderWrapper closeOrderWrapper : m_closeOrders) {
                 OrderData closeOrder = closeOrderWrapper.m_closeOrder;
-                double closeOrderPrice = closeOrder.m_price;
-                if (closeOrderPrice == tradePrice) {
+                if (closeOrder.acceptPrice(tradePrice)) {
                     log("trade price " + tData + " matched with close order " + closeOrder);
                     gotMatchedPrice = true;
+                    break;
                 }
             }
             if (gotMatchedPrice) {
@@ -1350,9 +1350,10 @@ log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boos
         public double adjustDirection(double directionAdjusted) { // directionAdjusted  [-1 ... 1]
             double ret = directionAdjusted;
             double avgNoTradesPeriod = m_avgNoTradesPeriod.get();
-            if(avgNoTradesPeriod > 10000) {
-                double rate = avgNoTradesPeriod/10000;
-                ret /= directionAdjusted;
+            if (avgNoTradesPeriod > 10000) {
+                log("  avgNoTradesPeriod=" + avgNoTradesPeriod);
+                double rate = avgNoTradesPeriod / 10000;
+                ret = directionAdjusted / rate;
                 log("  direction chilledZ from " + directionAdjusted + " to " + ret);
             }
             return ret;
