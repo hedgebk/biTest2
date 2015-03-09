@@ -128,7 +128,7 @@ public class BaseChartPaint extends DbReady {
                 int minute = cal.get(Calendar.MINUTE);
                 cal.set(Calendar.MINUTE, (minute/10) * 10);
 
-                int mintesStep = 10;
+                int mintesStep = (timePeriodDays <= 1) ? 5 : 10;
 
                 g.setFont(g.getFont().deriveFont(15.0f * xFactor));
                 format = new SimpleDateFormat("mm");
