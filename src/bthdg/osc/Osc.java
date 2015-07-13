@@ -34,7 +34,7 @@ public class Osc {
     public static final double CLOSE_PRICE_DIFF = 0.6;
     static final double ORDER_SIZE_TOLERANCE = 0.1;
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
-    static final boolean DO_CLOSE_ORDERS = false;
+    static final boolean DO_CLOSE_ORDERS = true;
 
     private static Osc s_osc; // instance
 

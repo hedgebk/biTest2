@@ -38,12 +38,14 @@ public class OscLogProcessor extends BaseChartPaint {
             Colors.setAlpha(Color.YELLOW, 100),
             Colors.setAlpha(Color.GREEN, 100)
     };
+    public static final BasicStroke DBL_STROKE = new BasicStroke(2);
+    public static final BasicStroke QUAD_STROKE = new BasicStroke(4);
 
     private static final Pattern TRADE_PATTERN = Pattern.compile("(\\d+): State.onTrade\\(tData=TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+).+");
     private static final Pattern DIRECTION_ADJUSTED_PATTERN = Pattern.compile("(\\d+):   directionAdjusted=([\\+\\-]?\\d+\\.[\\d\\-E]+);.*");
     private static final Pattern TOP_DATA_PATTERN = Pattern.compile("(\\d+):  topsData'=\\w+\\[\\w+=Top\\{bid=([\\d,\\.]+)\\, ask=([\\d,\\.]+)\\, last.*");
     private static final Pattern OSC_BAR_PATTERN = Pattern.compile("(\\d+).*\\[(\\d+)\\] bar\\s+\\d+\\s+(\\d\\.[\\d\\-E]+)\\s+(\\d\\.[\\d\\-E]+)");
-    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=(\\d\\.[\\d+\\-E]+)\\savg2=(\\d\\.[\\d+\\-E]+)\\savg3=(\\d\\.[\\d+\\-E]+)\\savg4=(\\d\\.[\\d+\\-E]+)\\savg5=(\\d\\.[\\d+\\-E]+);\\slast=(\\d+\\.\\d+);\\soldest=([\\+\\-]?\\d+\\.[\\d+\\-E]+); trend=([-\\d]+\\.[\\d-E]+)");
+    private static final Pattern AVG_TREND_PATTERN = Pattern.compile("(\\d+):\\s+avg1=([\\+\\-]?\\d+\\.[\\d+\\-E]+)\\savg2=([\\+\\-]?\\d+\\.[\\d+\\-E]+)\\savg3=([\\+\\-]?\\d+\\.[\\d+\\-E]+)\\savg4=([\\+\\-]?\\d+\\.[\\d+\\-E]+)\\savg5=([\\+\\-]?\\d+\\.[\\d+\\-E]+);\\slast=(\\d+\\.\\d+);\\soldest=([\\+\\-]?\\d+\\.[\\d+\\-E]+); trend=([-\\d]+\\.[\\d-E]+)");
     private static final Pattern GAIN_PATTERN = Pattern.compile("(\\d+):\\s+GAIN: Btc=(\\d+\\.\\d+); Cnh=(\\d+\\.\\d+) CNH; avg=(\\d+\\.\\d+); projected=(\\d+\\.\\d+).*");
     private static final Pattern BOOSTED_PATTERN = Pattern.compile("(\\d+):\\s+boosted from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
     private static final Pattern CHILLED_PATTERN = Pattern.compile("(\\d+):\\s+direction chilled(\\w) from ([\\+\\-]?\\d\\.[\\d+\\-E]+) to ([\\+\\-]?\\d\\.[\\d+\\-E]+)");
@@ -294,10 +296,10 @@ public class OscLogProcessor extends BaseChartPaint {
         System.out.println("paintTrades DONE");
         paintAvg(priceAxe, timeAxe, g);
         System.out.println("paintAvg DONE");
-        paintPlaceOrder(priceAxe, timeAxe, g);
-        System.out.println("paintPlaceOrder DONE");
         paintAvgPrice(priceAxe, timeAxe, g, gainAxe);
         System.out.println("paintAvgPrice DONE");
+        paintPlaceOrder(priceAxe, timeAxe, g);
+        System.out.println("paintPlaceOrder DONE");
         paintGain(priceAxe, timeAxe, gainAxe, g);
         System.out.println("paintGain DONE");
         paintAvgStochDelta(priceAxe, timeAxe, g);
@@ -307,9 +309,8 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintAvg(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        BasicStroke gainStroke = new BasicStroke(2);
         Stroke old = g.getStroke();
-        g.setStroke(gainStroke);
+        g.setStroke(DBL_STROKE);
         paintAvg(s_avg1, priceAxe, timeAxe, g, Color.CYAN);
         paintAvg(s_avg2, priceAxe, timeAxe, g, Color.ORANGE);
         paintAvg(s_avg3, priceAxe, timeAxe, g, Colors.LIGHT_BLUE);
@@ -338,9 +339,8 @@ public class OscLogProcessor extends BaseChartPaint {
     private static void paintGain(ChartAxe priceAxe, ChartAxe timeAxe, ChartAxe gainAxe, Graphics2D g) {
         g.setFont(g.getFont().deriveFont(10f));
         FontMetrics fontMetrics = g.getFontMetrics();
-        BasicStroke gainStroke = new BasicStroke(2);
         Stroke old = g.getStroke();
-        g.setStroke(gainStroke);
+        g.setStroke(DBL_STROKE);
         int lastX = -1;
         int lastY = -1;
         int lastGainDeltaY = -1;
@@ -423,9 +423,7 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static void paintAvgStochs(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
         Stroke old = g.getStroke();
-        BasicStroke avgStochsStroke = new BasicStroke(4);
-        g.setStroke(avgStochsStroke);
-//g.setPaint(Color.orange);
+        g.setStroke(QUAD_STROKE);
         Integer prevAvgStochBlendY = null;
         Integer prevAvgStochX = null;
         for (AvgStochData avgStochData : s_avgStochs) {
@@ -452,12 +450,11 @@ public class OscLogProcessor extends BaseChartPaint {
     private static void paintAvgStochDelta(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
         g.setFont(g.getFont().deriveFont(10f));
         Stroke old = g.getStroke();
-        BasicStroke doubleStroke = new BasicStroke(2);
 
         Double minAvgStochDeltaBlend = s_avgStochDeltaBlendsMinMaxCalc.m_minValue;
         Double maxAvgStochDeltaBlend = s_avgStochDeltaBlendsMinMaxCalc.m_maxValue;
         System.out.println("minAvgStochDeltaBlend = " + Utils.format8(minAvgStochDeltaBlend) + ", maxAvgStochDeltaBlend = " + Utils.format8(maxAvgStochDeltaBlend));
-        ChartAxe avgStochDeltaBlendAxe = new PaintChart.ChartAxe(s_avgStochDeltaBlendsMinMaxCalc, DIRECTION_MARK_RADIUS * 9 / 4);
+        ChartAxe avgStochDeltaBlendAxe = new PaintChart.ChartAxe(s_avgStochDeltaBlendsMinMaxCalc, DIRECTION_MARK_RADIUS * 11 / 4);
 
         int yDeltaZero = avgStochDeltaBlendAxe.getPoint(0);
         int yDeltaTop = avgStochDeltaBlendAxe.getPoint(DELTA_THREZHOLD);
@@ -473,6 +470,10 @@ public class OscLogProcessor extends BaseChartPaint {
         int prevPaintMinY = 0;
         int prevPaintMaxY = 0;
         Integer nextTextX = null;
+
+        TrendWatcher avgStochDeltaTrendWatchers = new TrendWatcher(DELTA_THREZHOLD);
+        Direction lastAvgStochDeltaDirection = null;
+
         for (Map.Entry<Long, double[]> entry : s_avgStochDeltas.entrySet()) {
             Long time = entry.getKey();
             Map.Entry<Long, Double> entry2 = s_avgPrice.floorEntry(time);
@@ -484,6 +485,9 @@ public class OscLogProcessor extends BaseChartPaint {
                 double[] array = entry.getValue();
                 double avgStochDelta = array[0];
                 double avgStochDeltaBlend = array[1];
+                avgStochDeltaTrendWatchers.update(avgStochDeltaBlend);
+                Direction avgStochDeltaDirection = avgStochDeltaTrendWatchers.m_direction;
+
                 int yDelta = avgStochDeltaBlendAxe.getPoint(avgStochDelta);
                 int yDeltaBlend = avgStochDeltaBlendAxe.getPoint(avgStochDeltaBlend);
 
@@ -505,10 +509,19 @@ public class OscLogProcessor extends BaseChartPaint {
                     g.drawLine(prevX, prevPaintMaxY, x, paintMaxY);
                     g.setPaint((avgStochDelta > 0) ? Color.green : Color.red);
                     g.drawLine(prevX, prevPaintY, x, paintY);
-                    g.setStroke(doubleStroke);
-                    g.setPaint((avgStochDeltaBlend > 0) ? Colors.DARK_GREEN: Colors.DARK_RED);
-                    g.drawLine(prevX, prevPaintYblend, x, paintYblend);
-                    g.setStroke(old);
+                    {
+                        g.setStroke(QUAD_STROKE);
+                        g.setPaint((avgStochDeltaDirection == null) ? Color.GRAY : avgStochDeltaDirection.isForward() ? Colors.DARK_GREEN : Colors.DARK_RED);
+                        g.drawLine(prevX, prevPaintYblend, x, paintYblend);
+                        g.setStroke(old);
+
+                    }
+
+                    if (lastAvgStochDeltaDirection != avgStochDeltaDirection) {
+                        g.setPaint(Color.GRAY);
+                        g.drawLine(x, paintYblend, x, paintYblend + DIRECTION_MARK_RADIUS);
+                    }
+                    lastAvgStochDeltaDirection = avgStochDeltaDirection;
 
                     int textX = x + 2;
                     if ((nextTextX == null) || (textX >= nextTextX)) {
@@ -533,8 +546,6 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static void paintAvgPrice(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g, ChartAxe gainAxe) {
         Stroke old = g.getStroke();
-        BasicStroke dblStroke = new BasicStroke(2);
-        BasicStroke quadStroke = new BasicStroke(4);
         double m_max = gainAxe.m_max;
         double m_min = gainAxe.m_min; // [min ... 1 ... max]
 
@@ -555,7 +566,7 @@ public class OscLogProcessor extends BaseChartPaint {
             int y = priceAxe.getPointReverse(price);
             if (lastX != -1) {
                 {
-                    g.setStroke(dblStroke);
+                    g.setStroke(DBL_STROKE);
                     g.setPaint(Color.orange); // avg price
                     g.drawLine(lastX, lastY, x, y);
                     g.setPaint(Color.lightGray);
@@ -566,8 +577,6 @@ public class OscLogProcessor extends BaseChartPaint {
                     g.drawLine(lastX, lastY - dy2, x, y - dy2);
                     g.setStroke(old);
                 }
-//                g.setPaint(Color.gray);
-//                g.drawLine(lastX, lastY - dy5, x, y - dy5);
                 g.setPaint(Colors.LIGHT_MAGNETA);
                 g.drawLine(lastX, lastY + dy1, x, y + dy1); // gain borders
                 g.drawLine(lastX, lastY + dy2, x, y + dy2);
@@ -580,7 +589,7 @@ public class OscLogProcessor extends BaseChartPaint {
                 g.setPaint(Colors.LIGHT_BLUE);
                 int zeroGainOffset = gainAxe.getPoint(1);
                 {
-                    g.setStroke(quadStroke);
+                    g.setStroke(QUAD_STROKE);
                     g.drawLine(lastX, lastY + dy2 - zeroGainOffset, x, y + dy2 - zeroGainOffset);
                     g.setStroke(old);
                 }
@@ -606,7 +615,7 @@ public class OscLogProcessor extends BaseChartPaint {
     }
 
     private static void paintPlaceOrder(ChartAxe priceAxe, ChartAxe timeAxe, Graphics2D g) {
-        g.setFont(g.getFont().deriveFont(10f));
+        g.setFont(g.getFont().deriveFont(11f));
         FontMetrics fontMetrics = g.getFontMetrics();
         for (PlaceOrderData placeOrder : s_placeOrders) {
             Long stamp = placeOrder.m_placeMillis;
@@ -620,15 +629,24 @@ public class OscLogProcessor extends BaseChartPaint {
             Long fillTime = placeOrder.m_fillTime;
             if (fillTime != null) {
                 int x2 = timeAxe.getPoint(fillTime);
-                g.drawLine(x, y, x2, y);
+                {
+                    Stroke old = g.getStroke();
+                    g.setStroke(DBL_STROKE);
+                    g.drawLine(x, y, x2, y);
+                    g.setStroke(old);
+                }
             } else {
                 Long cancelTime = placeOrder.m_cancelTime;
                 if (cancelTime != null) {
                     int x2 = timeAxe.getPoint(cancelTime);
-                    g.setPaint(Color.gray);
-                    g.drawLine(x, y, x2, y);
-                    g.drawLine(x2 - 1, y - 1, x2 + 1, y + 1);
-                    g.drawLine(x2-1, y+1, x2+1, y-1);
+                    {
+                        g.setPaint(Color.gray);
+                        Stroke old = g.getStroke();
+                        g.setStroke(DBL_STROKE);
+                        g.drawLine(x, y, x2, y);
+                        g.setStroke(old);
+                    }
+                    drawX(g, x2, y, 1);
                 }
             }
 
@@ -658,8 +676,11 @@ public class OscLogProcessor extends BaseChartPaint {
         FontMetrics fontMetrics = g.getFontMetrics();
         Integer prevX = null;
         Integer prevY = null;
+        Integer prevDirectionY = null;
+        Integer prevDirectionX = null;
         for (DirectionsData dData : s_directions) {
             Long stamp = dData.m_millis;
+            int x = timeAxe.getPoint(stamp);
             Map.Entry<Long, TopData> entry = s_topData.floorEntry(stamp);
             if (entry == null) {
                 continue;
@@ -667,10 +688,26 @@ public class OscLogProcessor extends BaseChartPaint {
             TopData topData = entry.getValue();
             double basePrice = topData.getMid();
             Double direction = dData.m_directionAdjusted;
+
+            Map.Entry<Long, Double> entry2 = s_avgPrice.floorEntry(stamp);
+            if (entry2 != null) {
+                Double avgPrice = entry2.getValue();
+                int y = priceAxe.getPointReverse(avgPrice);
+                int directionY = (int) (y - (OSCS_OFFSET + OSCS_RADIUS * direction / 2));
+                if (prevDirectionY != null) {
+                    g.setPaint(Colors.LIGHT_ORANGE);
+                    Stroke old = g.getStroke();
+                    g.setStroke(QUAD_STROKE);
+                    g.drawLine(prevDirectionX, prevDirectionY, x, directionY);
+                    g.setStroke(old);
+                }
+                prevDirectionY = directionY;
+                prevDirectionX = x;
+            }
+
             Double boostedFrom = dData.m_boostedFrom;
             Double boostedTo = dData.m_boostedTo;
             List<ChilledData> chilled = dData.m_chilled;
-            int x = timeAxe.getPoint(stamp);
             int y = priceAxe.getPointReverse(basePrice);
             g.setPaint(Color.lightGray);
             g.drawLine(x, y - DIRECTION_MARK_RADIUS, x, y + DIRECTION_MARK_RADIUS);

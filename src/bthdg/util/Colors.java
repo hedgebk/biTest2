@@ -6,8 +6,8 @@ public class Colors {
     public static final Color LIGHT_RED = new Color(255, 0, 0, 51);
     public static final Color LIGHT_BLUE = new Color(101, 98, 255);
     public static final Color TRANSP_GRAY = new Color(100, 100, 100, 50);
-    public static final Color DARK_GREEN = new Color(0, 90, 0);
-    public static final Color DARK_RED = new Color(120, 0, 0);
+    public static final Color DARK_GREEN = new Color(0, 100, 0);
+    public static final Color DARK_RED = new Color(140, 0, 0);
     public static final Color DARK_BLUE = new Color(0, 0, 120);
     public static final Color LIGHT_CYAN = new Color(150, 255, 255);
     public static final Color TRANSP_LIGHT_CYAN = new Color(150, 255, 255, 100);
