@@ -9,6 +9,7 @@ import bthdg.util.Utils;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
 
+import javax.swing.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -27,6 +28,7 @@ public class Tres {
     public int m_preheatBarsNum;
     private int m_ma;
     private ArrayList<TresExchData> m_exchDatas;
+    private TresFrame m_frame;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
@@ -50,6 +52,9 @@ public class Tres {
         if (line.equals("stop")) {
             s_inst.onStop();
             return true;
+        }
+        if (line.equals("ui")) {
+            showUI();
         }
         return false;
     }
@@ -114,9 +119,43 @@ public class Tres {
         return ret;
     }
 
+    private static void showUI() {
+        s_inst.showFrame();
+    }
+
+    private void showFrame() {
+        if (m_frame != null) {
+            m_frame.dispose();
+        }
+        m_frame = new TresFrame(s_inst);
+        m_frame.setVisible(true);
+    }
+
+    public void fireUpdated() {
+        if (m_frame != null) {
+            m_frame.fireUpdated();
+        }
+    }
+
     private static class IntConsoleReader extends ConsoleReader {
         @Override protected void beforeLine() { System.out.print(">"); }
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
     }
 
+    public static class TresFrame extends JFrame {
+        private final Tres m_tres;
+
+        public TresFrame(Tres tres) throws java.awt.HeadlessException {
+            m_tres = tres;
+            setTitle("Tres");
+            setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            add(new JButton("BTN"));
+            pack();
+            toFront();
+        }
+
+        public void fireUpdated() {
+            // need snoozer
+        }
+    }
 }
