@@ -9,7 +9,8 @@ import bthdg.util.Utils;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
 
-import javax.swing.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -64,6 +65,7 @@ public class Tres {
         for (TresExchData exchData : m_exchDatas) {
             exchData.stop();
         }
+        stopFrame();
     }
 
     private void start() throws IOException {
@@ -124,11 +126,20 @@ public class Tres {
     }
 
     private void showFrame() {
-        if (m_frame != null) {
-            m_frame.dispose();
-        }
+        stopFrame();
         m_frame = new TresFrame(s_inst);
         m_frame.setVisible(true);
+        m_frame.addWindowListener(new WindowAdapter() {
+            @Override public void windowClosed(WindowEvent e) {
+                m_frame = null;
+            }
+        });
+    }
+
+    private void stopFrame() {
+        if (m_frame != null) {
+            m_frame.stop();
+        }
     }
 
     public void fireUpdated() {
@@ -137,25 +148,16 @@ public class Tres {
         }
     }
 
+    String getState() {
+        StringBuilder sb = new StringBuilder();
+        for (TresExchData exchData : m_exchDatas) {
+            exchData.getState(sb);
+        }
+        return sb.toString();
+    }
+
     private static class IntConsoleReader extends ConsoleReader {
         @Override protected void beforeLine() { System.out.print(">"); }
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
-    }
-
-    public static class TresFrame extends JFrame {
-        private final Tres m_tres;
-
-        public TresFrame(Tres tres) throws java.awt.HeadlessException {
-            m_tres = tres;
-            setTitle("Tres");
-            setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            add(new JButton("BTN"));
-            pack();
-            toFront();
-        }
-
-        public void fireUpdated() {
-            // need snoozer
-        }
     }
 }

@@ -1,9 +1,9 @@
 package bthdg.osc;
 
 public class OscTick implements Comparable<OscTick>{
-    final long m_startTime;
-    final double m_val1;
-    final double m_val2;
+    public final long m_startTime;
+    public final double m_val1;
+    public final double m_val2;
 
     public OscTick(long startTime, double val1, double val2) {
         m_startTime = startTime;

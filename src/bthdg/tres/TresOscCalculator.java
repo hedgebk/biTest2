@@ -11,6 +11,7 @@ public class TresOscCalculator extends OscCalculator {
     private final int m_phaseIndex;
     public int m_barNum;
     private OscTick m_lastFineTick;
+    private OscTick m_lastBar;
     private LinkedList<OscTick> m_oscBars = new LinkedList<OscTick>();
     private boolean m_updated;
 
@@ -37,6 +38,7 @@ public class TresOscCalculator extends OscCalculator {
         }
         if( m_updated ) {
             m_exchData.setUpdated();
+            m_updated = false;
         }
     }
 
@@ -49,7 +51,27 @@ public class TresOscCalculator extends OscCalculator {
     @Override public void bar(long barStart, double stoch1, double stoch2) {
         log("bar[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: barStart=" + barStart + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
         OscTick osc = new OscTick(barStart, stoch1, stoch2);
-        m_oscBars.add(osc); // add to the and
+        m_lastBar = osc;
+        m_oscBars.add(osc); // add to the end
         m_updated = true;
+    }
+
+    public void getState(StringBuilder sb) {
+        sb.append(" [" + m_phaseIndex + "] ");
+        if (m_barNum++ < m_exchData.m_tres.m_preheatBarsNum) {
+            sb.append("PREHEATING step=" + m_barNum + " from " + m_exchData.m_tres.m_preheatBarsNum);
+        } else {
+            dumpTick(sb, "FINE", m_lastFineTick);
+            dumpTick(sb, "BAR", m_lastBar);
+        }
+    }
+
+    private void dumpTick(StringBuilder sb, String prefix, OscTick tick) {
+        sb.append(" " + prefix + " ");
+        if (tick == null) {
+            sb.append("null");
+        } else {
+            sb.append(String.format("%.4f %.4f", tick.m_val1, tick.m_val1));
+        }
     }
 }

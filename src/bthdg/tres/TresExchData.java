@@ -2,15 +2,15 @@ package bthdg.tres;
 
 import bthdg.Log;
 import bthdg.exch.TradeData;
-import bthdg.osc.OscCalculator;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
 public class TresExchData implements ITradesListener {
     final Tres m_tres;
     final IWs m_ws;
-    private final OscCalculator[] m_oscCalculators;
+    private final TresOscCalculator[] m_oscCalculators;
     private boolean m_updated;
+    private double m_lastPrice;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
@@ -18,7 +18,7 @@ public class TresExchData implements ITradesListener {
     public TresExchData(Tres tres, IWs ws) {
         m_tres = tres;
         m_ws = ws;
-        m_oscCalculators = new OscCalculator[tres.m_phases];
+        m_oscCalculators = new TresOscCalculator[tres.m_phases];
         for (int i = 0; i < tres.m_phases; i++) {
             m_oscCalculators[i] = new TresOscCalculator(this, i);
         }
@@ -28,7 +28,7 @@ public class TresExchData implements ITradesListener {
         try {
             m_ws.subscribeTrades(Tres.PAIR, this);
         } catch (Exception e) {
-            err("error subscribeTrades: " + e, e);
+            err("error subscribeTrades[" + m_ws.exchange() + "]: " + e, e);
         }
     }
 
@@ -37,6 +37,7 @@ public class TresExchData implements ITradesListener {
         m_updated = false;
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
+        m_lastPrice = price;
         for (int i = 0; i < m_tres.m_phases; i++) {
             m_oscCalculators[i].update(timestamp, price);
         }
@@ -50,4 +51,11 @@ public class TresExchData implements ITradesListener {
     }
 
     public void setUpdated() { m_updated = true; }
+
+    public void getState(StringBuilder sb) {
+        sb.append("[" + m_ws.exchange() + "]: last=" + m_lastPrice);
+        for (int i = 0; i < m_tres.m_phases; i++) {
+            m_oscCalculators[i].getState(sb);
+        }
+    }
 }
