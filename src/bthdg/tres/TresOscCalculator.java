@@ -10,9 +10,9 @@ public class TresOscCalculator extends OscCalculator {
     private TresExchData m_exchData;
     private final int m_phaseIndex;
     public int m_barNum;
-    private OscTick m_lastFineTick;
-    private OscTick m_lastBar;
-    private LinkedList<OscTick> m_oscBars = new LinkedList<OscTick>();
+    OscTick m_lastFineTick;
+    OscTick m_lastBar;
+    LinkedList<OscTick> m_oscBars = new LinkedList<OscTick>();
     private boolean m_updated;
 
     private static void log(String s) { Log.log(s); }

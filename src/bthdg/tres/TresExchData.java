@@ -8,9 +8,9 @@ import bthdg.ws.IWs;
 public class TresExchData implements ITradesListener {
     final Tres m_tres;
     final IWs m_ws;
-    private final TresOscCalculator[] m_oscCalculators;
+    final TresOscCalculator[] m_oscCalculators;
+    double m_lastPrice;
     private boolean m_updated;
-    private double m_lastPrice;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }

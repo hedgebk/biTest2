@@ -28,7 +28,7 @@ public class Tres {
     int m_phases;
     public int m_preheatBarsNum;
     private int m_ma;
-    private ArrayList<TresExchData> m_exchDatas;
+    ArrayList<TresExchData> m_exchDatas;
     private TresFrame m_frame;
 
     private static void log(String s) { Log.log(s); }
