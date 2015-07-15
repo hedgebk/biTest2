@@ -3,13 +3,11 @@ package bthdg.osc;
 import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.exch.BaseExch;
-import bthdg.exch.Exchange;
 import bthdg.exch.Pair;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
-import bthdg.ws.HuobiWs;
 import bthdg.ws.IWs;
-import bthdg.ws.OkCoinWs;
+import bthdg.ws.WsFactory;
 
 import java.util.Properties;
 
@@ -98,18 +96,7 @@ public class Osc {
         m_keys = BaseExch.loadKeys();
 //        Btcn.init(m_keys);
 
-        IWs ws;
-        Exchange exchange = Exchange.getExchange(m_e);
-        switch (exchange) {
-            case HUOBI:
-                ws = HuobiWs.create(m_keys);
-                break;
-            case OKCOIN:
-                ws = OkCoinWs.create(m_keys);
-                break;
-            default:
-                throw new RuntimeException("not supported exchange: " + exchange);
-        }
+        IWs ws = WsFactory.get(m_e, m_keys);
 
         m_propPrefix = ws.getPropPrefix();
         init();
@@ -118,11 +105,6 @@ public class Osc {
 
         m_processor = new OscProcessor(ws);
         m_processor.start();
-
-        try {
-        } catch (Exception e) {
-            err("subscribeTrades error" + e, e);
-        }
     }
 
     private void init() {
