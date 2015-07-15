@@ -188,9 +188,9 @@ public class PaintTrace extends BaseChartPaint {
         double priceDiffDiff = maxPriceDiff - minPriceDiff;
         System.out.println("minPriceDiff = " + minPriceDiff + ", maxPriceDiff = " + maxPriceDiff + ", priceDiffDiff = " + priceDiffDiff);
 
-        PaintChart.ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        PaintChart.ChartAxe priceAxe = new PaintChart.ChartAxe(minPrice - priceDiff * 0.05, maxPrice + priceDiff * 0.05, HEIGHT);
-        PaintChart.ChartAxe priceDiffAxe = new PaintChart.ChartAxe(minPriceDiff - priceDiffDiff * 0.05, maxPriceDiff + priceDiffDiff * 0.05, HEIGHT);
+        ChartAxe timeAxe = new ChartAxe(minTimestamp, maxTimestamp, WIDTH);
+        ChartAxe priceAxe = new ChartAxe(minPrice - priceDiff * 0.05, maxPrice + priceDiff * 0.05, HEIGHT);
+        ChartAxe priceDiffAxe = new ChartAxe(minPriceDiff - priceDiffDiff * 0.05, maxPriceDiff + priceDiffDiff * 0.05, HEIGHT);
 
         int diffY = PAINT_PRICE_DIFF_SEPARATELY ? HEIGHT : 0;
         int height = HEIGHT + diffY;
@@ -230,8 +230,8 @@ public class PaintTrace extends BaseChartPaint {
     }
 
     private static void paintPoints(List<TraceData> traces, List<DuTradeData> trades,
-                                    PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
-                                    PaintChart.ChartAxe priceDiffAxe, Graphics2D g, int diffYoffset) {
+                                    ChartAxe timeAxe, ChartAxe priceAxe,
+                                    ChartAxe priceDiffAxe, Graphics2D g, int diffYoffset) {
         Utils.AverageCounter diffAverageCounter = new Utils.AverageCounter(MOVING_AVERAGE);
         TreeMap<Long,Double> diffAverageMap = new TreeMap<Long, Double>();
 
@@ -357,7 +357,7 @@ public class PaintTrace extends BaseChartPaint {
         }
     }
 
-    private static void paintBox(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
+    private static void paintBox(Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe,
                                  Map.Entry<Long, DuTradeData[]> openEntry, Map.Entry<Long, DuTradeData[]> closeEntry) {
         Utils.DoubleMinMaxCalculator<DuTradeData> priceCalc = new Utils.DoubleMinMaxCalculator<DuTradeData>() {
             public Double getValue(DuTradeData trade) {return trade.m_price;};
@@ -397,7 +397,7 @@ public class PaintTrace extends BaseChartPaint {
         }
     }
 
-    private static void paintBuySell(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe,
+    private static void paintBuySell(Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe,
                                      TradeData buyTrade, TradeData sellTrade) {
         if ((buyTrade != null) && (sellTrade != null)) {
             double buyPrice = buyTrade.m_price;
@@ -430,7 +430,7 @@ public class PaintTrace extends BaseChartPaint {
         g.drawString(str, x, y);
     }
 
-    private static XY paintCross(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, PaintChart.ChartAxe priceDiffAxe,
+    private static XY paintCross(Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe, ChartAxe priceDiffAxe,
                                    Map.Entry<Long, DuTradeData[]> entry, TreeMap<Long, Double> diffAverageMap, boolean isOpenCross) {
         if(entry != null) {
             DuTradeData[] crossTrades = entry.getValue();
@@ -459,7 +459,7 @@ public class PaintTrace extends BaseChartPaint {
         return null;
     }
 
-    private static void paintTrade(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceAxe, DuTradeData trade) {
+    private static void paintTrade(Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe, DuTradeData trade) {
         if (trade != null) {
             int x = timeAxe.getPoint(trade.m_timestamp);
             int y = priceAxe.getPointReverse(trade.m_price);
@@ -471,7 +471,7 @@ public class PaintTrace extends BaseChartPaint {
         }
     }
 
-    private static void paintOrders(Graphics2D g, BuySell cross, PaintChart.ChartAxe priceAxe, int x, double buyDelta, double sellDelta) {
+    private static void paintOrders(Graphics2D g, BuySell cross, ChartAxe priceAxe, int x, double buyDelta, double sellDelta) {
         if (cross.m_buy != 0) {
             int y = priceAxe.getPointReverse(cross.m_buy);
             if (PAINT_ORDERS_SHADOW && (buyDelta > 0)) {
@@ -496,7 +496,7 @@ public class PaintTrace extends BaseChartPaint {
         }
     }
 
-    private static double paintBidAsk(Graphics2D g, TraceData.BidAsk bidAsk, PaintChart.ChartAxe priceAxe, int x) {
+    private static double paintBidAsk(Graphics2D g, TraceData.BidAsk bidAsk, ChartAxe priceAxe, int x) {
         if ((bidAsk.m_bid != 0) && (bidAsk.m_ask != 0)) {
             if (PAINT_PRICE) {
                 int y1 = priceAxe.getPointReverse(bidAsk.m_bid);

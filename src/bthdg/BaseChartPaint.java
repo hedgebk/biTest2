@@ -18,12 +18,12 @@ public class BaseChartPaint extends DbReady {
     public static final BasicStroke DASHED_STROKE = new BasicStroke(1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{10.0f}, 0.0f);
     public static final BasicStroke DASHED_BOLD_STROKE = new BasicStroke(3.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{15.0f}, 0.0f);
 
-    public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
+    public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, ChartAxe priceAxe,
                                               Graphics2D g, double priceStep, double priceStart, int width) {
         paintLeftAxeAndGrid(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, width, null);
     }
 
-    public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe,
+    public static void paintLeftAxeAndGrid(double minPrice, double maxPrice, ChartAxe priceAxe,
                                            Graphics2D g, double priceStep, double priceStart, int width, Double highlightY) {
         Stroke oldStroke = g.getStroke();
         for (double price = priceStart; price < maxPrice; price += priceStep) {
@@ -38,12 +38,12 @@ public class BaseChartPaint extends DbReady {
         g.setStroke(oldStroke);
     }
 
-    public static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, double priceStep,
+    public static void paintLeftAxeLabels(double minPrice, double maxPrice, ChartAxe priceAxe, Graphics2D g, double priceStep,
                                           double priceStart, float xFactor) {
         paintLeftAxeLabels(minPrice, maxPrice, priceAxe, g, priceStep, priceStart, xFactor, DecimalFormat.getIntegerInstance());
     }
 
-    public static void paintLeftAxeLabels(double minPrice, double maxPrice, PaintChart.ChartAxe priceAxe, Graphics2D g, double priceStep, double priceStart,
+    public static void paintLeftAxeLabels(double minPrice, double maxPrice, ChartAxe priceAxe, Graphics2D g, double priceStep, double priceStart,
                                              float xFactor, NumberFormat format) {
         g.setFont(g.getFont().deriveFont(20.0f * xFactor));
         for (double price = priceStart; price < maxPrice; price += priceStep) {
@@ -54,7 +54,7 @@ public class BaseChartPaint extends DbReady {
         }
     }
 
-    public static void paintRightAxeLabels(double minDif, double maxDif, PaintChart.ChartAxe difAxe, Graphics2D g, int width, int priceDifStep, float xFactor, int yStart) {
+    public static void paintRightAxeLabels(double minDif, double maxDif, ChartAxe difAxe, Graphics2D g, int width, int priceDifStep, float xFactor, int yStart) {
         int priceDifStart = ((int) minDif) / priceDifStep * priceDifStep;
 //        System.out.println("priceDifStart=" + priceDifStart);
         g.setFont(g.getFont().deriveFont(20.0f * xFactor));
@@ -70,7 +70,7 @@ public class BaseChartPaint extends DbReady {
         }
     }
 
-    public static void paintTimeAxeLabels(long minTimestamp, long maxTimestamp, PaintChart.ChartAxe timeAxe, Graphics2D g, int height, float xFactor) {
+    public static void paintTimeAxeLabels(long minTimestamp, long maxTimestamp, ChartAxe timeAxe, Graphics2D g, int height, float xFactor) {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(minTimestamp);
         Utils.setToDayStart(cal);
@@ -209,37 +209,4 @@ public class BaseChartPaint extends DbReady {
         }
     }
 
-    public static class ChartAxe {
-        public final double m_min;
-        public final double m_max;
-        public final int m_size;
-        public final double m_scale;
-        public int m_offset;
-
-        public ChartAxe(Utils.DoubleMinMaxCalculator calculator, int size) {
-            this(calculator.m_minValue, calculator.m_maxValue, size);
-        }
-
-        public ChartAxe(double min, double max, int size) {
-            m_min = min;
-            m_max = max;
-            m_size = size;
-            double diff = max - min;
-            m_scale = diff / size;
-        }
-
-        public int getPoint(double value) {
-            return m_offset + getPointInt(value);
-        }
-
-        private int getPointInt(double value) {
-            double offset = value - m_min;
-            return (int) (offset / m_scale);
-        }
-
-        public int getPointReverse(double value) {
-            int point = getPointInt(value);
-            return m_offset + m_size - 1 - point;
-        }
-    }
 }

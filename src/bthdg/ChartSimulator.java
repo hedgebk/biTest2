@@ -16,7 +16,7 @@ public class ChartSimulator {
     enum STATE { NONE, BOUGHT, SOLD }
 
     // earliest first
-    public double simulate(PaintChart.PriceDiffList[] diffsPerPoints, PaintChart.ChartAxe difAxe, Graphics2D g,
+    public double simulate(PaintChart.PriceDiffList[] diffsPerPoints, ChartAxe difAxe, Graphics2D g,
                            double[] movingAverage, double halfTargetDelta, double oneRunCommissions, double avgPrice, double dropLevel ) {
         double targetDelta = halfTargetDelta * 2;
         int pause = 0;
@@ -163,7 +163,7 @@ public class ChartSimulator {
         return complex1m;
     }
 
-    private void closeRun(PaintChart.ChartAxe difAxe, Graphics2D g, int i, double priceDiff, double delta, boolean drop) {
+    private void closeRun(ChartAxe difAxe, Graphics2D g, int i, double priceDiff, double delta, boolean drop) {
         m_deltaSum += delta;
         m_runs++;
         if( drop ) {

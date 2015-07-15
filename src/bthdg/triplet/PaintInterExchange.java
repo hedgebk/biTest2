@@ -1,7 +1,7 @@
 package bthdg.triplet;
 
 import bthdg.BaseChartPaint;
-import bthdg.PaintChart;
+import bthdg.ChartAxe;
 import bthdg.exch.*;
 import bthdg.util.Utils;
 
@@ -132,8 +132,8 @@ public class PaintInterExchange extends BaseChartPaint {
         double ratioDiff = maxRatio - minRatio;
         System.out.println("minRatio=" + minRatio + ", maxRatio=" + maxRatio + ", ratioDiff = " + ratioDiff);
 
-        PaintChart.ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        PaintChart.ChartAxe ratioAxe = new PaintChart.ChartAxe(minRatio - ratioDiff * 0.05, maxRatio + ratioDiff * 0.05, HEIGHT);
+        ChartAxe timeAxe = new ChartAxe(minTimestamp, maxTimestamp, WIDTH);
+        ChartAxe ratioAxe = new ChartAxe(minRatio - ratioDiff * 0.05, maxRatio + ratioDiff * 0.05, HEIGHT);
 
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
@@ -164,7 +164,7 @@ public class PaintInterExchange extends BaseChartPaint {
         writeAndShowImage(image);
     }
 
-    private static void paintLevels(PaintChart.ChartAxe ratioAxe, Graphics2D g) {
+    private static void paintLevels(ChartAxe ratioAxe, Graphics2D g) {
         Stroke oldStroke = g.getStroke();
         g.setStroke(DASHED_STROKE);
 
@@ -183,7 +183,7 @@ public class PaintInterExchange extends BaseChartPaint {
         g.setStroke(oldStroke);
     }
 
-    private static void paintPoints(TreeMap<Long, TriData> triDataMap, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe ratioAxe, Graphics2D g) {
+    private static void paintPoints(TreeMap<Long, TriData> triDataMap, ChartAxe timeAxe, ChartAxe ratioAxe, Graphics2D g) {
         Map<Triada,Integer> prevYmap = new HashMap<Triada, Integer>();
         int prevX = -1;
         for (Map.Entry<Long, TriData> entry : triDataMap.entrySet()) {

@@ -1,7 +1,7 @@
 package bthdg.osc;
 
 import bthdg.BaseChartPaint;
-import bthdg.PaintChart;
+import bthdg.ChartAxe;
 import bthdg.exch.*;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
@@ -252,10 +252,10 @@ public class OscLogProcessor extends BaseChartPaint {
         System.out.println("min timestamp: " + minTimestamp + ", max timestamp: " + maxTimestamp + ", timestamp diff: " + timeDiff);
         System.out.println("minPrice = " + minPrice + ", maxPrice = " + maxPrice + ", priceDiff = " + priceDiff);
 
-        ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        ChartAxe priceAxe = new PaintChart.ChartAxe(priceCalc, HEIGHT - OSCS_RADIUS * 3 - DIRECTION_MARK_RADIUS);
+        ChartAxe timeAxe = new ChartAxe(minTimestamp, maxTimestamp, WIDTH);
+        ChartAxe priceAxe = new ChartAxe(priceCalc, HEIGHT - OSCS_RADIUS * 3 - DIRECTION_MARK_RADIUS);
         priceAxe.m_offset = OSCS_RADIUS * 3 / 2 + DIRECTION_MARK_RADIUS;
-        ChartAxe gainAxe = new PaintChart.ChartAxe(gainCalc, OSCS_RADIUS);
+        ChartAxe gainAxe = new ChartAxe(gainCalc, OSCS_RADIUS);
 
         Double minGain = gainCalc.m_minValue;
         Double maxGain = gainCalc.m_maxValue;
@@ -454,7 +454,7 @@ public class OscLogProcessor extends BaseChartPaint {
         Double minAvgStochDeltaBlend = s_avgStochDeltaBlendsMinMaxCalc.m_minValue;
         Double maxAvgStochDeltaBlend = s_avgStochDeltaBlendsMinMaxCalc.m_maxValue;
         System.out.println("minAvgStochDeltaBlend = " + Utils.format8(minAvgStochDeltaBlend) + ", maxAvgStochDeltaBlend = " + Utils.format8(maxAvgStochDeltaBlend));
-        ChartAxe avgStochDeltaBlendAxe = new PaintChart.ChartAxe(s_avgStochDeltaBlendsMinMaxCalc, DIRECTION_MARK_RADIUS * 11 / 4);
+        ChartAxe avgStochDeltaBlendAxe = new ChartAxe(s_avgStochDeltaBlendsMinMaxCalc, DIRECTION_MARK_RADIUS * 11 / 4);
 
         int yDeltaZero = avgStochDeltaBlendAxe.getPoint(0);
         int yDeltaTop = avgStochDeltaBlendAxe.getPoint(DELTA_THREZHOLD);

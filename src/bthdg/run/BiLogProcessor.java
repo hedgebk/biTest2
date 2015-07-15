@@ -1,7 +1,7 @@
 package bthdg.run;
 
 import bthdg.BaseChartPaint;
-import bthdg.PaintChart;
+import bthdg.ChartAxe;
 import bthdg.exch.Exchange;
 import bthdg.exch.Pair;
 import bthdg.util.Colors;
@@ -425,8 +425,8 @@ public class BiLogProcessor {
         double minPriceDiff = priceDiffCalc.m_minValue;
         double maxPriceDiff = priceDiffCalc.m_maxValue;
 
-        PaintChart.ChartAxe timeAxe = new PaintChart.ChartAxe(minTimestamp, maxTimestamp, WIDTH);
-        PaintChart.ChartAxe priceDiffAxe = new PaintChart.ChartAxe(minPriceDiff-4, maxPriceDiff, HEIGHT);
+        ChartAxe timeAxe = new ChartAxe(minTimestamp, maxTimestamp, WIDTH);
+        ChartAxe priceDiffAxe = new ChartAxe(minPriceDiff-4, maxPriceDiff, HEIGHT);
 
         // paint border
         g.setPaint(Color.black);
@@ -446,7 +446,7 @@ public class BiLogProcessor {
         BaseChartPaint.writeAndShowImage(image);
     }
 
-    private static void paintPoints(Graphics2D g, PaintChart.ChartAxe timeAxe, PaintChart.ChartAxe priceDiffAxe) {
+    private static void paintPoints(Graphics2D g, ChartAxe timeAxe, ChartAxe priceDiffAxe) {
         int x0 = -1;
         int y0 = 0;
         int y0a = 0;

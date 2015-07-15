@@ -1,6 +1,7 @@
 package bthdg.osc;
 
 import bthdg.BaseChartPaint;
+import bthdg.ChartAxe;
 import bthdg.PaintChart;
 import bthdg.exch.Exchange;
 import bthdg.exch.OrderSide;
@@ -111,9 +112,9 @@ public class PaintOsc extends BaseChartPaint {
         System.out.println("min timestamp: " + minTimestamp + ", max timestamp: " + maxTimestamp + ", timestamp diff: " + timeDiff);
         System.out.println("minPrice = " + minPrice + ", maxPrice = " + maxPrice + ", priceDiff = " + priceDiff);
 
-        ChartAxe timeAxe = new PaintChart.ChartAxe(minBarTimestamp, maxBarTimestamp, WIDTH);
-        ChartAxe priceAxe = new PaintChart.ChartAxe(priceCalc, HEIGHT);
-        PaintChart.ChartAxe oscAxe = new PaintChart.ChartAxe(0, 1, HEIGHT);
+        ChartAxe timeAxe = new ChartAxe(minBarTimestamp, maxBarTimestamp, WIDTH);
+        ChartAxe priceAxe = new ChartAxe(priceCalc, HEIGHT);
+        ChartAxe oscAxe = new ChartAxe(0, 1, HEIGHT);
         System.out.println("time per pixel: " + Utils.millisToDHMSStr((long) timeAxe.m_scale));
 
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage./*TYPE_USHORT_565_RGB*/ TYPE_INT_ARGB );
