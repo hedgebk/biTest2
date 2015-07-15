@@ -716,7 +716,7 @@ public class HuobiWs extends BaseWs {
             Thread.sleep(500);
         } catch (InterruptedException e) {}
         m_socket.disconnect();
-        System.out.println("disconnected");
+        System.out.println("Huobi: disconnected");
     }
 
     @Override public String getPropPrefix() {
