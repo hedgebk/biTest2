@@ -31,6 +31,7 @@ public abstract class ConsoleReader extends Thread {
                     e.printStackTrace();
                 }
             }
+            System.err.println("ConsoleReader finished");
         } catch (Exception e) {
             System.err.println("error: " + e);
             e.printStackTrace();
