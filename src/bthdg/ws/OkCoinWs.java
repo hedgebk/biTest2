@@ -109,6 +109,7 @@ public class OkCoinWs extends BaseWs {
     private Session m_session;
     private final Map<String,MessageHandler.Whole<Object>> m_channelListeners = new HashMap<String,MessageHandler.Whole<Object>>();
     private MessageHandler.Whole<String> m_messageHandler;
+    private boolean m_stopped;
 
     public static void main(String[] args) {
         try {
@@ -228,6 +229,7 @@ public class OkCoinWs extends BaseWs {
 
     @Override public void stop() {
         try {
+            m_stopped = true;
             m_session.close();
             System.out.println("OkCoin: session closed");
         } catch (IOException e) {
@@ -329,7 +331,11 @@ public class OkCoinWs extends BaseWs {
                 @Override public void onClose(Session session, CloseReason closeReason) {
                     System.out.println("onClose session=" + session + "; closeReason=" + closeReason);
                     m_messageHandler = null;
-                    new ReconnectThread().start();
+                    if (m_stopped) {
+                        System.out.println("session stopped - no reconnect");
+                    } else {
+                        new ReconnectThread().start();
+                    }
                 }
 
                 @Override public void onError(Session session, Throwable thr) {
