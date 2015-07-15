@@ -4,11 +4,8 @@ import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.exch.BaseExch;
 import bthdg.exch.Pair;
-import bthdg.exch.TradeData;
-import bthdg.osc.OscCalculator;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
-import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
 
@@ -21,15 +18,15 @@ public class Tres {
     private static Tres s_inst;
 
     private Properties m_keys;
-    private long m_barSizemMillis;
-    private int m_len1;
-    private int m_len2;
-    private int m_k;
-    private int m_d;
-    private int m_phases;
+    long m_barSizemMillis;
+    int m_len1;
+    int m_len2;
+    int m_k;
+    int m_d;
+    int m_phases;
     public int m_preheatBarsNum;
     private int m_ma;
-    private ArrayList<ExchData> m_exchDatas;
+    private ArrayList<TresExchData> m_exchDatas;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
@@ -59,7 +56,7 @@ public class Tres {
 
     private void onStop() {
         log("stop()-----------------------------------------------------");
-        for (ExchData exchData : m_exchDatas) {
+        for (TresExchData exchData : m_exchDatas) {
             exchData.stop();
         }
     }
@@ -68,7 +65,7 @@ public class Tres {
         m_keys = BaseExch.loadKeys();
         init();
 
-        for (ExchData exchData : m_exchDatas) {
+        for (TresExchData exchData : m_exchDatas) {
             exchData.start();
         }
     }
@@ -100,10 +97,10 @@ public class Tres {
 
         m_preheatBarsNum = m_len1 + m_len2 + (m_k - 1) + (m_d - 1);
 
-        m_exchDatas = new ArrayList<ExchData>(exchangesLen);
+        m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
         for (int i = 0; i < exchangesLen; i++) {
             IWs ws = WsFactory.get(exchangesArr[i], m_keys);
-            m_exchDatas.add(new ExchData(ws));
+            m_exchDatas.add(new TresExchData(this, ws));
         }
 
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
@@ -122,61 +119,4 @@ public class Tres {
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
     }
 
-    private class ExchData implements ITradesListener {
-        private final IWs m_ws;
-        private final OscCalculator[] m_oscCalculators;
-
-        public ExchData(IWs ws) {
-            m_ws = ws;
-            m_oscCalculators = new OscCalculator[m_phases];
-            for (int i = 0; i < m_phases; i++) {
-                final int indx = i;
-                m_oscCalculators[i] = new OscCalculator(m_len1, m_len2, m_k, m_d, m_barSizemMillis, getOffset(indx, m_barSizemMillis)) {
-                    public int m_barNum;
-
-                    @Override protected void update(long stamp, boolean finishBar) {
-                        super.update(stamp, finishBar);
-                        if(finishBar) {
-                            if (m_barNum++ < m_preheatBarsNum) {
-                                log("update[" + m_ws.exchange() + "][" + indx + "]: PREHEATING step=" + m_barNum + " from " + m_preheatBarsNum);
-                            }
-                        }
-                    }
-
-                    @Override public void fine(long stamp, double stoch1, double stoch2) {
-                        log("fine[" + m_ws.exchange() + "][" + indx + "]: stamp=" + stamp + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
-                    }
-
-                    @Override public void bar(long barStart, double stoch1, double stoch2) {
-                        log("bar[" + m_ws.exchange() + "][" + indx + "]: barStart=" + barStart + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
-                    }
-                };
-            }
-        }
-
-        private long getOffset(int index, long barSize) {
-            return barSize * (index % m_phases) / m_phases;
-        }
-
-        public void start() {
-            try {
-                m_ws.subscribeTrades(PAIR, this);
-            } catch (Exception e) {
-                err("error subscribeTrades: " + e, e);
-            }
-        }
-
-        @Override public void onTrade(TradeData tdata) {
-            log("onTrade[" + m_ws.exchange() + "]: " + tdata);
-            long timestamp = tdata.m_timestamp;
-            double price = tdata.m_price;
-            for (int i = 0; i < m_phases; i++) {
-                m_oscCalculators[i].update(timestamp, price);
-            }
-        }
-
-        public void stop() {
-            m_ws.stop();
-        }
-    }
 }
