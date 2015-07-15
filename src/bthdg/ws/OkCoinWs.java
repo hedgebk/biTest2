@@ -227,7 +227,13 @@ public class OkCoinWs extends BaseWs {
     }
 
     @Override public void stop() {
-        System.out.println("ERROR: stop is not implemented");
+        try {
+            m_session.close();
+            System.out.println("OkCoin: session closed");
+        } catch (IOException e) {
+            System.out.println("error close OkCoin session: " + e);
+            e.printStackTrace();
+        }
     }
 
     @Override public String getPropPrefix() {
@@ -338,26 +344,38 @@ public class OkCoinWs extends BaseWs {
         }
     }
 
+    private static Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
+    private static Calendar OUT_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
+
     private static long parseTimeToDate(String time) {
         try {
-            Date date = sdf.parse(time);
-
-            Calendar now = Calendar.getInstance(TZ, Locale.ENGLISH);
-            int year = now.get(Calendar.YEAR);
-            int month = now.get(Calendar.MONTH);
-            int day = now.get(Calendar.DAY_OF_MONTH);
-
-            Calendar out = Calendar.getInstance(TZ, Locale.ENGLISH);
-            out.setTime(date);
-            out.set(Calendar.YEAR, year);
-            out.set(Calendar.MONTH, month);
-            out.set(Calendar.DAY_OF_MONTH, day);
-
-            long millisDiff = now.getTimeInMillis() - out.getTimeInMillis();
-            if (Math.abs(millisDiff) > (Utils.ONE_DAY_IN_MILLIS >> 1)) {
-                out.add(Calendar.DAY_OF_MONTH, -1);
+            Date date;
+            synchronized (sdf) {
+                date = sdf.parse(time);
             }
-            return out.getTimeInMillis();
+
+            int year;
+            int month;
+            int day;
+            synchronized (NOW_CALENDAR) {
+                NOW_CALENDAR.setTimeInMillis(System.currentTimeMillis());
+                year = NOW_CALENDAR.get(Calendar.YEAR);
+                month = NOW_CALENDAR.get(Calendar.MONTH);
+                day = NOW_CALENDAR.get(Calendar.DAY_OF_MONTH);
+            }
+
+            synchronized (NOW_CALENDAR) {
+                OUT_CALENDAR.setTime(date);
+                OUT_CALENDAR.set(Calendar.YEAR, year);
+                OUT_CALENDAR.set(Calendar.MONTH, month);
+                OUT_CALENDAR.set(Calendar.DAY_OF_MONTH, day);
+
+                long millisDiff = NOW_CALENDAR.getTimeInMillis() - OUT_CALENDAR.getTimeInMillis();
+                if (Math.abs(millisDiff) > (Utils.ONE_DAY_IN_MILLIS >> 1)) {
+                    OUT_CALENDAR.add(Calendar.DAY_OF_MONTH, -1);
+                }
+                return OUT_CALENDAR.getTimeInMillis();
+            }
         } catch (java.text.ParseException e) {
             System.out.println("error parsing time=" + time);
         }
