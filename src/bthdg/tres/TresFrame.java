@@ -13,6 +13,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 
 public class TresFrame extends JFrame implements Runnable {
@@ -28,7 +29,6 @@ public class TresFrame extends JFrame implements Runnable {
         m_tres = tres;
         m_snoozer = new Snoozer(500) {
             protected void wakeUp() {
-log("wakeUp");
                 updateUI();
             }
         };
@@ -69,7 +69,6 @@ log("wakeUp");
     }
 
     @Override public void run() {
-log("run ui update");
         m_label.setText(m_tres.getState());
         m_canvas.repaint();
     }
@@ -122,12 +121,24 @@ log("run ui update");
                 paintOsc(g, fineTick, width, Color.GRAY, 5);
                 OscTick lastBar = oscCalculator.m_lastBar;
                 paintOsc(g, lastBar, width, Color.WHITE, 15);
+
+                int yOffset = 20;
+                int count = 0;
                 LinkedList<OscTick> bars = oscCalculator.m_oscBars;
+                for( Iterator<OscTick> iterator = bars.descendingIterator(); iterator.hasNext(); ) {
+                    OscTick tick = iterator.next();
+                    paintOsc(g, tick, width, Color.RED, yOffset);
+                    if(count++ > 30) {
+                        break;
+                    }
+                    yOffset += 10;
+                }
             }
 
             if (m_point != null) {
                 int x = (int) m_point.getX();
                 int y = (int) m_point.getY();
+                g.setColor(Color.LIGHT_GRAY);
                 g.drawLine(x, 0, x, height);
                 g.drawLine(0, y, width, y);
             }
