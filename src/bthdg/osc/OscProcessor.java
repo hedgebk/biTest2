@@ -2,20 +2,19 @@ package bthdg.osc;
 
 import bthdg.Log;
 import bthdg.exch.TradeData;
+import bthdg.util.Queue;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
-import java.util.LinkedList;
-
-class OscProcessor implements Runnable {
+class OscProcessor {
     private final IWs m_ws;
     final OscExecutor m_executor;
     private final int m_calcsNum;
     private final PhasedOscCalculator[] m_calcs;
-    private final LinkedList<TradeData> m_queue = new LinkedList<TradeData>();
-    private boolean m_run = true;
+    private final Queue<TradeData> m_tradesQueue;
 
     private static void log(String s) { Log.log(s); }
+    private static void err(String s, Exception e) { Log.err(s, e); }
 
     public OscProcessor(IWs ws) {
         m_ws = ws;
@@ -31,38 +30,16 @@ class OscProcessor implements Runnable {
                 indx++;
             }
         }
-        Thread thread = new Thread(this);
-        thread.setName("OscProcessor");
-        thread.start();
+        m_tradesQueue = new Queue<TradeData>("OscProcessor") {
+            @Override protected void processItem(TradeData tData) {
+                process(tData);
+            }
+        };
+        m_tradesQueue.start();
     }
 
     public void gotTrade(TradeData tdata) {
-        synchronized (m_queue) {
-            m_queue.addLast(tdata);
-            m_queue.notify();
-        }
-    }
-
-    @Override public void run() {
-        while (m_run) {
-            TradeData tData = null;
-            try {
-                synchronized (m_queue) {
-                    tData = m_queue.pollFirst();
-                    if (tData == null) {
-                        m_queue.wait();
-                        tData = m_queue.pollFirst();
-                    }
-                }
-                if (tData != null) {
-                    process(tData);
-                }
-            } catch (Exception e) {
-                log("error processing tData=" + tData);
-                e.printStackTrace();
-            }
-        }
-        log("OscProcessor thread finished");
+        m_tradesQueue.addItem(tdata);
     }
 
     private void process(TradeData tData) {
@@ -77,10 +54,7 @@ class OscProcessor implements Runnable {
 
     public void stop() throws Exception {
         m_executor.stop();
-        synchronized (m_queue) {
-            m_run = false;
-            m_queue.notify();
-        }
+        m_tradesQueue.stopQueue();
     }
 
     public void start() throws Exception {
