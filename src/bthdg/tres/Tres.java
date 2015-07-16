@@ -20,7 +20,7 @@ public class Tres {
     private static Tres s_inst;
 
     private Properties m_keys;
-    long m_barSizemMillis;
+    long m_barSizeMillis;
     int m_len1;
     int m_len2;
     int m_k;
@@ -86,8 +86,8 @@ public class Tres {
 
         String barSizeStr = getProperty("tre.bar_size");
         log("barSize=" + barSizeStr);
-        m_barSizemMillis = Utils.toMillis(barSizeStr);
-        log(" .millis=" + m_barSizemMillis);
+        m_barSizeMillis = Utils.toMillis(barSizeStr);
+        log(" .millis=" + m_barSizeMillis);
 
         m_len1 = Integer.parseInt(getProperty("tre.len1"));
         log("len1=" + m_len1);

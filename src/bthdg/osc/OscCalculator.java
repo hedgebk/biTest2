@@ -126,10 +126,14 @@ public class OscCalculator {
     }
 
     private void startNewBar(long stamp, Double prevBarClose, double close) {
-        m_currBarStart = (stamp - m_barsMillisOffset) / m_barSize * m_barSize + m_barsMillisOffset;
+        m_currBarStart = getBarStart(stamp);
         m_currBarEnd = m_currBarStart + m_barSize;
         m_prevBarClose = prevBarClose;
         m_close = close;
+    }
+
+    public long getBarStart(long stamp) {
+        return (stamp - m_barsMillisOffset) / m_barSize * m_barSize + m_barsMillisOffset;
     }
 
     public static class SimpleOscCalculator extends OscCalculator {

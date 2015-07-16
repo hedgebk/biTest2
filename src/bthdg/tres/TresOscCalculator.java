@@ -18,13 +18,13 @@ public class TresOscCalculator extends OscCalculator {
     private static void log(String s) { Log.log(s); }
 
     public TresOscCalculator(TresExchData exchData, int phaseIndex) {
-        super(exchData.m_tres.m_len1, exchData.m_tres.m_len2, exchData.m_tres.m_k, exchData.m_tres.m_d, exchData.m_tres.m_barSizemMillis, getOffset(phaseIndex, exchData.m_tres));
+        super(exchData.m_tres.m_len1, exchData.m_tres.m_len2, exchData.m_tres.m_k, exchData.m_tres.m_d, exchData.m_tres.m_barSizeMillis, getOffset(phaseIndex, exchData.m_tres));
         m_exchData = exchData;
         m_phaseIndex = phaseIndex;
     }
 
     private static long getOffset(int index, Tres tres) {
-        return tres.m_barSizemMillis * (index % tres.m_phases) / tres.m_phases;
+        return tres.m_barSizeMillis * (index % tres.m_phases) / tres.m_phases;
     }
 
     @Override protected void update(long stamp, boolean finishBar) {

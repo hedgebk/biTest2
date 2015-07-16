@@ -5,10 +5,14 @@ import bthdg.exch.TradeData;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
+import java.util.LinkedList;
+
 public class TresExchData implements ITradesListener {
     final Tres m_tres;
     final IWs m_ws;
     final TresOscCalculator[] m_oscCalculators;
+    private final OHLCCalculator m_ohlcCalc;
+    LinkedList<OHLCTick> m_ohlcTicks = new LinkedList<OHLCTick>();
     double m_lastPrice;
     private boolean m_updated;
 
@@ -22,6 +26,11 @@ public class TresExchData implements ITradesListener {
         for (int i = 0; i < tres.m_phases; i++) {
             m_oscCalculators[i] = new TresOscCalculator(this, i);
         }
+        m_ohlcCalc = new OHLCCalculator(m_tres.m_barSizeMillis){
+            @Override protected void finishBar(OHLCTick tick) {
+                m_ohlcTicks.add(tick);
+            }
+        };
     }
 
     public void start() {
@@ -41,6 +50,8 @@ public class TresExchData implements ITradesListener {
         for (int i = 0; i < m_tres.m_phases; i++) {
             m_oscCalculators[i].update(timestamp, price);
         }
+        boolean updated = m_ohlcCalc.update(tdata);
+        m_updated = updated || m_updated;
         if (m_updated) {
             m_tres.fireUpdated();
         }
@@ -58,4 +69,5 @@ public class TresExchData implements ITradesListener {
             m_oscCalculators[i].getState(sb);
         }
     }
+
 }
