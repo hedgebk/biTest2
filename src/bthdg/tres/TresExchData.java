@@ -5,16 +5,13 @@ import bthdg.exch.TradeData;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
-import java.util.LinkedList;
-
 public class TresExchData implements ITradesListener {
     final Tres m_tres;
     final IWs m_ws;
-    final TresOscCalculator[] m_oscCalculators;
-    private final OHLCCalculator m_ohlcCalc;
-    LinkedList<OHLCTick> m_ohlcTicks = new LinkedList<OHLCTick>();
+    final PhaseData[] m_phaseDatas;
     double m_lastPrice;
     private boolean m_updated;
+
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
@@ -22,15 +19,11 @@ public class TresExchData implements ITradesListener {
     public TresExchData(Tres tres, IWs ws) {
         m_tres = tres;
         m_ws = ws;
-        m_oscCalculators = new TresOscCalculator[tres.m_phases];
-        for (int i = 0; i < tres.m_phases; i++) {
-            m_oscCalculators[i] = new TresOscCalculator(this, i);
+        int phasesNum = tres.m_phases;
+        m_phaseDatas = new PhaseData[phasesNum];
+        for (int i = 0; i < phasesNum; i++) {
+            m_phaseDatas[i] = new PhaseData(this, i);
         }
-        m_ohlcCalc = new OHLCCalculator(m_tres.m_barSizeMillis){
-            @Override protected void finishBar(OHLCTick tick) {
-                m_ohlcTicks.add(tick);
-            }
-        };
     }
 
     public void start() {
@@ -44,14 +37,13 @@ public class TresExchData implements ITradesListener {
     @Override public void onTrade(TradeData tdata) {
         log("onTrade[" + m_ws.exchange() + "]: " + tdata);
         m_updated = false;
-        long timestamp = tdata.m_timestamp;
-        double price = tdata.m_price;
-        m_lastPrice = price;
-        for (int i = 0; i < m_tres.m_phases; i++) {
-            m_oscCalculators[i].update(timestamp, price);
+        m_lastPrice = tdata.m_price;
+        for (PhaseData phaseData : m_phaseDatas) {
+            boolean updated = phaseData.update(tdata);
+            if (updated) {
+                m_updated = true;
+            }
         }
-        boolean updated = m_ohlcCalc.update(tdata);
-        m_updated = updated || m_updated;
         if (m_updated) {
             m_tres.fireUpdated();
         }
@@ -65,8 +57,8 @@ public class TresExchData implements ITradesListener {
 
     public void getState(StringBuilder sb) {
         sb.append("[" + m_ws.exchange() + "]: last=" + m_lastPrice);
-        for (int i = 0; i < m_tres.m_phases; i++) {
-            m_oscCalculators[i].getState(sb);
+        for (PhaseData phaseData : m_phaseDatas) {
+            phaseData.getState(sb);
         }
     }
 

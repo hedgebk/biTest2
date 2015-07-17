@@ -18,12 +18,12 @@ public class Snoozer implements Runnable {
     }
 
     public void update() {
-log("Snoozer.update");
+//log("Snoozer.update");
         synchronized (this) {
             if (!m_stopped) {
                 if (m_wakeTime == 0) {
                     m_wakeTime = System.currentTimeMillis() + m_delay;
-log(" scheduling at " + m_wakeTime);
+//log(" scheduling at " + m_wakeTime);
                     if (m_thread == null) {
                         m_thread = new Thread(this);
                         m_thread.start();
@@ -31,7 +31,7 @@ log(" scheduling at " + m_wakeTime);
                         notify();
                     }
                 } else {
-log(" already scheduled at " + m_wakeTime);
+//log(" already scheduled at " + m_wakeTime);
                 }
             } else {
                 log("ignored update - snoozer stopped");
@@ -46,7 +46,7 @@ log(" already scheduled at " + m_wakeTime);
                 Long sleepTime;
                 synchronized (this) {
                     if (m_wakeTime == 0) {
-log("Snoozer: not scheduled - wait...");
+//log("Snoozer: not scheduled - wait...");
                         this.wait();
                     }
                     if (m_wakeTime != 0) {
@@ -59,11 +59,11 @@ log("Snoozer: not scheduled - wait...");
                 // do outside of synchronized() block
                 if (sleepTime != null) {
                     if (sleepTime > 0) {
-log("Snoozer: sleeping " + sleepTime + " ms");
+//log("Snoozer: sleeping " + sleepTime + " ms");
                         Thread.sleep(sleepTime);
-log("Snoozer: sleeping done");
+//log("Snoozer: sleeping done");
                     } else {
-log("Snoozer: no need to sleep. sleepTime=" + sleepTime + " ms");
+//log("Snoozer: no need to sleep. sleepTime=" + sleepTime + " ms");
                     }
                     try {
                         wakeUp();
