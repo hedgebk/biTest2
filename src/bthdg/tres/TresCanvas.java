@@ -15,7 +15,7 @@ public class TresCanvas extends Canvas {
     private Tres m_tres;
     private Point m_point;
     private ChartAxe m_yAxe;
-    private ChartAxe m_xAxe;
+    private ChartAxe m_xTimeAxe;
 
     TresCanvas(Tres tres) {
         m_tres = tres;
@@ -48,15 +48,7 @@ public class TresCanvas extends Canvas {
         long barSize = m_tres.m_barSizeMillis;
 
         if (m_point != null) {
-            int x = (int) m_point.getX();
-            int y = (int) m_point.getY();
-            long millis = (long) m_xAxe.getValueFromPoint(x);
-            long barStart = millis / barSize * barSize;
-            int barStartX = m_xAxe.getPoint(barStart);
-            long barEnd = barStart + barSize;
-            int barEndX = m_xAxe.getPoint(barEnd);
-            g.setColor(Color.DARK_GRAY);
-            g.fillRect(barStartX, 0, barEndX - barStartX, getWidth());
+            paintbarHighlight(g, barSize);
         }
 
         ArrayList<TresExchData> exchDatas = m_tres.m_exchDatas;
@@ -73,84 +65,121 @@ public class TresCanvas extends Canvas {
             TresOscCalculator oscCalculator = phaseData.m_oscCalculator;
             OscTick fineTick = oscCalculator.m_lastFineTick;
             paintOsc(g, fineTick, width, Color.GRAY, 5);
-//                OscTick lastBar = oscCalculator.m_lastBar;
-//                paintOsc(g, lastBar, width, Color.WHITE, 15);
 
-            long maxTime = 0;
             LinkedList<OHLCTick> ohlcTicks = phaseData.m_ohlcTicks;
-            OHLCTick lastOhlcTick = ohlcTicks.peekLast();
-            if (lastOhlcTick != null) {
-                maxTime = lastOhlcTick.m_barStart;
-            }
             LinkedList<OscTick> bars = oscCalculator.m_oscBars;
-            OscTick lastOscTick = bars.peekLast();
-            if (lastOscTick != null) {
-                long endTime = lastOscTick.m_startTime + barSize;
-                maxTime = Math.max(maxTime, endTime);
-            }
-            if (maxTime == 0) {
-                maxTime = System.currentTimeMillis();
-            }
 
-            int maxBarNum = width / 10;
-            long minTime = maxTime - barSize * maxBarNum;
+            calcXTimeAxe(width, barSize, ohlcTicks, bars);
 
-            m_xAxe = new ChartAxe(minTime, maxTime, width);
-            m_xAxe.m_offset = -25;
+            ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, ohlcTicks);
 
-            double maxPrice = lastPrice;
-            double minPrice = lastPrice;
-            for (Iterator<OHLCTick> iterator = ohlcTicks.descendingIterator(); iterator.hasNext(); ) {
-                OHLCTick ohlcTick = iterator.next();
-                maxPrice = Math.max(maxPrice, ohlcTick.m_high);
-                minPrice = Math.min(minPrice, ohlcTick.m_low);
-            }
-            ChartAxe yAxe = new ChartAxe(minPrice, maxPrice, height - 2);
-            yAxe.m_offset = 1;
+            paintOHLCTicks(g, ohlcTicks, yPriceAxe);
+            paintOscTicks(g, bars);
 
-            g.setColor(Color.GREEN);
-            for (Iterator<OHLCTick> iterator = ohlcTicks.descendingIterator(); iterator.hasNext(); ) {
-                OHLCTick ohlcTick = iterator.next();
-                long barStart = ohlcTick.m_barStart;
-                int startX = m_xAxe.getPoint(barStart);
-                long barEnd = ohlcTick.m_barEnd;
-                int endX = m_xAxe.getPoint(barEnd);
-                int midX = (startX + endX) / 2;
-
-                int highY = yAxe.getPointReverse(ohlcTick.m_high);
-                int lowY = yAxe.getPointReverse(ohlcTick.m_low);
-                int openY = yAxe.getPointReverse(ohlcTick.m_open);
-                int closeY = yAxe.getPointReverse(ohlcTick.m_close);
-                g.drawLine(midX, highY, midX, lowY);
-                int barHeight = closeY - openY;
-                if (barHeight == 0) {
-                    barHeight = 1;
-                }
-                g.fillRect(startX + 1, openY, endX - startX - 2, barHeight);
-                if (startX < 0) {
-                    break;
-                }
-            }
-            for (Iterator<OscTick> iterator = bars.descendingIterator(); iterator.hasNext(); ) {
-                OscTick tick = iterator.next();
-                int endX = paintOsc(g, tick, m_xAxe, Color.RED);
-                if (endX < 0) {
-                    break;
-                }
-            }
-
-            int lastPriceY = yAxe.getPointReverse(lastPrice);
+            int lastPriceY = yPriceAxe.getPointReverse(lastPrice);
             g.setColor(Color.BLUE);
             g.fillRect(width - 7, lastPriceY - 1, 5, 3);
         }
 
         if (m_point != null) {
-            int x = (int) m_point.getX();
-            int y = (int) m_point.getY();
+            paintCross(g, width, height);
+        }
+    }
 
-            g.setColor(Color.LIGHT_GRAY);
-            g.drawLine(x, 0, x, height);
-            g.drawLine(0, y, width, y);
+    private void paintbarHighlight(Graphics g, long barSize) {
+        int x = (int) m_point.getX();
+        long millis = (long) m_xTimeAxe.getValueFromPoint(x);
+        long barStart = millis / barSize * barSize;
+        int barStartX = m_xTimeAxe.getPoint(barStart);
+        long barEnd = barStart + barSize;
+        int barEndX = m_xTimeAxe.getPoint(barEnd);
+        g.setColor(Color.DARK_GRAY);
+        g.fillRect(barStartX, 0, barEndX - barStartX, getWidth());
+    }
+
+    private void paintCross(Graphics g, int width, int height) {
+        int x = (int) m_point.getX();
+        int y = (int) m_point.getY();
+
+        g.setColor(Color.LIGHT_GRAY);
+        g.drawLine(x, 0, x, height);
+        g.drawLine(0, y, width, y);
+    }
+
+    private void calcXTimeAxe(int width, long barSize, LinkedList<OHLCTick> ohlcTicks, LinkedList<OscTick> bars) {
+        long maxTime = 0;
+        OHLCTick lastOhlcTick = ohlcTicks.peekLast();
+        if (lastOhlcTick != null) {
+            maxTime = lastOhlcTick.m_barStart;
+        }
+        OscTick lastOscTick = bars.peekLast();
+        if (lastOscTick != null) {
+            long endTime = lastOscTick.m_startTime + barSize;
+            maxTime = Math.max(maxTime, endTime);
+        }
+        if (maxTime == 0) {
+            maxTime = System.currentTimeMillis();
+        }
+
+        int maxBarNum = width / 10;
+        long minTime = maxTime - barSize * maxBarNum;
+
+        m_xTimeAxe = new ChartAxe(minTime, maxTime, width);
+        m_xTimeAxe.m_offset = -25;
+    }
+
+    private ChartAxe calcYPriceAxe(int height, double lastPrice, LinkedList<OHLCTick> ohlcTicks) {
+        double maxPrice = lastPrice;
+        double minPrice = lastPrice;
+        for (Iterator<OHLCTick> iterator = ohlcTicks.descendingIterator(); iterator.hasNext(); ) {
+            OHLCTick ohlcTick = iterator.next();
+            maxPrice = Math.max(maxPrice, ohlcTick.m_high);
+            minPrice = Math.min(minPrice, ohlcTick.m_low);
+        }
+        double priceDiff = maxPrice - minPrice;
+        if (priceDiff < 1) {
+            double extra = (1 - priceDiff) / 2;
+            maxPrice += extra;
+            minPrice -= extra;
+        }
+        ChartAxe yPriceAxe = new ChartAxe(minPrice, maxPrice, height - 2);
+        yPriceAxe.m_offset = 1;
+        return yPriceAxe;
+    }
+
+    private void paintOHLCTicks(Graphics g, LinkedList<OHLCTick> ohlcTicks, ChartAxe yPriceAxe) {
+        g.setColor(Color.GREEN);
+        for (Iterator<OHLCTick> iterator = ohlcTicks.descendingIterator(); iterator.hasNext(); ) {
+            OHLCTick ohlcTick = iterator.next();
+            long barStart = ohlcTick.m_barStart;
+            int startX = m_xTimeAxe.getPoint(barStart);
+            long barEnd = ohlcTick.m_barEnd;
+            int endX = m_xTimeAxe.getPoint(barEnd);
+            int midX = (startX + endX) / 2;
+
+            int highY = yPriceAxe.getPointReverse(ohlcTick.m_high);
+            int lowY = yPriceAxe.getPointReverse(ohlcTick.m_low);
+            int openY = yPriceAxe.getPointReverse(ohlcTick.m_open);
+            int closeY = yPriceAxe.getPointReverse(ohlcTick.m_close);
+            g.drawLine(midX, highY, midX, lowY);
+            int barHeight = closeY - openY;
+            if (barHeight == 0) {
+                barHeight = 1;
+            }
+            g.fillRect(startX + 1, openY, endX - startX - 2, barHeight);
+            if (startX < 0) {
+                break;
+            }
+        }
+    }
+
+    private void paintOscTicks(Graphics g, LinkedList<OscTick> bars) {
+        for (Iterator<OscTick> iterator = bars.descendingIterator(); iterator.hasNext(); ) {
+            OscTick tick = iterator.next();
+            int endX = paintOsc(g, tick, m_xTimeAxe, Color.RED);
+            if (endX < 0) {
+                break;
+            }
         }
     }
 
