@@ -22,16 +22,32 @@ public class ChartAxe {
     }
 
     public int getPoint(double value) {
-        return m_offset + getPointInt(value);
+        int pointInt = getPointInt(value);
+        int point = m_offset + pointInt;
+        return point;
     }
 
     private int getPointInt(double value) {
         double offset = value - m_min;
-        return (int) (offset / m_scale);
+        int getPointInt = (int) (offset / m_scale);
+        return getPointInt;
     }
+
 
     public int getPointReverse(double value) {
         int point = getPointInt(value);
         return m_offset + m_size - 1 - point;
+    }
+
+    private double getValue(int pointInt) {
+        double offset = pointInt * m_scale;
+        double value = offset + m_min;
+        return value;
+    }
+
+    public double getValueFromPoint(int point) {
+        int pointInt = point - m_offset;
+        double value = getValue(pointInt);
+        return value;
     }
 }
