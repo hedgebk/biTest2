@@ -2,37 +2,21 @@ package bthdg.tres;
 
 import bthdg.exch.TradeData;
 
-public class OHLCCalculator {
-    private final long m_barSize;
+public class OHLCCalculator extends BarCalculator {
     private OHLCTick m_tick;
-    private final long m_barsMillisOffset;
 
-    protected void onBarFinished(OHLCTick tick) {}
     protected void onBarStarted(OHLCTick tick) {}
 
     public OHLCCalculator(long barSize, long barsMillisOffset) {
-        m_barSize = barSize;
-        m_barsMillisOffset = barsMillisOffset;
+        super(barSize, barsMillisOffset);
     }
 
-    public boolean update(TradeData tdata) {
-        if(m_tick != null) {
-            long timestamp = tdata.m_timestamp;
-            if( m_tick.inside(timestamp)  ) {
-                return m_tick.update(tdata);
-            } else {
-                onBarFinished(m_tick);
-            }
-        }
-        startBar(tdata);
-        return true;
+    @Override protected boolean updateCurrentBar(TradeData tdata) {
+        return m_tick.update(tdata);
     }
-
-    private void startBar(TradeData tdata) {
-        long timestamp = tdata.m_timestamp;
-        long start = (timestamp - m_barsMillisOffset) / m_barSize * m_barSize + m_barsMillisOffset;
-        long end = start + m_barSize;
-        m_tick = new OHLCTick(start, end, tdata);
+    @Override protected void startNewBar(long barStart, long barEnd) {
+        m_tick = new OHLCTick(barStart, barEnd);
         onBarStarted(m_tick);
     }
+    @Override protected void finishCurrentBar(long barStart, long barEnd) {}
 }

@@ -12,6 +12,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 public class TresCanvas extends Canvas {
+    public static final int PIX_PER_BAR = 12;
+
     private Tres m_tres;
     private Point m_point;
     private ChartAxe m_yAxe;
@@ -48,7 +50,7 @@ public class TresCanvas extends Canvas {
         long barSize = m_tres.m_barSizeMillis;
 
         if (m_point != null) {
-            paintbarHighlight(g, barSize);
+            paintBarHighlight(g, barSize);
         }
 
         ArrayList<TresExchData> exchDatas = m_tres.m_exchDatas;
@@ -66,7 +68,7 @@ public class TresCanvas extends Canvas {
             OscTick fineTick = oscCalculator.m_lastFineTick;
             paintOsc(g, fineTick, width, Color.GRAY, 5);
 
-            LinkedList<OHLCTick> ohlcTicks = phaseData.m_ohlcTicks;
+            LinkedList<OHLCTick> ohlcTicks = phaseData.m_ohlcCalculator.m_ohlcTicks;
             LinkedList<OscTick> bars = oscCalculator.m_oscBars;
 
             calcXTimeAxe(width, barSize, ohlcTicks, bars);
@@ -75,6 +77,9 @@ public class TresCanvas extends Canvas {
 
             paintOHLCTicks(g, ohlcTicks, yPriceAxe);
             paintOscTicks(g, bars);
+
+            TresMaCalculator maCalculator = phaseData.m_maCalculator;
+            paintMaTicks(g, maCalculator.m_maTicks, yPriceAxe);
 
             int lastPriceY = yPriceAxe.getPointReverse(lastPrice);
             g.setColor(Color.BLUE);
@@ -86,7 +91,7 @@ public class TresCanvas extends Canvas {
         }
     }
 
-    private void paintbarHighlight(Graphics g, long barSize) {
+    private void paintBarHighlight(Graphics g, long barSize) {
         int x = (int) m_point.getX();
         long millis = (long) m_xTimeAxe.getValueFromPoint(x);
         long barStart = millis / barSize * barSize;
@@ -121,7 +126,7 @@ public class TresCanvas extends Canvas {
             maxTime = System.currentTimeMillis();
         }
 
-        int maxBarNum = width / 10;
+        int maxBarNum = width / PIX_PER_BAR;
         long minTime = maxTime - barSize * maxBarNum;
 
         m_xTimeAxe = new ChartAxe(minTime, maxTime, width);
@@ -145,6 +150,29 @@ public class TresCanvas extends Canvas {
         ChartAxe yPriceAxe = new ChartAxe(minPrice, maxPrice, height - 2);
         yPriceAxe.m_offset = 1;
         return yPriceAxe;
+    }
+
+    private void paintMaTicks(Graphics g, LinkedList<TresMaCalculator.MaTick> maTicks, ChartAxe yPriceAxe) {
+        g.setColor(Color.WHITE);
+        int lastX = Integer.MAX_VALUE;
+        int lastY = Integer.MAX_VALUE;
+        for (Iterator<TresMaCalculator.MaTick> iterator = maTicks.descendingIterator(); iterator.hasNext(); ) {
+            TresMaCalculator.MaTick maTick = iterator.next();
+            double ma = maTick.m_ma;
+            long barEnd = maTick.m_barEnd;
+            int x = m_xTimeAxe.getPoint(barEnd);
+            int y = yPriceAxe.getPointReverse(ma);
+            if (lastX == Integer.MAX_VALUE) {
+                g.fillRect(x - 1, y - 1, 3, 3);
+            } else {
+                g.drawLine(x, y, lastX, lastY);
+            }
+            lastX = x;
+            lastY = y;
+            if (x < 0) {
+                break;
+            }
+        }
     }
 
     private void paintOHLCTicks(Graphics g, LinkedList<OHLCTick> ohlcTicks, ChartAxe yPriceAxe) {
@@ -173,31 +201,43 @@ public class TresCanvas extends Canvas {
         }
     }
 
-    private void paintOscTicks(Graphics g, LinkedList<OscTick> bars) {
-        for (Iterator<OscTick> iterator = bars.descendingIterator(); iterator.hasNext(); ) {
+    private void paintOscTicks(Graphics g, LinkedList<OscTick> oscTicks) {
+        int lastX = Integer.MAX_VALUE;
+        int[] lastYs = new int[2];
+        for (Iterator<OscTick> iterator = oscTicks.descendingIterator(); iterator.hasNext(); ) {
             OscTick tick = iterator.next();
-            int endX = paintOsc(g, tick, m_xTimeAxe, Color.RED);
+            int endX = paintOsc(g, tick, m_xTimeAxe, lastX, lastYs);
             if (endX < 0) {
                 break;
             }
+            lastX = endX;
         }
     }
 
-    private int paintOsc(Graphics g, OscTick tick, ChartAxe xAxe, Color color) {
+    private int paintOsc(Graphics g, OscTick tick, ChartAxe xAxe, int lastX, int[] lastYs) {
         long startTime = tick.m_startTime;
         long endTime = startTime + m_tres.m_barSizeMillis;
-//            int startX = xAxe.getPoint(startTime);
-        int endX = xAxe.getPoint(endTime);
+        int x = xAxe.getPoint(endTime);
 
         double val1 = tick.m_val1;
         double val2 = tick.m_val2;
         int y1 = m_yAxe.getPointReverse(val1);
         int y2 = m_yAxe.getPointReverse(val2);
 
-        g.setColor(color);
-        g.drawRect(endX - 2, y1 - 2, 5, 5);
-        g.drawRect(endX - 2, y2 - 2, 5, 5);
-        return endX;
+        if(lastX == Integer.MAX_VALUE) {
+            g.setColor(Color.RED);
+            g.drawRect(x - 2, y1 - 2, 5, 5);
+            g.setColor(Color.BLUE);
+            g.drawRect(x - 2, y2 - 2, 5, 5);
+        } else {
+            g.setColor(Color.RED);
+            g.drawLine(lastX, lastYs[0], x, y1);
+            g.setColor(Color.BLUE);
+            g.drawLine(lastX, lastYs[1], x, y2);
+        }
+        lastYs[0] = y1;
+        lastYs[1] = y2;
+        return x;
     }
 
     private void paintOsc(Graphics g, OscTick tick, int width, Color color, int offset) {

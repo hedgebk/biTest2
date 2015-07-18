@@ -27,7 +27,7 @@ public class Tres {
     int m_d;
     int m_phases;
     public int m_preheatBarsNum;
-    private int m_ma;
+    int m_ma;
     ArrayList<TresExchData> m_exchDatas;
     private TresFrame m_frame;
 

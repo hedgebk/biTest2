@@ -1,13 +1,12 @@
 package bthdg.tres;
 
-public class TresOHLCCalculator extends OHLCCalculator {
-    private final PhaseData m_phaseData;
-    private final int m_phaseIndex;
+import java.util.LinkedList;
 
-    public TresOHLCCalculator(PhaseData phaseData, int phaseIndex) {
-        super(phaseData.m_exchData.m_tres.m_barSizeMillis, getOffset(phaseIndex, phaseData.m_exchData.m_tres));
-        m_phaseData = phaseData;
-        m_phaseIndex = phaseIndex;
+public class TresOHLCCalculator extends OHLCCalculator {
+    final LinkedList<OHLCTick> m_ohlcTicks = new LinkedList<OHLCTick>();
+
+    public TresOHLCCalculator(Tres tres, int phaseIndex) {
+        super(tres.m_barSizeMillis, getOffset(phaseIndex, tres));
     }
 
     private static long getOffset(int index, Tres tres) {
@@ -15,6 +14,6 @@ public class TresOHLCCalculator extends OHLCCalculator {
     }
 
     @Override protected void onBarStarted(OHLCTick tick) {
-        m_phaseData.onOHLCTickStart(tick);
+        m_ohlcTicks.add(tick);
     }
 }
