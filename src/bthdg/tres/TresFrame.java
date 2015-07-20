@@ -14,7 +14,7 @@ public class TresFrame extends JFrame implements Runnable {
     private final Tres m_tres;
     private final Snoozer m_snoozer;
     private final JLabel m_label;
-    private final Canvas m_canvas;
+    private final TresCanvas m_canvas;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
