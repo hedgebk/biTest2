@@ -13,7 +13,7 @@ public class MaCalculator extends BarCalculator {
 
     protected void startMaBar(long barEnd) {}
     protected void updateMaBar(double ma) {}
-    protected void endMaBar(long barEnd, double ma) {}
+    protected void endMaBar(long barEnd, double ma, TradeData tdata) {}
 
     public MaCalculator(TresExchData exchData, int phaseIndex, MaType type, int maSize) {
         super(exchData.m_tres.m_barSizeMillis, getOffset(phaseIndex, exchData.m_tres));
@@ -25,9 +25,9 @@ public class MaCalculator extends BarCalculator {
         return tres.m_barSizeMillis * (index % tres.m_phases) / tres.m_phases;
     }
 
-    @Override protected void finishCurrentBar(long barStart, long barEnd) {
+    @Override protected void finishCurrentBar(long barStart, long barEnd, TradeData tdata) {
         double ma = calcMa();
-        endMaBar(barEnd, ma);
+        endMaBar(barEnd, ma, tdata);
     }
 
     private double calcMa() {

@@ -328,17 +328,36 @@ public class TresCanvas extends JComponent {
             }
         }
 
-        for (Iterator<TresMaCalculator.MaCrossData> iterator = maCalculator.m_maCrossDatas.descendingIterator(); iterator.hasNext(); ) {
+        Boolean lastOscUp = null;
+        for (Iterator<TresMaCalculator.MaCrossData> iterator = maCalculator.m_maCrossDatas.iterator(); iterator.hasNext(); ) {
             TresMaCalculator.MaCrossData maCrossData = iterator.next();
             Long timestamp = maCrossData.m_timestamp;
+            int x = m_xTimeAxe.getPoint(timestamp);
             boolean oscUp = maCrossData.m_oscUp;
             double price = maCrossData.m_price;
-            int x = m_xTimeAxe.getPoint(timestamp);
             int y = yPriceAxe.getPointReverse(price);
-            g.setColor(oscUp ? Color.GREEN : Color.RED);
-            g.drawLine(x, y, x + 5, y + (oscUp ? -5 : 5));
-            if (x < 0) {
-                break;
+            if (lastOscUp != null) {
+                if (lastOscUp != oscUp) {
+                    if (x > 0) {
+                        int dy = y - lastY;
+                        Color color = (lastOscUp && (dy < 0)) || (!lastOscUp && (dy > 0)) ? Color.GREEN : Color.RED;
+                        Color color1 = new Color(color.getRed(), color.getGreen(), color.getBlue(), 128);
+                        g.setColor(color1);
+                        g.drawLine(lastX, lastY, x, y);
+                    }
+
+                    lastOscUp = oscUp;
+                    lastY = y;
+                    lastX = x;
+                }
+            } else { // first
+                lastOscUp = oscUp;
+                lastY = y;
+                lastX = x;
+            }
+            if (x > 0) {
+                g.setColor(oscUp ? Color.GREEN : Color.RED);
+                g.drawLine(x, y, x + 5, y + (oscUp ? -5 : 5));
             }
         }
     }

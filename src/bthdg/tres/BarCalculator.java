@@ -17,7 +17,7 @@ public class BarCalculator {
         long timestamp = tdata.m_timestamp;
         if (m_currentBarEnd < timestamp) {
             if (m_currentBarStart != 0) {
-                finishCurrentBar(m_currentBarStart, m_currentBarEnd);
+                finishCurrentBar(m_currentBarStart, m_currentBarEnd, tdata);
             }
             m_currentBarStart = (timestamp - m_barsMillisOffset) / m_barSizeMillis * m_barSizeMillis + m_barsMillisOffset;
             m_currentBarEnd = m_currentBarStart + m_barSizeMillis;
@@ -29,5 +29,5 @@ public class BarCalculator {
 
     protected boolean updateCurrentBar(TradeData tdata) { return false; }
     protected void startNewBar(long barStart, long barEnd) {}
-    protected void finishCurrentBar(long barStart, long barEnd) {}
+    protected void finishCurrentBar(long barStart, long barEnd, TradeData tdata) {}
 }

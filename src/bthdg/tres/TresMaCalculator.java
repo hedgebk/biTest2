@@ -12,6 +12,8 @@ public class TresMaCalculator extends MaCalculator {
     final LinkedList<MaCrossData> m_maCrossDatas = new LinkedList<MaCrossData>();
     private MaTick m_tick;
     private Boolean m_lastPriceHigher;
+    private Boolean m_lastMaCrossUp;
+    private Boolean m_lastOscUp;
 
     private static void log(String s) { Log.log(s); }
 
@@ -36,27 +38,70 @@ public class TresMaCalculator extends MaCalculator {
         double currentMa = m_tick.m_ma;
         boolean currentPriceHigher = (currentPrice > currentMa);
 
-        if (m_lastPriceHigher != null) {
-            if (m_lastPriceHigher != currentPriceHigher) {
-                onMaCross(tdata);
-            }
+        if ((m_lastPriceHigher != null) && (m_lastPriceHigher != currentPriceHigher)) {
+            onMaCross(tdata, currentPriceHigher);
         }
         m_lastPriceHigher = currentPriceHigher;
         return ret;
     }
 
-    private void onMaCross(TradeData tdata) {
+    @Override protected void endMaBar(long barEnd, double ma, TradeData tdata) {
+        if ((m_lastMaCrossUp != null) && (m_lastOscUp != null)) {
+            if (m_lastMaCrossUp != m_lastOscUp) {
+                long timestamp = tdata.m_timestamp;
+                Boolean oscUp = calcOscDirection(timestamp);
+                if (oscUp != null) {
+                    if (m_lastMaCrossUp == oscUp) {
+                        double price = tdata.m_price;
+                        MaCrossData maCrossData = new MaCrossData(timestamp, oscUp, price);
+                        m_maCrossDatas.add(maCrossData);
+                        m_lastOscUp = oscUp;
+                    }
+                }
+            }
+        }
+    }
+
+    private void onMaCross(TradeData tdata, boolean maCrossUp) {
         m_tick.m_maCrossed = true;
         long timestamp = tdata.m_timestamp;
-        double price = tdata.m_price;
-        OscTick lastFineTick = m_phaseData.m_oscCalculator.m_lastFineTick;
-        if (lastFineTick != null) {
-            double val1 = lastFineTick.m_val1;
-            double val2 = lastFineTick.m_val2;
-            boolean oscUp = (val1 > val2);
+        Boolean oscUp = calcOscDirection(timestamp);
+        if (oscUp != null) {
+            double price = tdata.m_price;
             MaCrossData maCrossData = new MaCrossData(timestamp, oscUp, price);
             m_maCrossDatas.add(maCrossData);
+            m_lastMaCrossUp = maCrossUp;
+            m_lastOscUp = oscUp;
         }
+    }
+
+    private Boolean calcOscDirection(long timestamp) {
+        TresOscCalculator oscCalculator = m_phaseData.m_oscCalculator;
+        OscTick lastFineTick = oscCalculator.m_lastFineTick;
+        OscTick lastBar = oscCalculator.m_lastBar;
+        if ((lastFineTick != null) && (lastBar != null)) { // use blended osc values
+            double val1new = lastFineTick.m_val1;
+            double val2new = lastFineTick.m_val2;
+            long startTime = lastFineTick.m_startTime;
+            long barSizeMillis = m_phaseData.m_exchData.m_tres.m_barSizeMillis;
+            long endTime = startTime + barSizeMillis;
+            if ((startTime <= timestamp) && (timestamp <= endTime)) {
+                long ms = timestamp - startTime;
+                double newRate = ((double) ms) / barSizeMillis;
+                double oldRate = 1 - newRate;
+                double val1old = lastBar.m_val1;
+                double val2old = lastBar.m_val2;
+
+                double val1 = val1old * oldRate + val1new * newRate;
+                double val2 = val2old * oldRate + val2new * newRate;
+
+                boolean oscUp = (val1 > val2);
+                return oscUp;
+            } else {
+                log("timestamp " + timestamp + " is out of tick [" + startTime + ", " + endTime + "]");
+            }
+        }
+        return null;
     }
 
     public static class MaCrossData {
