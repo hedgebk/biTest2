@@ -17,13 +17,15 @@ import java.util.LinkedList;
 
 public class TresCanvas extends JComponent {
     public static final int PIX_PER_BAR = 12;
+    public static final int LAST_PRICE_MARKER_WIDTH = 7;
+    public static final int PRICE_AXE_MARKER_WIDTH = 10;
 
     private Tres m_tres;
     private Point m_point;
     private ChartAxe m_yAxe;
     private ChartAxe m_xTimeAxe;
     private int m_maxBars;
-    private int yPriceAxeWidth;
+    private int yPriceAxeWidth = PRICE_AXE_MARKER_WIDTH;
     private double m_zoom = 1;
     private Integer m_dragStartX;
     private Integer m_dragDeltaX;
@@ -124,8 +126,12 @@ public class TresCanvas extends JComponent {
         g.fillRect(0, 0, width, height);
 
         Graphics2D g2 = (Graphics2D) g;
+
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
+        g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 
         long barSize = m_tres.m_barSizeMillis;
@@ -142,6 +148,7 @@ public class TresCanvas extends JComponent {
         LinkedList<OscTick> bars = oscCalculator.m_oscBars;
         calcXTimeAxe(width, barSize, ohlcTicks, bars);
 
+        // paint min/max time : left/right borders
         double minTime = m_xTimeAxe.m_min;
         int minTimeX = m_xTimeAxe.getPoint(minTime);
         double maxTime = m_xTimeAxe.m_max;
@@ -179,7 +186,7 @@ public class TresCanvas extends JComponent {
             paintOscTicks(g, bars);
 
             TresMaCalculator maCalculator = phaseData.m_maCalculator;
-            paintMaTicks(g, maCalculator.m_maTicks, yPriceAxe);
+            paintMaTicks(g, maCalculator, yPriceAxe);
 
             paintLastPrice(g, width, lastPrice, yPriceAxe);
         }
@@ -192,7 +199,7 @@ public class TresCanvas extends JComponent {
     private void paintLastPrice(Graphics g, int width, double lastPrice, ChartAxe yPriceAxe) {
         int lastPriceY = yPriceAxe.getPointReverse(lastPrice);
         g.setColor(Color.BLUE);
-        g.fillRect(width - 7, lastPriceY - 1, 5, 3);
+        g.fillRect(width - LAST_PRICE_MARKER_WIDTH + 2, lastPriceY - 1, LAST_PRICE_MARKER_WIDTH, 3);
     }
 
     private void paintYPriceAxe(Graphics g, ChartAxe yPriceAxe) {
@@ -218,12 +225,12 @@ public class TresCanvas extends JComponent {
         for (int y = minLabel; y <= maxLabel; y += step) {
             int priceY = yPriceAxe.getPointReverse(y);
             g.drawString(Integer.toString(y), x, priceY + halfFontHeight);
-            g.drawLine(x - 5, priceY, x - 15, priceY);
+            g.drawLine(x - 5, priceY, x - PRICE_AXE_MARKER_WIDTH, priceY);
         }
         if (yPriceAxeWidth != maxWidth) { // changed
             calcMaxBars(width);
         }
-        yPriceAxeWidth = maxWidth;
+        yPriceAxeWidth = maxWidth + PRICE_AXE_MARKER_WIDTH;
     }
 
     private void paintBarHighlight(Graphics g, long barSize) {
@@ -295,7 +302,8 @@ public class TresCanvas extends JComponent {
         return yPriceAxe;
     }
 
-    private void paintMaTicks(Graphics g, LinkedList<TresMaCalculator.MaTick> maTicks, ChartAxe yPriceAxe) {
+    private void paintMaTicks(Graphics g, TresMaCalculator maCalculator, ChartAxe yPriceAxe) {
+        LinkedList<TresMaCalculator.MaTick> maTicks = maCalculator.m_maTicks;
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
         Color nextColor = null;
@@ -305,7 +313,7 @@ public class TresCanvas extends JComponent {
             long barEnd = maTick.m_barEnd;
             int x = m_xTimeAxe.getPoint(barEnd);
             int y = yPriceAxe.getPointReverse(ma);
-            Color color = maTick.m_maCrossed ? Color.YELLOW : Color.WHITE;
+            Color color = maTick.m_maCrossed ? Color.ORANGE : Color.WHITE;
             g.setColor(nextColor == null ? color : nextColor);
             if (lastX == Integer.MAX_VALUE) {
                 g.fillRect(x - 1, y - 1, 3, 3);
@@ -319,10 +327,24 @@ public class TresCanvas extends JComponent {
                 break;
             }
         }
+
+        for (Iterator<TresMaCalculator.MaCrossData> iterator = maCalculator.m_maCrossDatas.descendingIterator(); iterator.hasNext(); ) {
+            TresMaCalculator.MaCrossData maCrossData = iterator.next();
+            Long timestamp = maCrossData.m_timestamp;
+            boolean oscUp = maCrossData.m_oscUp;
+            double price = maCrossData.m_price;
+            int x = m_xTimeAxe.getPoint(timestamp);
+            int y = yPriceAxe.getPointReverse(price);
+            g.setColor(oscUp ? Color.GREEN : Color.RED);
+            g.drawLine(x, y, x + 5, y + (oscUp ? -5 : 5));
+            if (x < 0) {
+                break;
+            }
+        }
     }
 
     private void paintOHLCTicks(Graphics g, LinkedList<OHLCTick> ohlcTicks, ChartAxe yPriceAxe) {
-        g.setColor(Color.GREEN);
+        g.setColor(Color.GRAY);
         for (Iterator<OHLCTick> iterator = ohlcTicks.descendingIterator(); iterator.hasNext(); ) {
             OHLCTick ohlcTick = iterator.next();
             long barStart = ohlcTick.m_barStart;
@@ -355,9 +377,12 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintOscTicks(Graphics g, LinkedList<OscTick> oscTicks) {
+        // levels
         g.setColor(Color.darkGray);
         paintLine(g, 0.2);
         paintLine(g, 0.8);
+
+// top/bottom borders
 //        g.setColor(Color.CYAN);
 //        paintLine(g, 0);
 //        paintLine(g, 1);

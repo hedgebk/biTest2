@@ -14,7 +14,7 @@ public class PhaseData {
         m_phaseIndex = phaseIndex;
         m_oscCalculator = new TresOscCalculator(exchData, phaseIndex);
         m_ohlcCalculator = new TresOHLCCalculator(exchData.m_tres, phaseIndex);
-        m_maCalculator = new TresMaCalculator(exchData, phaseIndex);
+        m_maCalculator = new TresMaCalculator(this, phaseIndex);
     }
 
     public boolean update(TradeData tdata) {
@@ -29,5 +29,4 @@ public class PhaseData {
     public void getState(StringBuilder sb) {
         m_oscCalculator.getState(sb);
     }
-
 }

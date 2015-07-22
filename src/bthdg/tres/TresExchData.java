@@ -61,5 +61,4 @@ public class TresExchData implements ITradesListener {
             phaseData.getState(sb);
         }
     }
-
 }
