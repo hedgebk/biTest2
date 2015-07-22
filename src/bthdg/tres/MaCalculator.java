@@ -31,13 +31,13 @@ public class MaCalculator extends BarCalculator {
     }
 
     private double calcMa() {
-        double sum = 0;
-        for (BaseMaBarData barData : m_barDatas) {
-            double value = barData.value();
-            sum += value;
-        }
         int size = m_barDatas.size();
         if (size > 0) {
+            double sum = 0;
+            for (BaseMaBarData barData : m_barDatas) {
+                double value = barData.value();
+                sum += value;
+            }
             return sum / size;
         }
         return 0;
@@ -45,7 +45,7 @@ public class MaCalculator extends BarCalculator {
 
     @Override protected boolean updateCurrentBar(TradeData tdata) {
         boolean updated = m_type.updateBarData(m_barData, tdata);
-        if(updated) {
+        if (updated) {
             double ma = calcMa();
             updateMaBar(ma);
         }
