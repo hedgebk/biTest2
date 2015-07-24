@@ -19,6 +19,7 @@ public class TresCanvas extends JComponent {
     public static final int PIX_PER_BAR = 12;
     public static final int LAST_PRICE_MARKER_WIDTH = 7;
     public static final int PRICE_AXE_MARKER_WIDTH = 10;
+    public static final Color OSC_MID = new Color(30,30,30);
 
     private Tres m_tres;
     private Point m_point;
@@ -329,6 +330,9 @@ public class TresCanvas extends JComponent {
         }
 
         Boolean lastOscUp = null;
+        Double lastPrice = null;
+        double totalPriceRatio = 1;
+        int fontHeight = g.getFont().getSize();
         for (Iterator<TresMaCalculator.MaCrossData> iterator = maCalculator.m_maCrossDatas.iterator(); iterator.hasNext(); ) {
             TresMaCalculator.MaCrossData maCrossData = iterator.next();
             Long timestamp = maCrossData.m_timestamp;
@@ -345,15 +349,29 @@ public class TresCanvas extends JComponent {
                         g.setColor(color1);
                         g.drawLine(lastX, lastY, x, y);
                     }
-
+                    if (lastPrice != null) {
+                        double priceRatio = price / lastPrice;
+                        if (!lastOscUp) {
+                            priceRatio = 1 / priceRatio;
+                        }
+                        totalPriceRatio *= priceRatio;
+                        if (x > 0) {
+                            g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight);
+                            Color color = (totalPriceRatio > 1) ? Color.GREEN : Color.RED;
+                            g.setColor(color);
+                            g.drawString(String.format("t: %1$,.5f", totalPriceRatio), x, y + fontHeight * 2);
+                        }
+                    }
                     lastOscUp = oscUp;
                     lastY = y;
                     lastX = x;
+                    lastPrice = price;
                 }
             } else { // first
                 lastOscUp = oscUp;
                 lastY = y;
                 lastX = x;
+                lastPrice = price;
             }
             if (x > 0) {
                 g.setColor(oscUp ? Color.GREEN : Color.RED);
@@ -407,7 +425,7 @@ public class TresCanvas extends JComponent {
 //        paintLine(g, 1);
 
         int lastX = Integer.MAX_VALUE;
-        int[] lastYs = new int[2];
+        int[] lastYs = new int[3];
         for (Iterator<OscTick> iterator = oscTicks.descendingIterator(); iterator.hasNext(); ) {
             OscTick tick = iterator.next();
             int endX = paintOsc(g, tick, m_xTimeAxe, lastX, lastYs);
@@ -430,8 +448,10 @@ public class TresCanvas extends JComponent {
 
         double val1 = tick.m_val1;
         double val2 = tick.m_val2;
+        double valMid = (val1 + val2) / 2;
         int y1 = m_yAxe.getPointReverse(val1);
         int y2 = m_yAxe.getPointReverse(val2);
+        int yMid = m_yAxe.getPointReverse(valMid);
 
         if (lastX == Integer.MAX_VALUE) {
             g.setColor(Color.RED);
@@ -443,9 +463,12 @@ public class TresCanvas extends JComponent {
             g.drawLine(lastX, lastYs[0], x, y1);
             g.setColor(Color.BLUE);
             g.drawLine(lastX, lastYs[1], x, y2);
+            g.setColor(OSC_MID);
+            g.drawLine(lastX, lastYs[2], x, yMid);
         }
         lastYs[0] = y1;
         lastYs[1] = y2;
+        lastYs[2] = yMid;
         return x;
     }
 
