@@ -48,8 +48,8 @@ public class TresMaCalculator extends MaCalculator {
     @Override protected void endMaBar(long barEnd, double ma, TradeData tdata) {
         if ((m_lastMaCrossUp != null) && (m_lastOscUp != null)) {
             if (m_lastMaCrossUp != m_lastOscUp) {
-                Boolean oscUp = calcOscDirection();
-                if (oscUp != null) {
+                Boolean oscUp = calcOscDirection(false);
+                if (oscUp != null) { // if direction defined
                     if (m_lastMaCrossUp == oscUp) {
                         addNewMaCrossData(tdata, oscUp);
                     }
@@ -60,8 +60,8 @@ public class TresMaCalculator extends MaCalculator {
 
     private void onMaCross(TradeData tdata, boolean maCrossUp) {
         m_tick.m_maCrossed = true;
-        Boolean oscUp = calcOscDirection();
-        if (oscUp != null) {
+        Boolean oscUp = calcOscDirection(true);
+        if (oscUp != null) { // if direction defined
             addNewMaCrossData(tdata, oscUp);
             m_lastMaCrossUp = maCrossUp;
         }
@@ -75,38 +75,41 @@ public class TresMaCalculator extends MaCalculator {
         m_lastOscUp = oscUp;
     }
 
-    private Boolean calcOscDirection() {
+    private Boolean calcOscDirection(boolean useLastFineTick) {
         TresOscCalculator oscCalculator = m_phaseData.m_oscCalculator;
-        OscTick blendedLastFineTick = oscCalculator.m_blendedLastFineTick;
-        if (blendedLastFineTick != null) {
-            double valMid = blendedLastFineTick.getMid();
-            if (valMid < 0.1) {
+        OscTick newestTick = useLastFineTick ? oscCalculator.m_blendedLastFineTick : oscCalculator.m_lastBar;
+        if (newestTick != null) {
+            double newestMid = newestTick.getMid();
+            if (newestMid < 0.1) {
                 return false; // oscDown
             }
-            if (valMid > 0.9) {
+            if (newestMid > 0.9) {
                 return true; // oscUp
             }
-            double val1 = blendedLastFineTick.m_val1;
-            double val2 = blendedLastFineTick.m_val2;
-//                if( (val1 < 0.1) && (val2 < 0.1) ) {
+            double newestVal1 = newestTick.m_val1;
+            double newestVal2 = newestTick.m_val2;
+//                if( (newestVal1 < 0.1) && (newestVal2 < 0.1) ) {
 //                    return false; // oscDown
 //                }
-//                if( (val1 > 0.9) && (val2 > 0.9) ) {
+//                if( (newestVal1 > 0.9) && (newestVal2 > 0.9) ) {
 //                    return true; // oscUp
 //                }
-            boolean oscUp = (val1 > val2);
-
-            OscTick lastBar = oscCalculator.m_lastBar;
-            if (lastBar != null) {
-                double lastOsc1 = lastBar.m_val1;
-                double lastOsc2 = lastBar.m_val2;
-                boolean lastOscUp = (lastOsc1 > lastOsc2);
-                if (lastOscUp == oscUp) {
-                    return oscUp;
+            if (newestVal1 != newestVal2) { // have direction
+                boolean newestOscUp = (newestVal1 > newestVal2);
+                OscTick oldestBar = useLastFineTick ? oscCalculator.m_lastBar : oscCalculator.m_prevBar;
+                if (oldestBar != null) {
+                    double oldestOsc1 = oldestBar.m_val1;
+                    double oldestOsc2 = oldestBar.m_val2;
+                    if (oldestOsc1 != oldestOsc2) { // had direction
+                        Boolean oldestOscUp = (oldestOsc1 > oldestOsc2);
+                        if (oldestOscUp == newestOscUp) {
+                            return newestOscUp;
+                        }
+                    }
                 }
             }
         }
-        return null;
+        return null; // meant undefined direction
     }
 
     public static class MaCrossData {
