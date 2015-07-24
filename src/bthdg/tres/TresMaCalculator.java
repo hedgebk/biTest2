@@ -48,14 +48,10 @@ public class TresMaCalculator extends MaCalculator {
     @Override protected void endMaBar(long barEnd, double ma, TradeData tdata) {
         if ((m_lastMaCrossUp != null) && (m_lastOscUp != null)) {
             if (m_lastMaCrossUp != m_lastOscUp) {
-                long timestamp = tdata.m_timestamp;
-                Boolean oscUp = calcOscDirection(timestamp);
+                Boolean oscUp = calcOscDirection();
                 if (oscUp != null) {
                     if (m_lastMaCrossUp == oscUp) {
-                        double price = tdata.m_price;
-                        MaCrossData maCrossData = new MaCrossData(timestamp, oscUp, price);
-                        m_maCrossDatas.add(maCrossData);
-                        m_lastOscUp = oscUp;
+                        addNewMaCrossData(tdata, oscUp);
                     }
                 }
             }
@@ -64,41 +60,50 @@ public class TresMaCalculator extends MaCalculator {
 
     private void onMaCross(TradeData tdata, boolean maCrossUp) {
         m_tick.m_maCrossed = true;
-        long timestamp = tdata.m_timestamp;
-        Boolean oscUp = calcOscDirection(timestamp);
+        Boolean oscUp = calcOscDirection();
         if (oscUp != null) {
-            double price = tdata.m_price;
-            MaCrossData maCrossData = new MaCrossData(timestamp, oscUp, price);
-            m_maCrossDatas.add(maCrossData);
+            addNewMaCrossData(tdata, oscUp);
             m_lastMaCrossUp = maCrossUp;
-            m_lastOscUp = oscUp;
         }
     }
 
-    private Boolean calcOscDirection(long timestamp) {
+    private void addNewMaCrossData(TradeData tdata, Boolean oscUp) {
+        long timestamp = tdata.m_timestamp;
+        double price = tdata.m_price;
+        MaCrossData maCrossData = new MaCrossData(timestamp, oscUp, price);
+        m_maCrossDatas.add(maCrossData);
+        m_lastOscUp = oscUp;
+    }
+
+    private Boolean calcOscDirection() {
         TresOscCalculator oscCalculator = m_phaseData.m_oscCalculator;
-        OscTick lastFineTick = oscCalculator.m_lastFineTick;
-        OscTick lastBar = oscCalculator.m_lastBar;
-        if ((lastFineTick != null) && (lastBar != null)) { // use blended osc values
-            double val1new = lastFineTick.m_val1;
-            double val2new = lastFineTick.m_val2;
-            long startTime = lastFineTick.m_startTime;
-            long barSizeMillis = m_phaseData.m_exchData.m_tres.m_barSizeMillis;
-            long endTime = startTime + barSizeMillis;
-            if ((startTime <= timestamp) && (timestamp <= endTime)) {
-                long ms = timestamp - startTime;
-                double newRate = ((double) ms) / barSizeMillis;
-                double oldRate = 1 - newRate;
-                double val1old = lastBar.m_val1;
-                double val2old = lastBar.m_val2;
+        OscTick blendedLastFineTick = oscCalculator.m_blendedLastFineTick;
+        if (blendedLastFineTick != null) {
+            double valMid = blendedLastFineTick.getMid();
+            if (valMid < 0.1) {
+                return false; // oscDown
+            }
+            if (valMid > 0.9) {
+                return true; // oscUp
+            }
+            double val1 = blendedLastFineTick.m_val1;
+            double val2 = blendedLastFineTick.m_val2;
+//                if( (val1 < 0.1) && (val2 < 0.1) ) {
+//                    return false; // oscDown
+//                }
+//                if( (val1 > 0.9) && (val2 > 0.9) ) {
+//                    return true; // oscUp
+//                }
+            boolean oscUp = (val1 > val2);
 
-                double val1 = val1old * oldRate + val1new * newRate;
-                double val2 = val2old * oldRate + val2new * newRate;
-
-                boolean oscUp = (val1 > val2);
-                return oscUp;
-            } else {
-                log("timestamp " + timestamp + " is out of tick [" + startTime + ", " + endTime + "]");
+            OscTick lastBar = oscCalculator.m_lastBar;
+            if (lastBar != null) {
+                double lastOsc1 = lastBar.m_val1;
+                double lastOsc2 = lastBar.m_val2;
+                boolean lastOscUp = (lastOsc1 > lastOsc2);
+                if (lastOscUp == oscUp) {
+                    return oscUp;
+                }
             }
         }
         return null;

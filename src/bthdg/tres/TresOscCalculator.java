@@ -11,7 +11,9 @@ public class TresOscCalculator extends OscCalculator {
     private final int m_phaseIndex;
     public int m_barNum;
     OscTick m_lastFineTick;
+    OscTick m_blendedLastFineTick;
     OscTick m_lastBar;
+    OscTick m_prevBar;
     LinkedList<OscTick> m_oscBars = new LinkedList<OscTick>();
     private boolean m_updated;
 
@@ -45,12 +47,32 @@ public class TresOscCalculator extends OscCalculator {
     @Override public void fine(long stamp, double stoch1, double stoch2) {
         log("fine[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: stamp=" + stamp + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
         m_lastFineTick = new OscTick(stamp, stoch1, stoch2);
+        if (m_lastBar != null) {
+            long barSizeMillis = m_exchData.m_tres.m_barSizeMillis;
+            long lastBarStartTime = m_lastBar.m_startTime;
+            long lastBarEndTime = lastBarStartTime + barSizeMillis;
+            long ms = stamp - lastBarEndTime;
+            double newRate = ((double) ms) / barSizeMillis;
+            if (newRate < 0) {
+                newRate = 0;
+            } else if (newRate > 1) {
+                newRate = 1;
+            }
+            double oldRate = 1 - newRate;
+            double stoch1old = m_lastBar.m_val1;
+            double stoch2old = m_lastBar.m_val2;
+
+            double val1 = stoch1old * oldRate + stoch1 * newRate;
+            double val2 = stoch2old * oldRate + stoch2 * newRate;
+            m_blendedLastFineTick = new OscTick(stamp, val1, val2);
+        }
         m_updated = true;
     }
 
     @Override public void bar(long barStart, double stoch1, double stoch2) {
         log("bar[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: barStart=" + barStart + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
         OscTick osc = new OscTick(barStart, stoch1, stoch2);
+        m_prevBar = m_lastBar;
         m_lastBar = osc;
         m_oscBars.add(osc); // add to the end
         m_updated = true;

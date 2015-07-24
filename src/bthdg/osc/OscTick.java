@@ -11,6 +11,8 @@ public class OscTick implements Comparable<OscTick>{
         m_val2 = val2;
     }
 
+    public double getMid() { return (m_val1 + m_val2) / 2; }
+
     @Override public int compareTo(OscTick other) {
         return Long.compare(m_startTime, other.m_startTime);
     }
