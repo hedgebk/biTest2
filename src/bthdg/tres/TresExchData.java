@@ -45,7 +45,7 @@ public class TresExchData implements ITradesListener {
             }
         }
         if (m_updated) {
-            m_tres.fireUpdated();
+            m_tres.onTrade(tdata);
         }
     }
 

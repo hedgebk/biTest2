@@ -4,7 +4,10 @@ import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.exch.BaseExch;
 import bthdg.exch.Pair;
+import bthdg.exch.TradeData;
+import bthdg.util.BufferedLineReader;
 import bthdg.util.ConsoleReader;
+import bthdg.util.LineReader;
 import bthdg.util.Utils;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
@@ -14,6 +17,8 @@ import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Tres {
     public static final Pair PAIR = Pair.BTC_CNH;
@@ -30,11 +35,16 @@ public class Tres {
     int m_ma;
     ArrayList<TresExchData> m_exchDatas;
     private TresFrame m_frame;
+    long m_startTickMillis = Long.MAX_VALUE;
+    long m_lastTickMillis = 0;
+    private final boolean m_processLogs;
+    private String m_logFile;
 
     private static void log(String s) { Log.log(s); }
-    private static void err(String s, Exception e) { Log.err(s, e); }
+    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public Tres(String[] args) {
+        m_processLogs = (args.length > 0);
     }
 
     public static void main(String[] args) {
@@ -72,8 +82,13 @@ public class Tres {
         m_keys = BaseExch.loadKeys();
         init();
 
-        for (TresExchData exchData : m_exchDatas) {
-            exchData.start();
+        if (m_processLogs) {
+            LogProcessor logProcessor = new LogProcessor(m_exchDatas, m_logFile);
+            logProcessor.start();
+        } else {
+            for (TresExchData exchData : m_exchDatas) {
+                exchData.start();
+            }
         }
     }
 
@@ -101,6 +116,8 @@ public class Tres {
         log("phases=" + m_phases);
         m_ma = Integer.parseInt(getProperty("tre.ma"));
         log("ma=" + m_ma);
+        m_logFile = getProperty("tre.log.file");
+        log("logFile=" + m_logFile);
 
         m_preheatBarsNum = m_len1 + m_len2 + (m_k - 1) + (m_d - 1);
 
@@ -142,7 +159,11 @@ public class Tres {
         }
     }
 
-    public void fireUpdated() {
+    public void onTrade(TradeData tdata) {
+        long timestamp = tdata.m_timestamp;
+        m_startTickMillis = Math.min(m_startTickMillis, timestamp);
+        m_lastTickMillis = Math.max(m_lastTickMillis, timestamp);
+
         if (m_frame != null) {
             m_frame.fireUpdated();
         }
@@ -159,5 +180,74 @@ public class Tres {
     private static class IntConsoleReader extends ConsoleReader {
         @Override protected void beforeLine() { System.out.print(">"); }
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
+    }
+
+    private static class LogProcessor extends Thread {
+        // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
+        private static final Pattern TRADE_PATTERN = Pattern.compile("onTrade\\[\\w+\\]\\: TradeData\\{amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+), time=(\\d+).+");
+
+        private final String m_logFile;
+        private final TresExchData m_exchData;
+
+        public LogProcessor(ArrayList<TresExchData> exchDatas, String logFile) {
+            m_exchData = exchDatas.get(0);
+            m_logFile = logFile;
+        }
+
+        @Override public void run() {
+            try {
+                LineReader reader = new LineReader(m_logFile);
+                try {
+                    processLines(reader);
+                } finally {
+                    reader.close();
+                }
+            } catch (IOException e) {
+                err("Error in LogProcessor: " + e, e);
+            }
+        }
+
+        private void processLines(LineReader reader) {
+            BufferedLineReader blr = new BufferedLineReader(reader);
+            try {
+                long startTime = System.currentTimeMillis();
+                int linesProcessed = 0;
+                String line;
+                while( (line = blr.getLine()) != null ) {
+                    processTheLine(line);
+                    blr.removeLine();
+                    linesProcessed++;
+                }
+                long endTime = System.currentTimeMillis();
+                long timeTakes = endTime - startTime;
+                log("processed " + linesProcessed + " lines in " + timeTakes + " ms ("+(linesProcessed*1000/timeTakes)+" lines/s)");
+            } catch (Throwable t) {
+                err("Error processing line: " + t, t);
+            }
+        }
+
+        private void processTheLine(String line) {
+            // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
+            if(line.startsWith("onTrade[")) {
+                processTradeLine(line);
+            }
+        }
+
+        private void processTradeLine(String line) {
+            Matcher matcher = TRADE_PATTERN.matcher(line);
+            if (matcher.matches()) {
+                String amountStr = matcher.group(1);
+                String priceStr = matcher.group(2);
+                String timeStr = matcher.group(3);
+                System.out.println("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
+                long millis = Long.parseLong(timeStr);
+                double price = Double.parseDouble(priceStr);
+                double amount = Double.parseDouble(amountStr);
+                TradeData tradeData = new TradeData(amount, price, millis);
+                m_exchData.onTrade(tradeData);
+            } else {
+                throw new RuntimeException("not matched TRADE_PATTERN line: " + line);
+            }
+        }
     }
 }

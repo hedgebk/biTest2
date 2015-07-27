@@ -7,13 +7,13 @@ public class Log {
         s_impl.log(s);
     }
 
-    public static void err(String s, Exception err) {
-        s_impl.err(s, err);
+    public static void err(String s, Throwable t) {
+        s_impl.err(s, t);
     }
 
     public interface ILog {
         void log(String s);
-        void err(String s, Exception err);
+        void err(String s, Throwable t);
     }
 
     public static class StdLog implements ILog {
@@ -23,9 +23,9 @@ public class Log {
         }
 
         // synchronized -- do not mess 2 threads outputs
-        @Override public synchronized void err(String s, Exception err) {
+        @Override public synchronized void err(String s, Throwable t) {
             System.out.println(s);
-            err.printStackTrace();
+            t.printStackTrace();
         }
     }
 
@@ -36,9 +36,9 @@ public class Log {
         }
 
         // synchronized -- do not mess 2 threads outputs
-        @Override public synchronized void err(String s, Exception err) {
+        @Override public synchronized void err(String s, Throwable t) {
             System.out.println(System.currentTimeMillis() + ": " + s);
-            err.printStackTrace();
+            t.printStackTrace();
         }
     }
 }

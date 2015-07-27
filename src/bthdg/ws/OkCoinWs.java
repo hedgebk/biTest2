@@ -230,8 +230,10 @@ public class OkCoinWs extends BaseWs {
     @Override public void stop() {
         try {
             m_stopped = true;
-            m_session.close();
-            System.out.println("OkCoin: session closed");
+            if (m_session != null) {
+                m_session.close();
+                System.out.println("OkCoin: session closed");
+            }
         } catch (IOException e) {
             System.out.println("error close OkCoin session: " + e);
             e.printStackTrace();

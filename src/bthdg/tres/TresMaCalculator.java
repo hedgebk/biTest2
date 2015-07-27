@@ -46,13 +46,11 @@ public class TresMaCalculator extends MaCalculator {
     }
 
     @Override protected void endMaBar(long barEnd, double ma, TradeData tdata) {
-        if ((m_lastMaCrossUp != null) && (m_lastOscUp != null)) {
-            if (m_lastMaCrossUp != m_lastOscUp) {
-                Boolean oscUp = calcOscDirection(false);
-                if (oscUp != null) { // if direction defined
-                    if (m_lastMaCrossUp == oscUp) {
-                        addNewMaCrossData(tdata, oscUp);
-                    }
+        if ((m_lastMaCrossUp != null) && (m_lastOscUp != null) && (m_lastMaCrossUp != m_lastOscUp)) {
+            Boolean oscUp = calcOscDirection(false);
+            if (oscUp != null) { // if direction defined
+                if (m_lastMaCrossUp == oscUp) {
+                    addNewMaCrossData(tdata, oscUp);
                 }
             }
         }
@@ -63,8 +61,8 @@ public class TresMaCalculator extends MaCalculator {
         Boolean oscUp = calcOscDirection(true);
         if (oscUp != null) { // if direction defined
             addNewMaCrossData(tdata, oscUp);
-            m_lastMaCrossUp = maCrossUp;
         }
+        m_lastMaCrossUp = maCrossUp;
     }
 
     private void addNewMaCrossData(TradeData tdata, Boolean oscUp) {
