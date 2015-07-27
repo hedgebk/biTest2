@@ -3,13 +3,15 @@ package bthdg.osc;
 import bthdg.BaseChartPaint;
 import bthdg.ChartAxe;
 import bthdg.exch.*;
+import bthdg.util.BufferedLineReader;
 import bthdg.util.Colors;
+import bthdg.util.LineReader;
 import bthdg.util.Utils;
 
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.IOException;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -100,18 +102,11 @@ public class OscLogProcessor extends BaseChartPaint {
             Properties keys = BaseExch.loadKeys();
 
             String logFile = init(keys);
-
-            File file = new File(logFile);
-            FileInputStream fis = new FileInputStream(file);
+            LineReader reader = new LineReader(logFile);
             try {
-                LineReader reader = new LineReader(fis);
-                try {
-                    processLines(reader);
-                } finally {
-                    reader.close();
-                }
+                processLines(reader);
             } finally {
-                fis.close();
+                reader.close();
             }
         } catch (Exception e) {
             System.err.println("GOT ERROR: " + e);
@@ -772,8 +767,8 @@ public class OscLogProcessor extends BaseChartPaint {
             int y = priceAxe.getPointReverse(price);
             long stamp = trade.m_timestamp;
             int x = timeAxe.getPoint(stamp);
-            g.drawLine(x-1, y-1, x+1, y+1);
-            g.drawLine(x+1, y-1, x-1, y+1);
+            g.drawLine(x - 1, y - 1, x + 1, y + 1);
+            g.drawLine(x + 1, y - 1, x - 1, y + 1);
         }
     }
 
@@ -1158,63 +1153,6 @@ public class OscLogProcessor extends BaseChartPaint {
             s_avgPrice.put(millis, avg);
         } else {
             throw new RuntimeException("not matched TRADE_PATTERN line: " + line);
-        }
-    }
-
-    private static class BufferedLineReader {
-        private final LineReader m_reader;
-        private int m_start = 0;
-        private int m_index = 0;
-
-        public BufferedLineReader(LineReader reader) {
-            m_reader = reader;
-        }
-
-        public void close() throws IOException {
-            m_reader.close();
-        }
-
-        public String getLine() throws IOException {
-            String line = m_reader.getLine(m_index);
-            if (line != null) {
-                m_index++;
-            }
-            return line;
-        }
-
-        public void removeLine() {
-            m_start++;
-            m_index = m_start;
-        }
-    }
-
-    private static class LineReader {
-        private final BufferedReader m_bis;
-        private final ArrayList<String> m_buffer = new ArrayList<String>();
-        public int m_linesReaded = 0;
-
-        public LineReader(InputStream is) {
-            m_bis = new BufferedReader(new InputStreamReader(is));
-        }
-
-        public void close() throws IOException {
-            m_bis.close();
-        }
-
-        public synchronized String getLine(int index) throws IOException {
-            if (index < m_buffer.size()) {
-                return m_buffer.get(index);
-            }
-            return readLine();
-        }
-
-        private String readLine() throws IOException {
-            String line = m_bis.readLine();
-            if (line != null) {
-                m_buffer.add(line);
-                m_linesReaded++;
-            }
-            return line;
         }
     }
 
