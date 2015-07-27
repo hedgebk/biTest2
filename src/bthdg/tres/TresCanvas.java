@@ -4,6 +4,7 @@ import bthdg.ChartAxe;
 import bthdg.Log;
 import bthdg.exch.Exchange;
 import bthdg.osc.OscTick;
+import bthdg.util.Utils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -30,7 +31,8 @@ public class TresCanvas extends JComponent {
     private double m_zoom = 1;
     private Integer m_dragStartX;
     private Integer m_dragDeltaX;
-    private Integer m_dragDeltaBars;
+    private int m_dragDeltaBars;
+    private int m_barsShift = 0;
 
     private static void log(String s) { Log.log(s); }
 
@@ -53,7 +55,8 @@ public class TresCanvas extends JComponent {
                 int x = e.getX();
                 log("Mouse press x=" + x);
                 m_dragStartX = x;
-                repaint();
+                m_point = e.getPoint();
+                repaint(150);
             }
 
             @Override public void mouseDragged(MouseEvent e) {
@@ -63,7 +66,8 @@ public class TresCanvas extends JComponent {
                 log(" dragDeltaX=" + m_dragDeltaX);
                 m_dragDeltaBars = m_dragDeltaX / pixPerBar();
                 log("  dragDeltaBars=" + m_dragDeltaBars);
-                repaint();
+                m_point = e.getPoint();
+                repaint(150);
             }
 
             @Override public void mouseReleased(MouseEvent e) {
@@ -73,9 +77,13 @@ public class TresCanvas extends JComponent {
                 log(" dragDeltaX=" + dragDeltaX);
                 int dragDeltaBars = dragDeltaX / pixPerBar();
                 log("  dragDeltaBars=" + dragDeltaBars);
+                m_barsShift += dragDeltaBars;
+                log("   barsShift=" + m_barsShift);
                 m_dragStartX = null;
                 m_dragDeltaX = null;
-                repaint();
+                m_dragDeltaBars = 0;
+                m_point = e.getPoint();
+                repaint(150);
             }
         };
         addMouseListener(mouseAdapter);
@@ -166,7 +174,11 @@ public class TresCanvas extends JComponent {
             g.drawString("Last: " + lastStr, 5, fontHeight + 5);
 
             OscTick fineTick = oscCalculator.m_lastFineTick;
-            paintOsc(g, fineTick, width, Color.GRAY, 5);
+            paintFineOsc(g, fineTick, width - 5);
+
+            OscTick blendedTick = oscCalculator.m_blendedLastFineTick;
+            OscTick lastBarTick = oscCalculator.m_lastBar;
+            paintBlendedOsc(g, lastBarTick, blendedTick, width - 5);
 
             g.drawString(String.format("Zoom: %1$,.4f", m_zoom), 5, fontHeight * 2 + 5);
 
@@ -176,11 +188,10 @@ public class TresCanvas extends JComponent {
             if (m_dragDeltaX != null) {
                 g.drawString(String.format("dragDeltaX: %d", m_dragDeltaX), 5, fontHeight * 4 + 5);
             }
-            if (m_dragDeltaBars != null) {
-                g.drawString(String.format("dragDeltaBars: %d", m_dragDeltaBars), 5, fontHeight * 5 + 5);
-            }
+            g.drawString(String.format("dragDeltaBars: %d", m_dragDeltaBars), 5, fontHeight * 5 + 5);
+            g.drawString(String.format("barsShift: %d", m_barsShift), 5, fontHeight * 6 + 5);
 
-            ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, ohlcTicks);
+            ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, ohlcTicks, barSize);
             paintYPriceAxe(g, yPriceAxe);
 
             paintOHLCTicks(g, ohlcTicks, yPriceAxe);
@@ -231,7 +242,7 @@ public class TresCanvas extends JComponent {
         if (yPriceAxeWidth != maxWidth) { // changed
             calcMaxBars(width);
         }
-        yPriceAxeWidth = maxWidth + PRICE_AXE_MARKER_WIDTH;
+        yPriceAxeWidth = maxWidth + PRICE_AXE_MARKER_WIDTH + 5;
     }
 
     private void paintBarHighlight(Graphics g, long barSize) {
@@ -268,6 +279,7 @@ public class TresCanvas extends JComponent {
         if (maxTime == 0) {
             maxTime = System.currentTimeMillis();
         }
+        maxTime -= (m_barsShift + m_dragDeltaBars) * barSize;
 
         int areaWidth = width - yPriceAxeWidth;
         int pixPerBar = pixPerBar();
@@ -280,16 +292,18 @@ public class TresCanvas extends JComponent {
         m_xTimeAxe.m_offset = extraAreaWidth;
     }
 
-    private ChartAxe calcYPriceAxe(int height, double lastPrice, LinkedList<OHLCTick> ohlcTicks) {
+    private ChartAxe calcYPriceAxe(int height, double lastPrice, LinkedList<OHLCTick> ohlcTicks, long barSize) {
+        double timeMin = m_xTimeAxe.m_min;
+        double timeMax = m_xTimeAxe.m_max;
         double maxPrice = lastPrice;
         double minPrice = lastPrice;
-        int counter = 0;
-        for (Iterator<OHLCTick> iterator = ohlcTicks.descendingIterator(); iterator.hasNext(); ) {
+        for (Iterator<OHLCTick> iterator = ohlcTicks.iterator(); iterator.hasNext(); ) {
             OHLCTick ohlcTick = iterator.next();
-            maxPrice = Math.max(maxPrice, ohlcTick.m_high);
-            minPrice = Math.min(minPrice, ohlcTick.m_low);
-            if (counter++ > m_maxBars) {
-                break;
+            long barStart = ohlcTick.m_barStart;
+            long barEnd = barStart + barSize;
+            if ((barEnd >= timeMin) && (barStart <= timeMax)) {
+                maxPrice = Math.max(maxPrice, ohlcTick.m_high);
+                minPrice = Math.min(minPrice, ohlcTick.m_low);
             }
         }
         double priceDiff = maxPrice - minPrice;
@@ -378,6 +392,17 @@ public class TresCanvas extends JComponent {
                 g.drawLine(x, y, x + 5, y + (oscUp ? -5 : 5));
             }
         }
+
+        g.setColor(Color.ORANGE);
+        long runningTimeMillis = m_tres.m_lastTickMillis - m_tres.m_startTickMillis;
+        String runningStr = Utils.millisToDHMSStr(runningTimeMillis);
+        g.drawString("running: " + runningStr, 5, fontHeight * 8 + 5);
+
+        g.drawString(String.format("ratio: %.5f", totalPriceRatio), 5, fontHeight * 9 + 5);
+
+        double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
+        double aDay = Math.pow(totalPriceRatio, 1 / runningTimeDays);
+        g.drawString(String.format("projected aDay: %.5f", aDay), 5, fontHeight * 10 + 5);
     }
 
     private void paintOHLCTicks(Graphics g, LinkedList<OHLCTick> ohlcTicks, ChartAxe yPriceAxe) {
@@ -396,13 +421,6 @@ public class TresCanvas extends JComponent {
             int closeY = yPriceAxe.getPointReverse(ohlcTick.m_close);
             g.drawLine(midX, highY, midX, lowY);
 
-//            // candle style
-//            int barHeight = closeY - openY;
-//            if (barHeight == 0) {
-//                barHeight = 1;
-//            }
-//            g.fillRect(startX + 1, openY, endX - startX - 2, barHeight);
-
             // ohlc style
             g.drawLine(startX + 1, openY, midX, openY);
             g.drawLine(midX, closeY, endX, closeY);
@@ -419,7 +437,7 @@ public class TresCanvas extends JComponent {
         paintLine(g, 0.2);
         paintLine(g, 0.8);
 
-// top/bottom borders
+        // top/bottom borders
 //        g.setColor(Color.CYAN);
 //        paintLine(g, 0);
 //        paintLine(g, 1);
@@ -428,7 +446,7 @@ public class TresCanvas extends JComponent {
         int[] lastYs = new int[3];
         for (Iterator<OscTick> iterator = oscTicks.descendingIterator(); iterator.hasNext(); ) {
             OscTick tick = iterator.next();
-            int endX = paintOsc(g, tick, m_xTimeAxe, lastX, lastYs);
+            int endX = paintOsc(g, tick, lastX, lastYs);
             if (endX < 0) {
                 break;
             }
@@ -441,10 +459,10 @@ public class TresCanvas extends JComponent {
         g.drawLine(0, y, getWidth(), y);
     }
 
-    private int paintOsc(Graphics g, OscTick tick, ChartAxe xAxe, int lastX, int[] lastYs) {
+    private int paintOsc(Graphics g, OscTick tick, int lastX, int[] lastYs) {
         long startTime = tick.m_startTime;
         long endTime = startTime + m_tres.m_barSizeMillis;
-        int x = xAxe.getPoint(endTime);
+        int x = m_xTimeAxe.getPoint(endTime);
 
         double val1 = tick.m_val1;
         double val2 = tick.m_val2;
@@ -459,12 +477,12 @@ public class TresCanvas extends JComponent {
             g.setColor(Color.BLUE);
             g.drawRect(x - 2, y2 - 2, 5, 5);
         } else {
+            g.setColor(OSC_MID);
+            g.drawLine(lastX, lastYs[2], x, yMid);
             g.setColor(Color.RED);
             g.drawLine(lastX, lastYs[0], x, y1);
             g.setColor(Color.BLUE);
             g.drawLine(lastX, lastYs[1], x, y2);
-            g.setColor(OSC_MID);
-            g.drawLine(lastX, lastYs[2], x, yMid);
         }
         lastYs[0] = y1;
         lastYs[1] = y2;
@@ -472,18 +490,42 @@ public class TresCanvas extends JComponent {
         return x;
     }
 
-    private void paintOsc(Graphics g, OscTick tick, int width, Color color, int offset) {
-        if (tick != null) {
-            double val1 = tick.m_val1;
-            paintOscPoint(g, width, color, offset, val1);
-            double val2 = tick.m_val2;
-            paintOscPoint(g, width, color, offset, val2);
+    private void paintFineOsc(Graphics g, OscTick fineOscTick, int offset) {
+        if (fineOscTick != null) {
+            double val1 = fineOscTick.m_val1;
+            paintFineOscPoint(g, Color.RED, offset, val1);
+            double val2 = fineOscTick.m_val2;
+            paintFineOscPoint(g, Color.BLUE, offset, val2);
         }
     }
 
-    private void paintOscPoint(Graphics g, int width, Color color, int offset, double val) {
+    private void paintFineOscPoint(Graphics g, Color color, int offset, double val) {
         int y = m_yAxe.getPointReverse(val);
         g.setColor(color);
-        g.drawRect(width - offset - 2, y - 2, 5, 5);
+        g.drawRect(offset - 2, y - 2, 5, 5);
+    }
+
+    private void paintBlendedOsc(Graphics g, OscTick lastBarTick, OscTick blendedTick, int offset) {
+        if ((lastBarTick != null) && (blendedTick != null)) {
+            long lastBarStartTime = lastBarTick.m_startTime;
+            long lastBarEndTime = lastBarStartTime + m_tres.m_barSizeMillis;
+            int x1 = m_xTimeAxe.getPoint(lastBarEndTime);
+
+            double lastBarOscVal1 = lastBarTick.m_val1;
+            double lastBarOscVal2 = lastBarTick.m_val2;
+            int lastBarOscY1 = m_yAxe.getPointReverse(lastBarOscVal1);
+            int lastBarOscY2 = m_yAxe.getPointReverse(lastBarOscVal2);
+
+            int x2 = offset;
+
+            double blendedTickVal1 = blendedTick.m_val1;
+            double blendedTickVal2 = blendedTick.m_val2;
+            int blendedTickY1 = m_yAxe.getPointReverse(blendedTickVal1);
+            int blendedTickY2 = m_yAxe.getPointReverse(blendedTickVal2);
+
+            g.setColor(Color.GRAY);
+            g.drawLine(x1, lastBarOscY1, x2, blendedTickY1);
+            g.drawLine(x1, lastBarOscY2, x2, blendedTickY2);
+        }
     }
 }
