@@ -355,32 +355,35 @@ public class OkCoinWs extends BaseWs {
     private static Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
     private static Calendar OUT_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
 
+    // we got only time in mkt tick - need to figure out the date
     private static long parseTimeToDate(String time) {
         try {
             Date date;
-            synchronized (sdf) {
+            synchronized (sdf) { // parse time
                 date = sdf.parse(time);
             }
 
+            long nowMillis = System.currentTimeMillis();
             int year;
             int month;
             int day;
             synchronized (NOW_CALENDAR) {
-                NOW_CALENDAR.setTimeInMillis(System.currentTimeMillis());
+                NOW_CALENDAR.setTimeInMillis(nowMillis);
                 year = NOW_CALENDAR.get(Calendar.YEAR);
                 month = NOW_CALENDAR.get(Calendar.MONTH);
                 day = NOW_CALENDAR.get(Calendar.DAY_OF_MONTH);
             }
 
-            synchronized (NOW_CALENDAR) {
+            synchronized (OUT_CALENDAR) {
                 OUT_CALENDAR.setTime(date);
                 OUT_CALENDAR.set(Calendar.YEAR, year);
                 OUT_CALENDAR.set(Calendar.MONTH, month);
                 OUT_CALENDAR.set(Calendar.DAY_OF_MONTH, day);
+                long outMillis = OUT_CALENDAR.getTimeInMillis();
 
-                long millisDiff = NOW_CALENDAR.getTimeInMillis() - OUT_CALENDAR.getTimeInMillis();
+                long millisDiff = nowMillis - outMillis;
                 if (Math.abs(millisDiff) > (Utils.ONE_DAY_IN_MILLIS >> 1)) {
-                    OUT_CALENDAR.add(Calendar.DAY_OF_MONTH, -1);
+                    OUT_CALENDAR.add(Calendar.DAY_OF_MONTH, (outMillis > nowMillis) ? -1 : 1);
                 }
                 return OUT_CALENDAR.getTimeInMillis();
             }
