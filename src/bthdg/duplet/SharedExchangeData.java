@@ -34,9 +34,7 @@ public class SharedExchangeData implements TradesData.ILastTradeTimeHolder {
     }
 
     private static Utils.DoubleAverageCalculator<Double> mkBidAskDiffCalculator() {
-        return new Utils.DoubleAverageCalculator<Double>() {
-            @Override public double getDoubleValue(Double tick) { return tick; } // ASK > BID
-        };
+        return new Utils.DoubleDoubleAverageCalculator();
     }
 
     public SharedExchangeData(Exchange exchange) {

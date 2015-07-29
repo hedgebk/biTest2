@@ -480,6 +480,10 @@ public class Utils {
         }
     }
 
+    public static class DoubleDoubleAverageCalculator extends DoubleAverageCalculator<Double> {
+        @Override public double getDoubleValue(Double value) { return value; }
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static abstract class DoubleMinMaxCalculator<O> {
         public Double m_minValue;
