@@ -45,9 +45,7 @@ public class TresOscCalculator extends OscCalculator {
     }
 
     @Override public void fine(long stamp, double stoch1, double stoch2) {
-        if(!m_exchData.m_tres.m_silentConsole) {
-            log("fine[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: stamp=" + stamp + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
-        }
+        // log("fine[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: stamp=" + stamp + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
         m_lastFineTick = new OscTick(stamp, stoch1, stoch2);
         if (m_lastBar != null) {
             long barSizeMillis = m_exchData.m_tres.m_barSizeMillis;
@@ -72,9 +70,7 @@ public class TresOscCalculator extends OscCalculator {
     }
 
     @Override public void bar(long barStart, double stoch1, double stoch2) {
-        if(!m_exchData.m_tres.m_silentConsole) {
-            log("bar[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: barStart=" + barStart + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
-        }
+        // log("bar[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: barStart=" + barStart + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
         OscTick osc = new OscTick(barStart, stoch1, stoch2);
         m_prevBar = m_lastBar;
         m_lastBar = osc;
