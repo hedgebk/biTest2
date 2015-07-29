@@ -4,9 +4,11 @@ import bthdg.Log;
 import bthdg.exch.TradeData;
 import bthdg.osc.OscTick;
 
+import java.util.Iterator;
 import java.util.LinkedList;
 
 public class TresMaCalculator extends MaCalculator {
+    public static final double LOCK_OSC_LEVEL = 0.1;
     private final PhaseData m_phaseData;
     final LinkedList<MaTick> m_maTicks = new LinkedList<MaTick>();
     final LinkedList<MaCrossData> m_maCrossDatas = new LinkedList<MaCrossData>();
@@ -78,10 +80,9 @@ public class TresMaCalculator extends MaCalculator {
         OscTick newestTick = useLastFineTick ? oscCalculator.m_blendedLastFineTick : oscCalculator.m_lastBar;
         if (newestTick != null) {
             double newestMid = newestTick.getMid();
-            if (newestMid < 0.1) {
+            if (newestMid < LOCK_OSC_LEVEL) {
                 return false; // oscDown
-            }
-            if (newestMid > 0.9) {
+            } else if (newestMid > 1 - LOCK_OSC_LEVEL) {
                 return true; // oscUp
             }
             double newestVal1 = newestTick.m_val1;
@@ -93,21 +94,66 @@ public class TresMaCalculator extends MaCalculator {
 //                    return true; // oscUp
 //                }
             if (newestVal1 != newestVal2) { // have direction
-                boolean newestOscUp = (newestVal1 > newestVal2);
-                OscTick oldestBar = useLastFineTick ? oscCalculator.m_lastBar : oscCalculator.m_prevBar;
-                if (oldestBar != null) {
-                    double oldestOsc1 = oldestBar.m_val1;
-                    double oldestOsc2 = oldestBar.m_val2;
-                    if (oldestOsc1 != oldestOsc2) { // had direction
-                        Boolean oldestOscUp = (oldestOsc1 > oldestOsc2);
-                        if (oldestOscUp == newestOscUp) {
-                            return newestOscUp;
+                double newestValDiff = Math.abs(newestVal1 - newestVal2);
+                if (newestValDiff > 0.002) {
+                    boolean newestOscUp = (newestVal1 > newestVal2);
+                    OscTick oldBar = useLastFineTick ? oscCalculator.m_lastBar : oscCalculator.m_prevBar;
+                    if (oldBar != null) {
+                        double oldOsc1 = oldBar.m_val1;
+                        double oldOsc2 = oldBar.m_val2;
+                        if (oldOsc1 != oldOsc2) { // had direction
+                            Boolean oldOscUp = (oldOsc1 > oldOsc2);
+                            if (oldOscUp == newestOscUp) {
+                                if(false/*useLastFineTick && (newestMid>0.3) && (newestMid <0.7)*/) {
+                                    OscTick oldestBar = oscCalculator.m_prevBar;
+                                    if (oldestBar != null) {
+                                        double oldestOsc1 = oldestBar.m_val1;
+                                        double oldestOsc2 = oldestBar.m_val2;
+                                        if (oldestOsc1 != oldestOsc2) { // had direction
+                                            Boolean oldestOscUp = (oldestOsc1 > oldestOsc2);
+                                            if (oldOscUp == oldestOscUp) {
+                                                return newestOscUp;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    return newestOscUp;
+                                }
+                            }
                         }
                     }
                 }
             }
         }
         return null; // meant undefined direction
+    }
+
+    public double calcToTal() {
+        Boolean lastOscUp = null;
+        Double lastPrice = null;
+        double totalPriceRatio = 1;
+        for (Iterator<MaCrossData> iterator = m_maCrossDatas.iterator(); iterator.hasNext(); ) {
+            TresMaCalculator.MaCrossData maCrossData = iterator.next();
+            boolean oscUp = maCrossData.m_oscUp;
+            double price = maCrossData.m_price;
+            if (lastOscUp != null) {
+                if (lastOscUp != oscUp) {
+                    if (lastPrice != null) {
+                        double priceRatio = price / lastPrice;
+                        if (!lastOscUp) {
+                            priceRatio = 1 / priceRatio;
+                        }
+                        totalPriceRatio *= priceRatio;
+                    }
+                    lastOscUp = oscUp;
+                    lastPrice = price;
+                }
+            } else { // first
+                lastOscUp = oscUp;
+                lastPrice = price;
+            }
+        }
+        return totalPriceRatio;
     }
 
     public static class MaCrossData {

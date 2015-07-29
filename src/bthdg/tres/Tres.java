@@ -240,6 +240,15 @@ public class Tres {
                 long timeTakes = endTime - startTime;
                 log("processed " + linesProcessed + " lines in " + timeTakes + " ms (" + (linesProcessed * 1000 / timeTakes) + " lines/s)");
 
+                Utils.DoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
+                for (PhaseData phaseData : m_exchData.m_phaseDatas) {
+                    TresMaCalculator maCalculator = phaseData.m_maCalculator;
+                    double total = maCalculator.calcToTal();
+                    log(" total=" + total);
+                    calc.addValue(total);
+                }
+                log("  avg=" + calc.getAverage());
+
                 showUI();
             } catch (Throwable t) {
                 err("Error processing line: " + t, t);
