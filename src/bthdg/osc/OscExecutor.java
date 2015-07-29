@@ -2,19 +2,16 @@ package bthdg.osc;
 
 import bthdg.Fetcher;
 import bthdg.IIterationContext;
-import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.util.Utils;
-import bthdg.ws.ITopListener;
 import bthdg.ws.IWs;
 
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 
-class OscExecutor implements Runnable{
+class OscExecutor extends BaseExecutor {
     private static final double MIN_ORDER_SIZE = 0.1; // btc
     public static final int MIN_REPROCESS_DIRECTION_TIME = 4500;
     public static final double OPPOSITE_DIRECTION_FACTOR = 0.7; // -30%
@@ -36,24 +33,13 @@ class OscExecutor implements Runnable{
     private static final double AVG_STOCH_DELTA_THREZHOLD = 0.0009;
     private static final double AVG_STOCH_THREZHOLD_LEVEL_BOOST = 0.4; // +40%
 
-    private final IWs m_ws;
     private final long m_startMillis;
     private int m_direction;
-    private boolean m_run = true;
-    private boolean m_changed;
     private boolean m_initialized;
-    private OscOrderWatcher m_orderWatcher;
 
-    private TopsData m_initTops;
-    private TopsData m_topsData;
-    private AccountData m_initAccount;
-    private AccountData m_account;
     private State m_state = State.NONE;
-    private double m_buy;
-    private double m_sell;
     private OrderData m_order;
     private List<CloseOrderWrapper> m_closeOrders = new ArrayList<CloseOrderWrapper>();
-    private boolean m_maySyncAccount = false;
     private final Utils.AverageCounter[] m_avgPriceCounters = new Utils.AverageCounter[AVG_PRICE_PERIOD_RATIOS.length];
     final TrendCounter m_priceTrendCounter;
     private final Booster m_booster;
@@ -64,9 +50,8 @@ class OscExecutor implements Runnable{
     private int m_orderPlaceAttemptCounter;
     private NoTradesWatcher m_noTradesWatcher = new NoTradesWatcher();
 
-    private static void log(String s) { Log.log(s); }
-
     public OscExecutor(IWs ws) {
+        super(ws, Osc.PAIR);
         m_avgStochDirectionAdjuster = new AvgStochDirectionAdjuster();
         m_avgPriceDirectionAdjuster = new AvgPriceDirectionAdjuster();
         for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {
@@ -76,7 +61,6 @@ class OscExecutor implements Runnable{
         m_priceTrendCounter = new TrendCounter(Osc.AVG_BAR_SIZE);
         m_booster = new Booster();
         m_startMillis = System.currentTimeMillis();
-        m_ws = ws;
         Thread thread = new Thread(this);
         thread.setName("OscExecutor");
         thread.start();
@@ -87,31 +71,7 @@ class OscExecutor implements Runnable{
             int direction = m_direction;
             m_direction += delta;
             log("update(delta=" + delta + ") direction updated from " + direction + " -> " + m_direction);
-            m_changed = true;
-            notify();
-        }
-    }
-
-    @Override public void run() {
-        while (m_run) {
-            try {
-                boolean changed;
-                synchronized (this) {
-                    if (!m_changed) {
-                        log("waiting for updated osc direction");
-                        wait();
-                    }
-                    changed = m_changed;
-                    m_changed = false;
-                }
-                if (changed) {
-                    log("process updated osc direction=" + m_direction);
-                    postRecheckDirection();
-                }
-            } catch (Exception e) {
-                log("error in OscExecutor");
-                e.printStackTrace();
-            }
+            update();
         }
     }
 
@@ -123,52 +83,9 @@ class OscExecutor implements Runnable{
         }
     }
 
-    private void initImpl() throws Exception {
+    protected void initImpl() throws Exception {
         log("OscExecutor.initImpl()................");
-
-        Exchange exchange = m_ws.exchange();
-        m_topsData = Fetcher.fetchTops(exchange, Osc.PAIR);
-        log(" topsData=" + m_topsData);
-
-        initAccount();
-        m_initAccount = m_account.copy();
-        m_initTops = m_topsData.copy();
-
-        log("initImpl() continue: subscribeTrades()");
-        m_ws.subscribeTop(Osc.PAIR, new ITopListener() {
-            @Override public void onTop(long timestamp, double buy, double sell) {
-//                    log("onTop() timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
-                if (buy > sell) {
-                    log("ERROR: ignored invalid top data. buy > sell: timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
-                    return;
-                }
-                m_buy = buy;
-                m_sell = sell;
-
-                TopData topData = new TopData(buy, sell);
-                m_topsData.put(Osc.PAIR, topData);
-                log(" topsData'=" + m_topsData);
-
-                addTask(new TopTask());
-            }
-        });
-    }
-
-    private void initAccount() throws Exception {
-        Exchange exchange = m_ws.exchange();
-        AccountData account = m_account;
-        m_account = Fetcher.fetchAccount(exchange);
-        if (m_account != null) {
-            log(" account=" + m_account);
-            double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, exchange);
-            log("  valuateBtc=" + valuateBtc + " BTC");
-            if (account!= null) {
-                account.compareFunds(m_account);
-            }
-            m_maySyncAccount = false;
-        } else {
-            log("account request error");
-        }
+        super.initImpl();
     }
 
     private void setState(State state) {
@@ -200,7 +117,7 @@ class OscExecutor implements Runnable{
         return (iContext == null) ? getLiveOrdersContext() : iContext;
     }
 
-    private void gotTop() throws Exception {
+    protected void gotTop() throws Exception {
 //            log("OscExecutor.gotTop() buy=" + buy + "; sell=" + sell);
 //            log(" topsData =" + m_topsData);
         m_state.onTop(this);
@@ -253,7 +170,7 @@ class OscExecutor implements Runnable{
 
     private IIterationContext.BaseIterationContext checkCloseOrdersState(IIterationContext.BaseIterationContext inContext) throws Exception {
         IIterationContext.BaseIterationContext iContext = getLiveOrdersContextIfNeeded(inContext);
-        Exchange exchange = m_ws.exchange();
+        Exchange exchange = exchange();
         log(" checking close orders state...");
         boolean someCloseFilled = false;
         for( ListIterator<CloseOrderWrapper> it = m_closeOrders.listIterator(); it.hasNext(); ) {
@@ -302,18 +219,7 @@ class OscExecutor implements Runnable{
         log("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}");
     }
 
-    private OscOrderWatcher getOrderWatcher() {
-        if (m_orderWatcher == null) {
-            m_orderWatcher = new OscOrderWatcher();
-        }
-        return m_orderWatcher;
-    }
-
-    private void addTask(IOrderTask task) {
-        getOrderWatcher().addTask(task);
-    }
-
-    private void postRecheckDirection() {
+    protected void postRecheckDirection() {
         addTask(new RecheckDirectionTask());
     }
 
@@ -360,7 +266,7 @@ class OscExecutor implements Runnable{
             directionAdjusted = m_noTradesWatcher.adjustDirection(directionAdjusted);
         }
 
-        Exchange exchange = m_ws.exchange();
+        Exchange exchange = exchange();
 
         double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, exchange);
         double valuateCnh = m_account.evaluateAll(m_topsData, Currency.CNH, exchange);
@@ -523,7 +429,6 @@ class OscExecutor implements Runnable{
     private void cancelFarestSameDirectionCloseOrder(OrderSide needOrderSide) throws Exception {
         log("  cancelFarestSameDirectionCloseOrder(needOrderSide=" + needOrderSide + ") size=" + m_closeOrders.size());
         if (!m_closeOrders.isEmpty() && (needOrderSide != null)) {
-            boolean hadError = false;
             Double farestPrice = null;
             CloseOrderWrapper farestCloseOrder = null;
             for (ListIterator<CloseOrderWrapper> iterator = m_closeOrders.listIterator(); iterator.hasNext(); ) {
@@ -722,7 +627,7 @@ class OscExecutor implements Runnable{
     }
 
     private State checkOrderState(IIterationContext.BaseIterationContext iContext) throws Exception {
-        Exchange exchange = m_ws.exchange();
+        Exchange exchange = exchange();
         m_order.checkState(iContext, exchange, m_account,
                 null, // TODO - implement exec listener, add partial support - to fire partial close orders
                 null);
@@ -770,7 +675,7 @@ class OscExecutor implements Runnable{
     }
 
     private IIterationContext.BaseIterationContext getLiveOrdersContext() throws Exception {
-        final OrdersData ordersData = Fetcher.fetchOrders(m_ws.exchange(), Osc.PAIR);
+        final OrdersData ordersData = Fetcher.fetchOrders(exchange(), Osc.PAIR);
         log(" liveOrders loaded " + ordersData);
         return new IIterationContext.BaseIterationContext() {
             @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception { return ordersData; }
@@ -781,7 +686,7 @@ class OscExecutor implements Runnable{
         log("onError() resetting...  -------------------------- ");
         IIterationContext.BaseIterationContext iContext = checkLiveOrders();
         iContext = getLiveOrdersContextIfNeeded(iContext);
-        OrdersData liveOrders = iContext.getLiveOrders(m_ws.exchange());
+        OrdersData liveOrders = iContext.getLiveOrders(exchange());
         if (liveOrders != null) {
             log(" liveOrders " + liveOrders);
             // we may have offline order, try to link
@@ -835,74 +740,15 @@ class OscExecutor implements Runnable{
     }
 
     public void stop() throws Exception {
-        m_ws.stop();
-        synchronized (this) {
-            m_run = false;
-            notify();
-        }
+        super.stop();
         addTask(new StopTaskTask());
-        m_orderWatcher.stop();
+        m_taskQueueProcessor.stop();
         log("stop() finished");
     }
 
     public void onAvgStoch(double avgStoch) {
         m_avgStochDirectionAdjuster.updateAvgStoch(avgStoch);
         m_feeding = true; // preheat finished, got some bars
-    }
-
-    private static class OscOrderWatcher implements Runnable {
-        private final LinkedList<IOrderTask> m_tasksQueue = new LinkedList<IOrderTask>();
-        private Thread m_thread;
-        private boolean m_run = true;
-
-        public void addTask(IOrderTask task) {
-            synchronized (m_tasksQueue) {
-                for (ListIterator<IOrderTask> listIterator = m_tasksQueue.listIterator(); listIterator.hasNext(); ) {
-                    IOrderTask nextTask = listIterator.next();
-                    if (task.isDuplicate(nextTask)) {
-                        listIterator.remove();
-                    }
-                }
-                m_tasksQueue.addLast(task);
-                m_tasksQueue.notify();
-                if (m_thread == null) {
-                    m_thread = new Thread(this);
-                    m_thread.setName("OscOrderWatcher");
-                    m_thread.start();
-                }
-            }
-        }
-
-        @Override public void run() {
-            log("OscOrderWatcher.queue: started thread");
-            while (m_run) {
-                IOrderTask task = null;
-                try {
-                    synchronized (m_tasksQueue) {
-                        if (m_tasksQueue.isEmpty()) {
-                            m_tasksQueue.wait();
-                        }
-                        task = m_tasksQueue.pollFirst();
-                    }
-                    if (task != null) {
-                        task.process();
-                    }
-                } catch (Exception e) {
-                    log("error in OscOrderWatcher: " + e + "; for task " + task);
-                    e.printStackTrace();
-                }
-            }
-            log("OscOrderWatcher.queue: thread finished");
-        }
-
-        public void stop() {
-            m_run = false;
-        }
-    }
-
-    private interface IOrderTask {
-        void process() throws Exception;
-        boolean isDuplicate(IOrderTask other);
     }
 
     public static class TrendCounter extends Utils.AverageCounter {
@@ -930,31 +776,24 @@ class OscExecutor implements Runnable{
         }
     }
 
-    private class StopTaskTask extends BaseOrderTask {
+    private class StopTaskTask extends TaskQueueProcessor.BaseOrderTask {
         public StopTaskTask() {}
 
-        @Override public boolean isDuplicate(IOrderTask other) {
+        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
             log("stopping. removed task " + other);
             return true;
         }
 
         @Override public void process() throws Exception {
             cancelAllOrders();
-            m_orderWatcher.stop();
+            m_taskQueueProcessor.stop();
         }
     }
 
-    private abstract class BaseOrderTask implements IOrderTask {
-        @Override public boolean isDuplicate(IOrderTask other) {
-            // single presence in queue task
-            return getClass().equals(other.getClass());
-        }
-    }
-
-    private class RecheckDirectionTask extends BaseOrderTask {
+    private class RecheckDirectionTask extends TaskQueueProcessor.BaseOrderTask {
         public RecheckDirectionTask() {}
 
-        @Override public boolean isDuplicate(IOrderTask other) {
+        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
             boolean duplicate = super.isDuplicate(other);
             if (duplicate) {
                 log(" skipped RecheckDirectionTask duplicate");
@@ -967,10 +806,10 @@ class OscExecutor implements Runnable{
         }
     }
 
-    private class CheckLiveOrdersTask extends BaseOrderTask {
+    private class CheckLiveOrdersTask extends TaskQueueProcessor.BaseOrderTask {
         public CheckLiveOrdersTask() {}
 
-        @Override public boolean isDuplicate(IOrderTask other) {
+        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
             boolean duplicate = super.isDuplicate(other);
             if (duplicate) {
                 log(" skipped CheckLiveOrdersTask duplicate");
@@ -984,14 +823,14 @@ class OscExecutor implements Runnable{
         }
     }
 
-    private class TradeTask implements IOrderTask {
+    private class TradeTask implements TaskQueueProcessor.IOrderTask {
         private final TradeData m_tData;
 
         public TradeTask(TradeData tData) {
             m_tData = tData;
         }
 
-        @Override public boolean isDuplicate(IOrderTask other) {
+        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
             if (other instanceof TradeTask) {
                 TradeTask tradeTask = (TradeTask) other;
                 double price = m_tData.m_price;
@@ -1011,18 +850,10 @@ class OscExecutor implements Runnable{
         }
     }
 
-    private class TopTask extends BaseOrderTask {
-        public TopTask() {}
-
-        @Override public void process() throws Exception {
-            gotTop();
-        }
-    }
-
-    private class InitTask implements IOrderTask {
+    private class InitTask implements TaskQueueProcessor.IOrderTask {
         public InitTask() {}
 
-        @Override public boolean isDuplicate(IOrderTask other) { return false; }
+        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) { return false; }
         @Override public void process() throws Exception {
             log("InitTask.process()");
             initImpl();
