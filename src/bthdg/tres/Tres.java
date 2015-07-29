@@ -15,8 +15,8 @@ import bthdg.ws.WsFactory;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Properties;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,6 +39,7 @@ public class Tres {
     long m_lastTickMillis = 0;
     private final boolean m_processLogs;
     private String m_logFile;
+    public boolean m_silentConsole;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -83,6 +84,7 @@ public class Tres {
         init();
 
         if (m_processLogs) {
+            m_silentConsole = true;
             LogProcessor logProcessor = new LogProcessor(m_exchDatas, m_logFile);
             logProcessor.start();
         } else {
@@ -159,10 +161,26 @@ public class Tres {
         }
     }
 
+    public List<Long> m_tickTimes = new ArrayList<Long>();
+
     public void onTrade(TradeData tdata) {
         long timestamp = tdata.m_timestamp;
-        m_startTickMillis = Math.min(m_startTickMillis, timestamp);
+        long min = Math.min(m_startTickMillis, timestamp);
+        if ((min < m_startTickMillis) && (m_startTickMillis != Long.MAX_VALUE)) {
+            TimeZone TZ = TimeZone.getTimeZone("Asia/Hong_Kong"); // utc+08:00 Beijing, Hong Kong, Urumqi
+            Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
+            NOW_CALENDAR.setTimeInMillis(timestamp);
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS Z, zzzz");
+            simpleDateFormat.setTimeZone(TZ);
+            String str = simpleDateFormat.format(NOW_CALENDAR.getTime());
+            log("str="+str);
+            log("GOT");
+        } else {
+            m_startTickMillis = min;
+        }
         m_lastTickMillis = Math.max(m_lastTickMillis, timestamp);
+
+        m_tickTimes.add(timestamp);
 
         if (m_frame != null) {
             m_frame.fireUpdated();
@@ -211,16 +229,18 @@ public class Tres {
             BufferedLineReader blr = new BufferedLineReader(reader);
             try {
                 long startTime = System.currentTimeMillis();
-                int linesProcessed = 0;
+                long linesProcessed = 0;
                 String line;
-                while( (line = blr.getLine()) != null ) {
+                while ((line = blr.getLine()) != null) {
                     processTheLine(line);
                     blr.removeLine();
                     linesProcessed++;
                 }
                 long endTime = System.currentTimeMillis();
                 long timeTakes = endTime - startTime;
-                log("processed " + linesProcessed + " lines in " + timeTakes + " ms ("+(linesProcessed*1000/timeTakes)+" lines/s)");
+                log("processed " + linesProcessed + " lines in " + timeTakes + " ms (" + (linesProcessed * 1000 / timeTakes) + " lines/s)");
+
+                showUI();
             } catch (Throwable t) {
                 err("Error processing line: " + t, t);
             }
@@ -239,7 +259,7 @@ public class Tres {
                 String amountStr = matcher.group(1);
                 String priceStr = matcher.group(2);
                 String timeStr = matcher.group(3);
-                System.out.println("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
+//                log("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
                 long millis = Long.parseLong(timeStr);
                 double price = Double.parseDouble(priceStr);
                 double amount = Double.parseDouble(amountStr);

@@ -38,8 +38,8 @@ public class TresCanvas extends JComponent {
 
     TresCanvas(Tres tres) {
         m_tres = tres;
-        setMinimumSize(new Dimension(500, 200));
-        setPreferredSize(new Dimension(500, 200));
+        setMinimumSize(new Dimension(800, 500));
+        setPreferredSize(new Dimension(800, 500));
         setBackground(Color.BLACK);
 
         MouseAdapter mouseAdapter = new MouseAdapter() {
@@ -53,7 +53,6 @@ public class TresCanvas extends JComponent {
 
             @Override public void mousePressed(MouseEvent e) {
                 int x = e.getX();
-                log("Mouse press x=" + x);
                 m_dragStartX = x;
                 m_point = e.getPoint();
                 repaint(150);
@@ -61,24 +60,17 @@ public class TresCanvas extends JComponent {
 
             @Override public void mouseDragged(MouseEvent e) {
                 int x = e.getX();
-                log("Mouse drag x=" + x);
                 m_dragDeltaX = x - m_dragStartX;
-                log(" dragDeltaX=" + m_dragDeltaX);
                 m_dragDeltaBars = m_dragDeltaX / pixPerBar();
-                log("  dragDeltaBars=" + m_dragDeltaBars);
                 m_point = e.getPoint();
                 repaint(150);
             }
 
             @Override public void mouseReleased(MouseEvent e) {
                 int x = e.getX();
-                log("Mouse release x=" + x);
                 int dragDeltaX = x - m_dragStartX;
-                log(" dragDeltaX=" + dragDeltaX);
                 int dragDeltaBars = dragDeltaX / pixPerBar();
-                log("  dragDeltaBars=" + dragDeltaBars);
                 m_barsShift += dragDeltaBars;
-                log("   barsShift=" + m_barsShift);
                 m_dragStartX = null;
                 m_dragDeltaX = null;
                 m_dragDeltaBars = 0;
@@ -94,13 +86,10 @@ public class TresCanvas extends JComponent {
     private void onMouseWheelMoved(MouseWheelEvent e) {
         int notches = e.getWheelRotation();
         if (notches < 0) {
-            log("Mouse wheel moved UP " + -notches + " notch(es)");
             m_zoom *= 1.1;
         } else {
-            log("Mouse wheel moved DOWN " + notches + " notch(es)");
             m_zoom /= 1.1;
         }
-        log(" m_zoom=" + m_zoom);
         repaint();
     }
 
@@ -143,6 +132,11 @@ public class TresCanvas extends JComponent {
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 
+        paintMainChart(g, width, height);
+//        paintTimeTicks(g, width, height);
+    }
+
+    private void paintMainChart(Graphics g, int width, int height) {
         long barSize = m_tres.m_barSizeMillis;
 
         if (m_point != null) {
@@ -188,7 +182,9 @@ public class TresCanvas extends JComponent {
             if (m_dragDeltaX != null) {
                 g.drawString(String.format("dragDeltaX: %d", m_dragDeltaX), 5, fontHeight * 4 + 5);
             }
-            g.drawString(String.format("dragDeltaBars: %d", m_dragDeltaBars), 5, fontHeight * 5 + 5);
+            if (m_dragDeltaBars != 0) {
+                g.drawString(String.format("dragDeltaBars: %d", m_dragDeltaBars), 5, fontHeight * 5 + 5);
+            }
             g.drawString(String.format("barsShift: %d", m_barsShift), 5, fontHeight * 6 + 5);
 
             ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, ohlcTicks, barSize);
@@ -205,6 +201,32 @@ public class TresCanvas extends JComponent {
 
         if (m_point != null) {
             paintCross(g, width, height);
+        }
+    }
+
+    private void paintTimeTicks(Graphics g, int width, int height) {
+        long minTickTime = Long.MAX_VALUE;
+        long maxTickTime = 0;
+        for (Long tickTime : m_tres.m_tickTimes) {
+            minTickTime = Math.min(minTickTime, tickTime);
+            maxTickTime = Math.max(maxTickTime, tickTime);
+        }
+        ChartAxe yTickTimeAxe = new ChartAxe(minTickTime, maxTickTime, height);
+        ChartAxe xTickCountAxe = new ChartAxe(0, m_tres.m_tickTimes.size(), width);
+
+        g.setColor(Color.red);
+        int count = 0;
+        int prevX = -1;
+        int prevY = -1;
+        for (Long tickTime : m_tres.m_tickTimes) {
+            int x = xTickCountAxe.getPoint(count);
+            int y = yTickTimeAxe.getPointReverse(tickTime);
+            if ((prevX != -1) && (prevY != -1)) {
+                g.drawLine(prevX, prevY, x, y);
+            }
+            prevX = x;
+            prevY = y;
+            count++;
         }
     }
 
@@ -346,6 +368,7 @@ public class TresCanvas extends JComponent {
         Boolean lastOscUp = null;
         Double lastPrice = null;
         double totalPriceRatio = 1;
+        int tradeNum = 0;
         int fontHeight = g.getFont().getSize();
         for (Iterator<TresMaCalculator.MaCrossData> iterator = maCalculator.m_maCrossDatas.iterator(); iterator.hasNext(); ) {
             TresMaCalculator.MaCrossData maCrossData = iterator.next();
@@ -375,6 +398,7 @@ public class TresCanvas extends JComponent {
                             g.setColor(color);
                             g.drawString(String.format("t: %1$,.5f", totalPriceRatio), x, y + fontHeight * 2);
                         }
+                        tradeNum++;
                     }
                     lastOscUp = oscUp;
                     lastY = y;
@@ -403,6 +427,10 @@ public class TresCanvas extends JComponent {
         double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
         double aDay = Math.pow(totalPriceRatio, 1 / runningTimeDays);
         g.drawString(String.format("projected aDay: %.5f", aDay), 5, fontHeight * 10 + 5);
+
+        g.drawString(String.format("trade num: %d", tradeNum), 5, fontHeight * 11 + 5);
+        double tradeFreq = ((double)runningTimeMillis) / tradeNum / 1000;
+        g.drawString(String.format("trade every %.5f sec", tradeFreq), 5, fontHeight * 12 + 5);
     }
 
     private void paintOHLCTicks(Graphics g, LinkedList<OHLCTick> ohlcTicks, ChartAxe yPriceAxe) {

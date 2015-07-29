@@ -35,7 +35,9 @@ public class TresExchData implements ITradesListener {
     }
 
     @Override public void onTrade(TradeData tdata) {
-        log("onTrade[" + m_ws.exchange() + "]: " + tdata);
+        if(!m_tres.m_silentConsole) {
+            log("onTrade[" + m_ws.exchange() + "]: " + tdata);
+        }
         m_updated = false;
         m_lastPrice = tdata.m_price;
         for (PhaseData phaseData : m_phaseDatas) {
