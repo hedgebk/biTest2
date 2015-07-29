@@ -348,7 +348,12 @@ public class OkCoinWs extends BaseWs {
             System.out.println("session isOpen=" + m_session.isOpen() + "; session=" + m_session);
         } catch (Exception e) {
             System.out.println("connectToServer error: " + e);
-            throw e;
+            if (m_stopped) {
+                System.out.println("session stopped - no reconnect");
+            } else {
+                new ReconnectThread().start();
+            }
+//            throw e;
         }
     }
 
