@@ -57,7 +57,7 @@ public class TaskQueueProcessor implements Runnable {
         boolean isDuplicate(IOrderTask other);
     }
 
-    public static abstract class BaseOrderTask implements IOrderTask {
+    public static abstract class SinglePresenceTask implements IOrderTask {
         @Override public boolean isDuplicate(IOrderTask other) {
             // single presence in queue task
             return getClass().equals(other.getClass());

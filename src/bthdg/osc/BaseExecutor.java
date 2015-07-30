@@ -7,8 +7,10 @@ import bthdg.ws.ITopListener;
 import bthdg.ws.IWs;
 
 public abstract class BaseExecutor implements Runnable {
+    protected final long m_startMillis;
     private final IWs m_ws;
     protected final Pair m_pair;
+    protected final Exchange m_exchange;
     protected TaskQueueProcessor m_taskQueueProcessor;
     private boolean m_run = true;
     private boolean m_changed;
@@ -21,14 +23,16 @@ public abstract class BaseExecutor implements Runnable {
     protected boolean m_maySyncAccount = false;
 
     protected static void log(String s) { Log.log(s); }
-    protected Exchange exchange() { return m_ws.exchange(); }
 
     // abstract
     protected abstract void gotTop() throws Exception;
+    protected abstract void cancelAllOrders() throws Exception;
 
     public BaseExecutor(IWs ws, Pair pair) {
         m_ws = ws;
         m_pair = pair;
+        m_exchange = m_ws.exchange();
+        m_startMillis = System.currentTimeMillis();
     }
 
     @Override public void run() {
@@ -62,6 +66,7 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     public void stop() throws Exception {
+        addTask(new StopTaskTask());
         m_ws.stop();
         synchronized (this) {
             m_run = false;
@@ -85,8 +90,7 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected void initImpl() throws Exception {
-        Exchange exchange = exchange();
-        m_topsData = Fetcher.fetchTops(exchange, m_pair);
+        m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
         log(" topsData=" + m_topsData);
 
         initAccount();
@@ -114,12 +118,11 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected void initAccount() throws Exception {
-        Exchange exchange = exchange();
         AccountData account = m_account;
-        m_account = Fetcher.fetchAccount(exchange);
+        m_account = Fetcher.fetchAccount(m_exchange);
         if (m_account != null) {
             log(" account=" + m_account);
-            double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, exchange);
+            double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
             log("  valuateBtc=" + valuateBtc + " BTC");
             if (account!= null) {
                 account.compareFunds(m_account);
@@ -131,11 +134,25 @@ public abstract class BaseExecutor implements Runnable {
     }
 
 
-    private class TopTask extends TaskQueueProcessor.BaseOrderTask {
+    private class TopTask extends TaskQueueProcessor.SinglePresenceTask {
         public TopTask() {}
 
         @Override public void process() throws Exception {
             gotTop();
+        }
+    }
+
+    private class StopTaskTask extends TaskQueueProcessor.SinglePresenceTask {
+        public StopTaskTask() {}
+
+        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
+            log("stopping. removed task " + other);
+            return true;
+        }
+
+        @Override public void process() throws Exception {
+            cancelAllOrders();
+            m_taskQueueProcessor.stop();
         }
     }
 

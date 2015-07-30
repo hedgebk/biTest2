@@ -33,7 +33,6 @@ class OscExecutor extends BaseExecutor {
     private static final double AVG_STOCH_DELTA_THREZHOLD = 0.0009;
     private static final double AVG_STOCH_THREZHOLD_LEVEL_BOOST = 0.4; // +40%
 
-    private final long m_startMillis;
     private int m_direction;
     private boolean m_initialized;
 
@@ -42,7 +41,6 @@ class OscExecutor extends BaseExecutor {
     private List<CloseOrderWrapper> m_closeOrders = new ArrayList<CloseOrderWrapper>();
     private final Utils.AverageCounter[] m_avgPriceCounters = new Utils.AverageCounter[AVG_PRICE_PERIOD_RATIOS.length];
     final TrendCounter m_priceTrendCounter;
-    private final Booster m_booster;
     private final AvgStochDirectionAdjuster m_avgStochDirectionAdjuster;
     private final AvgPriceDirectionAdjuster m_avgPriceDirectionAdjuster;
     private long m_lastProcessDirectionTime;
@@ -59,8 +57,6 @@ class OscExecutor extends BaseExecutor {
             m_avgPriceCounters[i] = new Utils.FadingAverageCounter((long) (Osc.AVG_BAR_SIZE * avgPricePeriodRatio));
         }
         m_priceTrendCounter = new TrendCounter(Osc.AVG_BAR_SIZE);
-        m_booster = new Booster();
-        m_startMillis = System.currentTimeMillis();
         Thread thread = new Thread(this);
         thread.setName("OscExecutor");
         thread.start();
@@ -83,7 +79,7 @@ class OscExecutor extends BaseExecutor {
         }
     }
 
-    protected void initImpl() throws Exception {
+    @Override protected void initImpl() throws Exception {
         log("OscExecutor.initImpl()................");
         super.initImpl();
     }
@@ -117,7 +113,7 @@ class OscExecutor extends BaseExecutor {
         return (iContext == null) ? getLiveOrdersContext() : iContext;
     }
 
-    protected void gotTop() throws Exception {
+    @Override protected void gotTop() throws Exception {
 //            log("OscExecutor.gotTop() buy=" + buy + "; sell=" + sell);
 //            log(" topsData =" + m_topsData);
         m_state.onTop(this);
@@ -129,7 +125,7 @@ class OscExecutor extends BaseExecutor {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {
             double avg = m_avgPriceCounters[i].get();
-            builder.append(" avg"+(i+1)+"=" + avg);
+            builder.append(" avg").append(i + 1).append("=").append(avg);
         }
         Double last = m_priceTrendCounter.getLast();
         Double oldest = m_priceTrendCounter.getOldest();
@@ -170,13 +166,12 @@ class OscExecutor extends BaseExecutor {
 
     private IIterationContext.BaseIterationContext checkCloseOrdersState(IIterationContext.BaseIterationContext inContext) throws Exception {
         IIterationContext.BaseIterationContext iContext = getLiveOrdersContextIfNeeded(inContext);
-        Exchange exchange = exchange();
         log(" checking close orders state...");
         boolean someCloseFilled = false;
         for( ListIterator<CloseOrderWrapper> it = m_closeOrders.listIterator(); it.hasNext(); ) {
             CloseOrderWrapper closeOrderWrapper = it.next();
             OrderData closeOrder = closeOrderWrapper.m_closeOrder;
-            closeOrder.checkState(iContext, exchange, m_account,
+            closeOrder.checkState(iContext, m_exchange, m_account,
                     null, // TODO - implement exec listener, add partial support - to fire partial close orders
                     null);
             log("  closeOrder state checked: " + closeOrder);
@@ -193,21 +188,21 @@ class OscExecutor extends BaseExecutor {
             initAccount();
             log("post recheck direction");
             postRecheckDirection();
-            logValuate(exchange);
+            logValuate();
         }
         return iContext;
     }
 
-    private void logValuate(Exchange exchange) {
+    private void logValuate() {
         log("{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{");
-        double valuateBtcInit = m_initAccount.evaluateAll(m_initTops, Currency.BTC, exchange);
-        double valuateCnhInit = m_initAccount.evaluateAll(m_initTops, Currency.CNH, exchange);
+        double valuateBtcInit = m_initAccount.evaluateAll(m_initTops, Currency.BTC, m_exchange);
+        double valuateCnhInit = m_initAccount.evaluateAll(m_initTops, Currency.CNH, m_exchange);
         log("  INIT:  valuateBtc=" + valuateBtcInit + " BTC; valuateCnh=" + valuateCnhInit + " CNH");
-        double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, exchange);
-        double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, exchange);
+        double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
+        double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
         log("  NOW:   valuateBtc=" + valuateBtcNow + " BTC; valuateCnh=" + valuateCnhNow + " CNH");
-        double valuateBtcSleep = m_initAccount.evaluateAll(m_topsData, Currency.BTC, exchange);
-        double valuateCnhSleep = m_initAccount.evaluateAll(m_topsData, Currency.CNH, exchange);
+        double valuateBtcSleep = m_initAccount.evaluateAll(m_topsData, Currency.BTC, m_exchange);
+        double valuateCnhSleep = m_initAccount.evaluateAll(m_topsData, Currency.CNH, m_exchange);
         log("  SLEEP: valuateBtc=" + valuateBtcSleep + " BTC; valuateCnh=" + valuateCnhSleep + " CNH");
         double gainBtc = valuateBtcNow / valuateBtcInit;
         double gainCnh = valuateCnhNow / valuateCnhInit;
@@ -219,7 +214,7 @@ class OscExecutor extends BaseExecutor {
         log("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}");
     }
 
-    protected void postRecheckDirection() {
+    @Override protected void postRecheckDirection() {
         addTask(new RecheckDirectionTask());
     }
 
@@ -248,28 +243,14 @@ class OscExecutor extends BaseExecutor {
             }
         }
 
-//        if (Osc.RATIO_POWER != 1) {
-//            boolean negative = (directionAdjusted < 0);
-//            double boosted = Math.pow(Math.abs(directionAdjusted), 1 / Osc.RATIO_POWER);
-//            if (negative) {
-//                boosted = -boosted;
-//            }
-//            log("  boost direction from " + directionAdjusted + " to " + boosted);
-//            directionAdjusted = boosted;
-//        }
-
-//        directionAdjusted = m_booster.boost(directionAdjusted);
-
         double directionAdjusted = m_avgStochDirectionAdjuster.adjustDirection(directionAdjustedIn);
         if (directionAdjusted != 0) { // do not change if zeroed
             directionAdjusted = m_avgPriceDirectionAdjuster.adjustDirection(directionAdjustedIn, directionAdjusted);
             directionAdjusted = m_noTradesWatcher.adjustDirection(directionAdjusted);
         }
 
-        Exchange exchange = exchange();
-
-        double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, exchange);
-        double valuateCnh = m_account.evaluateAll(m_topsData, Currency.CNH, exchange);
+        double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
+        double valuateCnh = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
         log("  valuateBtc=" + valuateBtc + " BTC; valuateCnh=" + valuateCnh + " CNH");
 
         double haveBtc = m_account.getAllValue(Currency.BTC);
@@ -288,7 +269,6 @@ class OscExecutor extends BaseExecutor {
         OrderSide needOrderSide = (needBuyBtc == 0) ? null : (needBuyBtc > 0) ? OrderSide.BUY : OrderSide.SELL;
         log("   needOrderSide=" + needOrderSide + "; orderSize=" + orderSize);
 
-        double placeOrderSize = 0;
         if (orderSize != 0) {
             double orderSizeAdjusted = orderSize;
             if (orderSizeAdjusted > 0) {
@@ -304,7 +284,7 @@ class OscExecutor extends BaseExecutor {
                         double orderSizeDiff = orderSize - remained;
                         log("       remained=" + remained + "; orderSizeDiff=" + orderSizeDiff);
                         if (orderSizeDiff > 0) {
-                            double adjusted = adjustSizeToAvailable(orderSizeDiff, exchange);
+                            double adjusted = adjustSizeToAvailable(orderSizeDiff);
                             if (orderSizeDiff != adjusted) {
                                 log("        orderSizeDiff adjusted by available: from " + orderSizeDiff + " to " + adjusted);
                                 orderSizeDiff = adjusted;
@@ -328,7 +308,7 @@ class OscExecutor extends BaseExecutor {
         State ret = cancelOrderIfPresent();
         if (ret == null) { // cancel attempt was not performed
 
-            double canBuyBtc = adjustSizeToAvailable(needBuyBtc, exchange);
+            double canBuyBtc = adjustSizeToAvailable(needBuyBtc);
             log("      needBuyBtc " + Utils.format8(needBuyBtc) + " adjusted by Available: canBuyBtc=" + Utils.format8(canBuyBtc));
             double notEnough = Math.abs(needBuyBtc - canBuyBtc);
             if (notEnough > MIN_ORDER_SIZE) {
@@ -345,18 +325,18 @@ class OscExecutor extends BaseExecutor {
             canBuyBtc *= Osc.USE_FUNDS_FROM_AVAILABLE; // do not use ALL available funds
             log("       fund ratio adjusted: canBuyBtc=" + Utils.format8(canBuyBtc));
 
-            double orderSizeRound = exchange.roundAmount(canBuyBtc, Osc.PAIR);
-            placeOrderSize = Math.abs(orderSizeRound);
+            double orderSizeRound = m_exchange.roundAmount(canBuyBtc, m_pair);
+            double placeOrderSize = Math.abs(orderSizeRound);
             log("        orderSizeAdjusted=" + Utils.format8(canBuyBtc) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
 
-            double minOrderToCreate = exchange.minOrderToCreate(Osc.PAIR);
+            double minOrderToCreate = m_exchange.minOrderToCreate(m_pair);
             if ((placeOrderSize >= minOrderToCreate) && (placeOrderSize >= MIN_ORDER_SIZE)) {
                 if (m_order == null) { // we should not have open order at this place
-                    double orderPrice = calcOrderPrice(exchange, directionAdjusted, needOrderSide);
-                    m_order = new OrderData(Osc.PAIR, needOrderSide, orderPrice, placeOrderSize);
+                    double orderPrice = calcOrderPrice(m_exchange, directionAdjusted, needOrderSide);
+                    m_order = new OrderData(m_pair, needOrderSide, orderPrice, placeOrderSize);
                     log("   orderData=" + m_order);
 
-                    if (placeOrderToExchange(exchange, m_order)) {
+                    if (placeOrderToExchange(m_exchange, m_order)) {
                         m_orderPlaceAttemptCounter++;
                         log("    m_orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
                         return State.ORDER;
@@ -394,12 +374,12 @@ class OscExecutor extends BaseExecutor {
         double adjustedPrice = followMktPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
         log("   orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
         RoundingMode roundMode = needOrderSide.getPegRoundMode();
-        double orderPrice = exchange.roundPrice(adjustedPrice, Osc.PAIR, roundMode);
+        double orderPrice = exchange.roundPrice(adjustedPrice, m_pair, roundMode);
         log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
         return orderPrice;
     }
 
-    private double adjustSizeToAvailable(double needBuyBtc, Exchange exchange) {
+    private double adjustSizeToAvailable(double needBuyBtc) {
         log(" account=" + m_account);
         double haveBtc = m_account.available(Currency.BTC);
         double haveCnh = m_account.available(Currency.CNH);
@@ -407,16 +387,16 @@ class OscExecutor extends BaseExecutor {
         double buyBtc;
         if (needBuyBtc > 0) {
             log("  will buy Btc:");
-            double needSellCnh = m_topsData.convert(Currency.BTC, Currency.CNH, needBuyBtc, exchange);
+            double needSellCnh = m_topsData.convert(Currency.BTC, Currency.CNH, needBuyBtc, m_exchange);
             double canSellCnh = Math.min(needSellCnh, haveCnh);
-            double canBuyBtc = m_topsData.convert(Currency.CNH, Currency.BTC, canSellCnh, exchange);
+            double canBuyBtc = m_topsData.convert(Currency.CNH, Currency.BTC, canSellCnh, m_exchange);
             log("   need to sell " + needSellCnh + " CNH; can Sell " + canSellCnh + " CNH; this will buy " + canBuyBtc + " BTC");
             buyBtc = canBuyBtc;
         } else if (needBuyBtc < 0) {
             log("  will sell Btc:");
             double needSellBtc = -needBuyBtc;
             double canSellBtc = Math.min(needSellBtc, haveBtc);
-            double canBuyCnh = m_topsData.convert(Currency.BTC, Currency.CNH, canSellBtc, exchange);
+            double canBuyCnh = m_topsData.convert(Currency.BTC, Currency.CNH, canSellBtc, m_exchange);
             log("   need to sell " + needSellBtc + " BTC; can Sell " + canSellBtc + " BTC; this will buy " + canBuyCnh + " CNH");
             buyBtc = -canSellBtc;
         } else {
@@ -431,8 +411,7 @@ class OscExecutor extends BaseExecutor {
         if (!m_closeOrders.isEmpty() && (needOrderSide != null)) {
             Double farestPrice = null;
             CloseOrderWrapper farestCloseOrder = null;
-            for (ListIterator<CloseOrderWrapper> iterator = m_closeOrders.listIterator(); iterator.hasNext(); ) {
-                CloseOrderWrapper next = iterator.next();
+            for (CloseOrderWrapper next : m_closeOrders) {
                 OrderData closeOrder = next.m_closeOrder;
                 OrderSide closeOrderSide = closeOrder.m_side;
                 log("   next closeOrder " + closeOrder);
@@ -627,8 +606,7 @@ class OscExecutor extends BaseExecutor {
     }
 
     private State checkOrderState(IIterationContext.BaseIterationContext iContext) throws Exception {
-        Exchange exchange = exchange();
-        m_order.checkState(iContext, exchange, m_account,
+        m_order.checkState(iContext, m_exchange, m_account,
                 null, // TODO - implement exec listener, add partial support - to fire partial close orders
                 null);
         log("  order state checked: " + m_order);
@@ -636,7 +614,7 @@ class OscExecutor extends BaseExecutor {
         if (m_order.isFilled()) {
             m_orderPlaceAttemptCounter = 0;
             log("$$$$$$   order FILLED: " + m_order);
-            logValuate(exchange);
+            logValuate();
             if (Osc.DO_CLOSE_ORDERS) {
                 OrderSide orderSide = m_order.m_side;
                 OrderSide closeSide = orderSide.opposite();
@@ -644,10 +622,10 @@ class OscExecutor extends BaseExecutor {
                 // todo: correct price if it is not outside bid-ask
                 double closeSize = m_order.m_amount * Osc.USE_FUNDS_FROM_AVAILABLE; // do not use ALL available funds
 
-                OrderData closeOrder = new OrderData(Osc.PAIR, closeSide, closePrice, closeSize);
+                OrderData closeOrder = new OrderData(m_pair, closeSide, closePrice, closeSize);
                 log("  placing closeOrder=" + closeOrder);
 
-                boolean placed = placeOrderToExchange(exchange, closeOrder);
+                boolean placed = placeOrderToExchange(m_exchange, closeOrder);
                 if (placed) {
                     m_closeOrders.add(new CloseOrderWrapper(closeOrder, m_order));
                     m_order = null;
@@ -675,7 +653,7 @@ class OscExecutor extends BaseExecutor {
     }
 
     private IIterationContext.BaseIterationContext getLiveOrdersContext() throws Exception {
-        final OrdersData ordersData = Fetcher.fetchOrders(exchange(), Osc.PAIR);
+        final OrdersData ordersData = Fetcher.fetchOrders(m_exchange, m_pair);
         log(" liveOrders loaded " + ordersData);
         return new IIterationContext.BaseIterationContext() {
             @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception { return ordersData; }
@@ -686,7 +664,7 @@ class OscExecutor extends BaseExecutor {
         log("onError() resetting...  -------------------------- ");
         IIterationContext.BaseIterationContext iContext = checkLiveOrders();
         iContext = getLiveOrdersContextIfNeeded(iContext);
-        OrdersData liveOrders = iContext.getLiveOrders(exchange());
+        OrdersData liveOrders = iContext.getLiveOrders(m_exchange);
         if (liveOrders != null) {
             log(" liveOrders " + liveOrders);
             // we may have offline order, try to link
@@ -713,7 +691,7 @@ class OscExecutor extends BaseExecutor {
         }
     }
 
-    private void cancelAllOrders() throws Exception {
+    @Override protected void cancelAllOrders() throws Exception {
         if (m_order != null) {
             log("  we have existing order, will cancel: " + m_order);
             String error = cancelOrder(m_order);
@@ -739,9 +717,8 @@ class OscExecutor extends BaseExecutor {
         }
     }
 
-    public void stop() throws Exception {
+    @Override public void stop() throws Exception {
         super.stop();
-        addTask(new StopTaskTask());
         m_taskQueueProcessor.stop();
         log("stop() finished");
     }
@@ -776,21 +753,7 @@ class OscExecutor extends BaseExecutor {
         }
     }
 
-    private class StopTaskTask extends TaskQueueProcessor.BaseOrderTask {
-        public StopTaskTask() {}
-
-        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
-            log("stopping. removed task " + other);
-            return true;
-        }
-
-        @Override public void process() throws Exception {
-            cancelAllOrders();
-            m_taskQueueProcessor.stop();
-        }
-    }
-
-    private class RecheckDirectionTask extends TaskQueueProcessor.BaseOrderTask {
+    private class RecheckDirectionTask extends TaskQueueProcessor.SinglePresenceTask {
         public RecheckDirectionTask() {}
 
         @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
@@ -806,7 +769,7 @@ class OscExecutor extends BaseExecutor {
         }
     }
 
-    private class CheckLiveOrdersTask extends TaskQueueProcessor.BaseOrderTask {
+    private class CheckLiveOrdersTask extends TaskQueueProcessor.SinglePresenceTask {
         public CheckLiveOrdersTask() {}
 
         @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
@@ -882,7 +845,7 @@ class OscExecutor extends BaseExecutor {
             }
         },
         ERROR {
-            public State onTrade(OscExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+            @Override public State onTrade(OscExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
                 log("State.ERROR.onTrade(tData=" + tData + ") on " + this + " *********************************************");
                 executor.onError();
                 return NONE;
@@ -915,36 +878,6 @@ class OscExecutor extends BaseExecutor {
 
         @Override public String toString() {
             return "CloseOrderWrapper[m_closeOrder=" + m_closeOrder + "; m_order=" + m_order + "]";
-        }
-    }
-
-    private static class Booster {
-        private Double m_lastValue = null;
-        private Boolean m_boostUp = null;
-        private double m_boostStart;
-        private double m_boostRange;
-
-        public double boost(double value) {
-            double ret;
-            if(m_lastValue != null) {
-                double diff = value - m_lastValue;
-                if ((m_boostUp == null) || (m_boostUp && (diff < 0)) || (!m_boostUp && (diff > 0))) {
-                    m_boostUp = (diff > 0);
-                    m_boostStart = m_lastValue;
-                    m_boostRange = m_boostUp ? (1 - m_boostStart) : (m_boostStart + 1);
-log("boost direction changed: diff=" + diff + "; boostUp=" + m_boostUp + "; boostStart=" + m_boostStart + "; boostRange=" + m_boostRange);
-                }
-                double boostDistance = m_boostUp ? value - m_boostStart : m_boostStart - value;
-                double boostRatio = boostDistance / m_boostRange;
-                double boosted = Math.pow(boostRatio, 0.5);
-                double boostedDistance = boosted * m_boostRange;
-                ret = m_boostUp ? m_boostStart + boostedDistance : m_boostStart - boostedDistance;
-                log("boosted from " + value + " to " + ret + ": boostDistance=" + boostDistance + "; boostRatio=" + boostRatio + "; boosted=" + boosted + "; boostedDistance=" + boostedDistance);
-            } else {
-                ret = value;
-            }
-            m_lastValue = value;
-            return ret;
         }
     }
 
