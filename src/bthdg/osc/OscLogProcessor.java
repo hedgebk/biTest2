@@ -466,7 +466,7 @@ public class OscLogProcessor extends BaseChartPaint {
         int prevPaintMaxY = 0;
         Integer nextTextX = null;
 
-        TrendWatcher avgStochDeltaTrendWatchers = new TrendWatcher(DELTA_THREZHOLD);
+        TrendWatcher.TrendWatcherDouble avgStochDeltaTrendWatchers = new TrendWatcher.TrendWatcherDouble(DELTA_THREZHOLD);
         Direction lastAvgStochDeltaDirection = null;
 
         for (Map.Entry<Long, double[]> entry : s_avgStochDeltas.entrySet()) {
@@ -1221,58 +1221,6 @@ public class OscLogProcessor extends BaseChartPaint {
             m_boostedTo = boostedTo;
             m_chilled = chilled;
             m_directionAdjusted = directionAdjusted;
-        }
-    }
-
-    public static class TrendWatcher {
-        protected final double m_tolerance;
-        Double m_peak;
-        private Double m_peakCandidate;
-        Direction m_direction;
-
-        public TrendWatcher(double tolerance) {
-            m_tolerance = tolerance;
-        }
-
-        public void update(double value) {
-            if (m_peak == null) {
-                m_peak = value;
-            } else {
-                double tolerance = getTolerance(value);
-                if (m_direction == null) {
-                    double diff = value - m_peak;
-                    if (diff > tolerance) {
-                        m_direction = Direction.FORWARD;
-                        m_peakCandidate = value;
-                    } else if (diff < -tolerance) {
-                        m_direction = Direction.BACKWARD;
-                        m_peakCandidate = value;
-                    }
-                } else {
-                    double diff = value - m_peakCandidate;
-                    if (m_direction == Direction.FORWARD) {
-                        if (diff > 0) {
-                            m_peakCandidate = value;
-                        } else if (diff < -tolerance) {
-                            m_direction = Direction.BACKWARD;
-                            m_peak = m_peakCandidate;
-                            m_peakCandidate = value;
-                        }
-                    } else if (m_direction == Direction.BACKWARD) {
-                        if (diff < 0) {
-                            m_peakCandidate = value;
-                        } else if (diff > tolerance) {
-                            m_direction = Direction.FORWARD;
-                            m_peak = m_peakCandidate;
-                            m_peakCandidate = value;
-                        }
-                    }
-                }
-            }
-        }
-
-        protected double getTolerance(double value) {
-            return m_tolerance;
         }
     }
 

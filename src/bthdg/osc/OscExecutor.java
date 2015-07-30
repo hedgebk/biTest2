@@ -887,8 +887,8 @@ class OscExecutor extends BaseExecutor {
         private Utils.ArrayAverageCounter m_avgStochDeltaBlender = new Utils.ArrayAverageCounter(10);
         private Double m_prevBlend;
         private Double m_prevBlend2;
-        private OscLogProcessor.TrendWatcher m_avgStochTrendWatcher = new OscLogProcessor.TrendWatcher(AVG_STOCH_TREND_THRESHOLD);
-        private OscLogProcessor.TrendWatcher m_directionTrendWatcher = new OscLogProcessor.TrendWatcher(DIRECTION_TREND_THRESHOLD);
+        private TrendWatcher.TrendWatcherDouble m_avgStochTrendWatcher = new TrendWatcher.TrendWatcherDouble(AVG_STOCH_TREND_THRESHOLD);
+        private TrendWatcher.TrendWatcherDouble m_directionTrendWatcher = new TrendWatcher.TrendWatcherDouble(DIRECTION_TREND_THRESHOLD);
         private Double m_lastAvgStochDeltaBlend;
         private double m_minAvgStochDeltaBlend = 0;
         private double m_maxAvgStochDeltaBlend = 0;
@@ -1038,8 +1038,8 @@ class OscExecutor extends BaseExecutor {
     }
 
     private class AvgPriceDirectionAdjuster {
-        private OscLogProcessor.TrendWatcher[] m_avgPriceTrendWatchers = new OscLogProcessor.TrendWatcher[AVG_PRICE_PERIOD_RATIOS.length];
-        private OscLogProcessor.TrendWatcher m_directionAdjustedTrendWatcher = new OscLogProcessor.TrendWatcher(DIRECTION_ADJUSTED_TREND_TOLERANCE) {
+        private TrendWatcher.TrendWatcherDouble[] m_avgPriceTrendWatchers = new TrendWatcher.TrendWatcherDouble[AVG_PRICE_PERIOD_RATIOS.length];
+        private TrendWatcher.TrendWatcherDouble m_directionAdjustedTrendWatcher = new TrendWatcher.TrendWatcherDouble(DIRECTION_ADJUSTED_TREND_TOLERANCE) {
             @Override protected double getTolerance(double value) { // [-1 ... 0 ... 1]
                 double absValue = Math.abs(value); // [1 ... 0 ... 1]
                 double distanceToEdge = 1 - absValue; // [0 ... 1 ... 0]
@@ -1056,9 +1056,9 @@ class OscExecutor extends BaseExecutor {
             for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {
                 int index = i + 1;
                 double avgPrice = m_avgPriceCounters[i].get();
-                OscLogProcessor.TrendWatcher avgPriceTrendWatcher = m_avgPriceTrendWatchers[i];
+                TrendWatcher.TrendWatcherDouble avgPriceTrendWatcher = m_avgPriceTrendWatchers[i];
                 if (avgPriceTrendWatcher == null) {
-                    avgPriceTrendWatcher = new OscLogProcessor.TrendWatcher(AVG_PRICE_TREND_TOLERANCE);
+                    avgPriceTrendWatcher = new TrendWatcher.TrendWatcherDouble(AVG_PRICE_TREND_TOLERANCE);
                     m_avgPriceTrendWatchers[i] = avgPriceTrendWatcher;
                 }
                 avgPriceTrendWatcher.update(avgPrice);
