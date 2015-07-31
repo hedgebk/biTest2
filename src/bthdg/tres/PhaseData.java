@@ -1,8 +1,11 @@
 package bthdg.tres;
 
 import bthdg.exch.TradeData;
+import bthdg.osc.OscTick;
 
 public class PhaseData {
+    public static final double LOCK_OSC_LEVEL = 0.1;
+
     final TresExchData m_exchData;
     final int m_phaseIndex;
     final TresOscCalculator m_oscCalculator;
@@ -29,4 +32,68 @@ public class PhaseData {
     public void getState(StringBuilder sb) {
         m_oscCalculator.getState(sb);
     }
+
+    protected Boolean calcOscDirection(boolean useLastFineTick, long timestamp) {
+        if (useLastFineTick) {
+            TresMaCalculator.MaCrossData lastMaCrossData = m_maCalculator.m_maCrossDatas.peekLast();
+            if (lastMaCrossData != null) {
+                long lastMaCrossTime = lastMaCrossData.m_timestamp;
+                long passed = timestamp - lastMaCrossTime;
+                if (passed < m_exchData.m_tres.m_barSizeMillis / 10) {
+                    return null;
+                }
+            }
+        }
+
+        OscTick newestTick = useLastFineTick ? m_oscCalculator.m_blendedLastFineTick : m_oscCalculator.m_lastBar;
+        if (newestTick != null) {
+            double newestMid = newestTick.getMid();
+            if (newestMid < LOCK_OSC_LEVEL) {
+                return false; // oscDown
+            } else if (newestMid > 1 - LOCK_OSC_LEVEL) {
+                return true; // oscUp
+            }
+            double newestVal1 = newestTick.m_val1;
+            double newestVal2 = newestTick.m_val2;
+//                if( (newestVal1 < 0.1) && (newestVal2 < 0.1) ) {
+//                    return false; // oscDown
+//                }
+//                if( (newestVal1 > 0.9) && (newestVal2 > 0.9) ) {
+//                    return true; // oscUp
+//                }
+            if (newestVal1 != newestVal2) { // have direction
+                double newestValDiff = Math.abs(newestVal1 - newestVal2);
+                if (newestValDiff > 0.002) {
+                    boolean newestOscUp = (newestVal1 > newestVal2);
+                    OscTick oldBar = useLastFineTick ? m_oscCalculator.m_lastBar : m_oscCalculator.m_prevBar;
+                    if (oldBar != null) {
+                        double oldOsc1 = oldBar.m_val1;
+                        double oldOsc2 = oldBar.m_val2;
+                        if (oldOsc1 != oldOsc2) { // had direction
+                            Boolean oldOscUp = (oldOsc1 > oldOsc2);
+                            if (oldOscUp == newestOscUp) {
+                                if(false/*useLastFineTick && (newestMid>0.3) && (newestMid <0.7)*/) {
+                                    OscTick oldestBar = m_oscCalculator.m_prevBar;
+                                    if (oldestBar != null) {
+                                        double oldestOsc1 = oldestBar.m_val1;
+                                        double oldestOsc2 = oldestBar.m_val2;
+                                        if (oldestOsc1 != oldestOsc2) { // had direction
+                                            Boolean oldestOscUp = (oldestOsc1 > oldestOsc2);
+                                            if (oldOscUp == oldestOscUp) {
+                                                return newestOscUp;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    return newestOscUp;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return null; // meant undefined direction
+    }
+
 }

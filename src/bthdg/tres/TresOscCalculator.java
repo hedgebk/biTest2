@@ -3,10 +3,13 @@ package bthdg.tres;
 import bthdg.Log;
 import bthdg.osc.OscCalculator;
 import bthdg.osc.OscTick;
+import bthdg.osc.TrendWatcher;
 
 import java.util.LinkedList;
 
 public class TresOscCalculator extends OscCalculator {
+    public static final double PEAK_TOLERANCE = 0.001;
+
     private TresExchData m_exchData;
     private final int m_phaseIndex;
     public int m_barNum;
@@ -15,6 +18,11 @@ public class TresOscCalculator extends OscCalculator {
     OscTick m_lastBar;
     OscTick m_prevBar;
     LinkedList<OscTick> m_oscBars = new LinkedList<OscTick>();
+    LinkedList<OscTick> m_oscPeaks = new LinkedList<OscTick>();
+    TrendWatcher<OscTick> m_peakCalculator = new TrendWatcher<OscTick>(PEAK_TOLERANCE) {
+        @Override protected double toDouble(OscTick oscTick) { return oscTick.getMid(); }
+        @Override protected void onNewPeak(OscTick peak) { m_oscPeaks.add(peak); }
+    };
     private boolean m_updated;
 
     private static void log(String s) { Log.log(s); }
@@ -34,7 +42,9 @@ public class TresOscCalculator extends OscCalculator {
         super.update(stamp, finishBar);
         if (finishBar) {
             if (m_barNum++ < m_exchData.m_tres.m_preheatBarsNum) {
-                log("update[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: PREHEATING step=" + m_barNum + " from " + m_exchData.m_tres.m_preheatBarsNum);
+                if (!m_exchData.m_tres.m_silentConsole) {
+                    log("update[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: PREHEATING step=" + m_barNum + " from " + m_exchData.m_tres.m_preheatBarsNum);
+                }
                 m_updated = true;
             }
         }
@@ -45,7 +55,7 @@ public class TresOscCalculator extends OscCalculator {
     }
 
     @Override public void fine(long stamp, double stoch1, double stoch2) {
-        // log("fine[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: stamp=" + stamp + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
+        //log("fine[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: stamp=" + stamp + "; stoch1=" + stoch1 + "; stoch2=" + stoch2);
         m_lastFineTick = new OscTick(stamp, stoch1, stoch2);
         if (m_lastBar != null) {
             long barSizeMillis = m_exchData.m_tres.m_barSizeMillis;
@@ -76,6 +86,7 @@ public class TresOscCalculator extends OscCalculator {
         m_lastBar = osc;
         m_oscBars.add(osc); // add to the end
         m_updated = true;
+        m_peakCalculator.update(osc);
     }
 
     public void getState(StringBuilder sb) {

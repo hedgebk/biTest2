@@ -4,6 +4,7 @@ import bthdg.ChartAxe;
 import bthdg.Log;
 import bthdg.exch.Exchange;
 import bthdg.osc.OscTick;
+import bthdg.util.Colors;
 import bthdg.util.Utils;
 
 import javax.swing.*;
@@ -20,7 +21,10 @@ public class TresCanvas extends JComponent {
     public static final int PIX_PER_BAR = 12;
     public static final int LAST_PRICE_MARKER_WIDTH = 7;
     public static final int PRICE_AXE_MARKER_WIDTH = 10;
-    public static final Color OSC_MID = new Color(30,30,30);
+    public static final Color TR_COLOR = new Color(20, 20, 20);
+    public static final Color OSC_1_LINE_COLOR = Colors.setAlpha(Color.RED, 128);
+    public static final Color OSC_2_LINE_COLOR = Colors.setAlpha(Color.BLUE, 128);
+    public static final Color OSC_MID_LINE_COLOR = new Color(30,30,30);
 
     private Tres m_tres;
     private Point m_point;
@@ -148,8 +152,8 @@ public class TresCanvas extends JComponent {
         PhaseData phaseData = exchData.m_phaseDatas[0];
         TresOscCalculator oscCalculator = phaseData.m_oscCalculator;
         LinkedList<OHLCTick> ohlcTicks = phaseData.m_ohlcCalculator.m_ohlcTicks;
-        LinkedList<OscTick> bars = oscCalculator.m_oscBars;
-        calcXTimeAxe(width, barSize, ohlcTicks, bars);
+        LinkedList<OscTick> oscBars = oscCalculator.m_oscBars;
+        calcXTimeAxe(width, barSize, ohlcTicks, oscBars);
 
         // paint min/max time : left/right borders
         double minTime = m_xTimeAxe.m_min;
@@ -191,7 +195,9 @@ public class TresCanvas extends JComponent {
             paintYPriceAxe(g, yPriceAxe);
 
             paintOHLCTicks(g, ohlcTicks, yPriceAxe);
-            paintOscTicks(g, bars);
+
+            LinkedList<OscTick> oscPeaks = oscCalculator.m_oscPeaks;
+            paintOscTicks(g, oscBars, oscPeaks);
 
             TresMaCalculator maCalculator = phaseData.m_maCalculator;
             paintMaTicks(g, maCalculator, yPriceAxe);
@@ -317,8 +323,8 @@ public class TresCanvas extends JComponent {
     private ChartAxe calcYPriceAxe(int height, double lastPrice, LinkedList<OHLCTick> ohlcTicks, long barSize) {
         double timeMin = m_xTimeAxe.m_min;
         double timeMax = m_xTimeAxe.m_max;
-        double maxPrice = lastPrice;
-        double minPrice = lastPrice;
+        double maxPrice = 0;
+        double minPrice = Integer.MAX_VALUE;
         for (Iterator<OHLCTick> iterator = ohlcTicks.iterator(); iterator.hasNext(); ) {
             OHLCTick ohlcTick = iterator.next();
             long barStart = ohlcTick.m_barStart;
@@ -327,6 +333,10 @@ public class TresCanvas extends JComponent {
                 maxPrice = Math.max(maxPrice, ohlcTick.m_high);
                 minPrice = Math.min(minPrice, ohlcTick.m_low);
             }
+        }
+        if (maxPrice == 0) {
+            maxPrice = lastPrice;
+            minPrice = lastPrice;
         }
         double priceDiff = maxPrice - minPrice;
         if (priceDiff < 1) {
@@ -365,6 +375,8 @@ public class TresCanvas extends JComponent {
             }
         }
 
+        int canvasWidth = getWidth();
+        int canvasHeight = getHeight();
         Boolean lastOscUp = null;
         Double lastPrice = null;
         double totalPriceRatio = 1;
@@ -382,8 +394,7 @@ public class TresCanvas extends JComponent {
                     if (x > 0) {
                         int dy = y - lastY;
                         Color color = (lastOscUp && (dy < 0)) || (!lastOscUp && (dy > 0)) ? Color.GREEN : Color.RED;
-                        Color color1 = new Color(color.getRed(), color.getGreen(), color.getBlue(), 128);
-                        g.setColor(color1);
+                        g.setColor(color);
                         g.drawLine(lastX, lastY, x, y);
                     }
                     if (lastPrice != null) {
@@ -392,11 +403,14 @@ public class TresCanvas extends JComponent {
                             priceRatio = 1 / priceRatio;
                         }
                         totalPriceRatio *= priceRatio;
-                        if (x > 0) {
+                        if ((x > 0) && (x < canvasWidth)) {
                             g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight);
                             Color color = (totalPriceRatio > 1) ? Color.GREEN : Color.RED;
                             g.setColor(color);
                             g.drawString(String.format("t: %1$,.5f", totalPriceRatio), x, y + fontHeight * 2);
+
+                            g.setColor(TR_COLOR);
+                            g.drawLine(x, 0, x, canvasHeight);
                         }
                         tradeNum++;
                     }
@@ -459,7 +473,7 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private void paintOscTicks(Graphics g, LinkedList<OscTick> oscTicks) {
+    private void paintOscTicks(Graphics g, LinkedList<OscTick> oscBars, LinkedList<OscTick> oscPeaks) {
         // levels
         g.setColor(Color.darkGray);
         paintLine(g, 0.2);
@@ -470,11 +484,30 @@ public class TresCanvas extends JComponent {
 //        paintLine(g, 0);
 //        paintLine(g, 1);
 
+        int canvasWidth = getWidth();
+        g.setColor(Colors.LIGHT_CYAN);
+        for (Iterator<OscTick> iterator = oscPeaks.descendingIterator(); iterator.hasNext(); ) {
+            OscTick tick = iterator.next();
+            long startTime = tick.m_startTime;
+            long endTime = startTime + m_tres.m_barSizeMillis;
+            int x = m_xTimeAxe.getPoint(endTime);
+            if (x < 0) {
+                break;
+            }
+            if (x > canvasWidth) {
+                continue;
+            }
+            double valMid = tick.getMid();
+            int y = m_yAxe.getPointReverse(valMid);
+            g.drawLine(x - 5, y - 5, x + 5, y + 5);
+            g.drawLine(x + 5, y - 5, x - 5, y + 5);
+        }
+
         int lastX = Integer.MAX_VALUE;
         int[] lastYs = new int[3];
-        for (Iterator<OscTick> iterator = oscTicks.descendingIterator(); iterator.hasNext(); ) {
+        for (Iterator<OscTick> iterator = oscBars.descendingIterator(); iterator.hasNext(); ) {
             OscTick tick = iterator.next();
-            int endX = paintOsc(g, tick, lastX, lastYs);
+            int endX = paintOsc(g, tick, lastX, lastYs, canvasWidth);
             if (endX < 0) {
                 break;
             }
@@ -487,30 +520,32 @@ public class TresCanvas extends JComponent {
         g.drawLine(0, y, getWidth(), y);
     }
 
-    private int paintOsc(Graphics g, OscTick tick, int lastX, int[] lastYs) {
+    private int paintOsc(Graphics g, OscTick tick, int lastX, int[] lastYs, int canvasWidth) {
         long startTime = tick.m_startTime;
         long endTime = startTime + m_tres.m_barSizeMillis;
         int x = m_xTimeAxe.getPoint(endTime);
 
         double val1 = tick.m_val1;
         double val2 = tick.m_val2;
-        double valMid = (val1 + val2) / 2;
+        double valMid = tick.getMid();
         int y1 = m_yAxe.getPointReverse(val1);
         int y2 = m_yAxe.getPointReverse(val2);
         int yMid = m_yAxe.getPointReverse(valMid);
 
-        if (lastX == Integer.MAX_VALUE) {
-            g.setColor(Color.RED);
-            g.drawRect(x - 2, y1 - 2, 5, 5);
-            g.setColor(Color.BLUE);
-            g.drawRect(x - 2, y2 - 2, 5, 5);
-        } else {
-            g.setColor(OSC_MID);
-            g.drawLine(lastX, lastYs[2], x, yMid);
-            g.setColor(Color.RED);
-            g.drawLine(lastX, lastYs[0], x, y1);
-            g.setColor(Color.BLUE);
-            g.drawLine(lastX, lastYs[1], x, y2);
+        if (lastX < canvasWidth) {
+            if (lastX == Integer.MAX_VALUE) {
+                g.setColor(Color.RED);
+                g.drawRect(x - 2, y1 - 2, 5, 5);
+                g.setColor(Color.BLUE);
+                g.drawRect(x - 2, y2 - 2, 5, 5);
+            } else {
+                g.setColor(OSC_MID_LINE_COLOR);
+                g.drawLine(lastX, lastYs[2], x, yMid);
+                g.setColor(OSC_1_LINE_COLOR);
+                g.drawLine(lastX, lastYs[0], x, y1);
+                g.setColor(OSC_2_LINE_COLOR);
+                g.drawLine(lastX, lastYs[1], x, y2);
+            }
         }
         lastYs[0] = y1;
         lastYs[1] = y2;

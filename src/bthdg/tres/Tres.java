@@ -109,7 +109,7 @@ public class Tres {
         m_len1 = Integer.parseInt(getProperty("tre.len1"));
         log("len1=" + m_len1);
         m_len2 = Integer.parseInt(getProperty("tre.len2"));
-        log("len2=" + m_len1);
+        log("len2=" + m_len2);
         m_k = Integer.parseInt(getProperty("tre.k"));
         log("k=" + m_k);
         m_d = Integer.parseInt(getProperty("tre.d"));
