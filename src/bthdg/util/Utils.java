@@ -84,13 +84,13 @@ public class Utils {
         return System.currentTimeMillis() + delta;
     }
 
-    // supports: "0", "-1M", "2w", "-3d", "-4h", "-5m", "-6s"
+    // supports: "0", "-1M", "2w", "-3d", "-4h", "-5m", "-6s", "100ms"
     public static long toMillis(String str) {
         long delta;
         if( "0".equals(str) ) {
             delta = 0;
         } else {
-            Pattern p = Pattern.compile("^([\\+\\-]?)(\\d+)([a-zA-Z])+$");
+            Pattern p = Pattern.compile("^([\\+\\-]?)(\\d+)([a-zA-Z]+)$");
             Matcher m = p.matcher(str);
             if( m.matches() ) {
                 String sign = m.group(1);
@@ -109,6 +109,8 @@ public class Utils {
                     delta = 60 * 1000;
                 } else if(suffix.equals("s")) { // seconds
                     delta = 1000;
+                } else if(suffix.equals("ms")) { // milli-seconds
+                    delta = 1;
                 } else {
                     throw new RuntimeException("unsupported suffix '"+suffix+"' in pattern: " + str);
                 }
