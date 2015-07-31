@@ -202,7 +202,9 @@ public class Tres {
 
     private static class LogProcessor extends Thread {
         // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
-        private static final Pattern TRADE_PATTERN = Pattern.compile("onTrade\\[\\w+\\]\\: TradeData\\{amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+), time=(\\d+).+");
+        private static final Pattern TRE_TRADE_PATTERN = Pattern.compile("onTrade\\[\\w+\\]\\: TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+), time=(\\d+).+");
+        // 1426040622351: State.onTrade(tData=TradeData{amount=5.00000, price=1831.00000, time=1426040623000, tid=0, type=ASK}) on NONE *********************************************
+        private static final Pattern OSC_TRADE_PATTERN = Pattern.compile("\\d+: State.onTrade\\(tData=TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+), time=(\\d+).+");
 
         private final String m_logFile;
         private final TresExchData m_exchData;
@@ -257,25 +259,43 @@ public class Tres {
 
         private void processTheLine(String line) {
             // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
-            if(line.startsWith("onTrade[")) {
+            if (line.startsWith("onTrade[")) {
                 processTradeLine(line);
+            } else if (line.contains("State.onTrade(")) {
+                processOscTradeLine(line);
             }
         }
 
-        private void processTradeLine(String line) {
-            Matcher matcher = TRADE_PATTERN.matcher(line);
+        private void processOscTradeLine(String line) {
+            // 1426040622351: State.onTrade(tData=TradeData{amount=5.00000, price=1831.00000, time=1426040623000, tid=0, type=ASK}) on NONE *********************************************
+            Matcher matcher = OSC_TRADE_PATTERN.matcher(line);
             if (matcher.matches()) {
-                String amountStr = matcher.group(1);
-                String priceStr = matcher.group(2);
-                String timeStr = matcher.group(3);
-//                log("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
-                long millis = Long.parseLong(timeStr);
-                double price = Double.parseDouble(priceStr);
-                double amount = Double.parseDouble(amountStr);
-                TradeData tradeData = new TradeData(amount, price, millis);
-                m_exchData.onTrade(tradeData);
+                String priceStr = matcher.group(1);
+                String millisStr = matcher.group(2);
+//                log("GOT TRADE: millisStr=" + millisStr + "; priceStr=" + priceStr);
+                processTrade(millisStr, priceStr);
             } else {
-                throw new RuntimeException("not matched TRADE_PATTERN line: " + line);
+//                throw new RuntimeException("not matched OSC_TRADE_PATTERN line: " + line);
+                log("not matched OSC_TRADE_PATTERN line: " + line);
+            }
+        }
+
+        private void processTrade(String millisStr, String priceStr) {
+            long millis = Long.parseLong(millisStr);
+            double price = Double.parseDouble(priceStr);
+            TradeData tradeData = new TradeData(0, price, millis);
+            m_exchData.onTrade(tradeData);
+        }
+
+        private void processTradeLine(String line) {
+            Matcher matcher = TRE_TRADE_PATTERN.matcher(line);
+            if (matcher.matches()) {
+                String priceStr = matcher.group(1);
+                String timeStr = matcher.group(2);
+//                log("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
+                processTrade(timeStr, priceStr);
+            } else {
+                throw new RuntimeException("not matched TRE_TRADE_PATTERN line: " + line);
             }
         }
     }
