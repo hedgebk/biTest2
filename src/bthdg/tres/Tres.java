@@ -30,6 +30,7 @@ public class Tres {
     public int m_preheatBarsNum;
     int m_ma;
     ArrayList<TresExchData> m_exchDatas;
+    public List<Long> m_tickTimes = new ArrayList<Long>();
     private TresFrame m_frame;
     long m_startTickMillis = Long.MAX_VALUE;
     long m_lastTickMillis = 0;
@@ -156,8 +157,6 @@ public class Tres {
             m_frame.stop();
         }
     }
-
-    public List<Long> m_tickTimes = new ArrayList<Long>();
 
     public void onTrade(TradeData tdata) {
         long timestamp = tdata.m_timestamp;

@@ -63,4 +63,8 @@ public class TresExchData implements ITradesListener {
             phaseData.getState(sb);
         }
     }
+
+    public TresExchData cloneClean() {
+        return new TresExchData(m_tres, m_ws);
+    }
 }
