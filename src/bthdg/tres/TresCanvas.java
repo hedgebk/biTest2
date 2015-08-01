@@ -350,7 +350,11 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintMaTicks(Graphics g, TresMaCalculator maCalculator, ChartAxe yPriceAxe) {
-        LinkedList<TresMaCalculator.MaTick> maTicks = maCalculator.m_maTicks;
+        LinkedList<TresMaCalculator.MaTick> maTicks = new LinkedList<TresMaCalculator.MaTick>();
+        LinkedList<TresMaCalculator.MaTick> ticks = maCalculator.m_maTicks;
+        synchronized (ticks) { // avoid ConcurrentModificationException - use local copy
+            maTicks.addAll(ticks);
+        }
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
         Color nextColor = null;
