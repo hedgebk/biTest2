@@ -25,7 +25,9 @@ public class TresMaCalculator extends MaCalculator {
 
     @Override protected void startMaBar(long barEnd) {
         m_tick = new MaTick(barEnd);
-        m_maTicks.add(m_tick);
+        synchronized (m_maTicks) {
+            m_maTicks.add(m_tick);
+        }
     }
 
     @Override protected void updateMaBar(double ma) {
