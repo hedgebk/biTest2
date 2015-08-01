@@ -170,6 +170,7 @@ public class OkCoinWs extends BaseWs {
                     JSONArray array = (JSONArray) json;
                     int length = array.size();
 //System.out.println("    trades array length = " + length);
+                    long lastMillis = 0;
                     for(int i = 0; i < length; i++) {
                         Object tradeObj = array.get(i); // ["2231.73","0.056","10:10:00","ask"]
 //System.out.println("     tradeObj["+i+"]: " + tradeObj + ";  class="+tradeObj.getClass());
@@ -181,6 +182,9 @@ public class OkCoinWs extends BaseWs {
                             String time = (String) tradeItem.get(2);
                             String side = (String) tradeItem.get(3);
                             long millis = parseTimeToDate(time);
+                            if (millis < lastMillis) {
+                                System.out.println("got not increasing time: millis=" + millis + ", lastMillis=" + lastMillis);
+                            }
 //System.out.println("     price=" + priceStr + "; size=" + size + "; time=" + time + "; side=" + side + "; millis=" + millis);
                             if (millis != 0) {
                                 double amount = Utils.getDouble(size);
@@ -191,6 +195,7 @@ public class OkCoinWs extends BaseWs {
                                 if (m_tradesListener != null) {
                                     m_tradesListener.onTrade(tdata);
                                 }
+                                lastMillis = millis;
                             }
                         }
                     }

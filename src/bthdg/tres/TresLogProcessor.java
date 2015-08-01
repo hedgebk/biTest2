@@ -31,7 +31,7 @@ class TresLogProcessor extends Thread {
 
     @Override public void run() {
         try {
-            int indx = m_logFilePattern.lastIndexOf("\\");
+            int indx = m_logFilePattern.lastIndexOf("|");
             String dirPath = m_logFilePattern.substring(0, indx);
             String filePattern = m_logFilePattern.substring(indx + 1);
             Pattern pattern = Pattern.compile(filePattern);
@@ -45,8 +45,8 @@ class TresLogProcessor extends Thread {
                 int skipped = 0;
                 for (File file : files) {
                     String name = file.getName();
-                    log("next file: " + name);
                     if (pattern.matcher(name).matches()) {
+                        log("next file to process: " + name);
                         double avgTotal = processLines(file);
                         processed++;
                         totalTotal *= avgTotal;
@@ -109,7 +109,7 @@ class TresLogProcessor extends Thread {
 
     private void processTheLine(String line) {
         // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
-        if (line.startsWith("onTrade[")) {
+        if (line.startsWith("onTrade[") && line.contains("]: TradeData{")) {
             processTradeLine(line);
         } else if (line.contains("State.onTrade(")) {
             processOscTradeLine(line);

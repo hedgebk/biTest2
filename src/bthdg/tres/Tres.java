@@ -18,6 +18,7 @@ import java.util.*;
 
 public class Tres {
     public static final Pair PAIR = Pair.BTC_CNH;
+    public static final boolean PAINT_TICK_TIMES_ONLY = false;
     private static Tres s_inst;
 
     private Properties m_keys;
@@ -30,13 +31,13 @@ public class Tres {
     public int m_preheatBarsNum;
     int m_ma;
     ArrayList<TresExchData> m_exchDatas;
-    public List<Long> m_tickTimes = new ArrayList<Long>();
     private TresFrame m_frame;
     long m_startTickMillis = Long.MAX_VALUE;
     long m_lastTickMillis = 0;
     private final boolean m_processLogs;
     private String m_logFile;
     public boolean m_silentConsole;
+    public List<Long> m_tickTimes = new ArrayList<Long>();
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }

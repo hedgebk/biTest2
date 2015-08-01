@@ -136,8 +136,11 @@ public class TresCanvas extends JComponent {
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 
-        paintMainChart(g, width, height);
-//        paintTimeTicks(g, width, height);
+        if(m_tres.PAINT_TICK_TIMES_ONLY) {
+            paintTimeTicks(g, width, height);
+        } else {
+            paintMainChart(g, width, height);
+        }
     }
 
     private void paintMainChart(Graphics g, int width, int height) {
