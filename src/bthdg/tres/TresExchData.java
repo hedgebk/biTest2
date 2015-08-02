@@ -62,13 +62,15 @@ public class TresExchData implements ITradesListener {
                 m_tres.onTrade(tdata);
             }
         } else {
-            m_tickIgnoredCount++;
-            m_avgTimeDiffCalc.addValue((double)timeDiff);
-            double avgTimeDiff = m_avgTimeDiffCalc.getAverage();
-            double ignoreRate = ((double)m_tickIgnoredCount) /m_tickCount;
-            log("onTrade[" + m_ws.exchange() + "]: ignored past tick " + tdata + ", lastTimestamp=" + m_lastTimestamp +
-                    ", m_tickIgnoredCount=" + m_tickIgnoredCount + "; m_tickCount=" + m_tickCount + ", ignoreRate=" + ignoreRate +
-                    ", timeDiff=" + timeDiff + ", avgTimeDiff=" + avgTimeDiff);
+            if(!m_tres.m_silentConsole) {
+                m_tickIgnoredCount++;
+                m_avgTimeDiffCalc.addValue((double)timeDiff);
+                double avgTimeDiff = m_avgTimeDiffCalc.getAverage();
+                double ignoreRate = ((double)m_tickIgnoredCount) /m_tickCount;
+                log("onTrade[" + m_ws.exchange() + "]: ignored past tick " + tdata + ", lastTimestamp=" + m_lastTimestamp +
+                        ", m_tickIgnoredCount=" + m_tickIgnoredCount + "; m_tickCount=" + m_tickCount + ", ignoreRate=" + ignoreRate +
+                        ", timeDiff=" + timeDiff + ", avgTimeDiff=" + avgTimeDiff);
+            }
         }
     }
 

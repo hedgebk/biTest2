@@ -140,7 +140,7 @@ class TresLogProcessor extends Thread {
         for( int i = min; i <= max; i+=step ) {
             tres.m_len1 = i;
             double averageProjected = processAllTicks(allTicks);
-            log("averageProjected[ma="+i+"]: " + averageProjected);
+            log("averageProjected[varyLen1="+i+"]: " + averageProjected);
         }
     }
 
@@ -154,7 +154,7 @@ class TresLogProcessor extends Thread {
         for( int i = min; i <= max; i+=step ) {
             tres.m_len2 = i;
             double averageProjected = processAllTicks(allTicks);
-            log("averageProjected[ma="+i+"]: " + averageProjected);
+            log("averageProjected[varyLen2="+i+"]: " + averageProjected);
         }
     }
 
