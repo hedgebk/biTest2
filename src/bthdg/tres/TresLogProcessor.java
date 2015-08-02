@@ -21,28 +21,45 @@ class TresLogProcessor extends Thread {
 
     private static final Calendar GMT_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.ENGLISH);
 
-    private final String m_logFilePattern;
     private TresExchData m_exchData;
+    private String m_logFilePattern;
+    private String m_varyMa;
+    private String m_varyBarSize;
+    private String m_varyLen1;
+    private String m_varyLen2;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
-    public TresLogProcessor(ArrayList<TresExchData> exchDatas, String logFilePattern) {
+    public TresLogProcessor(Properties keys, ArrayList<TresExchData> exchDatas) {
+        init(keys);
         m_exchData = exchDatas.get(0);
-        m_logFilePattern = logFilePattern;
+    }
+
+    private void init(Properties keys) {
+        m_logFilePattern = getProperty(keys, "tre.log.file");
+        log("logFilePattern=" + m_logFilePattern);
+        m_varyMa = keys.getProperty("tre.vary.ma");
+        log("varyMa=" + m_varyMa);
+        m_varyBarSize = keys.getProperty("tre.vary.bar_size");
+        log("varyBarSize=" + m_varyBarSize);
+        m_varyLen1 = keys.getProperty("tre.vary.len1");
+        log("varyLen1=" + m_varyLen1);
+        m_varyLen2 = keys.getProperty("tre.vary.len2");
+        log("varyLen2=" + m_varyLen2);
     }
 
     @Override public void run() {
         try {
-            int indx = m_logFilePattern.lastIndexOf("|");
-            String dirPath = m_logFilePattern.substring(0, indx);
-            String filePattern = m_logFilePattern.substring(indx + 1);
+            String[] split = m_logFilePattern.split("\\|");
+            String dirPath = split[0];
+            String filePattern = split[1];
             Pattern pattern = Pattern.compile(filePattern);
 
             File dir = new File(dirPath);
             if (dir.isDirectory()) {
                 List<List<TradeData>> ticks = parseFiles(pattern, dir);
-                processAllTicks(ticks);
+                processAll(ticks);
             } else {
                 log("is not a directory: " + dirPath);
             }
@@ -52,20 +69,102 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void processAllTicks(List<List<TradeData>> allTicks) {
+    private void processAll(List<List<TradeData>> allTicks) {
         long startTime = System.currentTimeMillis();
-        Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
-        for (List<TradeData> ticks : allTicks) {
-            double projected = processTicks(ticks);
-            calc.addValue(projected);
+
+        Tres tres = m_exchData.m_tres;
+        String varyMa = m_varyMa;
+        if (varyMa != null) {
+            varyMa(allTicks, tres, varyMa);
+        } else {
+            String varyBarSize = m_varyBarSize;
+            if (varyBarSize != null) {
+                varyBarSize(allTicks, tres, varyBarSize);
+            } else {
+                String varyLen1 = m_varyLen1;
+                if (varyLen1 != null) {
+                    varyLen1(allTicks, tres, varyLen1);
+                } else {
+                    String varyLen2 = m_varyLen2;
+                    if (varyLen2 != null) {
+                        varyLen2(allTicks, tres, varyLen2);
+                    } else {
+                        double averageProjected = processAllTicks(allTicks);
+                        log("averageProjected: " + averageProjected);
+                    }
+                }
+            }
         }
-        double averageProjected = calc.getAverage();
-        log("averageProjected: " + averageProjected);
 
         long endTime = System.currentTimeMillis();
         long timeTakes = endTime - startTime;
         String takesStr = Utils.millisToDHMSStr(timeTakes);
         log("takes " + takesStr);
+    }
+
+    private void varyBarSize(List<List<TradeData>> allTicks, Tres tres, String varyBarSize) {
+        log("varyBarSize: " + varyBarSize);
+
+        String[] split = varyBarSize.split(";"); // 2000ms;10000ms;500ms
+        long min = Utils.parseDHMSMtoMillis(split[0]);
+        long max = Utils.parseDHMSMtoMillis(split[1]);
+        long step = Utils.parseDHMSMtoMillis(split[2]);
+        for( long i = min; i <= max; i+=step ) {
+            tres.m_barSizeMillis = i;
+            double averageProjected = processAllTicks(allTicks);
+            log("averageProjected[barSizeMillis="+i+"]: " + averageProjected);
+        }
+    }
+
+    private void varyMa(List<List<TradeData>> allTicks, Tres tres, String varyMa) {
+        log("varyMa: " + varyMa);
+
+        String[] split = varyMa.split(";"); // 3;10;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        for( int i = min; i <= max; i+=step ) {
+            tres.m_ma = i;
+            double averageProjected = processAllTicks(allTicks);
+            log("averageProjected[ma="+i+"]: " + averageProjected);
+        }
+    }
+
+    private void varyLen1(List<List<TradeData>> allTicks, Tres tres, String varyLen1) {
+        log("varyLen1: " + varyLen1);
+
+        String[] split = varyLen1.split(";"); // 10;30;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        for( int i = min; i <= max; i+=step ) {
+            tres.m_len1 = i;
+            double averageProjected = processAllTicks(allTicks);
+            log("averageProjected[ma="+i+"]: " + averageProjected);
+        }
+    }
+
+    private void varyLen2(List<List<TradeData>> allTicks, Tres tres, String varyLen2) {
+        log("varyLen2: " + varyLen2);
+
+        String[] split = varyLen2.split(";"); // 10;30;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        for( int i = min; i <= max; i+=step ) {
+            tres.m_len2 = i;
+            double averageProjected = processAllTicks(allTicks);
+            log("averageProjected[ma="+i+"]: " + averageProjected);
+        }
+    }
+
+    private double processAllTicks(List<List<TradeData>> allTicks) {
+        Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
+        for (List<TradeData> ticks : allTicks) {
+            double projected = processTicks(ticks);
+            calc.addValue(projected);
+        }
+        return calc.getAverage();
     }
 
     private double processTicks(List<TradeData> ticks) {
@@ -156,7 +255,7 @@ class TresLogProcessor extends Thread {
             }
             long endTime = System.currentTimeMillis();
             long timeTakes = endTime - startTime;
-            log("processed " + linesProcessed + " lines in " + timeTakes + " ms (" + (linesProcessed * 1000 / timeTakes) + " lines/s)");
+            log(" parsed " + linesProcessed + " lines in " + timeTakes + " ms (" + (linesProcessed * 1000 / timeTakes) + " lines/s)");
             return ret;
         } finally {
             blr.close();
@@ -247,4 +346,13 @@ class TresLogProcessor extends Thread {
         double price = Double.parseDouble(priceStr);
         return new TradeData(0, price, millis);
     }
+
+    private String getProperty(Properties keys, String key) {
+        String ret = keys.getProperty(key);
+        if (ret == null) {
+            throw new RuntimeException("no property found for key '" + key + "'");
+        }
+        return ret;
+    }
+
 }
