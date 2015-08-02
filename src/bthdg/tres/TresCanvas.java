@@ -342,10 +342,9 @@ public class TresCanvas extends JComponent {
             minPrice = lastPrice;
         }
         double priceDiff = maxPrice - minPrice;
-        if (priceDiff < 1) {
-            double extra = (1 - priceDiff) / 2;
-            maxPrice += extra;
-            minPrice -= extra;
+        if (priceDiff == 0) {
+            maxPrice += 0.5;
+            minPrice -= 0.5;
         }
         ChartAxe yPriceAxe = new ChartAxe(minPrice, maxPrice, height - 2);
         yPriceAxe.m_offset = 1;
@@ -450,8 +449,8 @@ public class TresCanvas extends JComponent {
         g.drawString(String.format("projected aDay: %.5f", aDay), 5, fontHeight * 10 + 5);
 
         g.drawString(String.format("trade num: %d", tradeNum), 5, fontHeight * 11 + 5);
-        double tradeFreq = ((double)runningTimeMillis) / tradeNum / 1000;
-        g.drawString(String.format("trade every %.5f sec", tradeFreq), 5, fontHeight * 12 + 5);
+        long tradeFreq = runningTimeMillis / tradeNum;
+        g.drawString(String.format("trade every " + Utils.millisToDHMSStr(tradeFreq)), 5, fontHeight * 12 + 5);
     }
 
     private void paintOHLCTicks(Graphics g, LinkedList<OHLCTick> ohlcTicks, ChartAxe yPriceAxe) {

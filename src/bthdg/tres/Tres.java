@@ -176,7 +176,9 @@ public class Tres {
         }
         m_lastTickMillis = Math.max(m_lastTickMillis, timestamp);
 
-        m_tickTimes.add(timestamp);
+        if(PAINT_TICK_TIMES_ONLY) { // collect tickTimes
+            m_tickTimes.add(timestamp);
+        }
 
         if (m_frame != null) {
             m_frame.fireUpdated();
