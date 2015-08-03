@@ -12,16 +12,25 @@ public class TresExchData implements ITradesListener {
     final Tres m_tres;
     final IWs m_ws;
     final PhaseData[] m_phaseDatas;
+    final TresExecutor m_executor;
     double m_lastPrice;
     private boolean m_updated;
     private long m_lastTimestamp;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
+    public void stop() {
+        m_ws.stop();
+    }
+    public void setUpdated() { m_updated = true; }
+    public TresExchData cloneClean() {
+        return new TresExchData(m_tres, m_ws);
+    }
 
     public TresExchData(Tres tres, IWs ws) {
         m_tres = tres;
         m_ws = ws;
+        m_executor = new TresExecutor(ws, m_tres.PAIR);
         int phasesNum = tres.m_phases;
         m_phaseDatas = new PhaseData[phasesNum];
         for (int i = 0; i < phasesNum; i++) {
@@ -62,11 +71,11 @@ public class TresExchData implements ITradesListener {
                 m_tres.onTrade(tdata);
             }
         } else {
-            if(!m_tres.m_silentConsole) {
+            if (!m_tres.m_silentConsole) {
                 m_tickIgnoredCount++;
-                m_avgTimeDiffCalc.addValue((double)timeDiff);
+                m_avgTimeDiffCalc.addValue((double) timeDiff);
                 double avgTimeDiff = m_avgTimeDiffCalc.getAverage();
-                double ignoreRate = ((double)m_tickIgnoredCount) /m_tickCount;
+                double ignoreRate = ((double) m_tickIgnoredCount) / m_tickCount;
                 log("onTrade[" + m_ws.exchange() + "]: ignored past tick " + tdata + ", lastTimestamp=" + m_lastTimestamp +
                         ", m_tickIgnoredCount=" + m_tickIgnoredCount + "; m_tickCount=" + m_tickCount + ", ignoreRate=" + ignoreRate +
                         ", timeDiff=" + timeDiff + ", avgTimeDiff=" + avgTimeDiff);
@@ -74,20 +83,10 @@ public class TresExchData implements ITradesListener {
         }
     }
 
-    public void stop() {
-        m_ws.stop();
-    }
-
-    public void setUpdated() { m_updated = true; }
-
     public void getState(StringBuilder sb) {
         sb.append("[" + m_ws.exchange() + "]: last=" + m_lastPrice);
         for (PhaseData phaseData : m_phaseDatas) {
             phaseData.getState(sb);
         }
-    }
-
-    public TresExchData cloneClean() {
-        return new TresExchData(m_tres, m_ws);
     }
 }

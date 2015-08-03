@@ -33,6 +33,7 @@ class OscExecutor extends BaseExecutor {
     public static final int AVG_STOCH_COUNTER_POINTS = 13;
     private static final double AVG_STOCH_DELTA_THREZHOLD = 0.0009;
     private static final double AVG_STOCH_THREZHOLD_LEVEL_BOOST = 0.4; // +40%
+    public static final double OUT_OF_MARKET_THRESHOLD = 0.5;
 
     protected int m_direction;
 
@@ -48,6 +49,9 @@ class OscExecutor extends BaseExecutor {
 
     @Override protected double minOrderSizeToCreate() { return MIN_ORDER_SIZE; }
     @Override protected void onOrderPlace(OrderData placeOrder) { m_order = placeOrder; }
+    @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
+    @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
+    @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
 
     public OscExecutor(IWs ws) {
         super(ws, Osc.PAIR);
@@ -109,7 +113,8 @@ class OscExecutor extends BaseExecutor {
         log(builder.toString() + "; last=" + last + "; oldest=" + oldest + "; trend=" + trend);
 
         IIterationContext.BaseIterationContext iContext = checkCloseOrdersStateIfNeeded(tData, null);
-        setState(m_state.onTrade(this, tData, iContext));
+        OscState newState = m_state.onTrade(this, tData, iContext);
+        setState(newState);
 
         if (m_feeding) {
             long passed = System.currentTimeMillis() - m_lastProcessDirectionTime;
@@ -338,74 +343,38 @@ class OscExecutor extends BaseExecutor {
         return cumCancelOrdersSize;
     }
 
-    protected OscState processTrade(TradeData tData, IIterationContext.BaseIterationContext inContext) throws Exception {
+    @Override public int processTrade(TradeData tData, IIterationContext.BaseIterationContext inContext) throws Exception {
         log("processTrade(tData=" + tData + ") m_order=" + m_order);
-        if (m_order != null) {
-            double ordPrice = m_order.m_price;
-            double tradePrice = tData.m_price;
-            log(" tradePrice=" + tradePrice + ", orderPrice=" + ordPrice);
-            if (tradePrice == ordPrice) {
-                log("  same price - MAYBE SOME PART OF OUR ORDER EXECUTED ?");
-                double orderRemained = m_order.remained();
-                double tradeSize = tData.m_amount;
-                log("   orderRemained=" + orderRemained + "; tradeSize=" + tradeSize);
-
-                IIterationContext.BaseIterationContext iContext = getLiveOrdersContextIfNeeded(inContext);
-                return checkOrderState(iContext); //check orders state
-            } else {
-                if (tradePrice < m_buy) {
-                    double buy = (m_buy * 2 + tradePrice) / 3;
-                    log("  buy is adapted to trade price: " + m_buy + " -> " + buy);
-                    m_buy = buy;
-                }
-                if (tradePrice > m_sell) {
-                    double sell = (m_sell * 2 + tradePrice) / 3;
-                    log("  sell is adapted to trade price: " + m_sell + " -> " + sell);
-                    m_sell = sell;
-                }
-                if ((m_order != null) && !m_order.isFilled()) {
-                    checkOrderOutOfMarket();
-                }
-            }
-        }
-        return null; // no change
+        return super.processTrade(tData, inContext);
     }
 
-    private void checkOrderOutOfMarket() throws Exception {
-        boolean isBuy = m_order.m_side.isBuy();
-        double orderPrice = m_order.m_price;
+    @Override protected int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception {
+        OscState oscState = checkOrderState(iContext);
+        return oscState.toCode();
+    }
 
-        /// ask  110 will sell
-        /// bid  100 will buy
-        // order 95 buy
-        double threshold = (m_sell - m_buy) / 2; // allow 1/2 bidAdsDiff for order price to be out of mkt prices
-        if ((isBuy && (m_buy - threshold > orderPrice)) || (!isBuy && (m_sell + threshold < orderPrice))) {
-            log("  order " + m_order.m_side + "@" + orderPrice + " is FAR out of MKT [buy=" + m_buy + "; sell=" + m_sell + "]");
-            long liveTime = System.currentTimeMillis() - m_order.m_placeTime;
-            if (liveTime < MIN_ORDER_LIVE_TIME) {
-                log("   order liveTime=" + liveTime + "ms - wait little bit more");
-            } else {
-                log("   order liveTime=" + liveTime + "ms - cancel order...");
-                OrderData order = m_order;
-                String error = cancelOrder(order);
-                if (error == null) {
-                    m_order = null;
-                } else {
-                    log("ERROR in cancel order: " + error + "; " + m_order);
-                    log("looks the order was already executed - need check live orders");
-                    checkLiveOrders();
-                }
-                log("need Recheck Direction");
-                postRecheckDirection();
-            }
-        } else {
-            // order 101 buy
-            /// ask  100 will sell
-            /// bid   90 will buy
-            if ((isBuy && (m_sell <= orderPrice)) || (!isBuy && (m_buy >= orderPrice))) {
-                log("  MKT price [buy=" + m_buy + "; sell=" + m_sell + "] is crossed the order " + m_order.m_side + "@" + orderPrice + " - starting CheckLiveOrdersTask");
-                addTask(new CheckLiveOrdersTask());
-            }
+    @Override protected void checkOrdersOutOfMarket() throws Exception {
+        if (haveNotFilledOrder()) {
+            int ret = checkOrderOutOfMarket(m_order);
+            processOrderOutOfMarket(ret);
+        }
+    }
+
+    @Override protected boolean hasOrdersWithMatchedPrice(double tradePrice) {
+        double ordPrice = m_order.m_price;
+        log(" hasOrdersWithMatchedPrice() tradePrice=" + tradePrice + ", orderPrice=" + ordPrice);
+        return (tradePrice == ordPrice);
+    }
+
+    private void processOrderOutOfMarket(int ret) throws Exception {
+        if((ret & FLAG_CANCELED) != 0) {
+            m_order = null;
+        }
+        if((ret & FLAG_NEED_CHECK_LIVE_ORDERS) != 0) {
+            checkLiveOrders();
+        }
+        if((ret & FLAG_NEED_RECHECK_DIRECTION) != 0) {
+            postRecheckDirection();
         }
     }
 
@@ -449,11 +418,9 @@ class OscExecutor extends BaseExecutor {
         return null; // no change
     }
 
-    protected void processTop() throws Exception {
-        log("processTop(buy=" + m_buy + ", sell=" + m_sell + ")");
-        if ((m_order != null) && !m_order.isFilled()) {
-            checkOrderOutOfMarket();
-        }
+    @Override protected void processTopInt() throws Exception {
+        int ret = checkOrderOutOfMarket(m_order);
+        processOrderOutOfMarket(ret);
     }
 
     @Override protected List<OrderData> getAllOrders() {
@@ -535,24 +502,6 @@ class OscExecutor extends BaseExecutor {
         public void addPoint(long timestamp, double value) {
             double avg = m_avgPriceCounter.add(timestamp, value);
             justAdd(timestamp, avg);
-        }
-    }
-
-    //-------------------------------------------------------------------------------
-    private class CheckLiveOrdersTask extends TaskQueueProcessor.SinglePresenceTask {
-        public CheckLiveOrdersTask() {}
-
-        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
-            boolean duplicate = super.isDuplicate(other);
-            if (duplicate) {
-                log(" skipped CheckLiveOrdersTask duplicate");
-            }
-            return duplicate;
-        }
-
-        @Override public void process() throws Exception {
-            log("CheckLiveOrdersTask.process()");
-            checkLiveOrders();
         }
     }
 

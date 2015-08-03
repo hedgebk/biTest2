@@ -12,10 +12,14 @@ import java.math.RoundingMode;
 import java.util.List;
 
 public abstract class BaseExecutor implements Runnable {
-    protected static final int STATE_NO_CHANGE = 0;
-    protected static final int STATE_NONE = 1;
-    protected static final int STATE_ORDER = 2;
-    protected static final int STATE_ERROR = 3;
+    public static final int STATE_NO_CHANGE = 0;
+    public static final int STATE_NONE = 1;
+    public static final int STATE_ORDER = 2;
+    public static final int STATE_ERROR = 3;
+
+    protected static int FLAG_CANCELED               = 1 << 0;
+    protected static int FLAG_NEED_CHECK_LIVE_ORDERS = 1 << 1;
+    protected static int FLAG_NEED_RECHECK_DIRECTION = 1 << 2;
 
     protected final long m_startMillis;
     private final IWs m_ws;
@@ -29,8 +33,8 @@ public abstract class BaseExecutor implements Runnable {
     protected TopsData m_topsData;
     protected AccountData m_initAccount;
     protected AccountData m_account;
-    protected double m_buy;
-    protected double m_sell;
+    public double m_buy;
+    public double m_sell;
     protected boolean m_maySyncAccount = false;
     protected int m_orderPlaceAttemptCounter;
     protected long m_lastProcessDirectionTime;
@@ -51,6 +55,13 @@ public abstract class BaseExecutor implements Runnable {
     protected abstract boolean cancelOtherOrdersIfNeeded(OrderSide needOrderSide, double notEnough) throws Exception;
     protected abstract void onOrderPlace(OrderData placeOrder);
     protected abstract boolean checkNoOpenOrders();
+    protected abstract long minOrderLiveTime();
+    protected abstract double outOfMarketThreshold();
+    protected abstract boolean hasOrdersWithMatchedPrice(double tradePrice);
+    protected abstract void checkOrdersOutOfMarket() throws Exception;
+    protected abstract int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception;
+    protected abstract boolean haveNotFilledOrder();
+    protected abstract void processTopInt() throws Exception;
 
     public BaseExecutor(IWs ws, Pair pair) {
         m_ws = ws;
@@ -195,7 +206,7 @@ public abstract class BaseExecutor implements Runnable {
         return error;
     }
 
-    protected void onError() throws Exception {
+    public void onError() throws Exception {
         log("onError() resetting...  -------------------------- ");
         IIterationContext.BaseIterationContext iContext = checkLiveOrders();
         iContext = getLiveOrdersContextIfNeeded(iContext);
@@ -263,7 +274,7 @@ public abstract class BaseExecutor implements Runnable {
         return buyBtc;
     }
 
-    protected int processDirection() throws Exception {
+    public int processDirection() throws Exception {
         m_lastProcessDirectionTime = System.currentTimeMillis();
         double directionAdjusted = getDirectionAdjusted();
 
@@ -423,6 +434,73 @@ public abstract class BaseExecutor implements Runnable {
         return ret;
     }
 
+    protected int checkOrderOutOfMarket(OrderData order) throws Exception {
+        int ret = 0;
+        boolean isBuy = order.m_side.isBuy();
+        double orderPrice = order.m_price;
+
+        /// ask  110 will sell
+        /// bid  100 will buy
+        // order 95 buy
+        double threshold = (m_sell - m_buy) * outOfMarketThreshold(); // allow 1/2 bidAdsDiff for order price to be out of mkt prices
+        if ((isBuy && (m_buy - threshold > orderPrice)) || (!isBuy && (m_sell + threshold < orderPrice))) {
+            log("  order " + order.m_orderId + " " + order.m_side + "@" + orderPrice + " is FAR out of MKT [buy=" + m_buy + "; sell=" + m_sell + "]");
+            long liveTime = System.currentTimeMillis() - order.m_placeTime;
+            if (liveTime < minOrderLiveTime()) {
+                log("   order liveTime=" + liveTime + "ms - wait little bit more");
+            } else {
+                log("   order liveTime=" + liveTime + "ms - cancel order...");
+                String error = cancelOrder(order);
+                if (error == null) {
+                    ret |= FLAG_CANCELED;
+                } else {
+                    log("ERROR in cancel order: " + error + "; " + order);
+                    log("looks the order was already executed - need check live orders");
+                    ret |= FLAG_NEED_CHECK_LIVE_ORDERS;
+                }
+                log("need Recheck Direction");
+                ret |= FLAG_NEED_RECHECK_DIRECTION;
+            }
+        } else {
+            // order 101 buy
+            /// ask  100 will sell
+            /// bid   90 will buy
+            if ((isBuy && (m_sell <= orderPrice)) || (!isBuy && (m_buy >= orderPrice))) {
+                log("  MKT price [buy=" + m_buy + "; sell=" + m_sell + "] is crossed the order " + order.m_side + "@" + orderPrice + " - starting CheckLiveOrdersTask");
+                addTask(new CheckLiveOrdersTask());
+            }
+        }
+        return ret;
+    }
+
+    public int processTrade(TradeData tData, IIterationContext.BaseIterationContext inContext) throws Exception {
+        double tradePrice = tData.m_price;
+        if (hasOrdersWithMatchedPrice(tradePrice)) {
+            log("  same price - MAYBE SOME PART OF OUR ORDER EXECUTED ?");
+            IIterationContext.BaseIterationContext iContext = getLiveOrdersContextIfNeeded(inContext);
+            int oscState = checkOrdersState(iContext);
+            return oscState; //check orders state
+        }
+        if (tradePrice < m_buy) {
+            double buy = (m_buy * 2 + tradePrice) / 3;
+            log("  buy is adapted to trade price: " + m_buy + " -> " + buy);
+            m_buy = buy;
+        }
+        if (tradePrice > m_sell) {
+            double sell = (m_sell * 2 + tradePrice) / 3;
+            log("  sell is adapted to trade price: " + m_sell + " -> " + sell);
+            m_sell = sell;
+        }
+        checkOrdersOutOfMarket();
+        return STATE_NO_CHANGE; // no change
+    }
+
+    public void processTop() throws Exception {
+        log("processTop(buy=" + m_buy + ", sell=" + m_sell + ")");
+        if (haveNotFilledOrder()) {
+            processTopInt();
+        }
+    }
 
 
     //-------------------------------------------------------------------------------
@@ -498,6 +576,24 @@ public abstract class BaseExecutor implements Runnable {
         }
 
         @Override public void process() throws Exception { recheckDirection(); }
+    }
+
+    //-------------------------------------------------------------------------------
+    protected class CheckLiveOrdersTask extends TaskQueueProcessor.SinglePresenceTask {
+        public CheckLiveOrdersTask() {}
+
+        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
+            boolean duplicate = super.isDuplicate(other);
+            if (duplicate) {
+                log(" skipped CheckLiveOrdersTask duplicate");
+            }
+            return duplicate;
+        }
+
+        @Override public void process() throws Exception {
+            log("CheckLiveOrdersTask.process()");
+            checkLiveOrders();
+        }
     }
 
     //-------------------------------------------------------------------------------
