@@ -33,6 +33,7 @@ class TresLogProcessor extends Thread {
     private String m_varyBarSize;
     private String m_varyLen1;
     private String m_varyLen2;
+    private String m_varyOscLock;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -53,6 +54,8 @@ class TresLogProcessor extends Thread {
         log("varyLen1=" + m_varyLen1);
         m_varyLen2 = keys.getProperty("tre.vary.len2");
         log("varyLen2=" + m_varyLen2);
+        m_varyOscLock = keys.getProperty("tre.vary.osc_lock");
+        log("varyOscLock=" + m_varyOscLock);
     }
 
     @Override public void run() {
@@ -95,8 +98,13 @@ class TresLogProcessor extends Thread {
                     if (varyLen2 != null) {
                         varyLen2(allTicks, tres, varyLen2);
                     } else {
-                        double averageProjected = processAllTicks(allTicks);
-                        log("averageProjected: " + averageProjected);
+                        String varyOscLock = m_varyOscLock;
+                        if (varyOscLock != null) {
+                            varyOscLock(allTicks, tres, varyOscLock);
+                        } else {
+                            double averageProjected = processAllTicks(allTicks);
+                            log("averageProjected: " + averageProjected);
+                        }
                     }
                 }
             }
@@ -164,9 +172,21 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private double processAllTicks(List<List<TradeData>> allTicks) throws Exception {
-        long startTime = System.currentTimeMillis();
+    private void varyOscLock(List<List<TradeData>> allTicks, Tres tres, String varyOscLock) throws Exception {
+        log("varyOscLock: " + varyOscLock);
 
+        String[] split = varyOscLock.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        for( double i = min; i <= max; i+=step ) {
+            PhaseData.LOCK_OSC_LEVEL = i;
+            double averageProjected = processAllTicks(allTicks);
+            log("averageProjected[oscLock="+i+"]: " + averageProjected);
+        }
+    }
+
+    private double processAllTicks(List<List<TradeData>> allTicks) throws Exception {
         final AtomicInteger semafore = new AtomicInteger();
         ExecutorService executorService = Executors.newFixedThreadPool(PROCESS_THREADS_NUM);
 
@@ -195,18 +215,11 @@ class TresLogProcessor extends Thread {
         synchronized (semafore) {
             int value = semafore.get();
             if (value > 0) {
-//                log(" waiting process end...");
                 semafore.wait();
             } else {
                 log(" nothing to wait");
             }
         }
-
-        long endTime = System.currentTimeMillis();
-        long timeTakes = endTime - startTime;
-        String takesStr = Utils.millisToDHMSStr(timeTakes);
-        log("processing done in " + takesStr);
-
         return calc.getAverage();
     }
 
@@ -285,8 +298,8 @@ class TresLogProcessor extends Thread {
 
         synchronized (semafore) {
             int value = semafore.get();
-            if(value > 0) {
-                log(" waiting parse end...");
+            if (value > 0) {
+//                log(" waiting parse end...");
                 semafore.wait();
             } else {
                 log(" nothing to wait");
@@ -334,17 +347,6 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private TradeData parseTheLine(String line) {
-        if (line.startsWith("onTrade[") && line.contains("]: TradeData{")) {
-            return parseTradeLine(line);
-        } else if (line.contains("State.onTrade(")) {
-            return parseOscTradeLine(line);
-        } else if (line.startsWith("EUR/USD,")) { // fx
-            return parseFxTradeLine(line);
-        }
-        return null;
-    }
-
     private TradeData parseFxTradeLine(String line) {
         // EUR/USD,20150601 00:00:00.859,1.0957,1.09579
         Matcher matcher = FX_TRADE_PATTERN.matcher(line);
@@ -385,6 +387,17 @@ class TresLogProcessor extends Thread {
             throw new RuntimeException("not matched FX_TRADE_PATTERN line: " + line);
 //            log("not matched FX_TRADE_PATTERN line: " + line);
         }
+    }
+
+    private TradeData parseTheLine(String line) {
+        if (line.startsWith("onTrade[") && line.contains("]: TradeData{")) {
+            return parseTradeLine(line);
+        } else if (line.contains("State.onTrade(")) {
+            return parseOscTradeLine(line);
+        } else if (line.startsWith("EUR/USD,")) { // fx
+            return parseFxTradeLine(line);
+        }
+        return null;
     }
 
     private TradeData parseOscTradeLine(String line) {

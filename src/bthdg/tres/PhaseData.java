@@ -4,7 +4,7 @@ import bthdg.exch.TradeData;
 import bthdg.osc.OscTick;
 
 public class PhaseData {
-    public static final double LOCK_OSC_LEVEL = 0.1;
+    public static double LOCK_OSC_LEVEL = 0.07;
 
     final TresExchData m_exchData;
     final int m_phaseIndex;
