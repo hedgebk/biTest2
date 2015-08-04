@@ -13,8 +13,9 @@ import bthdg.ws.WsFactory;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
 public class Tres {
     public static final Pair PAIR = Pair.BTC_CNH;
@@ -32,8 +33,6 @@ public class Tres {
     int m_ma;
     ArrayList<TresExchData> m_exchDatas;
     private TresFrame m_frame;
-    long m_startTickMillis = Long.MAX_VALUE;
-    long m_lastTickMillis = 0;
     private final boolean m_processLogs;
     public boolean m_silentConsole;
     public List<Long> m_tickTimes = new ArrayList<Long>();
@@ -157,23 +156,8 @@ public class Tres {
     }
 
     public void onTrade(TradeData tdata) {
-        long timestamp = tdata.m_timestamp;
-        long min = Math.min(m_startTickMillis, timestamp);
-        if ((min < m_startTickMillis) && (m_startTickMillis != Long.MAX_VALUE)) {
-            TimeZone TZ = TimeZone.getTimeZone("Asia/Hong_Kong"); // utc+08:00 Beijing, Hong Kong, Urumqi
-            Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
-            NOW_CALENDAR.setTimeInMillis(timestamp);
-            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS Z, zzzz");
-            simpleDateFormat.setTimeZone(TZ);
-            String str = simpleDateFormat.format(NOW_CALENDAR.getTime());
-            log("str="+str);
-            log("GOT");
-        } else {
-            m_startTickMillis = min;
-        }
-        m_lastTickMillis = Math.max(m_lastTickMillis, timestamp);
-
         if(PAINT_TICK_TIMES_ONLY) { // collect tickTimes
+            long timestamp = tdata.m_timestamp;
             m_tickTimes.add(timestamp);
         }
 

@@ -9,6 +9,9 @@ import bthdg.util.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,6 +23,9 @@ class TresLogProcessor extends Thread {
     private static final Pattern FX_TRADE_PATTERN = Pattern.compile("EUR/USD,(\\d\\d\\d\\d)(\\d\\d)(\\d\\d) (\\d\\d):(\\d\\d):(\\d\\d).(\\d\\d\\d),(\\d+\\.\\d+),(\\d+.\\d+)");
 
     private static final Calendar GMT_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.ENGLISH);
+    public static final int READ_BUFFER_SIZE = 1024 * 32;
+    public static final int PARSE_THREADS_NUM = 2;
+    public static final int PROCESS_THREADS_NUM = 7;
 
     private TresExchData m_exchData;
     private String m_logFilePattern;
@@ -69,7 +75,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void processAll(List<List<TradeData>> allTicks) {
+    private void processAll(List<List<TradeData>> allTicks) throws Exception {
         long startTime = System.currentTimeMillis();
 
         Tres tres = m_exchData.m_tres;
@@ -102,7 +108,7 @@ class TresLogProcessor extends Thread {
         log("takes " + takesStr);
     }
 
-    private void varyBarSize(List<List<TradeData>> allTicks, Tres tres, String varyBarSize) {
+    private void varyBarSize(List<List<TradeData>> allTicks, Tres tres, String varyBarSize) throws Exception {
         log("varyBarSize: " + varyBarSize);
 
         String[] split = varyBarSize.split(";"); // 2000ms;10000ms;500ms
@@ -116,7 +122,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void varyMa(List<List<TradeData>> allTicks, Tres tres, String varyMa) {
+    private void varyMa(List<List<TradeData>> allTicks, Tres tres, String varyMa) throws Exception {
         log("varyMa: " + varyMa);
 
         String[] split = varyMa.split(";"); // 3;10;1
@@ -130,7 +136,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void varyLen1(List<List<TradeData>> allTicks, Tres tres, String varyLen1) {
+    private void varyLen1(List<List<TradeData>> allTicks, Tres tres, String varyLen1) throws Exception {
         log("varyLen1: " + varyLen1);
 
         String[] split = varyLen1.split(";"); // 10;30;1
@@ -144,7 +150,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void varyLen2(List<List<TradeData>> allTicks, Tres tres, String varyLen2) {
+    private void varyLen2(List<List<TradeData>> allTicks, Tres tres, String varyLen2) throws Exception {
         log("varyLen2: " + varyLen2);
 
         String[] split = varyLen2.split(";"); // 10;30;1
@@ -158,27 +164,62 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private double processAllTicks(List<List<TradeData>> allTicks) {
-        Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
-        for (List<TradeData> ticks : allTicks) {
-            double projected = processTicks(ticks);
-            calc.addValue(projected);
+    private double processAllTicks(List<List<TradeData>> allTicks) throws Exception {
+        long startTime = System.currentTimeMillis();
+
+        final AtomicInteger semafore = new AtomicInteger();
+        ExecutorService executorService = Executors.newFixedThreadPool(PROCESS_THREADS_NUM);
+
+        final Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
+        for (final List<TradeData> ticks : allTicks) {
+            synchronized (semafore) {
+                semafore.incrementAndGet();
+            }
+            executorService.submit(new Runnable() {
+                @Override public void run() {
+                    try {
+                        double projected = processTicks(ticks);
+                        synchronized (semafore) {
+                            calc.addValue(projected);
+                            int value = semafore.decrementAndGet();
+                            if (value == 0) {
+                                semafore.notify();
+                            }
+                        }
+                    } catch (Exception e) {
+                        err("got error: " + e, e);
+                    }
+                }
+            });
         }
+        synchronized (semafore) {
+            int value = semafore.get();
+            if (value > 0) {
+//                log(" waiting process end...");
+                semafore.wait();
+            } else {
+                log(" nothing to wait");
+            }
+        }
+
+        long endTime = System.currentTimeMillis();
+        long timeTakes = endTime - startTime;
+        String takesStr = Utils.millisToDHMSStr(timeTakes);
+        log("processing done in " + takesStr);
+
         return calc.getAverage();
     }
 
     private double processTicks(List<TradeData> ticks) {
-        Tres tres = m_exchData.m_tres;
         // reset before iteration
-        tres.m_startTickMillis = Long.MAX_VALUE;
-        tres.m_lastTickMillis = 0;
+        TresExchData exchData = m_exchData.cloneClean();
 
         for (TradeData tick : ticks) {
-            m_exchData.onTrade(tick);
+            exchData.onTrade(tick);
         }
 
         Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
-        for (PhaseData phaseData : m_exchData.m_phaseDatas) {
+        for (PhaseData phaseData : exchData.m_phaseDatas) {
             TresMaCalculator maCalculator = phaseData.m_maCalculator;
             double total = maCalculator.calcToTal();
 //            log(" total=" + total);
@@ -187,7 +228,7 @@ class TresLogProcessor extends Thread {
         double averageTotal = calc.getAverage();
 //        log("  avg=" + averageTotal);
 
-        long runningTimeMillis = tres.m_lastTickMillis - tres.m_startTickMillis;
+        long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
         double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
 //        String runningStr = Utils.millisToDHMSStr(runningTimeMillis);
 //        log("   running " + runningStr + "; runningTimeDays="+runningTimeDays);
@@ -195,50 +236,81 @@ class TresLogProcessor extends Thread {
         double aDay = Math.pow(averageTotal, 1 / runningTimeDays);
 //        log("    aDay="+aDay);
 
-        // reset after iteration
-        m_exchData = m_exchData.cloneClean();
-
         return aDay;
     }
 
     private List<List<TradeData>> parseFiles(Pattern pattern, File dir) throws Exception {
+        final AtomicInteger semafore = new AtomicInteger();
+        ExecutorService executorService = Executors.newFixedThreadPool(PARSE_THREADS_NUM);
+
         long startTime = System.currentTimeMillis();
-        List<List<TradeData>> ticks = new ArrayList<List<TradeData>>();
+        final List<List<TradeData>> ticks = new ArrayList<List<TradeData>>();
         File[] files = dir.listFiles();
         log(files.length + " file(s) is directory " + dir);
-        int parsed = 0;
+        int toParse = 0;
         int skipped = 0;
-        for (File file : files) {
-            String name = file.getName();
+        for (final File file : files) {
+            final String name = file.getName();
             if (pattern.matcher(name).matches()) {
-                log("next file to parse: " + name);
-                List<TradeData> fileTicks = parseFile(file);
-                ticks.add(fileTicks);
-                parsed++;
-
+                synchronized (semafore) {
+                    semafore.incrementAndGet();
+                }
+                executorService.submit(new Runnable() {
+                    @Override public void run() {
+                        log("next file to parse: " + name);
+                        List<TradeData> fileTicks = null;
+                        try {
+                            fileTicks = parseFile(file);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        synchronized (semafore) {
+                            if (fileTicks != null) {
+                                ticks.add(fileTicks);
+                            }
+                            int value = semafore.decrementAndGet();
+                            if (value == 0) {
+                                semafore.notify();
+                            }
+                        }
+                    }
+                });
+                toParse++;
             } else {
                 skipped++;
 //                        log(" skip. not matches the pattern: " + filePattern);
             }
         }
+        log("toParse " + toParse + " files. skipped " + skipped + " files.");
+
+        synchronized (semafore) {
+            int value = semafore.get();
+            if(value > 0) {
+                log(" waiting parse end...");
+                semafore.wait();
+            } else {
+                log(" nothing to wait");
+            }
+        }
+
         long endTime = System.currentTimeMillis();
         long timeTakes = endTime - startTime;
         String takesStr = Utils.millisToDHMSStr(timeTakes);
+        log("parsing done in " + takesStr);
 
-        log("parsed " + parsed + " files. skipped " + skipped + " files. takes " + takesStr);
         return ticks;
     }
 
     private List<TradeData> parseFile(File file) throws Exception {
-        LineReader reader = new LineReader(file);
+        LineReader reader = new LineReader(file, READ_BUFFER_SIZE);
         try {
-            return parseLines(reader);
+            return parseLines(reader, file);
         } finally {
             reader.close();
         }
     }
 
-    private List<TradeData> parseLines(LineReader reader) throws IOException {
+    private List<TradeData> parseLines(LineReader reader, File file) throws IOException {
         BufferedLineReader blr = new BufferedLineReader(reader);
         try {
             List<TradeData> ret = new ArrayList<TradeData>();
@@ -255,7 +327,7 @@ class TresLogProcessor extends Thread {
             }
             long endTime = System.currentTimeMillis();
             long timeTakes = endTime - startTime;
-            log(" parsed " + linesProcessed + " lines in " + timeTakes + " ms (" + (linesProcessed * 1000 / timeTakes) + " lines/s)");
+            log(" parsed " + file.getName() + ". " + linesProcessed + " lines in " + timeTakes + " ms (" + (linesProcessed * 1000 / timeTakes) + " lines/s)");
             return ret;
         } finally {
             blr.close();
@@ -299,9 +371,12 @@ class TresLogProcessor extends Thread {
             double ask = Double.parseDouble(askStr);
 //            log(" parsed: year=" + year + "; month=" + month + "; day=" + day + "; hour=" + hour + "; min=" + min + "; sec=" + sec + "; millis=" + millis + "; bid=" + bid + "; ask=" + ask);
 
-            GMT_CALENDAR.set(year, month, day, hour, min, sec);
-            GMT_CALENDAR.set(Calendar.MILLISECOND, millis);
-            long timestamp = GMT_CALENDAR.getTimeInMillis();
+            long timestamp;
+            synchronized (GMT_CALENDAR) {
+                GMT_CALENDAR.set(year, month, day, hour, min, sec);
+                GMT_CALENDAR.set(Calendar.MILLISECOND, millis);
+                timestamp = GMT_CALENDAR.getTimeInMillis();
+            }
             double mid = (bid + ask) / 2;
 
             TradeData tradeData = new TradeData(0, mid, timestamp);

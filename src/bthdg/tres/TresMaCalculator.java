@@ -7,7 +7,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 public class TresMaCalculator extends MaCalculator {
-    private final PhaseData m_phaseData;
+    protected final PhaseData m_phaseData;
     private MaTick m_tick;
     final LinkedList<MaTick> m_maTicks = new LinkedList<MaTick>();
 

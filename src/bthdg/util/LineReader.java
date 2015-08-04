@@ -22,6 +22,15 @@ public class LineReader {
         m_bis = new BufferedReader(new InputStreamReader(is));
     }
 
+    public LineReader(File file, int bufferSize) throws FileNotFoundException {
+        this(new FileInputStream(file), bufferSize);
+    }
+
+    public LineReader(InputStream is, int bufferSize) {
+        m_is = is;
+        m_bis = new BufferedReader(new InputStreamReader(is), bufferSize);
+    }
+
     public void close() throws IOException {
         m_is.close();
         m_bis.close();

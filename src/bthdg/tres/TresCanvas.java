@@ -438,7 +438,8 @@ public class TresCanvas extends JComponent {
         }
 
         g.setColor(Color.ORANGE);
-        long runningTimeMillis = m_tres.m_lastTickMillis - m_tres.m_startTickMillis;
+        TresExchData exchData = maCalculator.m_phaseData.m_exchData;
+        long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
         String runningStr = Utils.millisToDHMSStr(runningTimeMillis);
         g.drawString("running: " + runningStr, 5, fontHeight * 8 + 5);
 
