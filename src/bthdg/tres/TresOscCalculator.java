@@ -9,6 +9,7 @@ import java.util.LinkedList;
 
 public class TresOscCalculator extends OscCalculator {
     public static final double PEAK_TOLERANCE = 0.001;
+    public static final int INIT_BARS_BEFORE = 6;
 
     private TresExchData m_exchData;
     private final int m_phaseIndex;
@@ -41,11 +42,18 @@ public class TresOscCalculator extends OscCalculator {
         m_updated = false;
         super.update(stamp, finishBar);
         if (finishBar) {
-            if (m_barNum++ < m_exchData.m_tres.m_preheatBarsNum) {
-                if (!m_exchData.m_tres.m_silentConsole) {
-                    log("update[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: PREHEATING step=" + m_barNum + " from " + m_exchData.m_tres.m_preheatBarsNum);
+            Tres tres = m_exchData.m_tres;
+            int preheatBarsNum = tres.getPreheatBarsNum();
+            if (m_barNum++ < preheatBarsNum) {
+                if (!tres.m_silentConsole) {
+                    log("update[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: PREHEATING step=" + m_barNum + " from " + preheatBarsNum);
+                }
+                if (!tres.m_logProcessing && (m_barNum == preheatBarsNum - INIT_BARS_BEFORE)) {
+                    m_exchData.m_executor.init();
                 }
                 m_updated = true;
+            } else {
+                m_exchData.setFeeding();
             }
         }
         if( m_updated ) {
@@ -91,8 +99,9 @@ public class TresOscCalculator extends OscCalculator {
 
     public void getState(StringBuilder sb) {
         sb.append(" [" + m_phaseIndex + "] ");
-        if (m_barNum++ < m_exchData.m_tres.m_preheatBarsNum) {
-            sb.append("PREHEATING step=" + m_barNum + " from " + m_exchData.m_tres.m_preheatBarsNum);
+        int preheatBarsNum = m_exchData.m_tres.getPreheatBarsNum();
+        if (m_barNum++ < preheatBarsNum) {
+            sb.append("PREHEATING step=" + m_barNum + " from " + preheatBarsNum);
         } else {
             dumpTick(sb, "FINE", m_lastFineTick);
             dumpTick(sb, "BAR", m_lastBar);

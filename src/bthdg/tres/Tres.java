@@ -29,16 +29,17 @@ public class Tres {
     int m_k;
     int m_d;
     int m_phases;
-    public int m_preheatBarsNum;
     int m_ma;
     ArrayList<TresExchData> m_exchDatas;
     private TresFrame m_frame;
     private final boolean m_processLogs;
     public boolean m_silentConsole;
     public List<Long> m_tickTimes = new ArrayList<Long>();
+    public boolean m_logProcessing;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
+    public int getPreheatBarsNum() { return m_len1 + m_len2 + (m_k - 1) + (m_d - 1); }
 
     public Tres(String[] args) {
         m_processLogs = (args.length > 0);
@@ -81,6 +82,7 @@ public class Tres {
 
         if (m_processLogs) {
             m_silentConsole = true;
+            m_logProcessing = true;
             TresLogProcessor logProcessor = new TresLogProcessor(m_keys, m_exchDatas);
             logProcessor.start();
         } else {
@@ -114,8 +116,6 @@ public class Tres {
         log("phases=" + m_phases);
         m_ma = Integer.parseInt(getProperty("tre.ma"));
         log("ma=" + m_ma);
-
-        m_preheatBarsNum = m_len1 + m_len2 + (m_k - 1) + (m_d - 1);
 
         m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
         for (String exch : exchangesArr) {

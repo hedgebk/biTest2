@@ -34,6 +34,7 @@ class TresLogProcessor extends Thread {
     private String m_varyLen1;
     private String m_varyLen2;
     private String m_varyOscLock;
+    private int cloneCounter = 0;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -225,10 +226,10 @@ class TresLogProcessor extends Thread {
 
     private double processTicks(List<TradeData> ticks) {
         // reset before iteration
-        TresExchData exchData = m_exchData.cloneClean();
+        TresExchData exchData = (cloneCounter++ == 0) ? m_exchData : m_exchData.cloneClean();
 
         for (TradeData tick : ticks) {
-            exchData.onTrade(tick);
+            exchData.processTrade(tick);
         }
 
         Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();

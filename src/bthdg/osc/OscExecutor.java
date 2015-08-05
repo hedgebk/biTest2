@@ -44,7 +44,6 @@ class OscExecutor extends BaseExecutor {
     final TrendCounter m_priceTrendCounter;
     private final AvgStochDirectionAdjuster m_avgStochDirectionAdjuster;
     private final AvgPriceDirectionAdjuster m_avgPriceDirectionAdjuster;
-    private boolean m_feeding;
     private NoTradesWatcher m_noTradesWatcher = new NoTradesWatcher();
 
     @Override protected double minOrderSizeToCreate() { return MIN_ORDER_SIZE; }
@@ -52,6 +51,7 @@ class OscExecutor extends BaseExecutor {
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
+    @Override protected double useFundsFromAvailable() { return Osc.USE_FUNDS_FROM_AVAILABLE; }
 
     public OscExecutor(IWs ws) {
         super(ws, Osc.PAIR);
@@ -162,7 +162,7 @@ class OscExecutor extends BaseExecutor {
             return true;
         } else {
             log("warning: order still exist - switch to ERROR state: " + m_order);
-            return true;
+            return false;
         }
     }
 
@@ -312,7 +312,6 @@ class OscExecutor extends BaseExecutor {
         if (m_order != null) {
             log("  need cancel existing order: " + m_order);
             String error = cancelOrder(m_order);
-            int ret;
             if (error == null) {
                 log("   order cancelled OK: " + m_order);
                 m_order = null;
@@ -320,12 +319,11 @@ class OscExecutor extends BaseExecutor {
                 // we cancel order; internally release funds performed, but since part of order is already executed - we may have
                 // account mismatch here - resync account to prevent.
                 initAccount();
-                ret = STATE_NONE;
+                return STATE_NONE;
             } else {
                 log("ERROR in cancel order: " + error + "; " + m_order);
-                ret = STATE_ERROR;
+                return STATE_ERROR;
             }
-            return ret;
         }
         return STATE_NO_CHANGE;
     }
@@ -350,7 +348,7 @@ class OscExecutor extends BaseExecutor {
 
     @Override protected int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception {
         OscState oscState = checkOrderState(iContext);
-        return oscState.toCode();
+        return OscState.toCode(oscState);
     }
 
     @Override protected void checkOrdersOutOfMarket() throws Exception {
@@ -748,6 +746,21 @@ class OscExecutor extends BaseExecutor {
                 log("  direction chilledZ from " + directionAdjusted + " to " + ret);
             }
             return ret;
+        }
+    }
+
+    //-------------------------------------------------------------------------------
+    public static class CloseOrderWrapper {
+        protected final OrderData m_closeOrder;
+        protected final OrderData m_order;
+
+        public CloseOrderWrapper(OrderData closeOrder, OrderData order) {
+            m_closeOrder = closeOrder;
+            m_order = order;
+        }
+
+        @Override public String toString() {
+            return "CloseOrderWrapper[m_closeOrder=" + m_closeOrder + "; m_order=" + m_order + "]";
         }
     }
 }

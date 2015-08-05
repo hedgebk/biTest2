@@ -27,7 +27,7 @@ public abstract class BaseExecutor implements Runnable {
     protected final Exchange m_exchange;
     protected TaskQueueProcessor m_taskQueueProcessor;
     private boolean m_run = true;
-    private boolean m_initialized;
+    protected boolean m_initialized;
     private boolean m_changed;
     protected TopsData m_initTops;
     protected TopsData m_topsData;
@@ -38,6 +38,8 @@ public abstract class BaseExecutor implements Runnable {
     protected boolean m_maySyncAccount = false;
     protected int m_orderPlaceAttemptCounter;
     protected long m_lastProcessDirectionTime;
+    public boolean m_feeding;
+    protected OrderPriceMode m_orderPriceMode = OrderPriceMode.NORMAL;
 
     protected static void log(String s) { Log.log(s); }
 
@@ -62,6 +64,7 @@ public abstract class BaseExecutor implements Runnable {
     protected abstract int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception;
     protected abstract boolean haveNotFilledOrder();
     protected abstract void processTopInt() throws Exception;
+    protected abstract double useFundsFromAvailable();
 
     public BaseExecutor(IWs ws, Pair pair) {
         m_ws = ws;
@@ -93,7 +96,7 @@ public abstract class BaseExecutor implements Runnable {
         }
     }
 
-    void init() {
+    public void init() {
         if (!m_initialized) {
             log("not initialized - added InitTask to queue");
             addTask(new InitTask());
@@ -125,10 +128,7 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     public void onTrade(TradeData tData) { addTask(new TradeTask(tData)); }
-    protected void postRecheckDirection() { addTask(new RecheckDirectionTask()); }
-    protected void addTask(TaskQueueProcessor.IOrderTask task) {
-        getTaskQueueProcessor().addTask(task);
-    }
+    protected void addTask(TaskQueueProcessor.IOrderTask task) { getTaskQueueProcessor().addTask(task); }
 
     protected void initImpl() throws Exception {
         m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
@@ -138,7 +138,7 @@ public abstract class BaseExecutor implements Runnable {
         m_initAccount = m_account.copy();
         m_initTops = m_topsData.copy();
 
-        log("initImpl() continue: subscribeTrades()");
+        log("initImpl() continue: subscribeTop()");
         m_ws.subscribeTop(m_pair, new ITopListener() {
             @Override public void onTop(long timestamp, double buy, double sell) {
 //                    log("onTop() timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
@@ -256,14 +256,14 @@ public abstract class BaseExecutor implements Runnable {
         if (needBuyBtc > 0) {
             log("  will buy Btc:");
             double needSellCnh = m_topsData.convert(Currency.BTC, Currency.CNH, needBuyBtc, m_exchange);
-            double canSellCnh = Math.min(needSellCnh, haveCnh);
+            double canSellCnh = Math.min(needSellCnh, haveCnh * useFundsFromAvailable());
             double canBuyBtc = m_topsData.convert(Currency.CNH, Currency.BTC, canSellCnh, m_exchange);
             log("   need to sell " + needSellCnh + " CNH; can Sell " + canSellCnh + " CNH; this will buy " + canBuyBtc + " BTC");
             buyBtc = canBuyBtc;
         } else if (needBuyBtc < 0) {
             log("  will sell Btc:");
             double needSellBtc = -needBuyBtc;
-            double canSellBtc = Math.min(needSellBtc, haveBtc);
+            double canSellBtc = Math.min(needSellBtc, haveBtc * useFundsFromAvailable());
             double canBuyCnh = m_topsData.convert(Currency.BTC, Currency.CNH, canSellBtc, m_exchange);
             log("   need to sell " + needSellBtc + " BTC; can Sell " + canSellBtc + " BTC; this will buy " + canBuyCnh + " CNH");
             buyBtc = -canSellBtc;
@@ -274,9 +274,14 @@ public abstract class BaseExecutor implements Runnable {
         return buyBtc;
     }
 
+    protected void postRecheckDirection() {
+        log(" posting RecheckDirectionTask");
+        addTask(new RecheckDirectionTask());
+    }
+
     public int processDirection() throws Exception {
         m_lastProcessDirectionTime = System.currentTimeMillis();
-        double directionAdjusted = getDirectionAdjusted();
+        double directionAdjusted = getDirectionAdjusted(); // [-1 ... 1]
 
         double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
         double valuateCnh = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
@@ -320,13 +325,10 @@ public abstract class BaseExecutor implements Runnable {
             double minOrderSizeToCreate = minOrderSizeToCreate();
             if (notEnough > minOrderSizeToCreate) {
                 boolean cancelPerformed = cancelOtherOrdersIfNeeded(needOrderSide, notEnough);
-                if(cancelPerformed) {
-                    return STATE_NO_CHANGE;
+                if (cancelPerformed) {
+                    return STATE_NONE;
                 }
             }
-
-            canBuyBtc *= Osc.USE_FUNDS_FROM_AVAILABLE; // do not use ALL available funds
-            log("       fund ratio adjusted: canBuyBtc=" + Utils.format8(canBuyBtc));
 
             double orderSizeRound = m_exchange.roundAmount(canBuyBtc, m_pair);
             double placeOrderSize = Math.abs(orderSizeRound);
@@ -341,7 +343,7 @@ public abstract class BaseExecutor implements Runnable {
 
                     if (placeOrderToExchange(m_exchange, placeOrder)) {
                         m_orderPlaceAttemptCounter++;
-                        log("    m_orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
+                        log("    orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
                         onOrderPlace(placeOrder);
                         return STATE_ORDER;
                     } else {
@@ -349,7 +351,7 @@ public abstract class BaseExecutor implements Runnable {
                         return STATE_ERROR;
                     }
                 } else {
-                    return STATE_NONE;
+                    return STATE_ERROR;
                 }
             } else {
                 log("warning: small order to create: placeOrderSize=" + placeOrderSize +
@@ -368,19 +370,8 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     private double calcOrderPrice(Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-        // directionAdjusted [-1 ... 1]
-        log("  buy=" + m_buy + "; sell=" + m_sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
-        double midPrice = (m_buy + m_sell) / 2;
-        double bidAskDiff = m_sell - m_buy;
-        double followMktPrice = needOrderSide.isBuy() ? m_buy : m_sell;
-        log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff + "; followMktPrice=" + followMktPrice);
-        double orderPriceCounterCorrection = bidAskDiff / 5 * m_orderPlaceAttemptCounter;
-        double adjustedPrice = followMktPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
-        log("   orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
-        RoundingMode roundMode = needOrderSide.getPegRoundMode();
-        double orderPrice = exchange.roundPrice(adjustedPrice, m_pair, roundMode);
-        log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-        return orderPrice;
+        log("   calcOrderPrice() orderPriceMode=" + m_orderPriceMode);
+        return m_orderPriceMode.calcOrderPrice(this, exchange, directionAdjusted, needOrderSide);
     }
 
     protected boolean placeOrderToExchange(Exchange exchange, OrderData order) throws Exception {
@@ -479,7 +470,7 @@ public abstract class BaseExecutor implements Runnable {
             log("  same price - MAYBE SOME PART OF OUR ORDER EXECUTED ?");
             IIterationContext.BaseIterationContext iContext = getLiveOrdersContextIfNeeded(inContext);
             int oscState = checkOrdersState(iContext);
-            return oscState; //check orders state
+            return oscState; // check orders state
         }
         if (tradePrice < m_buy) {
             double buy = (m_buy * 2 + tradePrice) / 3;
@@ -597,17 +588,41 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     //-------------------------------------------------------------------------------
-    public static class CloseOrderWrapper {
-        protected final OrderData m_closeOrder;
-        protected final OrderData m_order;
+    protected enum OrderPriceMode {
+        NORMAL {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                // directionAdjusted [-1 ... 1]
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                log("  buy=" + buy + "; sell=" + sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
+                double midPrice = (buy + sell) / 2;
+                double bidAskDiff = sell - buy;
+                double followMktPrice = needOrderSide.isBuy() ? buy : sell;
+                log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff + "; followMktPrice=" + followMktPrice);
+                int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
+                double orderPriceCounterCorrection = bidAskDiff / 5 * orderPlaceAttemptCounter;
+                double adjustedPrice = followMktPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
+                log("   orderPlaceAttemptCounter="+ orderPlaceAttemptCounter +"; orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
+                RoundingMode roundMode = needOrderSide.getPegRoundMode();
+                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
+        MID {
+            @Override
+            public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                double midPrice = (buy + sell) / 2;
+                log("  buy=" + buy + "; sell=" + sell + "; midPrice=" + midPrice + "; needOrderSide=" + needOrderSide);
+                RoundingMode roundMode = needOrderSide.getPegRoundMode();
+                double orderPrice = exchange.roundPrice(midPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        };
 
-        public CloseOrderWrapper(OrderData closeOrder, OrderData order) {
-            m_closeOrder = closeOrder;
-            m_order = order;
-        }
-
-        @Override public String toString() {
-            return "CloseOrderWrapper[m_closeOrder=" + m_closeOrder + "; m_order=" + m_order + "]";
-        }
+        public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) { return 0; }
     }
 }

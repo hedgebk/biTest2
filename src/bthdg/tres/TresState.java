@@ -48,12 +48,12 @@ public enum TresState {
 
     public TresState onTrade(TresExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
         log("State.onTrade(tData=" + tData + ") on " + this + " *********************************************");
-        return this;
+        return null; // no change
     }
 
     public TresState onDirection(TresExecutor executor) throws Exception {
         log("State.onDirection(direction=" + executor.getDirectionAdjusted() + ") on " + this + " *********************************************");
-        return this;
+        return null; // no change
     }
 
     public int toCode() { return 0; }
@@ -66,5 +66,12 @@ public enum TresState {
             case BaseExecutor.STATE_ERROR: return ERROR;
         }
         return null;
+    }
+
+    public static int toCode(TresState state) {
+        if(state == null) {
+            return BaseExecutor.STATE_NO_CHANGE;
+        }
+        return state.toCode();
     }
 }

@@ -11,6 +11,7 @@ public class PhaseData {
     final TresOscCalculator m_oscCalculator;
     final TresOHLCCalculator m_ohlcCalculator;
     final TresMaCalculator m_maCalculator;
+    private double m_direction = 0; // // [-1 ... 1].   parked initially
 
     public PhaseData(TresExchData exchData, int phaseIndex) {
         m_exchData = exchData;
@@ -96,4 +97,11 @@ public class PhaseData {
         return null; // meant undefined direction
     }
 
+    public double getDirection() { // [-1 ... 1]
+        Boolean oscUp = calcOscDirection(true, System.currentTimeMillis());
+        if (oscUp != null) {
+            m_direction = oscUp ? 1 : -1;
+        }
+        return m_direction;
+    }
 }

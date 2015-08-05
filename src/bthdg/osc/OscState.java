@@ -67,4 +67,10 @@ enum OscState {
         return null;
     }
 
+    public static int toCode(OscState oscState) {
+        if(oscState == null) {
+            return BaseExecutor.STATE_NO_CHANGE;
+        }
+        return oscState.toCode();
+    }
 }
