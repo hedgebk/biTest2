@@ -1,6 +1,7 @@
 package bthdg.tres;
 
 import bthdg.Log;
+import bthdg.exch.OrderData;
 import bthdg.exch.TradeData;
 import bthdg.util.Queue;
 import bthdg.util.Utils;
@@ -9,6 +10,7 @@ import bthdg.ws.IWs;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.LinkedList;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -21,6 +23,7 @@ public class TresExchData {
     final TresExecutor m_executor;
     final Utils.DoubleDoubleAverageCalculator m_avgTimeDiffCalc = new Utils.DoubleDoubleAverageCalculator();
     final Queue<TradeData> m_tradesQueue;
+    final LinkedList<OrderData> m_orders = new LinkedList<OrderData>();
     double m_lastPrice;
     private boolean m_updated;
     private long m_lastTimestamp;
@@ -146,5 +149,10 @@ public class TresExchData {
             directionAdjusted += direction;
         }
         return directionAdjusted/m_phaseDatas.length;
+    }
+
+    public void addOrder(OrderData order) {
+        m_orders.add(order);
+        m_tres.postFrameRepaint();
     }
 }

@@ -117,6 +117,10 @@ public class Tres {
         m_ma = Integer.parseInt(getProperty("tre.ma"));
         log("ma=" + m_ma);
 
+        double lockOscLevel = Double.parseDouble(getProperty("tre.osc_lock"));
+        log("osc_lock=" + lockOscLevel);
+        PhaseData.LOCK_OSC_LEVEL = lockOscLevel;
+
         m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
         for (String exch : exchangesArr) {
             IWs ws = WsFactory.get(exch, m_keys);
@@ -161,6 +165,10 @@ public class Tres {
             m_tickTimes.add(timestamp);
         }
 
+        postFrameRepaint();
+    }
+
+    protected void postFrameRepaint() {
         if (m_frame != null) {
             m_frame.fireUpdated();
         }

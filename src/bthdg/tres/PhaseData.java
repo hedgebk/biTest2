@@ -3,8 +3,10 @@ package bthdg.tres;
 import bthdg.exch.TradeData;
 import bthdg.osc.OscTick;
 
+import java.util.LinkedList;
+
 public class PhaseData {
-    public static double LOCK_OSC_LEVEL = 0.07;
+    public static double LOCK_OSC_LEVEL = 0.09;
 
     final TresExchData m_exchData;
     final int m_phaseIndex;
@@ -36,7 +38,11 @@ public class PhaseData {
 
     protected Boolean calcOscDirection(boolean useLastFineTick, long timestamp) {
         if (useLastFineTick) {
-            TresMaCalculator.MaCrossData lastMaCrossData = m_maCalculator.m_maCrossDatas.peekLast();
+            LinkedList<TresMaCalculator.MaCrossData> maCrossDatas = m_maCalculator.m_maCrossDatas;
+            TresMaCalculator.MaCrossData lastMaCrossData;
+            synchronized (maCrossDatas) {
+                lastMaCrossData = maCrossDatas.peekLast();
+            }
             if (lastMaCrossData != null) {
                 long lastMaCrossTime = lastMaCrossData.m_timestamp;
                 long passed = timestamp - lastMaCrossTime;

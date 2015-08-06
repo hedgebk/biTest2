@@ -100,7 +100,6 @@ public abstract class BaseExecutor implements Runnable {
         if (!m_initialized) {
             log("not initialized - added InitTask to queue");
             addTask(new InitTask());
-            m_initialized = true;
         }
     }
 
@@ -137,6 +136,7 @@ public abstract class BaseExecutor implements Runnable {
         initAccount();
         m_initAccount = m_account.copy();
         m_initTops = m_topsData.copy();
+        m_initialized = true;
 
         log("initImpl() continue: subscribeTop()");
         m_ws.subscribeTop(m_pair, new ITopListener() {
@@ -178,7 +178,7 @@ public abstract class BaseExecutor implements Runnable {
         return (iContext == null) ? getLiveOrdersContext() : iContext;
     }
 
-    private IIterationContext.BaseIterationContext getLiveOrdersContext() throws Exception {
+    protected IIterationContext.BaseIterationContext getLiveOrdersContext() throws Exception {
         final OrdersData ordersData = Fetcher.fetchOrders(m_exchange, m_pair);
         log(" liveOrders loaded " + ordersData);
         return new IIterationContext.BaseIterationContext() {
@@ -247,6 +247,23 @@ public abstract class BaseExecutor implements Runnable {
         log("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}");
     }
 
+    public String valuate() {
+        if (m_initialized) {
+            double valuateBtcInit = m_initAccount.evaluateAll(m_initTops, Currency.BTC, m_exchange);
+            double valuateCnhInit = m_initAccount.evaluateAll(m_initTops, Currency.CNH, m_exchange);
+            double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
+            double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
+            double gainBtc = valuateBtcNow / valuateBtcInit;
+            double gainCnh = valuateCnhNow / valuateCnhInit;
+            double gainAvg = (gainBtc + gainCnh) / 2;
+            long takesMillis = System.currentTimeMillis() - m_startMillis;
+            double pow = ((double) Utils.ONE_DAY_IN_MILLIS) / takesMillis;
+            double projected = Math.pow(gainAvg, pow);
+            return "GAIN: Btc=" + gainBtc + "; Cnh=" + gainCnh + " CNH; avg=" + gainAvg + "; projected=" + projected + "; takes: " + Utils.millisToDHMSStr(takesMillis);
+        }
+        return "---";
+    }
+
     protected double adjustSizeToAvailable(double needBuyBtc) {
         log(" account=" + m_account);
         double haveBtc = m_account.available(Currency.BTC);
@@ -274,7 +291,7 @@ public abstract class BaseExecutor implements Runnable {
         return buyBtc;
     }
 
-    protected void postRecheckDirection() {
+    public void postRecheckDirection() {
         log(" posting RecheckDirectionTask");
         addTask(new RecheckDirectionTask());
     }
@@ -449,6 +466,8 @@ public abstract class BaseExecutor implements Runnable {
                     log("looks the order was already executed - need check live orders");
                     ret |= FLAG_NEED_CHECK_LIVE_ORDERS;
                 }
+                log("  order cancel attempted- need sync account since part can be executed in the middle");
+                initAccount();
                 log("need Recheck Direction");
                 ret |= FLAG_NEED_RECHECK_DIRECTION;
             }
@@ -544,10 +563,9 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     //-------------------------------------------------------------------------------
-    public class InitTask implements TaskQueueProcessor.IOrderTask {
+    public class InitTask extends TaskQueueProcessor.SinglePresenceTask {
         public InitTask() {}
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) { return false; }
         @Override public void process() throws Exception {
             log("InitTask.process()");
             initImpl();

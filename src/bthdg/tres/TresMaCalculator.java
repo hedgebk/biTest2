@@ -75,15 +75,26 @@ public class TresMaCalculator extends MaCalculator {
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
         MaCrossData maCrossData = new MaCrossData(timestamp, oscUp, price);
-        m_maCrossDatas.add(maCrossData);
+        synchronized (m_maCrossDatas) {
+            m_maCrossDatas.add(maCrossData);
+        }
         m_lastOscUp = oscUp;
+
+        TresExchData exchData = m_phaseData.m_exchData;
+        if(!exchData.m_tres.m_logProcessing) {
+            exchData.m_executor.postRecheckDirection();
+        }
     }
 
     public double calcToTal() {
         Boolean lastOscUp = null;
         Double lastPrice = null;
         double totalPriceRatio = 1;
-        for (Iterator<MaCrossData> iterator = m_maCrossDatas.iterator(); iterator.hasNext(); ) {
+        LinkedList<TresMaCalculator.MaCrossData> maCrossDatas = new LinkedList<TresMaCalculator.MaCrossData>();
+        synchronized (m_maCrossDatas) { // avoid ConcurrentModificationException - use local copy
+            maCrossDatas.addAll(m_maCrossDatas);
+        }
+        for (Iterator<MaCrossData> iterator = maCrossDatas.iterator(); iterator.hasNext(); ) {
             TresMaCalculator.MaCrossData maCrossData = iterator.next();
             boolean oscUp = maCrossData.m_oscUp;
             double price = maCrossData.m_price;

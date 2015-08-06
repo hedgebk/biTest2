@@ -3,6 +3,9 @@ package bthdg.tres;
 import bthdg.ChartAxe;
 import bthdg.Log;
 import bthdg.exch.Exchange;
+import bthdg.exch.OrderData;
+import bthdg.exch.OrderSide;
+import bthdg.exch.OrderStatus;
 import bthdg.osc.OscTick;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
@@ -205,6 +208,8 @@ public class TresCanvas extends JComponent {
             TresMaCalculator maCalculator = phaseData.m_maCalculator;
             paintMaTicks(g, maCalculator, yPriceAxe);
 
+            paintOrders(g, exchData, yPriceAxe);
+
             paintLastPrice(g, width, lastPrice, yPriceAxe);
         }
 
@@ -351,6 +356,74 @@ public class TresCanvas extends JComponent {
         return yPriceAxe;
     }
 
+    private void paintOrders(Graphics g, TresExchData exchData, ChartAxe yPriceAxe) {
+        LinkedList<OrderData> orders = exchData.m_orders;
+        LinkedList<OrderData> ordersInt = new LinkedList<OrderData>();
+        synchronized (orders) { // avoid ConcurrentModificationException - use local copy
+            ordersInt.addAll(orders);
+        }
+        for (Iterator<OrderData> iterator = ordersInt.descendingIterator(); iterator.hasNext(); ) {
+            OrderData order = iterator.next();
+            long mPlaceTime = order.m_placeTime;
+            int x = m_xTimeAxe.getPoint(mPlaceTime);
+            if (x < 0) {
+                break;
+            }
+
+            double price = order.m_price;
+            OrderSide side = order.m_side;
+            boolean isBuy = side.isBuy();
+
+            Color borderColor = null;
+            OrderStatus status = order.m_status;
+            if (status == OrderStatus.NEW) {
+                borderColor = Color.green;
+            } else if ((status == OrderStatus.SUBMITTED) || (status == OrderStatus.PARTIALLY_FILLED)) {
+                borderColor = isBuy ? Color.BLUE : Color.RED;
+            }
+
+            Color fillColor = null;
+            if (status == OrderStatus.PARTIALLY_FILLED) {
+                fillColor = Colors.setAlpha(isBuy ? Color.BLUE : Color.RED, 100);
+            } else if (status == OrderStatus.FILLED) {
+                fillColor = isBuy ? Color.BLUE : Color.RED;
+            } else if (status == OrderStatus.CANCELLED) {
+                fillColor = Color.gray;
+            } else if ((status == OrderStatus.REJECTED) || (status == OrderStatus.ERROR)) {
+                fillColor = Color.orange;
+            }
+
+            int y = yPriceAxe.getPointReverse(price);
+            Polygon p = new Polygon();
+            p.addPoint(x, isBuy ? y - 10 : y + 10);
+            p.addPoint(x + 5, y);
+            p.addPoint(x - 5, y);
+
+            if (fillColor != null) {
+                g.setColor(fillColor);
+                g.fillPolygon(p);
+            }
+            if (borderColor != null) {
+                g.setColor(borderColor);
+                g.drawPolygon(p);
+            }
+        }
+
+        g.setColor(Color.YELLOW);
+        int fontHeight = g.getFont().getSize();
+        int height = getHeight();
+        TresExecutor executor = exchData.m_executor;
+        g.drawString(executor.valuate(), 2, height - fontHeight);
+        g.drawString("dir.adj=" + exchData.getDirectionAdjusted(), 2, height - fontHeight * 2);
+        g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled, 2, height - fontHeight * 3);
+
+        OrderData order = executor.m_order;
+        if (order != null) {
+            g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
+            g.drawString("" + order, 2, height - fontHeight * 4);
+        }
+    }
+
     private void paintMaTicks(Graphics g, TresMaCalculator maCalculator, ChartAxe yPriceAxe) {
         LinkedList<TresMaCalculator.MaTick> maTicks = new LinkedList<TresMaCalculator.MaTick>();
         LinkedList<TresMaCalculator.MaTick> ticks = maCalculator.m_maTicks;
@@ -388,7 +461,13 @@ public class TresCanvas extends JComponent {
         double totalPriceRatio = 1;
         int tradeNum = 0;
         int fontHeight = g.getFont().getSize();
-        for (Iterator<TresMaCalculator.MaCrossData> iterator = maCalculator.m_maCrossDatas.iterator(); iterator.hasNext(); ) {
+
+        LinkedList<TresMaCalculator.MaCrossData> maCd = maCalculator.m_maCrossDatas;
+        LinkedList<TresMaCalculator.MaCrossData> maCrossDatas = new LinkedList<TresMaCalculator.MaCrossData>();
+        synchronized (maCd) { // avoid ConcurrentModificationException - use local copy
+            maCrossDatas.addAll(maCd);
+        }
+        for (Iterator<TresMaCalculator.MaCrossData> iterator = maCrossDatas.iterator(); iterator.hasNext(); ) {
             TresMaCalculator.MaCrossData maCrossData = iterator.next();
             Long timestamp = maCrossData.m_timestamp;
             int x = m_xTimeAxe.getPoint(timestamp);
@@ -450,7 +529,7 @@ public class TresCanvas extends JComponent {
         g.drawString(String.format("projected aDay: %.5f", aDay), 5, fontHeight * 10 + 5);
 
         g.drawString(String.format("trade num: %d", tradeNum), 5, fontHeight * 11 + 5);
-        long tradeFreq = runningTimeMillis / tradeNum;
+        long tradeFreq = (tradeNum == 0) ? 0 : (runningTimeMillis / tradeNum);
         g.drawString(String.format("trade every " + Utils.millisToDHMSStr(tradeFreq)), 5, fontHeight * 12 + 5);
     }
 

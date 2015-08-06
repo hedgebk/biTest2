@@ -100,7 +100,7 @@ public class TresOscCalculator extends OscCalculator {
     public void getState(StringBuilder sb) {
         sb.append(" [" + m_phaseIndex + "] ");
         int preheatBarsNum = m_exchData.m_tres.getPreheatBarsNum();
-        if (m_barNum++ < preheatBarsNum) {
+        if (m_barNum < preheatBarsNum) {
             sb.append("PREHEATING step=" + m_barNum + " from " + preheatBarsNum);
         } else {
             dumpTick(sb, "FINE", m_lastFineTick);

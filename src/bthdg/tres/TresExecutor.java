@@ -9,6 +9,7 @@ import bthdg.osc.BaseExecutor;
 import bthdg.osc.TaskQueueProcessor;
 import bthdg.ws.IWs;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
@@ -21,13 +22,14 @@ public class TresExecutor extends BaseExecutor {
 
     private final TresExchData m_exchData;
     private TresState m_state = TresState.NONE;
-    private OrderData m_order;
+    OrderData m_order;
+    public int m_ordersPlaced;
+    public int m_ordersFilled;
 
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
     @Override protected double minOrderSizeToCreate() { return MIN_ORDER_SIZE; }
     @Override protected double useFundsFromAvailable() { return USE_FUNDS_FROM_AVAILABLE; }
-    @Override protected void onOrderPlace(OrderData placeOrder) { m_order = placeOrder; }
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
 
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
@@ -50,7 +52,7 @@ public class TresExecutor extends BaseExecutor {
     }
 
     @Override protected void gotTrade(TradeData tradeData) throws Exception {
-        log("TresExecutor.gotTrade() tData=" + tradeData);
+//        log("TresExecutor.gotTrade() tData=" + tradeData);
 
         TresState newState = m_state.onTrade(this, tradeData, null);
         setState(newState);
@@ -150,28 +152,46 @@ public class TresExecutor extends BaseExecutor {
     }
 
     @Override protected void cancelAllOrders() throws Exception {
-        throw new Exception("not implemented");
+        log("  cancelAllOrders() " + m_order);
+        if (m_order != null) {
+            log("   we have existing order, will cancel: " + m_order);
+            String error = cancelOrder(m_order);
+            if (error == null) {
+                m_order = null;
+            } else {
+                log("    error in cancel order: " + error + "; " + m_order);
+                m_order = null;
+            }
+            log("    order cancel attempted - need sync account since part can be executed in the middle");
+            initAccount();
+        }
     }
 
     @Override protected List<OrderData> getAllOrders() {
-        throw new RuntimeException("not implemented");
-//        return null;
+        if (m_order != null) {
+            return Arrays.asList(m_order);
+        }
+        return null;
     }
 
     @Override protected IIterationContext.BaseIterationContext checkLiveOrders() throws Exception {
-        throw new Exception("not implemented");
-//        return null;
+        log("checkLiveOrders()");
+        IIterationContext.BaseIterationContext iContext = null;
+        if (m_order != null) {
+            iContext = getLiveOrdersContext();
+            setState(checkOrderState(iContext));
+        }
+        return iContext;
     }
 
     @Override protected boolean hasOrdersWithMatchedPrice(double tradePrice) {
-        double ordPrice = m_order.m_price;
-        boolean ret = tradePrice == ordPrice;
-        log(" hasOrdersWithMatchedPrice() tradePrice=" + tradePrice + ", orderPrice=" + ordPrice + ";  ret=" + ret);
-        return ret;
-    }
-
-    @Override protected void checkOrdersOutOfMarket() throws Exception {
-        throw new Exception("not implemented");
+        if (m_order != null) {
+            double ordPrice = m_order.m_price;
+            boolean ret = (tradePrice == ordPrice);
+            log(" hasOrdersWithMatchedPrice() tradePrice=" + tradePrice + ", orderPrice=" + ordPrice + ";  ret=" + ret);
+            return ret;
+        }
+        return false;
     }
 
     @Override protected int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception {
@@ -188,6 +208,7 @@ public class TresExecutor extends BaseExecutor {
         if (m_order.isFilled()) {
             m_orderPlaceAttemptCounter = 0;
             log("$$$$$$   order FILLED: " + m_order);
+            onOrderFilled();
             logValuate();
             m_order = null;
             return TresState.NONE;
@@ -219,5 +240,23 @@ public class TresExecutor extends BaseExecutor {
         if((ret & FLAG_NEED_RECHECK_DIRECTION) != 0) {
             postRecheckDirection();
         }
+    }
+
+    @Override protected void checkOrdersOutOfMarket() throws Exception {
+        if (haveNotFilledOrder()) {
+            int ret = checkOrderOutOfMarket(m_order);
+            processOrderOutOfMarket(ret);
+        }
+    }
+
+    @Override protected void onOrderPlace(OrderData placeOrder) {
+        m_order = placeOrder;
+        m_ordersPlaced++;
+        m_exchData.addOrder(placeOrder); // will call postFrameRepaint inside
+    }
+
+    private void onOrderFilled() {
+        m_ordersFilled++;
+        m_exchData.m_tres.postFrameRepaint();
     }
 }

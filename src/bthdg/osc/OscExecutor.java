@@ -359,9 +359,12 @@ class OscExecutor extends BaseExecutor {
     }
 
     @Override protected boolean hasOrdersWithMatchedPrice(double tradePrice) {
-        double ordPrice = m_order.m_price;
-        log(" hasOrdersWithMatchedPrice() tradePrice=" + tradePrice + ", orderPrice=" + ordPrice);
-        return (tradePrice == ordPrice);
+        if (m_order != null) {
+            double ordPrice = m_order.m_price;
+            log(" hasOrdersWithMatchedPrice() tradePrice=" + tradePrice + ", orderPrice=" + ordPrice);
+            return (tradePrice == ordPrice);
+        }
+        return false;
     }
 
     private void processOrderOutOfMarket(int ret) throws Exception {
