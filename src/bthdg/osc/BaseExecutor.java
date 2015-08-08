@@ -42,6 +42,7 @@ public abstract class BaseExecutor implements Runnable {
     protected OrderPriceMode m_orderPriceMode = OrderPriceMode.NORMAL;
 
     protected static void log(String s) { Log.log(s); }
+    public String dumpWaitTime() { return m_taskQueueProcessor == null ? "" : m_taskQueueProcessor.dumpWaitTime(); }
 
     // abstract
     protected abstract void gotTop() throws Exception;
@@ -127,7 +128,7 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     public void onTrade(TradeData tData) { addTask(new TradeTask(tData)); }
-    protected void addTask(TaskQueueProcessor.IOrderTask task) { getTaskQueueProcessor().addTask(task); }
+    protected void addTask(TaskQueueProcessor.BaseOrderTask task) { getTaskQueueProcessor().addTask(task); }
 
     protected void initImpl() throws Exception {
         m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
@@ -526,7 +527,7 @@ public abstract class BaseExecutor implements Runnable {
     private class StopTaskTask extends TaskQueueProcessor.SinglePresenceTask {
         public StopTaskTask() {}
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
+        @Override public boolean isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
             log("stopping. removed task " + other);
             return true;
         }
@@ -538,21 +539,21 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     //-------------------------------------------------------------------------------
-    public class TradeTask implements TaskQueueProcessor.IOrderTask {
+    public class TradeTask extends TaskQueueProcessor.BaseOrderTask {
         private final TradeData m_tData;
 
         public TradeTask(TradeData tData) {
             m_tData = tData;
         }
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
-            if (other instanceof TradeTask) {
-                TradeTask tradeTask = (TradeTask) other;
-                double price = m_tData.m_price;
-                if (tradeTask.m_tData.m_price == price) { // skip same price TradeTask
-                    return true;
-                }
-            }
+        @Override public boolean isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
+//            if (other instanceof TradeTask) {
+//                TradeTask tradeTask = (TradeTask) other;
+//                double price = m_tData.m_price;
+//                if (tradeTask.m_tData.m_price == price) { // skip same price TradeTask
+//                    return true;
+//                }
+//            }
             return false;
         }
 
@@ -576,7 +577,7 @@ public abstract class BaseExecutor implements Runnable {
     public class RecheckDirectionTask extends TaskQueueProcessor.SinglePresenceTask {
         public RecheckDirectionTask() {}
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
+        @Override public boolean isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
             boolean duplicate = super.isDuplicate(other);
             if (duplicate) {
                 log(" skipped RecheckDirectionTask duplicate");
@@ -591,7 +592,7 @@ public abstract class BaseExecutor implements Runnable {
     protected class CheckLiveOrdersTask extends TaskQueueProcessor.SinglePresenceTask {
         public CheckLiveOrdersTask() {}
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.IOrderTask other) {
+        @Override public boolean isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
             boolean duplicate = super.isDuplicate(other);
             if (duplicate) {
                 log(" skipped CheckLiveOrdersTask duplicate");

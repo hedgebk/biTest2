@@ -14,7 +14,7 @@ import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
     private static final long MIN_ORDER_LIVE_TIME = 6000;
-    private static final double OUT_OF_MARKET_THRESHOLD = 0.5;
+    private static final double OUT_OF_MARKET_THRESHOLD = 0.95;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 5000;
     private static final double ORDER_SIZE_TOLERANCE = 0.1;
     private static final double MIN_ORDER_SIZE = 0.01; // btc
@@ -43,7 +43,7 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    @Override protected void addTask(TaskQueueProcessor.IOrderTask task) {
+    @Override protected void addTask(TaskQueueProcessor.BaseOrderTask task) {
         if (m_exchData.m_tres.m_logProcessing) {
             throw new RuntimeException("addTask() not applicable for logProcessing mode");
         } else {

@@ -25,7 +25,7 @@ class TresLogProcessor extends Thread {
     private static final Calendar GMT_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.ENGLISH);
     public static final int READ_BUFFER_SIZE = 1024 * 32;
     public static final int PARSE_THREADS_NUM = 2;
-    public static final int PROCESS_THREADS_NUM = 7;
+    public static final int PROCESS_THREADS_NUM = 8;
 
     private TresExchData m_exchData;
     private String m_logFilePattern;
@@ -393,7 +393,7 @@ class TresLogProcessor extends Thread {
     private TradeData parseTheLine(String line) {
         if (line.startsWith("onTrade[") && line.contains("]: TradeData{")) {
             return parseTradeLine(line);
-        } else if (line.contains("State.onTrade(")) {
+        } else if (line.contains(": State.onTrade(")) {
             return parseOscTradeLine(line);
         } else if (line.startsWith("EUR/USD,")) { // fx
             return parseFxTradeLine(line);

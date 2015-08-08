@@ -416,11 +416,12 @@ public class TresCanvas extends JComponent {
         g.drawString(executor.valuate(), 2, height - fontHeight);
         g.drawString("dir.adj=" + exchData.getDirectionAdjusted(), 2, height - fontHeight * 2);
         g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled, 2, height - fontHeight * 3);
+        g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 4);
 
         OrderData order = executor.m_order;
         if (order != null) {
             g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
-            g.drawString("" + order, 2, height - fontHeight * 4);
+            g.drawString("" + order, 2, height - fontHeight * 5);
         }
     }
 
