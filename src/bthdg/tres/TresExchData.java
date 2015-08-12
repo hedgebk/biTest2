@@ -91,17 +91,18 @@ public class TresExchData {
         long timestamp = tdata.m_timestamp;
         long timeDiff = m_lastTimestamp - timestamp;
         if ((!IGNORE_PAST_TICKS && (timeDiff <= 30000)) || (timeDiff <= 0)) { // time runs only forward
-            if(!m_tres.m_logProcessing) {
-                m_executor.onTrade(tdata); // first pass to executor, then to calculators
-            }
-
             m_lastTimestamp = timestamp;
+
             m_updated = false;
             for (PhaseData phaseData : m_phaseDatas) {
                 boolean updated = phaseData.update(tdata);
                 if (updated) {
                     m_updated = true;
                 }
+            }
+
+            if (!m_tres.m_logProcessing) {
+                m_executor.onTrade(tdata);
             }
 
             long min = Math.min(m_startTickMillis, timestamp);

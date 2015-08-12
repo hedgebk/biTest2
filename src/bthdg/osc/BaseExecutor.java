@@ -35,11 +35,17 @@ public abstract class BaseExecutor implements Runnable {
     protected AccountData m_account;
     public double m_buy;
     public double m_sell;
+    private long m_topMillis; // bud/ask timestamp
+    private long m_tradeMillis; // last trade timestamp
     protected boolean m_maySyncAccount = false;
     protected int m_orderPlaceAttemptCounter;
     protected long m_lastProcessDirectionTime;
     public boolean m_feeding;
     protected OrderPriceMode m_orderPriceMode = OrderPriceMode.NORMAL;
+    final Utils.DoubleDoubleAverageCalculator m_cancelOrderTakesCalc = new Utils.DoubleDoubleAverageCalculator();
+    final Utils.DoubleDoubleAverageCalculator m_initAccountTakesCalc = new Utils.DoubleDoubleAverageCalculator();
+    final Utils.DoubleDoubleAverageCalculator m_liveOrdersTakesCalc = new Utils.DoubleDoubleAverageCalculator();
+    final Utils.DoubleDoubleAverageCalculator m_placeOrderTakesCalc = new Utils.DoubleDoubleAverageCalculator();
 
     protected static void log(String s) { Log.log(s); }
     public String dumpWaitTime() { return m_taskQueueProcessor == null ? "" : m_taskQueueProcessor.dumpWaitTime(); }
@@ -129,6 +135,7 @@ public abstract class BaseExecutor implements Runnable {
 
     public void onTrade(TradeData tData) { addTask(new TradeTask(tData)); }
     protected void addTask(TaskQueueProcessor.BaseOrderTask task) { getTaskQueueProcessor().addTask(task); }
+    protected void addTaskFirst(TaskQueueProcessor.BaseOrderTask task) { getTaskQueueProcessor().addTaskFirst(task); }
 
     protected void initImpl() throws Exception {
         m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
@@ -149,6 +156,7 @@ public abstract class BaseExecutor implements Runnable {
                 }
                 m_buy = buy;
                 m_sell = sell;
+                m_topMillis = System.currentTimeMillis();
 
                 TopData topData = new TopData(buy, sell);
                 m_topsData.put(m_pair, topData);
@@ -160,14 +168,19 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected void initAccount() throws Exception {
-        AccountData account = m_account;
-        m_account = Fetcher.fetchAccount(m_exchange);
-        if (m_account != null) {
-            log(" account=" + m_account);
+        AccountData oldAccount = m_account;
+        long start = System.currentTimeMillis();
+        AccountData newAccount = Fetcher.fetchAccount(m_exchange);
+        long end = System.currentTimeMillis();
+        if (newAccount != null) {
+            m_account = newAccount;
+            long takes = end - start;
+            m_initAccountTakesCalc.addValue((double)takes);
+            log(" account loaded in " + Utils.millisToDHMSStr(takes) + ":" + m_account);
             double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
             log("  valuateBtc=" + valuateBtc + " BTC");
-            if (account!= null) {
-                account.compareFunds(m_account);
+            if (oldAccount!= null) {
+                oldAccount.compareFunds(m_account);
             }
             m_maySyncAccount = false;
         } else {
@@ -180,8 +193,12 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected IIterationContext.BaseIterationContext getLiveOrdersContext() throws Exception {
+        long start = System.currentTimeMillis();
         final OrdersData ordersData = Fetcher.fetchOrders(m_exchange, m_pair);
-        log(" liveOrders loaded " + ordersData);
+        long end = System.currentTimeMillis();
+        long takes = end - start;
+        m_liveOrdersTakesCalc.addValue((double) takes);
+        log(" liveOrders loaded in " + Utils.millisToDHMSStr(takes) + " :" + ordersData);
         return new IIterationContext.BaseIterationContext() {
             @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception { return ordersData; }
         };
@@ -202,7 +219,12 @@ public abstract class BaseExecutor implements Runnable {
 
     protected String cancelOrder(OrderData order) throws Exception {
         log("cancelOrder() " + order);
+        long start = System.currentTimeMillis();
         String error = m_account.cancelOrder(order);
+        long end = System.currentTimeMillis();
+        long takes = end - start;
+        m_cancelOrderTakesCalc.addValue((double) takes);
+        log(" order cancelled in " + Utils.millisToDHMSStr(takes) + ": error=" + error);
         m_maySyncAccount = true;
         return error;
     }
@@ -300,6 +322,11 @@ public abstract class BaseExecutor implements Runnable {
     public int processDirection() throws Exception {
         m_lastProcessDirectionTime = System.currentTimeMillis();
         double directionAdjusted = getDirectionAdjusted(); // [-1 ... 1]
+
+        if( (m_buy == 0) || (m_sell == 0)) {
+            log("  directionAdjusted=" + directionAdjusted + ". but no bid/ask defined: " + m_buy + "/" + m_sell);
+            return STATE_NO_CHANGE;
+        }
 
         double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
         double valuateCnh = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
@@ -410,8 +437,12 @@ public abstract class BaseExecutor implements Runnable {
 
     protected OrderData.OrderPlaceStatus placeOrderToExchange(Exchange exchange, OrderData order, OrderState state) throws Exception {
         OrderData.OrderPlaceStatus ret;
+        long start = System.currentTimeMillis();
         PlaceOrderData poData = Fetcher.placeOrder(order, exchange);
-        log(" PlaceOrderData: " + poData.toString(exchange, order.m_pair));
+        long end = System.currentTimeMillis();
+        long takes = end - start;
+        m_placeOrderTakesCalc.addValue((double) takes);
+        log(" order placed in " + Utils.millisToDHMSStr(takes) + ": " + poData.toString(exchange, order.m_pair));
         String error = poData.m_error;
         if (error == null) {
             order.m_status = OrderStatus.SUBMITTED;
@@ -492,15 +523,21 @@ public abstract class BaseExecutor implements Runnable {
             int oscState = checkOrdersState(iContext);
             return oscState; // check orders state
         }
-        if (tradePrice < m_buy) {
-            double buy = (m_buy * 2 + tradePrice) / 3;
-            log("  buy is adapted to trade price: " + m_buy + " -> " + buy);
-            m_buy = buy;
-        }
-        if (tradePrice > m_sell) {
-            double sell = (m_sell * 2 + tradePrice) / 3;
-            log("  sell is adapted to trade price: " + m_sell + " -> " + sell);
-            m_sell = sell;
+        long timestamp = tData.m_timestamp;
+        if (timestamp >= m_tradeMillis) { // ignore past time ticks
+            if (tradePrice < m_buy) {
+                double buy = (m_buy * 2 + tradePrice) / 3;
+                log("  buy is adapted to trade price: " + m_buy + " -> " + buy);
+                m_buy = buy;
+                m_topMillis = timestamp;
+            }
+            if (tradePrice > m_sell) {
+                double sell = (m_sell * 2 + tradePrice) / 3;
+                log("  sell is adapted to trade price: " + m_sell + " -> " + sell);
+                m_sell = sell;
+                m_topMillis = timestamp;
+            }
+            m_tradeMillis = timestamp;
         }
         checkOrdersOutOfMarket();
         return STATE_NO_CHANGE; // no change
@@ -513,6 +550,12 @@ public abstract class BaseExecutor implements Runnable {
         }
     }
 
+    public String dumpTakesTime() {
+        return " order:" + m_placeOrderTakesCalc.getAverage() +
+               " live:" + m_liveOrdersTakesCalc.getAverage() +
+               " account:" + m_initAccountTakesCalc.getAverage() +
+               " cancel:" + m_cancelOrderTakesCalc.getAverage();
+    }
 
     //-------------------------------------------------------------------------------
     private class TopTask extends TaskQueueProcessor.SinglePresenceTask {
@@ -527,9 +570,9 @@ public abstract class BaseExecutor implements Runnable {
     private class StopTaskTask extends TaskQueueProcessor.SinglePresenceTask {
         public StopTaskTask() {}
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
+        @Override public DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
             log("stopping. removed task " + other);
-            return true;
+            return DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST;
         }
 
         @Override public void process() throws Exception {
@@ -546,15 +589,15 @@ public abstract class BaseExecutor implements Runnable {
             m_tData = tData;
         }
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
-//            if (other instanceof TradeTask) {
-//                TradeTask tradeTask = (TradeTask) other;
-//                double price = m_tData.m_price;
-//                if (tradeTask.m_tData.m_price == price) { // skip same price TradeTask
-//                    return true;
-//                }
-//            }
-            return false;
+        @Override public DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
+            if (other instanceof TradeTask) {
+                TradeTask tradeTask = (TradeTask) other;
+                double price = m_tData.m_price;
+                if (tradeTask.m_tData.m_price == price) { // skip same price TradeTask if already scheduled
+                    return DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST;
+                }
+            }
+            return null;
         }
 
         @Override public void process() throws Exception { gotTrade(m_tData); }
@@ -577,10 +620,10 @@ public abstract class BaseExecutor implements Runnable {
     public class RecheckDirectionTask extends TaskQueueProcessor.SinglePresenceTask {
         public RecheckDirectionTask() {}
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
-            boolean duplicate = super.isDuplicate(other);
-            if (duplicate) {
-                log(" skipped RecheckDirectionTask duplicate");
+        @Override public DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
+            DuplicateAction duplicate = super.isDuplicate(other);
+            if (duplicate != null) {
+                duplicate = DuplicateAction.REMOVE_ALL_AND_PUT_AS_FIRST;
             }
             return duplicate;
         }
@@ -592,9 +635,9 @@ public abstract class BaseExecutor implements Runnable {
     protected class CheckLiveOrdersTask extends TaskQueueProcessor.SinglePresenceTask {
         public CheckLiveOrdersTask() {}
 
-        @Override public boolean isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
-            boolean duplicate = super.isDuplicate(other);
-            if (duplicate) {
+        @Override public DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
+            DuplicateAction duplicate = super.isDuplicate(other);
+            if (duplicate != null) {
                 log(" skipped CheckLiveOrdersTask duplicate");
             }
             return duplicate;
@@ -628,9 +671,20 @@ public abstract class BaseExecutor implements Runnable {
                 return orderPrice;
             }
         },
+        MKT {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                double mktPrice = needOrderSide.isBuy() ? sell : buy;
+                log("  buy=" + buy + "; sell=" + sell + "; mktPrice=" + mktPrice + "; needOrderSide=" + needOrderSide);
+                RoundingMode roundMode = needOrderSide.getMktRoundMode();
+                double orderPrice = exchange.roundPrice(mktPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
         MID {
-            @Override
-            public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 double buy = baseExecutor.m_buy;
                 double sell = baseExecutor.m_sell;
                 double midPrice = (buy + sell) / 2;

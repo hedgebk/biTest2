@@ -13,11 +13,11 @@ import java.util.Arrays;
 import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
-    private static final long MIN_ORDER_LIVE_TIME = 6000;
+    private static final long MIN_ORDER_LIVE_TIME = 7000;
     private static final double OUT_OF_MARKET_THRESHOLD = 0.95;
-    private static final long MIN_REPROCESS_DIRECTION_TIME = 5000;
+    private static final long MIN_REPROCESS_DIRECTION_TIME = 10000;
     private static final double ORDER_SIZE_TOLERANCE = 0.1;
-    private static final double MIN_ORDER_SIZE = 0.01; // btc
+    private static final double MIN_ORDER_SIZE = 0.05; // btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
 
     private final TresExchData m_exchData;
@@ -34,7 +34,7 @@ public class TresExecutor extends BaseExecutor {
 
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
         super(ws, pair);
-        m_orderPriceMode = OrderPriceMode.MID;
+        m_orderPriceMode = OrderPriceMode.MKT;
         m_exchData = exchData;
         if (!exchData.m_tres.m_logProcessing) {
             Thread thread = new Thread(this);
@@ -49,6 +49,25 @@ public class TresExecutor extends BaseExecutor {
         } else {
             super.addTask(task);
         }
+    }
+
+    @Override protected void addTaskFirst(TaskQueueProcessor.BaseOrderTask task) {
+        if (m_exchData.m_tres.m_logProcessing) {
+            throw new RuntimeException("addTaskFirst() not applicable for logProcessing mode");
+        } else {
+            super.addTaskFirst(task);
+        }
+    }
+
+    public void onTrade(TradeData tData) {
+        TradeTask task = new TradeTask(tData);
+        if ((m_order != null) && m_order.m_status.isActive()) {
+            if (tData.m_price == m_order.m_price) { // same price trade - process first
+                addTaskFirst(task);
+                return;
+            }
+        }
+        addTask(task);
     }
 
     @Override protected void gotTrade(TradeData tradeData) throws Exception {

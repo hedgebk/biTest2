@@ -380,6 +380,10 @@ public class TresCanvas extends JComponent {
                 borderColor = Color.green;
             } else if ((status == OrderStatus.SUBMITTED) || (status == OrderStatus.PARTIALLY_FILLED)) {
                 borderColor = isBuy ? Color.BLUE : Color.RED;
+            } else if (status == OrderStatus.CANCELLED) {
+                if (order.m_filled > 0) {
+                    borderColor = isBuy ? Color.BLUE : Color.RED;
+                }
             }
 
             Color fillColor = null;
@@ -417,6 +421,7 @@ public class TresCanvas extends JComponent {
         g.drawString("dir.adj=" + exchData.getDirectionAdjusted(), 2, height - fontHeight * 2);
         g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled, 2, height - fontHeight * 3);
         g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 4);
+        g.drawString("takes=" + executor.dumpTakesTime(), 2, height - fontHeight * 5);
 
         OrderData order = executor.m_order;
         if (order != null) {
