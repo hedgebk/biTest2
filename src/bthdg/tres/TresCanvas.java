@@ -421,7 +421,8 @@ public class TresCanvas extends JComponent {
         g.drawString("dir.adj=" + exchData.getDirectionAdjusted(), 2, height - fontHeight * 2);
         g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled, 2, height - fontHeight * 3);
         g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 4);
-        g.drawString("takes=" + executor.dumpTakesTime(), 2, height - fontHeight * 5);
+        g.drawString("takes:" + executor.dumpTakesTime(), 2, height - fontHeight * 5);
+        g.drawString("tickAge: " + executor.m_tickAgeCalc.getAverage(), 2, height - fontHeight * 6);
 
         OrderData order = executor.m_order;
         if (order != null) {

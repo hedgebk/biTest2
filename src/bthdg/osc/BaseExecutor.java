@@ -46,6 +46,7 @@ public abstract class BaseExecutor implements Runnable {
     final Utils.DoubleDoubleAverageCalculator m_initAccountTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     final Utils.DoubleDoubleAverageCalculator m_liveOrdersTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     final Utils.DoubleDoubleAverageCalculator m_placeOrderTakesCalc = new Utils.DoubleDoubleAverageCalculator();
+    public final Utils.DoubleDoubleAverageCalculator m_tickAgeCalc = new Utils.DoubleDoubleAverageCalculator();
 
     protected static void log(String s) { Log.log(s); }
     public String dumpWaitTime() { return m_taskQueueProcessor == null ? "" : m_taskQueueProcessor.dumpWaitTime(); }
@@ -386,6 +387,10 @@ public abstract class BaseExecutor implements Runnable {
                     OrderData placeOrder = new OrderData(m_pair, needOrderSide, orderPrice, placeOrderSize);
                     log("   place orderData=" + placeOrder);
 
+                    long tickAge = System.currentTimeMillis() - m_topMillis;
+                    log("   tickAge=" + tickAge);
+                    m_tickAgeCalc.addValue((double) tickAge);
+
                     if (placeOrderToExchange(m_exchange, placeOrder)) {
                         m_orderPlaceAttemptCounter++;
                         log("    orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
@@ -556,6 +561,7 @@ public abstract class BaseExecutor implements Runnable {
                " account:" + m_initAccountTakesCalc.getAverage() +
                " cancel:" + m_cancelOrderTakesCalc.getAverage();
     }
+
 
     //-------------------------------------------------------------------------------
     private class TopTask extends TaskQueueProcessor.SinglePresenceTask {
