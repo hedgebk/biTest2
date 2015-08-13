@@ -18,6 +18,7 @@ public class Utils {
     public static final long ONE_DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
     public static final String PADS = "          ";
     public static final DecimalFormat PLUS_YYY = new DecimalFormat("+0.000;-0.000");
+    public static final DecimalFormat X_YYY = new DecimalFormat("0.000");
     public static final DecimalFormat X_YYYY = new DecimalFormat("0.0000");
     public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
     private static final DecimalFormat X_YYYYYYYY = new DecimalFormat("0.00000000");

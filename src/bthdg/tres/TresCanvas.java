@@ -28,6 +28,7 @@ public class TresCanvas extends JComponent {
     public static final Color OSC_1_LINE_COLOR = Colors.setAlpha(Color.RED, 128);
     public static final Color OSC_2_LINE_COLOR = Colors.setAlpha(Color.BLUE, 128);
     public static final Color OSC_MID_LINE_COLOR = new Color(30,30,30);
+    public static final int DIRECTION_ARROW_SIZE = 10;
 
     private Tres m_tres;
     private Point m_point;
@@ -362,6 +363,7 @@ public class TresCanvas extends JComponent {
         synchronized (orders) { // avoid ConcurrentModificationException - use local copy
             ordersInt.addAll(orders);
         }
+        int fontHeight = g.getFont().getSize();
         for (Iterator<OrderData> iterator = ordersInt.descendingIterator(); iterator.hasNext(); ) {
             OrderData order = iterator.next();
             long mPlaceTime = order.m_placeTime;
@@ -411,10 +413,14 @@ public class TresCanvas extends JComponent {
                 g.setColor(borderColor);
                 g.drawPolygon(p);
             }
+            g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
+            String amount = ((order.m_filled == 0) || (order.m_filled == order.m_amount))
+                    ? Utils.X_YYY.format(order.m_amount)
+                    : Utils.X_YYY.format(order.m_filled) + "/" + Utils.X_YYY.format(order.m_amount);
+            g.drawString(amount, x, isBuy ? y + 2 + fontHeight : y - 5);
         }
 
         g.setColor(Color.YELLOW);
-        int fontHeight = g.getFont().getSize();
         int height = getHeight();
         TresExecutor executor = exchData.m_executor;
         g.drawString(executor.valuate(), 2, height - fontHeight);
@@ -427,7 +433,7 @@ public class TresCanvas extends JComponent {
         OrderData order = executor.m_order;
         if (order != null) {
             g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
-            g.drawString("" + order, 2, height - fontHeight * 5);
+            g.drawString(order.toString(), 2, height - fontHeight * 7);
         }
     }
 
@@ -437,6 +443,8 @@ public class TresCanvas extends JComponent {
         synchronized (ticks) { // avoid ConcurrentModificationException - use local copy
             maTicks.addAll(ticks);
         }
+        int firstX = Integer.MAX_VALUE;
+        int firstY = Integer.MAX_VALUE;
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
         Color nextColor = null;
@@ -446,6 +454,10 @@ public class TresCanvas extends JComponent {
             long barEnd = maTick.m_barEnd;
             int x = m_xTimeAxe.getPoint(barEnd);
             int y = yPriceAxe.getPointReverse(ma);
+            if(firstX == Integer.MAX_VALUE) {
+                firstX = x;
+                firstY = y;
+            }
             Color color = maTick.m_maCrossed ? Color.ORANGE : Color.WHITE;
             g.setColor(nextColor == null ? color : nextColor);
             if (lastX == Integer.MAX_VALUE) {
@@ -459,6 +471,17 @@ public class TresCanvas extends JComponent {
             if (x < 0) {
                 break;
             }
+        }
+
+        if ((firstX != Integer.MAX_VALUE) && (firstY != Integer.MAX_VALUE)) {
+            double directionAdjusted = maCalculator.m_phaseData.m_exchData.getDirectionAdjusted();
+            double degrees = directionAdjusted * 90;
+            double radians = degrees * Math.PI / 180;
+            double dx = DIRECTION_ARROW_SIZE * Math.cos(radians);
+            double dy = -DIRECTION_ARROW_SIZE * Math.sin(radians);
+            Color color = (directionAdjusted > 0) ? Color.BLUE : (directionAdjusted < 0) ? Color.RED : Color.GRAY;
+            g.setColor(color);
+            g.drawLine(firstX, firstY, (int)(firstX + dx), (int)(firstY + dy));
         }
 
         int canvasWidth = getWidth();
