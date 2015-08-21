@@ -49,7 +49,7 @@ public abstract class BaseExecutor implements Runnable {
     public final Utils.DoubleDoubleAverageCalculator m_tickAgeCalc = new Utils.DoubleDoubleAverageCalculator();
 
     protected static void log(String s) { Log.log(s); }
-    public String dumpWaitTime() { return m_taskQueueProcessor == null ? "" : m_taskQueueProcessor.dumpWaitTime(); }
+    public String dumpWaitTime() { return (m_taskQueueProcessor == null) ? "" : m_taskQueueProcessor.dumpWaitTime(); }
 
     // abstract
     protected abstract void gotTop() throws Exception;
@@ -283,7 +283,8 @@ public abstract class BaseExecutor implements Runnable {
             long takesMillis = System.currentTimeMillis() - m_startMillis;
             double pow = ((double) Utils.ONE_DAY_IN_MILLIS) / takesMillis;
             double projected = Math.pow(gainAvg, pow);
-            return "GAIN: Btc=" + gainBtc + "; Cnh=" + gainCnh + " CNH; avg=" + gainAvg + "; projected=" + projected + "; takes: " + Utils.millisToDHMSStr(takesMillis);
+            return "GAIN: Btc=" + Utils.format5(gainBtc) + "; Cnh=" + Utils.format5(gainCnh) + " CNH; avg=" + Utils.format5(gainAvg)
+                    + "; projected=" + Utils.format5(projected) + "; takes: " + Utils.millisToDHMSStr(takesMillis);
         }
         return "---";
     }
@@ -556,10 +557,10 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     public String dumpTakesTime() {
-        return " order:" + m_placeOrderTakesCalc.getAverage() +
-               " live:" + m_liveOrdersTakesCalc.getAverage() +
-               " account:" + m_initAccountTakesCalc.getAverage() +
-               " cancel:" + m_cancelOrderTakesCalc.getAverage();
+        return " order:" + Utils.format5(m_placeOrderTakesCalc.getAverage()) +
+               " live:" + Utils.format5(m_liveOrdersTakesCalc.getAverage()) +
+               " account:" + Utils.format5(m_initAccountTakesCalc.getAverage()) +
+               " cancel:" + Utils.format5(m_cancelOrderTakesCalc.getAverage());
     }
 
 

@@ -116,7 +116,7 @@ public class TaskQueueProcessor implements Runnable {
                 String name = entry.getKey();
                 Utils.DoubleDoubleAverageCalculator calculator = entry.getValue();
                 double average = calculator.getAverage();
-                buf.append(name).append("=").append(average).append("; ");
+                buf.append(name).append("=").append(Utils.format5(average)).append("; ");
             }
         }
         return buf.toString();
