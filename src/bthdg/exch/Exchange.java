@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Properties;
 
 // to support others ?
+// 1broker.com
+// simplefx.com ?
 // coinbase
 //  docs: https://docs.exchange.coinbase.com/#time
 // goc.io
@@ -91,7 +93,7 @@ public enum Exchange {
     ITBIT("ItBit", null, "itbitUSD", 8, 0.0017, true,
            null, null,
            null, null, "", "", null, null, null, null, null),
-    BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.00001, true,
+    BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.000001, true,
          null, "https://data.btcchina.com/data/ticker?market=XXXX", // XXXX like "btccny"
          null, "https://data.btcchina.com/data/orderbook?market=XXXX",
          "", "",
@@ -112,7 +114,7 @@ public enum Exchange {
         @Override public Currency baseCurrency() { return Currency.CNH; }
         @Override public boolean requirePairForCancel() { return true; }
     },
-    OKCOIN("OkCoin", new OkCoin(), "okcoinCNY", 10, 0.00001, true,
+    OKCOIN("OkCoin", new OkCoin(), "okcoinCNY", 10, 0.000001, true,
            null, "https://www.okcoin.cn/api/ticker.do?symbol=XXXX", // XXXX like "ltc_cny"
            null, "https://www.okcoin.cn/api/depth.do?symbol=XXXX", // XXXX like "ltc_cny"
            "", "",
@@ -134,7 +136,7 @@ public enum Exchange {
         @Override public boolean requirePairForOrders() { return true; }
         @Override public boolean requirePairForCancel() { return true; }
     },
-    HUOBI("Huobi", new Huobi(), "", 11, 0.00001, false, // https://github.com/xiaojay/huobi/blob/master/huobi.py
+    HUOBI("Huobi", new Huobi(), "", 11, 0.000001, false, // https://github.com/xiaojay/huobi/blob/master/huobi.py
            null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
            null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",
