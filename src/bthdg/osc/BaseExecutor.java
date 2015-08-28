@@ -18,6 +18,7 @@ public abstract class BaseExecutor implements Runnable {
     public static final int STATE_NONE = 1;
     public static final int STATE_ORDER = 2;
     public static final int STATE_ERROR = 3;
+    public static final int MAX_TICK_AGE_FOR_ORDER = 1000;
 
     protected static int FLAG_CANCELED               = 1 << 0;
     protected static int FLAG_NEED_CHECK_LIVE_ORDERS = 1 << 1;
@@ -48,6 +49,7 @@ public abstract class BaseExecutor implements Runnable {
     final Utils.DoubleDoubleAverageCalculator m_initAccountTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     final Utils.DoubleDoubleAverageCalculator m_liveOrdersTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     final Utils.DoubleDoubleAverageCalculator m_placeOrderTakesCalc = new Utils.DoubleDoubleAverageCalculator();
+    final Utils.DoubleDoubleAverageCalculator m_topTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     public final Utils.DoubleDoubleAverageCalculator m_tickAgeCalc = new Utils.DoubleDoubleAverageCalculator();
     public final LinkedList<TimeFramePoint> m_timeFramePoints = new LinkedList<TimeFramePoint>();
 
@@ -157,22 +159,26 @@ public abstract class BaseExecutor implements Runnable {
         log("initImpl() continue: subscribeTop()");
         m_ws.subscribeTop(m_pair, new ITopListener() {
             @Override public void onTop(long timestamp, double buy, double sell) {
-//                    log("onTop() timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
-                if (buy > sell) {
-                    log("ERROR: ignored invalid top data. buy > sell: timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
-                    return;
-                }
-                m_buy = buy;
-                m_sell = sell;
-                m_topMillis = System.currentTimeMillis();
-
-                TopData topData = new TopData(buy, sell);
-                m_topsData.put(m_pair, topData);
-                log(" topsData'=" + m_topsData);
-
-                addTask(new TopTask());
+                onTopInt(timestamp, buy, sell);
             }
         });
+    }
+
+    protected void onTopInt(long timestamp, double buy, double sell) {
+//                    log("onTop() timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
+        if (buy > sell) {
+            log("ERROR: ignored invalid top data. buy > sell: timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
+            return;
+        }
+        m_buy = buy;
+        m_sell = sell;
+        m_topMillis = System.currentTimeMillis();
+
+        TopData topData = new TopData(buy, sell);
+        m_topsData.put(m_pair, topData);
+        log(" topsData'=" + m_topsData);
+
+        addTask(new TopTask());
     }
 
     protected void initAccount() throws Exception {
@@ -383,6 +389,7 @@ public abstract class BaseExecutor implements Runnable {
             if (notEnough > minOrderSizeToCreate) {
                 boolean cancelPerformed = cancelOtherOrdersIfNeeded(needOrderSide, notEnough);
                 if (cancelPerformed) {
+                    postRecheckDirection();
                     return STATE_NONE;
                 }
             }
@@ -393,14 +400,19 @@ public abstract class BaseExecutor implements Runnable {
 
             double exchMinOrderToCreate = m_exchange.minOrderToCreate(m_pair);
             if ((placeOrderSize >= exchMinOrderToCreate) && (placeOrderSize >= minOrderSizeToCreate)) {
-                if(checkNoOpenOrders()) {
+                if (checkNoOpenOrders()) {
+                    long tickAge = System.currentTimeMillis() - m_topMillis;
+                    m_tickAgeCalc.addValue((double) tickAge);
+                    double averageTickAge = m_tickAgeCalc.getAverage();
+                    log("   tickAge=" + tickAge + "; averageTickAge=" + averageTickAge);
+                    if (tickAge > MAX_TICK_AGE_FOR_ORDER) {
+                        onTooOldTick(tickAge);
+                        return STATE_NO_CHANGE;
+                    }
+
                     double orderPrice = calcOrderPrice(m_exchange, directionAdjusted, needOrderSide);
                     OrderData placeOrder = new OrderData(m_pair, needOrderSide, orderPrice, placeOrderSize);
                     log("   place orderData=" + placeOrder);
-
-                    long tickAge = System.currentTimeMillis() - m_topMillis;
-                    log("   tickAge=" + tickAge);
-                    m_tickAgeCalc.addValue((double) tickAge);
 
                     if (placeOrderToExchange(m_exchange, placeOrder)) {
                         m_orderPlaceAttemptCounter++;
@@ -428,6 +440,20 @@ public abstract class BaseExecutor implements Runnable {
             postRecheckDirection();
         }
         return ret;
+    }
+
+    protected void onTooOldTick(long tickAge) {
+        log("too old tick for order: " + tickAge);
+        long start = System.currentTimeMillis();
+        TopData top = Fetcher.fetchTopOnce(m_exchange, m_pair);
+        long end = System.currentTimeMillis();
+        addTimeFrame(TimeFrameType.top, start, end);
+        long takes = end - start;
+        m_topTakesCalc.addValue((double) takes);
+        if (top != null) { // we got fresh top data
+            onTopInt(System.currentTimeMillis(), top.m_bid, top.m_ask);
+        }
+        postRecheckDirection();
     }
 
     private double calcOrderPrice(Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
@@ -578,7 +604,8 @@ public abstract class BaseExecutor implements Runnable {
         return " order:" + Utils.format5(m_placeOrderTakesCalc.getAverage()) +
                " live:" + Utils.format5(m_liveOrdersTakesCalc.getAverage()) +
                " account:" + Utils.format5(m_initAccountTakesCalc.getAverage()) +
-               " cancel:" + Utils.format5(m_cancelOrderTakesCalc.getAverage());
+               " cancel:" + Utils.format5(m_cancelOrderTakesCalc.getAverage()) +
+               " top:" + Utils.format5(m_topTakesCalc.getAverage());
     }
 
 
@@ -740,6 +767,9 @@ public abstract class BaseExecutor implements Runnable {
         recheckDirection {
             @Override public Color color() { return Color.white; }
             @Override public int level() { return 2; }
+        },
+        top {
+            @Override public Color color() { return Color.CYAN; }
         };
 
         public Color color() { return null; }

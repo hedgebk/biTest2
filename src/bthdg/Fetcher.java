@@ -326,7 +326,7 @@ public class Fetcher {
     }
 
     public static TopData fetchTop(Exchange exchange) throws Exception {
-        return fetchTopOnce(exchange, Pair.BTC_USD);
+        return fetchTop(exchange, Pair.BTC_USD);
     }
 
     public static TopData fetchTop(Exchange exchange, Pair pair) throws Exception {
@@ -348,7 +348,6 @@ public class Fetcher {
         }
         // aggregate
         TopsData topsData = new TopsData();
-        Map<String, OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
         log("fetching per-pair tops");
         for (Pair pair : pairs) {
             TopData topData = fetchTop(exchange, pair);
@@ -361,7 +360,7 @@ public class Fetcher {
         return fetchTopOnce(exchange, Pair.BTC_USD);
     }
 
-    static TopData fetchTopOnce(Exchange exchange, Pair pair) {
+    public static TopData fetchTopOnce(Exchange exchange, Pair pair) {
         try {
             Object jObj = fetchOnce(exchange, FetchCommand.TOP, new PairFetchOptions(pair));
             TopData topData = exchange.parseTop(jObj, pair);
