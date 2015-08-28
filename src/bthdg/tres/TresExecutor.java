@@ -14,7 +14,7 @@ import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
     private static final long MIN_ORDER_LIVE_TIME = 7000;
-    private static final double OUT_OF_MARKET_THRESHOLD = 0.95;
+    private static final double OUT_OF_MARKET_THRESHOLD = 0.35;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 10000;
     private static final double ORDER_SIZE_TOLERANCE = 0.1;
     private static final double MIN_ORDER_SIZE = 0.05; // btc
@@ -25,6 +25,7 @@ public class TresExecutor extends BaseExecutor {
     OrderData m_order;
     public int m_ordersPlaced;
     public int m_ordersFilled;
+    public double m_tradeVolume;
 
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
@@ -277,11 +278,13 @@ public class TresExecutor extends BaseExecutor {
     @Override protected void onOrderPlace(OrderData placeOrder, long tickAge) {
         m_order = placeOrder;
         m_ordersPlaced++;
-        m_exchData.addOrder(placeOrder, tickAge); // will call postFrameRepaint inside
+        m_exchData.addOrder(placeOrder, tickAge, m_buy, m_sell); // will call postFrameRepaint inside
     }
 
     private void onOrderFilled() {
         m_ordersFilled++;
+        double amount = m_order.m_amount;
+        m_tradeVolume += amount;
         m_exchData.m_tres.postFrameRepaint();
     }
 }

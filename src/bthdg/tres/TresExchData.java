@@ -131,9 +131,9 @@ public class TresExchData {
         return directionAdjusted/m_phaseDatas.length;
     }
 
-    public void addOrder(OrderData order, long tickAge) {
+    public void addOrder(OrderData order, long tickAge, double buy, double sell) {
         synchronized (m_orders) {
-            m_orders.add(new OrderPoint(order, tickAge));
+            m_orders.add(new OrderPoint(order, tickAge, buy, sell));
         }
         m_tres.postFrameRepaint();
     }
@@ -141,10 +141,14 @@ public class TresExchData {
     public static class OrderPoint {
         public final OrderData m_order;
         public final long m_tickAge;
+        public final double m_buy;
+        public final double m_sell;
 
-        public OrderPoint(OrderData order, long tickAge) {
+        public OrderPoint(OrderData order, long tickAge, double buy, double sell) {
             m_order = order;
             m_tickAge = tickAge;
+            m_buy = buy;
+            m_sell = sell;
         }
     }
 }
