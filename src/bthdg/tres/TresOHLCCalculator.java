@@ -14,6 +14,8 @@ public class TresOHLCCalculator extends OHLCCalculator {
     }
 
     @Override protected void onBarStarted(OHLCTick tick) {
-        m_ohlcTicks.add(tick);
+        synchronized (m_ohlcTicks) {
+            m_ohlcTicks.add(tick);
+        }
     }
 }
