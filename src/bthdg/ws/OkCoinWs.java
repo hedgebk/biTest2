@@ -215,12 +215,12 @@ public class OkCoinWs extends BaseWs {
 //System.out.println("   topDataListener.onMessage() json=" + json + ";  class=" + json.getClass());
                 if (json instanceof JSONObject) {
                     JSONObject jsonObject = (JSONObject) json;
-                    String buyStr = (String) jsonObject.get("buy");
-                    String sellStr = (String) jsonObject.get("sell");
+                    Object buyObj = jsonObject.get("buy");
+                    Object sellObj = jsonObject.get("sell");
                     String timestampStr = (String) jsonObject.get("timestamp");
 //System.out.println("     buyStr=" + buyStr + "; sellStr=" + sellStr + "; timestampStr=" + timestampStr);
-                    double buy = Utils.getDouble(buyStr);
-                    double sell = Utils.getDouble(sellStr);
+                    double buy = Utils.getDouble(buyObj);
+                    double sell = Utils.getDouble(sellObj);
                     long timestamp = Utils.getLong(timestampStr);
 //System.out.println("      buy=" + buy + "; sell=" + sell + "; timestamp=" + timestamp);
                     if (m_topListener != null) {
