@@ -31,6 +31,7 @@ public class TresExecutor extends BaseExecutor {
     @Override protected double minOrderSizeToCreate() { return MIN_ORDER_SIZE; }
     @Override protected double useFundsFromAvailable() { return USE_FUNDS_FROM_AVAILABLE; }
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
+    @Override protected TaskQueueProcessor createTaskQueueProcessor() { return new TresTaskQueueProcessor(); }
 
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
         super(ws, pair);
@@ -59,7 +60,7 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    public void onTrade(TradeData tData) {
+    @Override public void onTrade(TradeData tData) {
         TradeTask task = new TradeTask(tData);
         if ((m_order != null) && m_order.m_status.isActive()) {
             if (tData.m_price == m_order.m_price) { // same price trade - process first
@@ -91,7 +92,10 @@ public class TresExecutor extends BaseExecutor {
 
     @Override protected void recheckDirection() throws Exception {
         log("TresExecutor.recheckDirection() direction=" + getDirectionAdjusted());
+        long start = System.currentTimeMillis();
         setState(m_state.onDirection(this));
+        long end = System.currentTimeMillis();
+        addTimeFrame(TimeFrameType.recheckDirection, start, end);
     }
 
     @Override protected double getDirectionAdjusted() {
@@ -140,13 +144,16 @@ public class TresExecutor extends BaseExecutor {
         if (m_order != null) {
             log("  need cancel existing order: " + m_order);
             String error = cancelOrder(m_order);
+
+            // here we may have desync case - we sent order; the order is partially executed; but we do not know this yet;
+            // we cancel order; internally release funds performed, but since part of order is already executed - we may have
+            // account mismatch here - resync account to prevent.
+            m_maySyncAccount = true;
+
             if (error == null) {
                 log("   order cancelled OK: " + m_order);
                 m_order = null;
-                // here we may have desync case - we sent order; the order is partially executed; but we do not know this yet;
-                // we cancel order; internally release funds performed, but since part of order is already executed - we may have
-                // account mismatch here - resync account to prevent.
-                initAccount();
+
                 postRecheckDirection();
                 return STATE_NONE;
             } else {
@@ -182,7 +189,6 @@ public class TresExecutor extends BaseExecutor {
                 m_order = null;
             }
             log("    order cancel attempted - need sync account since part can be executed in the middle");
-            initAccount();
         }
     }
 
@@ -268,10 +274,10 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    @Override protected void onOrderPlace(OrderData placeOrder) {
+    @Override protected void onOrderPlace(OrderData placeOrder, long tickAge) {
         m_order = placeOrder;
         m_ordersPlaced++;
-        m_exchData.addOrder(placeOrder); // will call postFrameRepaint inside
+        m_exchData.addOrder(placeOrder, tickAge); // will call postFrameRepaint inside
     }
 
     private void onOrderFilled() {

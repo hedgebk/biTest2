@@ -2,10 +2,8 @@ package bthdg.tres;
 
 import bthdg.ChartAxe;
 import bthdg.Log;
-import bthdg.exch.Exchange;
-import bthdg.exch.OrderData;
-import bthdg.exch.OrderSide;
-import bthdg.exch.OrderStatus;
+import bthdg.exch.*;
+import bthdg.osc.BaseExecutor;
 import bthdg.osc.OscTick;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
@@ -19,16 +17,17 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 public class TresCanvas extends JComponent {
     public static final int PIX_PER_BAR = 12;
     public static final int LAST_PRICE_MARKER_WIDTH = 7;
     public static final int PRICE_AXE_MARKER_WIDTH = 10;
     public static final Color TR_COLOR = new Color(20, 20, 20);
-    public static final Color OSC_1_LINE_COLOR = Colors.setAlpha(Color.RED, 128);
-    public static final Color OSC_2_LINE_COLOR = Colors.setAlpha(Color.BLUE, 128);
-    public static final Color OSC_MID_LINE_COLOR = new Color(30,30,30);
-    public static final int DIRECTION_ARROW_SIZE = 10;
+    public static final Color OSC_1_LINE_COLOR = Colors.setAlpha(Color.RED, 64);
+    public static final Color OSC_2_LINE_COLOR = Colors.setAlpha(Color.BLUE, 64);
+    public static final Color OSC_MID_LINE_COLOR = new Color(30, 30, 30, 128);
+    public static final int DIRECTION_ARROW_SIZE = 20;
 
     private Tres m_tres;
     private Point m_point;
@@ -156,7 +155,8 @@ public class TresCanvas extends JComponent {
 
         ArrayList<TresExchData> exchDatas = m_tres.m_exchDatas;
         TresExchData exchData = exchDatas.get(0);
-        PhaseData phaseData = exchData.m_phaseDatas[0];
+        PhaseData[] phaseDatas = exchData.m_phaseDatas;
+        PhaseData phaseData = phaseDatas[0];
         TresOscCalculator oscCalculator = phaseData.m_oscCalculator;
         LinkedList<OHLCTick> ohlcTicks = phaseData.m_ohlcCalculator.m_ohlcTicks;
         LinkedList<OscTick> oscBars = oscCalculator.m_oscBars;
@@ -198,18 +198,29 @@ public class TresCanvas extends JComponent {
             }
             g.drawString(String.format("barsShift: %d", m_barsShift), 5, fontHeight * 6 + 5);
 
-            ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, ohlcTicks, barSize);
+            LinkedList<TresExchData.OrderPoint> ordersClone = getOrderClone(exchData);
+
+            ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, ohlcTicks, barSize, ordersClone);
             paintYPriceAxe(g, yPriceAxe);
 
+            paintTrades(g, exchData.m_trades, yPriceAxe);
             paintOHLCTicks(g, ohlcTicks, yPriceAxe);
 
+            // osc levels
+            g.setColor(Color.darkGray);
+            paintLine(g, 0.2);
+            paintLine(g, 0.8);
+
+            for (PhaseData phData : phaseDatas) {
+                paintOscTicks(g, phData.m_oscCalculator.m_oscBars);
+            }
             LinkedList<OscTick> oscPeaks = oscCalculator.m_oscPeaks;
-            paintOscTicks(g, oscBars, oscPeaks);
+            paintOscPeaks(g, oscPeaks);
 
             TresMaCalculator maCalculator = phaseData.m_maCalculator;
             paintMaTicks(g, maCalculator, yPriceAxe);
 
-            paintOrders(g, exchData, yPriceAxe);
+            paintOrders(g, exchData, yPriceAxe, ordersClone);
 
             paintLastPrice(g, width, lastPrice, yPriceAxe);
         }
@@ -329,18 +340,25 @@ public class TresCanvas extends JComponent {
         m_xTimeAxe.m_offset = extraAreaWidth;
     }
 
-    private ChartAxe calcYPriceAxe(int height, double lastPrice, LinkedList<OHLCTick> ohlcTicks, long barSize) {
+    private ChartAxe calcYPriceAxe(int height, double lastPrice, LinkedList<OHLCTick> ohlcTicks, long barSize, LinkedList<TresExchData.OrderPoint> ordersClone) {
         double timeMin = m_xTimeAxe.m_min;
         double timeMax = m_xTimeAxe.m_max;
         double maxPrice = 0;
         double minPrice = Integer.MAX_VALUE;
-        for (Iterator<OHLCTick> iterator = ohlcTicks.iterator(); iterator.hasNext(); ) {
-            OHLCTick ohlcTick = iterator.next();
+        for (OHLCTick ohlcTick : ohlcTicks) {
             long barStart = ohlcTick.m_barStart;
             long barEnd = barStart + barSize;
             if ((barEnd >= timeMin) && (barStart <= timeMax)) {
                 maxPrice = Math.max(maxPrice, ohlcTick.m_high);
                 minPrice = Math.min(minPrice, ohlcTick.m_low);
+            }
+        }
+        for (TresExchData.OrderPoint order : ordersClone) {
+            long time = order.m_order.m_placeTime;
+            if ((time >= timeMin) && (time <= timeMax)) {
+                double price = order.m_order.m_price;
+                maxPrice = Math.max(maxPrice, price);
+                minPrice = Math.min(minPrice, price);
             }
         }
         if (maxPrice == 0) {
@@ -357,15 +375,31 @@ public class TresCanvas extends JComponent {
         return yPriceAxe;
     }
 
-    private void paintOrders(Graphics g, TresExchData exchData, ChartAxe yPriceAxe) {
-        LinkedList<OrderData> orders = exchData.m_orders;
-        LinkedList<OrderData> ordersInt = new LinkedList<OrderData>();
-        synchronized (orders) { // avoid ConcurrentModificationException - use local copy
-            ordersInt.addAll(orders);
+    private void paintTrades(Graphics g, List<TradeData> trades, ChartAxe yPriceAxe) {
+        g.setColor(Color.DARK_GRAY);
+        int canvasWidth = getWidth();
+        for (int indx = trades.size() - 1; indx >= 0; indx--) {
+            TradeData tradeData = trades.get(indx);
+            long timestamp = tradeData.m_timestamp;
+            int x = m_xTimeAxe.getPoint(timestamp);
+            if (x < 0) {
+                break;
+            }
+            if (x > canvasWidth) {
+                continue;
+            }
+            double price = tradeData.m_price;
+            int y = yPriceAxe.getPointReverse(price);
+            g.drawLine(x, y, x, y);
         }
+    }
+
+    private void paintOrders(Graphics g, TresExchData exchData, ChartAxe yPriceAxe, LinkedList<TresExchData.OrderPoint> ordersClone) {
+        TresExecutor executor = exchData.m_executor;
         int fontHeight = g.getFont().getSize();
-        for (Iterator<OrderData> iterator = ordersInt.descendingIterator(); iterator.hasNext(); ) {
-            OrderData order = iterator.next();
+        for (Iterator<TresExchData.OrderPoint> iterator = ordersClone.descendingIterator(); iterator.hasNext(); ) {
+            TresExchData.OrderPoint orderPoint = iterator.next();
+            OrderData order = orderPoint.m_order;
             long mPlaceTime = order.m_placeTime;
             int x = m_xTimeAxe.getPoint(mPlaceTime);
             if (x < 0) {
@@ -376,28 +410,9 @@ public class TresCanvas extends JComponent {
             OrderSide side = order.m_side;
             boolean isBuy = side.isBuy();
 
-            Color borderColor = null;
             OrderStatus status = order.m_status;
-            if (status == OrderStatus.NEW) {
-                borderColor = Color.green;
-            } else if ((status == OrderStatus.SUBMITTED) || (status == OrderStatus.PARTIALLY_FILLED)) {
-                borderColor = isBuy ? Color.BLUE : Color.RED;
-            } else if (status == OrderStatus.CANCELLED) {
-                if (order.m_filled > 0) {
-                    borderColor = isBuy ? Color.BLUE : Color.RED;
-                }
-            }
-
-            Color fillColor = null;
-            if (status == OrderStatus.PARTIALLY_FILLED) {
-                fillColor = Colors.setAlpha(isBuy ? Color.BLUE : Color.RED, 100);
-            } else if (status == OrderStatus.FILLED) {
-                fillColor = isBuy ? Color.BLUE : Color.RED;
-            } else if (status == OrderStatus.CANCELLED) {
-                fillColor = Color.gray;
-            } else if ((status == OrderStatus.REJECTED) || (status == OrderStatus.ERROR)) {
-                fillColor = Color.orange;
-            }
+            Color borderColor = orderBorderColor(order, isBuy, status);
+            Color fillColor = orderFillColor(isBuy, status);
 
             int y = yPriceAxe.getPointReverse(price);
             Polygon p = new Polygon();
@@ -418,22 +433,94 @@ public class TresCanvas extends JComponent {
                     ? Utils.X_YYY.format(order.m_amount)
                     : Utils.X_YYY.format(order.m_filled) + "/" + Utils.X_YYY.format(order.m_amount);
             g.drawString(amount, x, isBuy ? y + 2 + fontHeight : y - 5);
+
+            long tickAge = orderPoint.m_tickAge;
+            String tickAgeStr = Utils.millisToDHMSStr(tickAge);
+            g.drawString(tickAgeStr, x, isBuy ? y + 2 + fontHeight * 2 : y - 5 - fontHeight);
         }
+
+        paintFetcherPoints(g, executor);
 
         g.setColor(Color.YELLOW);
         int height = getHeight();
-        TresExecutor executor = exchData.m_executor;
         g.drawString(executor.valuate(), 2, height - fontHeight);
-        g.drawString("dir.adj=" + exchData.getDirectionAdjusted(), 2, height - fontHeight * 2);
-        g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled, 2, height - fontHeight * 3);
-        g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 4);
-        g.drawString("takes:" + executor.dumpTakesTime(), 2, height - fontHeight * 5);
-        g.drawString("tickAge: " + executor.m_tickAgeCalc.getAverage(), 2, height - fontHeight * 6);
+        g.drawString("acct: " + executor.m_account, 2, height - fontHeight * 2);
+        g.drawString("dir.adj=" + exchData.getDirectionAdjusted(), 2, height - fontHeight * 3);
+        g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled, 2, height - fontHeight * 4);
+        g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 5);
+        g.drawString("takes:" + executor.dumpTakesTime(), 2, height - fontHeight * 6);
+        g.drawString("tickAge: " + executor.m_tickAgeCalc.getAverage(), 2, height - fontHeight * 7);
 
         OrderData order = executor.m_order;
         if (order != null) {
             g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
-            g.drawString(order.toString(), 2, height - fontHeight * 7);
+            g.drawString(order.toString(), 2, height - fontHeight * 8);
+        }
+    }
+
+    private LinkedList<TresExchData.OrderPoint> getOrderClone(TresExchData exchData) {
+        LinkedList<TresExchData.OrderPoint> orders = exchData.m_orders;
+        LinkedList<TresExchData.OrderPoint> ordersInt;
+        synchronized (orders) { // avoid ConcurrentModificationException - use local copy
+            ordersInt = new LinkedList<TresExchData.OrderPoint>(orders);
+        }
+        return ordersInt;
+    }
+
+    private Color orderFillColor(boolean isBuy, OrderStatus status) {
+        Color fillColor = null;
+        if (status == OrderStatus.PARTIALLY_FILLED) {
+            fillColor = Colors.setAlpha(isBuy ? Color.BLUE : Color.RED, 100);
+        } else if (status == OrderStatus.FILLED) {
+            fillColor = isBuy ? Color.BLUE : Color.RED;
+        } else if (status == OrderStatus.CANCELLED) {
+            fillColor = Color.gray;
+        } else if ((status == OrderStatus.REJECTED) || (status == OrderStatus.ERROR)) {
+            fillColor = Color.orange;
+        }
+        return fillColor;
+    }
+
+    private Color orderBorderColor(OrderData order, boolean isBuy, OrderStatus status) {
+        Color borderColor = null;
+        if (status == OrderStatus.NEW) {
+            borderColor = Color.green;
+        } else if ((status == OrderStatus.SUBMITTED) || (status == OrderStatus.PARTIALLY_FILLED)) {
+            borderColor = isBuy ? Color.BLUE : Color.RED;
+        } else if (status == OrderStatus.CANCELLED) {
+            if (order.m_filled > 0) {
+                borderColor = isBuy ? Color.BLUE : Color.RED;
+            }
+        }
+        return borderColor;
+    }
+
+    private void paintFetcherPoints(Graphics g, TresExecutor executor) {
+        LinkedList<BaseExecutor.TimeFramePoint> fetcherPoints = executor.m_timeFramePoints;
+        LinkedList<BaseExecutor.TimeFramePoint> fetcherPointsInt;
+        synchronized (fetcherPoints) { // avoid ConcurrentModificationException - use local copy
+            fetcherPointsInt = new LinkedList<BaseExecutor.TimeFramePoint>(fetcherPoints);
+        }
+        int yBase = getHeight() - 9;
+        for (Iterator<BaseExecutor.TimeFramePoint> iterator = fetcherPointsInt.descendingIterator(); iterator.hasNext(); ) {
+            BaseExecutor.TimeFramePoint fetcherPoint = iterator.next();
+            long start = fetcherPoint.m_start;
+            long end = fetcherPoint.m_end;
+            int endX = m_xTimeAxe.getPoint(end);
+            if (endX < 0) {
+                break;
+            }
+            int startX = m_xTimeAxe.getPoint(start);
+            BaseExecutor.TimeFrameType type = fetcherPoint.m_type;
+            Color color = type.color();
+            g.setColor(color);
+
+            int level = type.level();
+            int y = yBase + level * 3;
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setStroke(new BasicStroke(3));
+            g.drawLine(startX, y, endX, y);
+            g2.setStroke(new BasicStroke(1));
         }
     }
 
@@ -454,7 +541,7 @@ public class TresCanvas extends JComponent {
             long barEnd = maTick.m_barEnd;
             int x = m_xTimeAxe.getPoint(barEnd);
             int y = yPriceAxe.getPointReverse(ma);
-            if(firstX == Integer.MAX_VALUE) {
+            if (firstX == Integer.MAX_VALUE) {
                 firstX = x;
                 firstY = y;
             }
@@ -481,7 +568,10 @@ public class TresCanvas extends JComponent {
             double dy = -DIRECTION_ARROW_SIZE * Math.sin(radians);
             Color color = (directionAdjusted > 0) ? Color.BLUE : (directionAdjusted < 0) ? Color.RED : Color.GRAY;
             g.setColor(color);
-            g.drawLine(firstX, firstY, (int)(firstX + dx), (int)(firstY + dy));
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setStroke(new BasicStroke(3));
+            g.drawLine(firstX, firstY, (int) (firstX + dx), (int) (firstY + dy));
+            g2.setStroke(new BasicStroke(1));
         }
 
         int canvasWidth = getWidth();
@@ -565,7 +655,11 @@ public class TresCanvas extends JComponent {
 
     private void paintOHLCTicks(Graphics g, LinkedList<OHLCTick> ohlcTicks, ChartAxe yPriceAxe) {
         g.setColor(Color.GRAY);
-        for (Iterator<OHLCTick> iterator = ohlcTicks.descendingIterator(); iterator.hasNext(); ) {
+        LinkedList<OHLCTick> ohlcTicksCopy;
+        synchronized (ohlcTicks) {
+            ohlcTicksCopy = new LinkedList<OHLCTick>(ohlcTicks);
+        }
+        for (Iterator<OHLCTick> iterator = ohlcTicksCopy.descendingIterator(); iterator.hasNext(); ) {
             OHLCTick ohlcTick = iterator.next();
             long barStart = ohlcTick.m_barStart;
             int startX = m_xTimeAxe.getPoint(barStart);
@@ -589,17 +683,21 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private void paintOscTicks(Graphics g, LinkedList<OscTick> oscBars, LinkedList<OscTick> oscPeaks) {
-        // levels
-        g.setColor(Color.darkGray);
-        paintLine(g, 0.2);
-        paintLine(g, 0.8);
+    private void paintOscTicks(Graphics g, LinkedList<OscTick> oscBars) {
+        int canvasWidth = getWidth();
+        int lastX = Integer.MAX_VALUE;
+        int[] lastYs = new int[3];
+        for (Iterator<OscTick> iterator = oscBars.descendingIterator(); iterator.hasNext(); ) {
+            OscTick tick = iterator.next();
+            int endX = paintOsc(g, tick, lastX, lastYs, canvasWidth);
+            if (endX < 0) {
+                break;
+            }
+            lastX = endX;
+        }
+    }
 
-        // top/bottom borders
-//        g.setColor(Color.CYAN);
-//        paintLine(g, 0);
-//        paintLine(g, 1);
-
+    private void paintOscPeaks(Graphics g, LinkedList<OscTick> oscPeaks) {
         int canvasWidth = getWidth();
         g.setColor(Colors.LIGHT_CYAN);
         for (Iterator<OscTick> iterator = oscPeaks.descendingIterator(); iterator.hasNext(); ) {
@@ -617,17 +715,6 @@ public class TresCanvas extends JComponent {
             int y = m_yAxe.getPointReverse(valMid);
             g.drawLine(x - 5, y - 5, x + 5, y + 5);
             g.drawLine(x + 5, y - 5, x - 5, y + 5);
-        }
-
-        int lastX = Integer.MAX_VALUE;
-        int[] lastYs = new int[3];
-        for (Iterator<OscTick> iterator = oscBars.descendingIterator(); iterator.hasNext(); ) {
-            OscTick tick = iterator.next();
-            int endX = paintOsc(g, tick, lastX, lastYs, canvasWidth);
-            if (endX < 0) {
-                break;
-            }
-            lastX = endX;
         }
     }
 
@@ -684,7 +771,7 @@ public class TresCanvas extends JComponent {
         g.drawRect(offset - 2, y - 2, 5, 5);
     }
 
-    private void paintBlendedOsc(Graphics g, OscTick lastBarTick, OscTick blendedTick, int offset) {
+    private void paintBlendedOsc(Graphics g, OscTick lastBarTick, OscTick blendedTick, int x2) {
         if ((lastBarTick != null) && (blendedTick != null)) {
             long lastBarStartTime = lastBarTick.m_startTime;
             long lastBarEndTime = lastBarStartTime + m_tres.m_barSizeMillis;
@@ -694,8 +781,6 @@ public class TresCanvas extends JComponent {
             double lastBarOscVal2 = lastBarTick.m_val2;
             int lastBarOscY1 = m_yAxe.getPointReverse(lastBarOscVal1);
             int lastBarOscY2 = m_yAxe.getPointReverse(lastBarOscVal2);
-
-            int x2 = offset;
 
             double blendedTickVal1 = blendedTick.m_val1;
             double blendedTickVal2 = blendedTick.m_val2;

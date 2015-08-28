@@ -8,7 +8,8 @@ import java.util.ListIterator;
 import java.util.Map;
 
 public class TaskQueueProcessor implements Runnable {
-    private final LinkedList<BaseOrderTask> m_tasksQueue = new LinkedList<BaseOrderTask>();
+    protected final Object m_semafore = new Object();
+    protected final LinkedList<BaseOrderTask> m_tasksQueue = new LinkedList<BaseOrderTask>();
     private Thread m_thread;
     private boolean m_run = true;
     Map<String,Utils.DoubleDoubleAverageCalculator> m_waitCalculators = new HashMap<String, Utils.DoubleDoubleAverageCalculator>();
@@ -19,47 +20,56 @@ public class TaskQueueProcessor implements Runnable {
 
     public TaskQueueProcessor() {}
 
-
     public void addTaskFirst(BaseOrderTask task) {
         task.m_postTime = System.currentTimeMillis();
-        synchronized (m_tasksQueue) {
-            m_tasksQueue.addFirst(task);
-            m_tasksQueue.notify();
+        synchronized (m_semafore) {
+            LinkedList<BaseOrderTask> tasksQueue = getQueue(task);
+            tasksQueue.addFirst(task);
+            m_semafore.notify();
             startThreadIfNeeded();
         }
     }
 
     public void addTask(BaseOrderTask task) {
         task.m_postTime = System.currentTimeMillis();
-        synchronized (m_tasksQueue) {
-            Boolean addLast = Boolean.TRUE;
-            for (ListIterator<BaseOrderTask> listIterator = m_tasksQueue.listIterator(); listIterator.hasNext(); ) {
-                BaseOrderTask nextTask = listIterator.next();
-                BaseOrderTask.DuplicateAction duplicateAction = task.isDuplicate(nextTask);
-                if (duplicateAction == BaseOrderTask.DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST) {
-                    BaseExecutor.log(" replacing as LAST task " + nextTask.getClass().getSimpleName() + "; queue.size=" + m_tasksQueue.size());
-                    task.m_postTime = nextTask.m_postTime;
-                    listIterator.remove();
-                } else if (duplicateAction == BaseOrderTask.DuplicateAction.REMOVE_ALL_AND_PUT_AS_FIRST) {
-                    BaseExecutor.log(" replacing as FIRST task " + nextTask.getClass().getSimpleName() + "; queue.size=" + m_tasksQueue.size());
-                    task.m_postTime = nextTask.m_postTime;
-                    listIterator.remove();
-                    addLast = Boolean.FALSE;
-                } else if (duplicateAction == BaseOrderTask.DuplicateAction.DO_NOT_ADD) {
-                    BaseExecutor.log(" skipping task " + nextTask.getClass().getSimpleName() + "; queue.size=" + m_tasksQueue.size());
-                    addLast = null; // do not add
-                    break;
-                }
-            }
-            if (addLast != null) {
-                if (addLast) {
-                    m_tasksQueue.addLast(task);
-                } else {
-                    m_tasksQueue.addFirst(task);
-                }
-            }
-            m_tasksQueue.notify();
+        synchronized (m_semafore) {
+            LinkedList<BaseOrderTask> tasksQueue = getQueue(task);
+            addTaskInt(task, tasksQueue);
+            m_semafore.notify();
             startThreadIfNeeded();
+        }
+    }
+
+    protected LinkedList<BaseOrderTask> getQueue(BaseOrderTask task) {
+        return m_tasksQueue;
+    }
+
+    private void addTaskInt(BaseOrderTask task, LinkedList<BaseOrderTask> tasksQueue) {
+        Boolean addLast = Boolean.TRUE;
+        for (ListIterator<BaseOrderTask> listIterator = tasksQueue.listIterator(); listIterator.hasNext(); ) {
+            BaseOrderTask nextTask = listIterator.next();
+            DuplicateAction duplicateAction = task.isDuplicate(nextTask);
+            if (duplicateAction == DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST) {
+                BaseExecutor.log(" replacing as LAST task " + nextTask.getClass().getSimpleName() + "; queue.size=" + tasksQueue.size());
+                task.m_postTime = nextTask.m_postTime;
+                listIterator.remove();
+            } else if (duplicateAction == DuplicateAction.REMOVE_ALL_AND_PUT_AS_FIRST) {
+                BaseExecutor.log(" replacing as FIRST task " + nextTask.getClass().getSimpleName() + "; queue.size=" + tasksQueue.size());
+                task.m_postTime = nextTask.m_postTime;
+                listIterator.remove();
+                addLast = Boolean.FALSE;
+            } else if (duplicateAction == DuplicateAction.DO_NOT_ADD) {
+                BaseExecutor.log(" skipping task " + nextTask.getClass().getSimpleName() + "; queue.size=" + tasksQueue.size());
+                addLast = null; // do not add
+                break;
+            }
+        }
+        if (addLast != null) {
+            if (addLast) {
+                tasksQueue.addLast(task);
+            } else {
+                tasksQueue.addFirst(task);
+            }
         }
     }
 
@@ -76,11 +86,11 @@ public class TaskQueueProcessor implements Runnable {
         while (m_run) {
             BaseOrderTask task = null;
             try {
-                synchronized (m_tasksQueue) {
-                    if (m_tasksQueue.isEmpty()) {
-                        m_tasksQueue.wait();
+                synchronized (m_semafore) {
+                    task = poolTask();
+                    if (task == null) {
+                        m_semafore.wait();
                     }
-                    task = m_tasksQueue.pollFirst();
                 }
                 if (task != null) {
                     task.m_processTime = System.currentTimeMillis();
@@ -94,6 +104,10 @@ public class TaskQueueProcessor implements Runnable {
             }
         }
         BaseExecutor.log("TaskQueueProcessor.queue: thread finished");
+    }
+
+    protected BaseOrderTask poolTask() throws InterruptedException {
+        return m_tasksQueue.pollFirst();
     }
 
     private void registerWaitTime(BaseOrderTask task, long waitTime) {
@@ -128,12 +142,12 @@ public class TaskQueueProcessor implements Runnable {
 
         abstract void process() throws Exception;
         abstract DuplicateAction isDuplicate(BaseOrderTask other);
+    }
 
-        public enum DuplicateAction {
-            DO_NOT_ADD,
-            REMOVE_ALL_AND_PUT_AS_LAST,
-            REMOVE_ALL_AND_PUT_AS_FIRST,
-        }
+    public enum DuplicateAction {
+        DO_NOT_ADD,
+        REMOVE_ALL_AND_PUT_AS_LAST,
+        REMOVE_ALL_AND_PUT_AS_FIRST,
     }
 
     public static abstract class SinglePresenceTask extends BaseOrderTask {

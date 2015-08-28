@@ -47,7 +47,7 @@ class OscExecutor extends BaseExecutor {
     private NoTradesWatcher m_noTradesWatcher = new NoTradesWatcher();
 
     @Override protected double minOrderSizeToCreate() { return MIN_ORDER_SIZE; }
-    @Override protected void onOrderPlace(OrderData placeOrder) { m_order = placeOrder; }
+    @Override protected void onOrderPlace(OrderData placeOrder, long tickAge) { m_order = placeOrder; }
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
