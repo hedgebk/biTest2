@@ -3,21 +3,26 @@ package bthdg.tres;
 import bthdg.Log;
 import bthdg.exch.OrderData;
 import bthdg.exch.TradeData;
+import bthdg.osc.BaseExecutor;
 import bthdg.util.Queue;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Calendar;
+import java.util.LinkedList;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class TresExchData {
     final Tres m_tres;
     final IWs m_ws;
-    final List<TradeData> m_trades = new ArrayList<TradeData>();
+    final LinkedList<TradeData> m_trades = new LinkedList<TradeData>();
     final PhaseData[] m_phaseDatas;
     final TresExecutor m_executor;
     final Queue<TradeData> m_tradesQueue;
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
+    final LinkedList<AvgOscPoint> m_avgOscs = new LinkedList<AvgOscPoint>();
     double m_lastPrice;
     private boolean m_updated;
     long m_startTickMillis = Long.MAX_VALUE;
@@ -39,7 +44,15 @@ public class TresExchData {
         int phasesNum = tres.m_phases;
         m_phaseDatas = new PhaseData[phasesNum];
         for (int i = 0; i < phasesNum; i++) {
-            m_phaseDatas[i] = new PhaseData(this, i);
+            m_phaseDatas[i] = new PhaseData(this, i) {
+                @Override protected void onOscBar() {
+                    double avgOsc = calcAvgOsc();
+                    long millis = System.currentTimeMillis();
+                    synchronized (m_avgOscs) {
+                        m_avgOscs.add(new AvgOscPoint(millis, avgOsc));
+                    }
+                }
+            };
         }
         m_tradesQueue = new Queue<TradeData>("tradesQueue") {
             @Override protected void processItem(TradeData tData) { processTrade(tData); }
@@ -79,7 +92,9 @@ public class TresExchData {
         if (!m_tres.m_silentConsole) {
             log("onTrade[" + m_ws.exchange() + "]: " + tdata);
         }
-        m_trades.add(tdata);
+        synchronized (m_trades) {
+            m_trades.add(tdata);
+        }
         m_lastPrice = tdata.m_price;
         long timestamp = tdata.m_timestamp;
 
@@ -110,9 +125,7 @@ public class TresExchData {
         }
         m_lastTickMillis = Math.max(m_lastTickMillis, timestamp);
 
-        if (m_updated) {
-            m_tres.onTrade(tdata);
-        }
+        m_tres.onTrade(tdata);
     }
 
     public void getState(StringBuilder sb) {
@@ -131,9 +144,18 @@ public class TresExchData {
         return directionAdjusted/m_phaseDatas.length;
     }
 
-    public void addOrder(OrderData order, long tickAge, double buy, double sell) {
+    public double calcAvgOsc() { // [0 ... 1]
+        double ret = 0;
+        for (PhaseData phaseData : m_phaseDatas) {
+            double getAvgOsc = phaseData.getAvgOsc();
+            ret += getAvgOsc;
+        }
+        return ret/m_phaseDatas.length;
+    }
+
+    public void addOrder(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource) {
         synchronized (m_orders) {
-            m_orders.add(new OrderPoint(order, tickAge, buy, sell));
+            m_orders.add(new OrderPoint(order, tickAge, buy, sell, topSource));
         }
         m_tres.postFrameRepaint();
     }
@@ -143,12 +165,24 @@ public class TresExchData {
         public final long m_tickAge;
         public final double m_buy;
         public final double m_sell;
+        public final BaseExecutor.TopSource m_topSource;
 
-        public OrderPoint(OrderData order, long tickAge, double buy, double sell) {
+        public OrderPoint(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource) {
             m_order = order;
             m_tickAge = tickAge;
             m_buy = buy;
             m_sell = sell;
+            m_topSource = topSource;
+        }
+    }
+
+    protected class AvgOscPoint {
+        public final long m_millis;
+        public final double m_avgOsc;
+
+        public AvgOscPoint(long millis, double avgOsc) {
+            m_millis = millis;
+            m_avgOsc = avgOsc;
         }
     }
 }

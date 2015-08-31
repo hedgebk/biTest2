@@ -13,6 +13,7 @@ public class TaskQueueProcessor implements Runnable {
     private Thread m_thread;
     private boolean m_run = true;
     Map<String,Utils.DoubleDoubleAverageCalculator> m_waitCalculators = new HashMap<String, Utils.DoubleDoubleAverageCalculator>();
+    private BaseOrderTask m_processingTask;
 
     public void stop() {
         m_run = false;
@@ -24,6 +25,7 @@ public class TaskQueueProcessor implements Runnable {
         task.m_postTime = System.currentTimeMillis();
         synchronized (m_semafore) {
             LinkedList<BaseOrderTask> tasksQueue = getQueue(task);
+            compareWithQueueTasks(task, tasksQueue);
             tasksQueue.addFirst(task);
             m_semafore.notify();
             startThreadIfNeeded();
@@ -44,33 +46,38 @@ public class TaskQueueProcessor implements Runnable {
         return m_tasksQueue;
     }
 
-    private void addTaskInt(BaseOrderTask task, LinkedList<BaseOrderTask> tasksQueue) {
+    private void addTaskInt(BaseOrderTask task, LinkedList<BaseOrderTask> tasksList) {
+        Boolean addLast = compareWithQueueTasks(task, tasksList);
+        if (addLast != null) {
+            if (addLast) {
+                tasksList.addLast(task);
+            } else {
+                tasksList.addFirst(task);
+            }
+        }
+    }
+
+    private Boolean compareWithQueueTasks(BaseOrderTask task, LinkedList<BaseOrderTask> tasksList) {
         Boolean addLast = Boolean.TRUE;
-        for (ListIterator<BaseOrderTask> listIterator = tasksQueue.listIterator(); listIterator.hasNext(); ) {
+        for (ListIterator<BaseOrderTask> listIterator = tasksList.listIterator(); listIterator.hasNext(); ) {
             BaseOrderTask nextTask = listIterator.next();
             DuplicateAction duplicateAction = task.isDuplicate(nextTask);
             if (duplicateAction == DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST) {
-                BaseExecutor.log(" replacing as LAST task " + nextTask.getClass().getSimpleName() + "; queue.size=" + tasksQueue.size());
+                BaseExecutor.log(" replacing as LAST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; processingTask=" + m_processingTask);
                 task.m_postTime = nextTask.m_postTime;
                 listIterator.remove();
             } else if (duplicateAction == DuplicateAction.REMOVE_ALL_AND_PUT_AS_FIRST) {
-                BaseExecutor.log(" replacing as FIRST task " + nextTask.getClass().getSimpleName() + "; queue.size=" + tasksQueue.size());
+                BaseExecutor.log(" replacing as FIRST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; processingTask=" + m_processingTask);
                 task.m_postTime = nextTask.m_postTime;
                 listIterator.remove();
                 addLast = Boolean.FALSE;
             } else if (duplicateAction == DuplicateAction.DO_NOT_ADD) {
-                BaseExecutor.log(" skipping task " + nextTask.getClass().getSimpleName() + "; queue.size=" + tasksQueue.size());
+                BaseExecutor.log(" skipping task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; processingTask=" + m_processingTask);
                 addLast = null; // do not add
                 break;
             }
         }
-        if (addLast != null) {
-            if (addLast) {
-                tasksQueue.addLast(task);
-            } else {
-                tasksQueue.addFirst(task);
-            }
-        }
+        return addLast;
     }
 
     protected void startThreadIfNeeded() {
@@ -93,10 +100,12 @@ public class TaskQueueProcessor implements Runnable {
                     }
                 }
                 if (task != null) {
+                    m_processingTask = task;
                     task.m_processTime = System.currentTimeMillis();
                     task.process();
                     long waitTime = task.m_processTime - task.m_postTime;
                     registerWaitTime(task, waitTime);
+                    m_processingTask = null;
                 }
             } catch (Exception e) {
                 BaseExecutor.log("error in TaskQueueProcessor: " + e + "; for task " + task);

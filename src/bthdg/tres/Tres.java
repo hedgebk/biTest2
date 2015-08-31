@@ -164,7 +164,6 @@ public class Tres {
             long timestamp = tdata.m_timestamp;
             m_tickTimes.add(timestamp);
         }
-
         postFrameRepaint();
     }
 

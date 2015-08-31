@@ -124,6 +124,8 @@ public class TresCanvas extends JComponent {
     public void paint(Graphics g) {
         super.paint(g);
 
+        g.setFont(g.getFont().deriveFont(15.0f));
+
         int width = getWidth();
         int height = getHeight();
 
@@ -158,9 +160,10 @@ public class TresCanvas extends JComponent {
         PhaseData[] phaseDatas = exchData.m_phaseDatas;
         PhaseData phaseData = phaseDatas[0];
         TresOscCalculator oscCalculator = phaseData.m_oscCalculator;
-        LinkedList<OHLCTick> ohlcTicks = phaseData.m_ohlcCalculator.m_ohlcTicks;
         LinkedList<OscTick> oscBars = oscCalculator.m_oscBars;
-        calcXTimeAxe(width, barSize, ohlcTicks, oscBars);
+        calcXTimeAxe(width, barSize, phaseData.m_ohlcCalculator.m_ohlcTicks, oscBars);
+
+        List<OHLCTick> ohlcTicksClone = cloneOhlcTicks(phaseData.m_ohlcCalculator.m_ohlcTicks);
 
         // paint min/max time : left/right borders
         double minTime = m_xTimeAxe.m_min;
@@ -189,26 +192,19 @@ public class TresCanvas extends JComponent {
             OscTick lastBarTick = oscCalculator.m_lastBar;
             paintBlendedOsc(g, lastBarTick, blendedTick, width - 5);
 
-            g.drawString(String.format("Zoom: %1$,.4f", m_zoom), 5, fontHeight * 2 + 5);
+            g.drawString(String.format("Zoom: %1$,.4f", m_zoom) + "; fontHeight="+fontHeight, 5, fontHeight * 2 + 5);
 
-            if (m_dragStartX != null) {
-                g.drawString(String.format("dragStartX: %d", m_dragStartX), 5, fontHeight * 3 + 5);
-            }
-            if (m_dragDeltaX != null) {
-                g.drawString(String.format("dragDeltaX: %d", m_dragDeltaX), 5, fontHeight * 4 + 5);
-            }
-            if (m_dragDeltaBars != 0) {
-                g.drawString(String.format("dragDeltaBars: %d", m_dragDeltaBars), 5, fontHeight * 5 + 5);
-            }
-            g.drawString(String.format("barsShift: %d", m_barsShift), 5, fontHeight * 6 + 5);
+            g.drawString(getBarsShiftStr(), 5, fontHeight * 3 + 5);
 
-            LinkedList<TresExchData.OrderPoint> ordersClone = getOrderClone(exchData);
+            List<TresExchData.OrderPoint> ordersClone = getOrderClone(exchData);
+            List<BaseExecutor.TopDataPoint> topsClone = getTopsClone(exchData.m_executor.m_tops);
 
-            ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, buyPrice, sellPrice, ohlcTicks, barSize, ordersClone);
+            ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, buyPrice, sellPrice, ohlcTicksClone, ordersClone, topsClone);
             paintYPriceAxe(g, yPriceAxe);
 
+            paintTops(g, topsClone, yPriceAxe);
             paintTrades(g, exchData.m_trades, yPriceAxe);
-            paintOHLCTicks(g, ohlcTicks, yPriceAxe);
+            paintOHLCTicks(g, ohlcTicksClone, yPriceAxe);
 
             // osc levels
             g.setColor(Color.darkGray);
@@ -218,6 +214,7 @@ public class TresCanvas extends JComponent {
             for (PhaseData phData : phaseDatas) {
                 paintOscTicks(g, phData.m_oscCalculator.m_oscBars);
             }
+            paintAvgOscs(g, exchData.m_avgOscs);
             LinkedList<OscTick> oscPeaks = oscCalculator.m_oscPeaks;
             paintOscPeaks(g, oscPeaks);
 
@@ -226,14 +223,29 @@ public class TresCanvas extends JComponent {
 
             paintOrders(g, exchData, yPriceAxe, ordersClone);
 
-            paintLastPrice(g, width, lastPrice, yPriceAxe);
             paintBuyPrice(g, width, buyPrice, yPriceAxe);
             paintSellPrice(g, width, sellPrice, yPriceAxe);
+            paintLastPrice(g, width, lastPrice, yPriceAxe);
         }
 
         if (m_point != null) {
             paintCross(g, width, height);
         }
+    }
+
+    private String getBarsShiftStr() {
+        StringBuffer sb = new StringBuffer();
+        sb.append(String.format("barsShift: %d", m_barsShift));
+        if (m_dragStartX != null) {
+            sb.append(String.format("; dragStartX: %d", m_dragStartX));
+        }
+        if (m_dragDeltaX != null) {
+            sb.append(String.format("; dragDeltaX: %d", m_dragDeltaX));
+        }
+        if (m_dragDeltaBars != 0) {
+            sb.append(String.format("dragDeltaBars: %d", m_dragDeltaBars));
+        }
+        return sb.toString();
     }
 
     private void paintTimeTicks(Graphics g, int width, int height) {
@@ -263,22 +275,22 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintLastPrice(Graphics g, int width, double lastPrice, ChartAxe yPriceAxe) {
-        paintPriceMarker(g, width, lastPrice, yPriceAxe, Color.GREEN);
+        paintPriceMarker(g, width, lastPrice, yPriceAxe, Color.GREEN, LAST_PRICE_MARKER_WIDTH);
     }
 
     private void paintBuyPrice(Graphics g, int width, double buyPrice, ChartAxe yPriceAxe) {
-        paintPriceMarker(g, width, buyPrice, yPriceAxe, Color.RED);
+        paintPriceMarker(g, width, buyPrice, yPriceAxe, Color.RED, LAST_PRICE_MARKER_WIDTH * 2);
     }
 
     private void paintSellPrice(Graphics g, int width, double sellPrice, ChartAxe yPriceAxe) {
-        paintPriceMarker(g, width, sellPrice, yPriceAxe, Color.BLUE);
+        paintPriceMarker(g, width, sellPrice, yPriceAxe, Color.BLUE, LAST_PRICE_MARKER_WIDTH * 2);
     }
 
-    private void paintPriceMarker(Graphics g, int width, double price, ChartAxe yPriceAxe, Color color) {
+    private void paintPriceMarker(Graphics g, int width, double price, ChartAxe yPriceAxe, Color color, int markerWidth) {
         if (price > 0) {
             g.setColor(color);
             int lastPriceY = yPriceAxe.getPointReverse(price);
-            g.fillRect(width - LAST_PRICE_MARKER_WIDTH + 2, lastPriceY - 1, LAST_PRICE_MARKER_WIDTH, 3);
+            g.fillRect(width - markerWidth, lastPriceY - 1, markerWidth, 3);
         }
     }
 
@@ -294,19 +306,34 @@ public class TresCanvas extends JComponent {
         int minLabel = (int) Math.ceil(min / step);
         int maxLabel = (int) Math.floor(max / step);
 
-        int maxWidth = 0;
+        FontMetrics fontMetrics = g.getFontMetrics();
+        int maxWidth = 10;
         for (int y = minLabel; y <= maxLabel; y += step) {
-            Rectangle2D bounds = g.getFontMetrics().getStringBounds(Integer.toString(y), g);
+            Rectangle2D bounds = fontMetrics.getStringBounds(Integer.toString(y), g);
             int width = (int) bounds.getWidth();
             maxWidth = Math.max(maxWidth, width);
         }
+
         int width = getWidth();
         int x = width - maxWidth;
         for (int y = minLabel; y <= maxLabel; y += step) {
             int priceY = yPriceAxe.getPointReverse(y);
             g.drawString(Integer.toString(y), x, priceY + halfFontHeight);
-            g.drawLine(x - 5, priceY, x - PRICE_AXE_MARKER_WIDTH, priceY);
+            g.drawLine(x - 2, priceY, x - PRICE_AXE_MARKER_WIDTH, priceY);
         }
+
+        int priceY1 = yPriceAxe.getPointReverse(minLabel);
+        int priceY2 = yPriceAxe.getPointReverse(minLabel + step);
+        int stepHeight = Math.abs(priceY2 - priceY1);
+        if (stepHeight > fontHeight * 3) {
+            double halfStep = step / 2.0;
+            for (int y = minLabel; y < maxLabel; y += step) {
+                int priceY = yPriceAxe.getPointReverse(y + halfStep);
+                g.drawString(Double.toString(halfStep), x, priceY + halfFontHeight);
+                g.drawLine(x - 2, priceY, x - PRICE_AXE_MARKER_WIDTH / 2, priceY);
+            }
+        }
+
         if (yPriceAxeWidth != maxWidth) { // changed
             calcMaxBars(width);
         }
@@ -335,7 +362,10 @@ public class TresCanvas extends JComponent {
 
     private void calcXTimeAxe(int width, long barSize, LinkedList<OHLCTick> ohlcTicks, LinkedList<OscTick> bars) {
         long maxTime = 0;
-        OHLCTick lastOhlcTick = ohlcTicks.peekLast();
+        OHLCTick lastOhlcTick;
+        synchronized (ohlcTicks) {
+            lastOhlcTick = ohlcTicks.peekLast();
+        }
         if (lastOhlcTick != null) {
             maxTime = lastOhlcTick.m_barEnd;
         }
@@ -361,35 +391,35 @@ public class TresCanvas extends JComponent {
     }
 
     private ChartAxe calcYPriceAxe(int height, double lastPrice, double buyPrice, double sellPrice,
-                                   LinkedList<OHLCTick> ohlcTicks, long barSize, LinkedList<TresExchData.OrderPoint> ordersClone) {
-        double timeMin = m_xTimeAxe.m_min;
-        double timeMax = m_xTimeAxe.m_max;
+                                   List<OHLCTick> ohlcTicksClone, List<TresExchData.OrderPoint> ordersClone, List<BaseExecutor.TopDataPoint> topsClone) {
         double maxPrice = 0;
         double minPrice = Integer.MAX_VALUE;
-        for (OHLCTick ohlcTick : ohlcTicks) {
-            long barStart = ohlcTick.m_barStart;
-            long barEnd = barStart + barSize;
-            if ((barEnd >= timeMin) && (barStart <= timeMax)) {
-                maxPrice = Math.max(maxPrice, ohlcTick.m_high);
-                minPrice = Math.min(minPrice, ohlcTick.m_low);
-            }
+        for (OHLCTick ohlcTick : ohlcTicksClone) {
+            double high = ohlcTick.m_high;
+            double low = ohlcTick.m_low;
+            double highLowDiff = high - low;
+            maxPrice = Math.max(maxPrice, high + highLowDiff * 0.1);
+            minPrice = Math.min(minPrice, low - highLowDiff * 0.1);
         }
-        // todo: do with descendingIterator
         for (TresExchData.OrderPoint order : ordersClone) {
             OrderData orderData = order.m_order;
-            long time = orderData.m_placeTime;
-            if ((time >= timeMin) && (time <= timeMax)) {
-                double buy = order.m_buy;
-                double sell = order.m_sell;
-                double buySellDiff = sell - buy;
-                maxPrice = Math.max(maxPrice, sell + 0.1 * buySellDiff);
-                minPrice = Math.min(minPrice, buy - 0.1 * buySellDiff);
+            double buy = order.m_buy;
+            double sell = order.m_sell;
+            double buySellDiff = sell - buy;
+            maxPrice = Math.max(maxPrice, sell + 0.1 * buySellDiff);
+            minPrice = Math.min(minPrice, buy - 0.1 * buySellDiff);
 
-                double price = orderData.m_price;
-                maxPrice = Math.max(maxPrice, price);
-                minPrice = Math.min(minPrice, price);
-            }
+            double price = orderData.m_price;
+            maxPrice = Math.max(maxPrice, price);
+            minPrice = Math.min(minPrice, price);
         }
+        for (BaseExecutor.TopDataPoint paintTop : topsClone) {
+            double buy = paintTop.m_bid;
+            double sell = paintTop.m_ask;
+            maxPrice = Math.max(maxPrice, sell);
+            minPrice = Math.min(minPrice, buy);
+        }
+
         if (maxPrice == 0) {
             maxPrice = lastPrice;
             minPrice = lastPrice;
@@ -413,40 +443,121 @@ public class TresCanvas extends JComponent {
         return yPriceAxe;
     }
 
-    private void paintTrades(Graphics g, List<TradeData> trades, ChartAxe yPriceAxe) {
+
+    private List<TradeData> m_paintTades = new ArrayList<TradeData>();
+
+    private void paintTrades(Graphics g, LinkedList<TradeData> trades, ChartAxe yPriceAxe) {
+        List<TradeData> tradesClone = cloneTrades(trades);
         g.setColor(Color.DARK_GRAY);
-        int canvasWidth = getWidth();
-        for (int indx = trades.size() - 1; indx >= 0; indx--) {
-            TradeData tradeData = trades.get(indx);
+        for (TradeData tradeData : tradesClone) {
             long timestamp = tradeData.m_timestamp;
             int x = m_xTimeAxe.getPoint(timestamp);
-            if (x < 0) {
-                break;
-            }
-            if (x > canvasWidth) {
-                continue;
-            }
             double price = tradeData.m_price;
             int y = yPriceAxe.getPointReverse(price);
-            g.drawLine(x, y, x, y);
+            g.drawLine(x, y - 1, x, y + 1);
+            g.drawLine(x - 1, y, x + 1, y);
         }
     }
 
-    private void paintOrders(Graphics g, TresExchData exchData, ChartAxe yPriceAxe, LinkedList<TresExchData.OrderPoint> ordersClone) {
+    private List<TradeData> cloneTrades(LinkedList<TradeData> trades) {
+        double minTime = m_xTimeAxe.m_min;
+        double maxTime = m_xTimeAxe.m_max;
+        m_paintTades.clear();
+        synchronized (trades) {
+            for (Iterator<TradeData> it = trades.descendingIterator(); it.hasNext(); ) {
+                TradeData tradeData = it.next();
+                long timestamp = tradeData.m_timestamp;
+                if (timestamp < minTime) { break; }
+                if (timestamp > maxTime) { continue; }
+                m_paintTades.add(tradeData);
+            }
+        }
+        return m_paintTades;
+    }
+
+    private List<TresExchData.AvgOscPoint> m_paintAvgOscs = new ArrayList<TresExchData.AvgOscPoint>();
+
+    private void paintAvgOscs(Graphics g, LinkedList<TresExchData.AvgOscPoint> avgOscs) {
+        List<TresExchData.AvgOscPoint> avgOscsClone = cloneAvgOscs(avgOscs);
+        g.setColor(Color.pink);
+        int lastX = Integer.MAX_VALUE;
+        int lastY = Integer.MAX_VALUE;
+        for (TresExchData.AvgOscPoint avgOscPoint : avgOscsClone) {
+            long timestamp = avgOscPoint.m_millis;
+            int x = m_xTimeAxe.getPoint(timestamp);
+            double avgOsc = avgOscPoint.m_avgOsc;
+            int y = m_yAxe.getPointReverse(avgOsc);
+            if(lastX != Integer.MAX_VALUE) {
+                g.drawLine(x, y, lastX, lastY);
+            }
+            lastX = x;
+            lastY = y;
+        }
+
+    }
+
+    private List<TresExchData.AvgOscPoint> cloneAvgOscs(LinkedList<TresExchData.AvgOscPoint> avgOscs) {
+        double minTime = m_xTimeAxe.m_min;
+        double maxTime = m_xTimeAxe.m_max;
+        m_paintAvgOscs.clear();
+        synchronized (avgOscs) {
+            for (Iterator<TresExchData.AvgOscPoint> it = avgOscs.descendingIterator(); it.hasNext(); ) {
+                TresExchData.AvgOscPoint avgOscPoint = it.next();
+                long timestamp = avgOscPoint.m_millis;
+                if (timestamp < minTime) { break; }
+                if (timestamp > maxTime) { continue; }
+                m_paintAvgOscs.add(avgOscPoint);
+            }
+        }
+        return m_paintAvgOscs;
+    }
+
+
+    private List<BaseExecutor.TopDataPoint> m_paintTops = new ArrayList<BaseExecutor.TopDataPoint>();
+
+    private void paintTops(Graphics g, List<BaseExecutor.TopDataPoint> topsClone, ChartAxe yPriceAxe) {
+        g.setColor(Colors.setAlpha(Color.darkGray, 90));
+        for (BaseExecutor.TopDataPoint paintTop : topsClone) {
+            long timestamp = paintTop.m_timestamp;
+            int x = m_xTimeAxe.getPoint(timestamp);
+            double buy = paintTop.m_bid;
+            double sell = paintTop.m_ask;
+            int yBuy = yPriceAxe.getPointReverse(buy);
+            int ySell = yPriceAxe.getPointReverse(sell);
+            g.drawLine(x, yBuy, x, ySell);
+        }
+    }
+
+    private List<BaseExecutor.TopDataPoint> getTopsClone(LinkedList<BaseExecutor.TopDataPoint> tops) {
+        double minTime = m_xTimeAxe.m_min;
+        double maxTime = m_xTimeAxe.m_max;
+        m_paintTops.clear();
+        synchronized (tops) {
+            for (Iterator<BaseExecutor.TopDataPoint> it = tops.descendingIterator(); it.hasNext(); ) {
+                BaseExecutor.TopDataPoint topDataPoint = it.next();
+                long timestamp = topDataPoint.m_timestamp;
+                if (timestamp < minTime) { break; }
+                if (timestamp > maxTime) { continue; }
+                m_paintTops.add(topDataPoint);
+            }
+        }
+        return m_paintTops;
+    }
+
+
+    private void paintOrders(Graphics g, TresExchData exchData, ChartAxe yPriceAxe, List<TresExchData.OrderPoint> ordersClone) {
         TresExecutor executor = exchData.m_executor;
         int fontHeight = g.getFont().getSize();
-        for (Iterator<TresExchData.OrderPoint> iterator = ordersClone.descendingIterator(); iterator.hasNext(); ) {
-            TresExchData.OrderPoint orderPoint = iterator.next();
+        for (TresExchData.OrderPoint orderPoint : ordersClone) {
             OrderData order = orderPoint.m_order;
             long mPlaceTime = order.m_placeTime;
             int x = m_xTimeAxe.getPoint(mPlaceTime);
-            if (x < 0) {
-                break;
-            }
 
             double buy = orderPoint.m_buy;
             double sell = orderPoint.m_sell;
-            g.setColor(Color.darkGray);
+            BaseExecutor.TopSource topSource = orderPoint.m_topSource;
+            Color color = topSource.color();
+            g.setColor(color);
             int yBuy = yPriceAxe.getPointReverse(buy);
             int ySell = yPriceAxe.getPointReverse(sell);
             g.drawLine(x, yBuy, x, ySell);
@@ -484,6 +595,9 @@ public class TresCanvas extends JComponent {
             long tickAge = orderPoint.m_tickAge;
             String tickAgeStr = Utils.millisToDHMSStr(tickAge);
             g.drawString(tickAgeStr, x, isBuy ? y + 2 + fontHeight * 2 : y - 5 - fontHeight);
+
+            String ordId = order.m_orderId.substring(order.m_orderId.length() - 5);
+            g.drawString(ordId, x, isBuy ? y + 2 + fontHeight * 3 : y - 5 - fontHeight * 2);
         }
 
         paintTimeFramePoints(g, executor);
@@ -505,11 +619,52 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private LinkedList<TresExchData.OrderPoint> getOrderClone(TresExchData exchData) {
+    private List<TresExchData.OrderPoint> m_paintOrders = new ArrayList<TresExchData.OrderPoint>();
+
+    private List<TresExchData.OrderPoint> getOrderClone(TresExchData exchData) {
         LinkedList<TresExchData.OrderPoint> orders = exchData.m_orders;
+        double min = m_xTimeAxe.m_min;
+        double max = m_xTimeAxe.m_max;
+        m_paintOrders.clear();
         synchronized (orders) { // avoid ConcurrentModificationException - use local copy
-            return new LinkedList<TresExchData.OrderPoint>(orders);
+            for (Iterator<TresExchData.OrderPoint> iterator = orders.descendingIterator(); iterator.hasNext(); ) {
+                TresExchData.OrderPoint orderPoint = iterator.next();
+                OrderData order = orderPoint.m_order;
+                long placeTime = order.m_placeTime;
+                if(placeTime > max) {
+                    continue;
+                }
+                if(placeTime < min) {
+                    break;
+                }
+                m_paintOrders.add(orderPoint);
+            }
         }
+        return m_paintOrders;
+    }
+
+    private List<OHLCTick> m_paintOhlcTicks = new ArrayList<OHLCTick>();
+
+
+    private List<OHLCTick> cloneOhlcTicks(LinkedList<OHLCTick> ohlcTicks) {
+        double min = m_xTimeAxe.m_min;
+        double max = m_xTimeAxe.m_max;
+        m_paintOhlcTicks.clear();
+        synchronized (ohlcTicks) { // avoid ConcurrentModificationException - use local copy
+            for (Iterator<OHLCTick> iterator = ohlcTicks.descendingIterator(); iterator.hasNext(); ) {
+                OHLCTick ohlcTick = iterator.next();
+                long start = ohlcTick.m_barStart;
+                if(start > max) {
+                    continue;
+                }
+                long end = ohlcTick.m_barEnd;
+                if(end < min) {
+                    break;
+                }
+                m_paintOhlcTicks.add(ohlcTick);
+            }
+        }
+        return m_paintOhlcTicks;
     }
 
     private Color orderFillColor(boolean isBuy, OrderStatus status) {
@@ -541,10 +696,10 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintTimeFramePoints(Graphics g, TresExecutor executor) {
-        LinkedList<BaseExecutor.TimeFramePoint> fetcherPoints = executor.m_timeFramePoints;
+        LinkedList<BaseExecutor.TimeFramePoint> timeFramePoints = executor.m_timeFramePoints;
         LinkedList<BaseExecutor.TimeFramePoint> fetcherPointsInt;
-        synchronized (fetcherPoints) { // avoid ConcurrentModificationException - use local copy
-            fetcherPointsInt = new LinkedList<BaseExecutor.TimeFramePoint>(fetcherPoints);
+        synchronized (timeFramePoints) { // avoid ConcurrentModificationException - use local copy
+            fetcherPointsInt = new LinkedList<BaseExecutor.TimeFramePoint>(timeFramePoints);
         }
         int yBase = getHeight() - 9;
         int width = getWidth();
@@ -552,14 +707,14 @@ public class TresCanvas extends JComponent {
             BaseExecutor.TimeFramePoint fetcherPoint = iterator.next();
             long start = fetcherPoint.m_start;
             long end = fetcherPoint.m_end;
-            int endX = m_xTimeAxe.getPoint(end);
-            if (endX > 0) {
+            int startX = m_xTimeAxe.getPoint(start);
+            if (startX > width) {
                 continue;
             }
-            if (endX < width) {
+            int endX = m_xTimeAxe.getPoint(end);
+            if (endX < 0) {
                 break;
             }
-            int startX = m_xTimeAxe.getPoint(start);
             BaseExecutor.TimeFrameType type = fetcherPoint.m_type;
             Color color = type.color();
             g.setColor(color);
@@ -704,14 +859,9 @@ public class TresCanvas extends JComponent {
         g.drawString(String.format("trade every " + Utils.millisToDHMSStr(tradeFreq)), 5, fontHeight * 12 + 5);
     }
 
-    private void paintOHLCTicks(Graphics g, LinkedList<OHLCTick> ohlcTicks, ChartAxe yPriceAxe) {
-        g.setColor(Color.GRAY);
-        LinkedList<OHLCTick> ohlcTicksCopy;
-        synchronized (ohlcTicks) {
-            ohlcTicksCopy = new LinkedList<OHLCTick>(ohlcTicks);
-        }
-        for (Iterator<OHLCTick> iterator = ohlcTicksCopy.descendingIterator(); iterator.hasNext(); ) {
-            OHLCTick ohlcTick = iterator.next();
+    private void paintOHLCTicks(Graphics g, List<OHLCTick> ohlcTicksClone, ChartAxe yPriceAxe) {
+        g.setColor(Colors.BROWN);
+        for (OHLCTick ohlcTick : ohlcTicksClone) {
             long barStart = ohlcTick.m_barStart;
             int startX = m_xTimeAxe.getPoint(barStart);
             long barEnd = ohlcTick.m_barEnd;
@@ -727,10 +877,6 @@ public class TresCanvas extends JComponent {
             // ohlc style
             g.drawLine(startX + 1, openY, midX, openY);
             g.drawLine(midX, closeY, endX, closeY);
-
-            if (startX < 0) {
-                break;
-            }
         }
     }
 
@@ -738,6 +884,7 @@ public class TresCanvas extends JComponent {
         int canvasWidth = getWidth();
         int lastX = Integer.MAX_VALUE;
         int[] lastYs = new int[3];
+        // todo: clone first
         for (Iterator<OscTick> iterator = oscBars.descendingIterator(); iterator.hasNext(); ) {
             OscTick tick = iterator.next();
             int endX = paintOsc(g, tick, lastX, lastYs, canvasWidth);
@@ -751,6 +898,7 @@ public class TresCanvas extends JComponent {
     private void paintOscPeaks(Graphics g, LinkedList<OscTick> oscPeaks) {
         int canvasWidth = getWidth();
         g.setColor(Colors.LIGHT_CYAN);
+        // todo clone+synchronize
         for (Iterator<OscTick> iterator = oscPeaks.descendingIterator(); iterator.hasNext(); ) {
             OscTick tick = iterator.next();
             long startTime = tick.m_startTime;

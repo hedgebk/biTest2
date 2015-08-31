@@ -196,7 +196,7 @@ public class BaseChartPaint extends DbReady {
         }
 
         @Override public int compareTo(Long other) {
-            return Long.compare(m_stamp, other);
+            return Utils.compare(m_stamp, other);
         }
 
         @Override public String toString() {

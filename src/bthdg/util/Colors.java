@@ -16,6 +16,7 @@ public class Colors {
     public static final Color LIGHT_MAGNETA = new Color(255, 0, 255, 100);
     public static final Color BEGIE = new Color(255, 212, 63);
     public static final Color SKY = new Color(35, 152, 255);
+    public static final Color BROWN = new Color(108, 67, 0);
 
     public static Color setAlpha(Color color, int alpha) {
         return new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha) ;

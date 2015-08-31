@@ -18,10 +18,17 @@ public class PhaseData {
     public PhaseData(TresExchData exchData, int phaseIndex) {
         m_exchData = exchData;
         m_phaseIndex = phaseIndex;
-        m_oscCalculator = new TresOscCalculator(exchData, phaseIndex);
+        m_oscCalculator = new TresOscCalculator(exchData, phaseIndex) {
+            @Override public void bar(long barStart, double stoch1, double stoch2) {
+                super.bar(barStart, stoch1, stoch2);
+                onOscBar();
+            }
+        };
         m_ohlcCalculator = new TresOHLCCalculator(exchData.m_tres, phaseIndex);
         m_maCalculator = new TresMaCalculator(this, phaseIndex);
     }
+
+    protected void onOscBar() {}
 
     public boolean update(TradeData tdata) {
         long timestamp = tdata.m_timestamp;
@@ -109,5 +116,9 @@ public class PhaseData {
             m_direction = oscUp ? 1 : -1;
         }
         return m_direction;
+    }
+
+    public double getAvgOsc() {
+        return m_oscCalculator.m_lastBar == null ? 0 : m_oscCalculator.m_lastBar.getMid();
     }
 }

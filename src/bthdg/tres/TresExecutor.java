@@ -14,10 +14,10 @@ import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
     private static final long MIN_ORDER_LIVE_TIME = 7000;
-    private static final double OUT_OF_MARKET_THRESHOLD = 0.35;
+    private static final double OUT_OF_MARKET_THRESHOLD = 0.5;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 10000;
     private static final double ORDER_SIZE_TOLERANCE = 0.1;
-    private static final double MIN_ORDER_SIZE = 0.05; // btc
+    private static final double MIN_ORDER_SIZE = 0.02; // btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
 
     private final TresExchData m_exchData;
@@ -34,9 +34,11 @@ public class TresExecutor extends BaseExecutor {
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
     @Override protected TaskQueueProcessor createTaskQueueProcessor() { return new TresTaskQueueProcessor(); }
 
+    @Override protected double getAvgOsc() { return m_exchData.calcAvgOsc(); }
+
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
         super(ws, pair);
-        m_orderPriceMode = OrderPriceMode.MKT;
+        m_orderPriceMode = OrderPriceMode.OSC;
         m_exchData = exchData;
         if (!exchData.m_tres.m_logProcessing) {
             Thread thread = new Thread(this);
@@ -97,6 +99,13 @@ public class TresExecutor extends BaseExecutor {
         setState(m_state.onDirection(this));
         long end = System.currentTimeMillis();
         addTimeFrame(TimeFrameType.recheckDirection, start, end);
+    }
+
+    @Override public int processDirection() throws Exception {
+        if (m_order != null) {
+            log("TresExecutor.processDirection() m_order=" + m_order);
+        }
+        return super.processDirection();
     }
 
     @Override protected double getDirectionAdjusted() {
@@ -275,16 +284,21 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    @Override protected void onOrderPlace(OrderData placeOrder, long tickAge) {
+    @Override protected void onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource) {
         m_order = placeOrder;
         m_ordersPlaced++;
-        m_exchData.addOrder(placeOrder, tickAge, m_buy, m_sell); // will call postFrameRepaint inside
+        m_exchData.addOrder(placeOrder, tickAge, buy, sell, topSource); // will call postFrameRepaint inside
     }
 
     private void onOrderFilled() {
         m_ordersFilled++;
         double amount = m_order.m_amount;
         m_tradeVolume += amount;
+        m_exchData.m_tres.postFrameRepaint();
+    }
+
+    @Override protected void addTopDataPoint(TopDataPoint topDataPoint) {
+        super.addTopDataPoint(topDataPoint);
         m_exchData.m_tres.postFrameRepaint();
     }
 }

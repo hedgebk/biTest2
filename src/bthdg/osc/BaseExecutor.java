@@ -19,8 +19,9 @@ public abstract class BaseExecutor implements Runnable {
     public static final int STATE_ORDER = 2;
     public static final int STATE_ERROR = 3;
     public static final int MAX_TICK_AGE_FOR_ORDER = 1000;
+    private static final double TOO_OLD_TICK_RATE = 1.1;
 
-    protected static int FLAG_CANCELED               = 1 << 0;
+    protected static int FLAG_CANCELED = 1 << 0;
     protected static int FLAG_NEED_CHECK_LIVE_ORDERS = 1 << 1;
     protected static int FLAG_NEED_RECHECK_DIRECTION = 1 << 2;
 
@@ -38,6 +39,7 @@ public abstract class BaseExecutor implements Runnable {
     public AccountData m_account;
     public double m_buy;
     public double m_sell;
+    private TopSource m_topSource;
     private long m_topMillis; // bud/ask timestamp
     private long m_tradeMillis; // last trade timestamp
     protected boolean m_maySyncAccount = false;
@@ -52,6 +54,7 @@ public abstract class BaseExecutor implements Runnable {
     final Utils.DoubleDoubleAverageCalculator m_topTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     public final Utils.DoubleDoubleAverageCalculator m_tickAgeCalc = new Utils.DoubleDoubleAverageCalculator();
     public final LinkedList<TimeFramePoint> m_timeFramePoints = new LinkedList<TimeFramePoint>();
+    public LinkedList<TopDataPoint> m_tops = new LinkedList<TopDataPoint>();
 
     protected static void log(String s) { Log.log(s); }
     public String dumpWaitTime() { return (m_taskQueueProcessor == null) ? "" : m_taskQueueProcessor.dumpWaitTime(); }
@@ -68,7 +71,7 @@ public abstract class BaseExecutor implements Runnable {
     protected abstract int cancelOrderIfPresent() throws Exception;
     protected abstract double minOrderSizeToCreate();
     protected abstract boolean cancelOtherOrdersIfNeeded(OrderSide needOrderSide, double notEnough) throws Exception;
-    protected abstract void onOrderPlace(OrderData placeOrder, long tickAge);
+    protected abstract void onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource);
     protected abstract boolean checkNoOpenOrders();
     protected abstract long minOrderLiveTime();
     protected abstract double outOfMarketThreshold();
@@ -78,6 +81,8 @@ public abstract class BaseExecutor implements Runnable {
     protected abstract boolean haveNotFilledOrder();
     protected abstract void processTopInt() throws Exception;
     protected abstract double useFundsFromAvailable();
+
+    protected double getAvgOsc() { return 1; }
 
     public BaseExecutor(IWs ws, Pair pair) {
         m_ws = ws;
@@ -139,13 +144,19 @@ public abstract class BaseExecutor implements Runnable {
         return m_taskQueueProcessor;
     }
 
-    protected TaskQueueProcessor createTaskQueueProcessor() {
-        return new TaskQueueProcessor();
+    protected TaskQueueProcessor createTaskQueueProcessor() { return new TaskQueueProcessor(); }
+
+    public void onTrade(TradeData tData) {
+        addTask(new TradeTask(tData));
     }
 
-    public void onTrade(TradeData tData) { addTask(new TradeTask(tData)); }
-    protected void addTask(TaskQueueProcessor.BaseOrderTask task) { getTaskQueueProcessor().addTask(task); }
-    protected void addTaskFirst(TaskQueueProcessor.BaseOrderTask task) { getTaskQueueProcessor().addTaskFirst(task); }
+    protected void addTask(TaskQueueProcessor.BaseOrderTask task) {
+        getTaskQueueProcessor().addTask(task);
+    }
+
+    protected void addTaskFirst(TaskQueueProcessor.BaseOrderTask task) {
+        getTaskQueueProcessor().addTaskFirst(task);
+    }
 
     protected void initImpl() throws Exception {
         m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
@@ -159,12 +170,12 @@ public abstract class BaseExecutor implements Runnable {
         log("initImpl() continue: subscribeTop()");
         m_ws.subscribeTop(m_pair, new ITopListener() {
             @Override public void onTop(long timestamp, double buy, double sell) {
-                onTopInt(timestamp, buy, sell);
+                onTopInt(timestamp, buy, sell, TopSource.top_subscribe);
             }
         });
     }
 
-    protected void onTopInt(long timestamp, double buy, double sell) {
+    protected void onTopInt(long timestamp, double buy, double sell, TopSource topSource) {
 //                    log("onTop() timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
         if (buy > sell) {
             log("ERROR: ignored invalid top data. buy > sell: timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
@@ -172,9 +183,12 @@ public abstract class BaseExecutor implements Runnable {
         }
         m_buy = buy;
         m_sell = sell;
+        m_topSource = topSource;
         m_topMillis = System.currentTimeMillis();
 
         TopData topData = new TopData(buy, sell);
+        TopDataPoint topDataPoint = new TopDataPoint(topData, timestamp);
+        addTopDataPoint(topDataPoint);
         m_topsData.put(m_pair, topData);
         log(" topsData'=" + m_topsData);
 
@@ -190,11 +204,11 @@ public abstract class BaseExecutor implements Runnable {
         if (newAccount != null) {
             m_account = newAccount;
             long takes = end - start;
-            m_initAccountTakesCalc.addValue((double)takes);
+            m_initAccountTakesCalc.addValue((double) takes);
             log(" account loaded in " + Utils.millisToDHMSStr(takes) + ":" + m_account);
             double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
             log("  valuateBtc=" + valuateBtc + " BTC");
-            if (oldAccount!= null) {
+            if (oldAccount != null) {
                 oldAccount.compareFunds(m_account);
             }
             m_maySyncAccount = false;
@@ -216,7 +230,10 @@ public abstract class BaseExecutor implements Runnable {
         m_liveOrdersTakesCalc.addValue((double) takes);
         log(" liveOrders loaded in " + Utils.millisToDHMSStr(takes) + " :" + ordersData);
         return new IIterationContext.BaseIterationContext() {
-            @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception { return ordersData; }
+            @Override
+            public OrdersData getLiveOrders(Exchange exchange) throws Exception {
+                return ordersData;
+            }
         };
     }
 
@@ -341,7 +358,7 @@ public abstract class BaseExecutor implements Runnable {
         m_lastProcessDirectionTime = System.currentTimeMillis();
         double directionAdjusted = getDirectionAdjusted(); // [-1 ... 1]
 
-        if( (m_buy == 0) || (m_sell == 0)) {
+        if ((m_buy == 0) || (m_sell == 0)) {
             log("  directionAdjusted=" + directionAdjusted + ". but no bid/ask defined: " + m_buy + "/" + m_sell);
             return STATE_NO_CHANGE;
         }
@@ -365,6 +382,17 @@ public abstract class BaseExecutor implements Runnable {
         double orderSize = Math.abs(needBuyBtc);
         OrderSide needOrderSide = (needBuyBtc == 0) ? null : (needBuyBtc > 0) ? OrderSide.BUY : OrderSide.SELL;
         log("   needOrderSide=" + needOrderSide + "; orderSize=" + orderSize);
+        double exchMinOrderToCreate = m_exchange.minOrderToCreate(m_pair);
+        double minOrderSizeToCreate = minOrderSizeToCreate();
+        if ((orderSize < exchMinOrderToCreate) || (orderSize < minOrderSizeToCreate)) {
+            log("small needOrderSide=" + needOrderSide +
+                    "; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
+            if (m_maySyncAccount) {
+                log("no orders - we may re-check account");
+                initAccount();
+            }
+            return STATE_NO_CHANGE;
+        }
 
         if (orderSize != 0) {
             double orderSizeAdjusted = orderSize;
@@ -385,7 +413,6 @@ public abstract class BaseExecutor implements Runnable {
             double canBuyBtc = adjustSizeToAvailable(needBuyBtc);
             log("      needBuyBtc " + Utils.format8(needBuyBtc) + " adjusted by Available: canBuyBtc=" + Utils.format8(canBuyBtc));
             double notEnough = Math.abs(needBuyBtc - canBuyBtc);
-            double minOrderSizeToCreate = minOrderSizeToCreate();
             if (notEnough > minOrderSizeToCreate) {
                 boolean cancelPerformed = cancelOtherOrdersIfNeeded(needOrderSide, notEnough);
                 if (cancelPerformed) {
@@ -398,7 +425,6 @@ public abstract class BaseExecutor implements Runnable {
             double placeOrderSize = Math.abs(orderSizeRound);
             log("        orderSizeAdjusted=" + Utils.format8(canBuyBtc) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
 
-            double exchMinOrderToCreate = m_exchange.minOrderToCreate(m_pair);
             if ((placeOrderSize >= exchMinOrderToCreate) && (placeOrderSize >= minOrderSizeToCreate)) {
                 if (checkNoOpenOrders()) {
                     long tickAge = System.currentTimeMillis() - m_topMillis;
@@ -414,10 +440,13 @@ public abstract class BaseExecutor implements Runnable {
                     OrderData placeOrder = new OrderData(m_pair, needOrderSide, orderPrice, placeOrderSize);
                     log("   place orderData=" + placeOrder);
 
+                    double buy = m_buy;
+                    double sell = m_sell;
+                    TopSource topSource = m_topSource;
                     if (placeOrderToExchange(m_exchange, placeOrder)) {
                         m_orderPlaceAttemptCounter++;
                         log("    orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
-                        onOrderPlace(placeOrder, tickAge);
+                        onOrderPlace(placeOrder, tickAge, buy, sell, topSource);
                         return STATE_ORDER;
                     } else {
                         log("order place error - switch to ERROR state");
@@ -433,7 +462,7 @@ public abstract class BaseExecutor implements Runnable {
                     log("no orders - we may re-check account");
                     initAccount();
                 }
-                return STATE_NONE;
+                return STATE_NO_CHANGE;
             }
         } else {
             log("order cancel was attempted. time passed. posting recheck direction");
@@ -447,13 +476,30 @@ public abstract class BaseExecutor implements Runnable {
         long start = System.currentTimeMillis();
         TopData top = Fetcher.fetchTopOnce(m_exchange, m_pair);
         long end = System.currentTimeMillis();
+        TopDataPoint topDataPoint = new TopDataPoint(top, end);
+        addTopDataPoint(topDataPoint);
         addTimeFrame(TimeFrameType.top, start, end);
         long takes = end - start;
         m_topTakesCalc.addValue((double) takes);
         if (top != null) { // we got fresh top data
-            onTopInt(System.currentTimeMillis(), top.m_bid, top.m_ask);
+            double bidAskDiff = m_sell - m_buy;
+            double allowBuy = m_buy - TOO_OLD_TICK_RATE * bidAskDiff;
+            double allowSell = m_sell + TOO_OLD_TICK_RATE * bidAskDiff;
+            double buy = top.m_bid;
+            double sell = top.m_ask;
+            if ((buy > allowBuy) && (sell < allowSell)) {
+                onTopInt(System.currentTimeMillis(), buy, sell, TopSource.top_fetch);
+            } else {
+                log("LOADED too far top. IGNORING: buy=" + buy + "; sell=" + sell + ";  current: m_buy=" + m_buy + "; m_sell=" + m_sell);
+            }
         }
         postRecheckDirection();
+    }
+
+    protected void addTopDataPoint(TopDataPoint topDataPoint) {
+        synchronized (m_tops) {
+            m_tops.add(topDataPoint);
+        }
     }
 
     private double calcOrderPrice(Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
@@ -533,13 +579,17 @@ public abstract class BaseExecutor implements Runnable {
         /// bid  100 will buy
         // order 95 buy
         double threshold = (m_sell - m_buy) * outOfMarketThreshold(); // allow 1/2 bidAdsDiff for order price to be out of mkt prices
-        if ((isBuy && (m_buy - threshold > orderPrice)) || (!isBuy && (m_sell + threshold < orderPrice))) {
-            log("  order " + order.m_orderId + " " + order.m_side + "@" + orderPrice + " is FAR out of MKT [buy=" + m_buy + "; sell=" + m_sell + "]");
+        double outOfMarketDistance = isBuy ? m_buy - orderPrice : orderPrice - m_sell;
+        if (outOfMarketDistance > 0) {
+            double outOfMarketRate = outOfMarketDistance / threshold;
+            log(" checkOrderOutOfMarket " + order.m_orderId + " " + order.m_side + "@" + orderPrice + " is out of MKT [buy=" + m_buy + "; sell=" + m_sell + "] distance=" + outOfMarketDistance + "; rate=" + outOfMarketRate);
             long liveTime = System.currentTimeMillis() - order.m_placeTime;
-            if (liveTime < minOrderLiveTime()) {
-                log("   order liveTime=" + liveTime + "ms - wait little bit more");
+            long minOrderLiveTime = minOrderLiveTime();
+            long allowOrderLiveTime = (long) (minOrderLiveTime / outOfMarketRate);
+            if (liveTime < allowOrderLiveTime) {
+                log("   order liveTime=" + liveTime + "ms allowOrderLiveTime=" + allowOrderLiveTime + " - wait little bit more");
             } else {
-                log("   order liveTime=" + liveTime + "ms - cancel order...");
+                log("   order liveTime=" + liveTime + "ms allowOrderLiveTime=" + allowOrderLiveTime + " - cancel order...");
                 String error = cancelOrder(order);
                 if (error == null) {
                     ret |= FLAG_CANCELED;
@@ -579,12 +629,14 @@ public abstract class BaseExecutor implements Runnable {
                 double buy = (m_buy * 2 + tradePrice) / 3;
                 log("  buy is adapted to trade price: " + m_buy + " -> " + buy);
                 m_buy = buy;
+                m_topSource = TopSource.trade;
                 m_topMillis = timestamp;
             }
             if (tradePrice > m_sell) {
                 double sell = (m_sell * 2 + tradePrice) / 3;
                 log("  sell is adapted to trade price: " + m_sell + " -> " + sell);
                 m_sell = sell;
+                m_topSource = TopSource.trade;
                 m_topMillis = timestamp;
             }
             m_tradeMillis = timestamp;
@@ -602,16 +654,16 @@ public abstract class BaseExecutor implements Runnable {
 
     public String dumpTakesTime() {
         return " order:" + Utils.format5(m_placeOrderTakesCalc.getAverage()) +
-               " live:" + Utils.format5(m_liveOrdersTakesCalc.getAverage()) +
-               " account:" + Utils.format5(m_initAccountTakesCalc.getAverage()) +
-               " cancel:" + Utils.format5(m_cancelOrderTakesCalc.getAverage()) +
-               " top:" + Utils.format5(m_topTakesCalc.getAverage());
+                " live:" + Utils.format5(m_liveOrdersTakesCalc.getAverage()) +
+                " account:" + Utils.format5(m_initAccountTakesCalc.getAverage()) +
+                " cancel:" + Utils.format5(m_cancelOrderTakesCalc.getAverage()) +
+                " top:" + Utils.format5(m_topTakesCalc.getAverage());
     }
 
 
     //-------------------------------------------------------------------------------
     public class TopTask extends TaskQueueProcessor.SinglePresenceTask {
-        public TopTask() {}
+        public TopTask() { }
 
         @Override public void process() throws Exception {
             gotTop();
@@ -652,15 +704,16 @@ public abstract class BaseExecutor implements Runnable {
             return null;
         }
 
-        @Override public void process() throws Exception { gotTrade(m_tData); }
-        @Override public String toString() {
-            return "TradeTask[tData=" + m_tData + "]";
+        @Override public void process() throws Exception {
+            gotTrade(m_tData);
         }
+
+        @Override public String toString() { return "TradeTask[tData=" + m_tData + "]"; }
     }
 
     //-------------------------------------------------------------------------------
     public class InitTask extends TaskQueueProcessor.SinglePresenceTask {
-        public InitTask() {}
+        public InitTask() { }
 
         @Override public void process() throws Exception {
             log("InitTask.process()");
@@ -670,7 +723,8 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     public class RecheckDirectionTask extends TaskQueueProcessor.SinglePresenceTask {
-        public RecheckDirectionTask() {}
+        public RecheckDirectionTask() {
+        }
 
         @Override public TaskQueueProcessor.DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
             TaskQueueProcessor.DuplicateAction duplicate = super.isDuplicate(other);
@@ -680,7 +734,9 @@ public abstract class BaseExecutor implements Runnable {
             return duplicate;
         }
 
-        @Override public void process() throws Exception { recheckDirection(); }
+        @Override public void process() throws Exception {
+            recheckDirection();
+        }
     }
 
     //-------------------------------------------------------------------------------
@@ -703,6 +759,23 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     protected enum OrderPriceMode {
+        OSC {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                // directionAdjusted [-1 ... 1]
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                double avgOsc = baseExecutor.getAvgOsc(); // [0 ... 1]
+                log("  buy=" + buy + "; sell=" + sell + "; avgOsc="+avgOsc+"; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
+                double midPrice = (buy + sell) / 2;
+                double bidAskDiff = sell - buy;
+                double adjustedPrice = buy + bidAskDiff*avgOsc;
+                log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff + "; adjustedPrice=" + adjustedPrice);
+                RoundingMode roundMode = needOrderSide.getPegRoundMode();
+                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
         NORMAL {
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 // directionAdjusted [-1 ... 1]
@@ -716,7 +789,7 @@ public abstract class BaseExecutor implements Runnable {
                 int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
                 double orderPriceCounterCorrection = bidAskDiff / 5 * orderPlaceAttemptCounter;
                 double adjustedPrice = followMktPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
-                log("   orderPlaceAttemptCounter="+ orderPlaceAttemptCounter +"; orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
+                log("   orderPlaceAttemptCounter=" + orderPlaceAttemptCounter + "; orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
                 RoundingMode roundMode = needOrderSide.getPegRoundMode();
                 double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
                 log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
@@ -748,7 +821,9 @@ public abstract class BaseExecutor implements Runnable {
             }
         };
 
-        public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) { return 0; }
+        public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+            return 0;
+        }
     }
 
     public enum TimeFrameType {
@@ -765,7 +840,7 @@ public abstract class BaseExecutor implements Runnable {
             @Override public Color color() { return Color.orange; }
         },
         recheckDirection {
-            @Override public Color color() { return Color.white; }
+            @Override public Color color() { return Color.white;}
             @Override public int level() { return 2; }
         },
         top {
@@ -785,6 +860,31 @@ public abstract class BaseExecutor implements Runnable {
             m_type = type;
             m_start = start;
             m_end = end;
+        }
+    }
+
+    public enum TopSource {
+        top_subscribe {
+            @Override public Color color() { return Color.darkGray; }
+        },
+        top_fetch {
+            @Override public Color color() { return Color.red; }
+        },
+        trade {
+            @Override public Color color() { return Color.orange; }
+        };
+        public Color color() { return null; }
+    }
+
+    public class TopDataPoint {
+        public final double m_bid;
+        public final double m_ask;
+        public final long m_timestamp;
+
+        public TopDataPoint(TopData topData, long timestamp) {
+            m_bid = topData.m_bid;
+            m_ask = topData.m_ask;
+            m_timestamp = timestamp;
         }
     }
 }

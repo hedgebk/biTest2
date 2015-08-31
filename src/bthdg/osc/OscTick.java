@@ -1,5 +1,7 @@
 package bthdg.osc;
 
+import bthdg.util.Utils;
+
 public class OscTick implements Comparable<OscTick>{
     public final long m_startTime;
     public final double m_val1;
@@ -14,6 +16,6 @@ public class OscTick implements Comparable<OscTick>{
     public double getMid() { return (m_val1 + m_val2) / 2; }
 
     @Override public int compareTo(OscTick other) {
-        return Long.compare(m_startTime, other.m_startTime);
+        return Utils.compare(m_startTime, other.m_startTime);
     }
 }
