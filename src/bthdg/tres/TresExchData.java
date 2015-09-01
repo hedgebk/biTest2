@@ -12,7 +12,7 @@ import bthdg.ws.IWs;
 import java.util.LinkedList;
 
 public class TresExchData {
-    public static final double PEAK_TOLERANCE = 0.001;
+    public static final double AVG_OSC_PEAK_TOLERANCE = 0.05;
 
     final Tres m_tres;
     final IWs m_ws;
@@ -23,11 +23,12 @@ public class TresExchData {
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
     final LinkedList<AvgOscPoint> m_avgOscs = new LinkedList<AvgOscPoint>();
     final public LinkedList<AvgOscPoint> m_avgOscsPeaks = new LinkedList<AvgOscPoint>();
-    final TrendWatcher<AvgOscPoint> m_avgOscsPeakCalculator = new TrendWatcher<AvgOscPoint>(PEAK_TOLERANCE) {
+    final TrendWatcher<AvgOscPoint> m_avgOscsPeakCalculator = new TrendWatcher<AvgOscPoint>(AVG_OSC_PEAK_TOLERANCE) {
         @Override protected double toDouble(AvgOscPoint avgOscPoint) { return avgOscPoint.m_avgOsc; }
         @Override protected void onNewPeak(AvgOscPoint peak) {
             synchronized (m_avgOscsPeaks) {
                 m_avgOscsPeaks.add(peak);
+                m_executor.postRecheckDirection();
             }
         }
     };

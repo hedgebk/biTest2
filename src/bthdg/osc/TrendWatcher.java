@@ -6,7 +6,7 @@ public abstract class TrendWatcher<O> {
     protected final double m_tolerance;
     O m_peak;
     private O m_peakCandidate;
-    Direction m_direction;
+    public Direction m_direction;
 
     protected abstract double toDouble(O value);
 
@@ -17,7 +17,7 @@ public abstract class TrendWatcher<O> {
     public void update(O value) {
         if (m_peak == null) {
             m_peak = value;
-            onNewPeak(m_peak);
+//            onNewPeak(m_peak);
         } else {
             double tolerance = getTolerance(value);
             double doubleValue = toDouble(value);

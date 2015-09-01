@@ -31,6 +31,7 @@ public class TresCanvas extends JComponent {
     public static final Color BID_ASK_COLOR = Colors.setAlpha(Color.darkGray, 90);
     public static final Color AVG_OSCS_COLOR = Color.pink;
     public static final Color OSC_PEAKS_COLOR = Colors.setAlpha(Colors.LIGHT_CYAN, 127);
+    public static final Color BAR_HIGHLIGHT_COLOR = new Color(32, 32, 32);
 
     private Tres m_tres;
     private Point m_point;
@@ -356,7 +357,7 @@ public class TresCanvas extends JComponent {
         int barStartX = m_xTimeAxe.getPoint(barStart);
         long barEnd = barStart + barSize;
         int barEndX = m_xTimeAxe.getPoint(barEnd);
-        g.setColor(Color.DARK_GRAY);
+        g.setColor(BAR_HIGHLIGHT_COLOR);
         g.fillRect(barStartX, 0, barEndX - barStartX, getWidth());
     }
 
