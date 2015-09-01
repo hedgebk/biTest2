@@ -30,6 +30,7 @@ public class TresCanvas extends JComponent {
     public static final int DIRECTION_ARROW_SIZE = 20;
     public static final Color BID_ASK_COLOR = Colors.setAlpha(Color.darkGray, 90);
     public static final Color AVG_OSCS_COLOR = Color.pink;
+    public static final Color OSC_PEAKS_COLOR = Colors.setAlpha(Colors.LIGHT_CYAN, 127);
 
     private Tres m_tres;
     private Point m_point;
@@ -220,10 +221,12 @@ public class TresCanvas extends JComponent {
             paintLine(g, 0.8);
 
             for (PhaseData phData : phaseDatas) {
-                paintOscTicks(g, phData.m_oscCalculator.m_oscBars);
+                TresOscCalculator phaseOscCalculator = phData.m_oscCalculator;
+                paintOscTicks(g, phaseOscCalculator.m_oscBars);
+                paintOscPeaks(g, phaseOscCalculator.m_oscPeaks);
             }
             paintAvgOscs(g, exchData.m_avgOscs);
-            paintOscPeaks(g, oscCalculator.m_oscPeaks);
+//            paintOscPeaks(g, oscCalculator.m_oscPeaks);
             paintAvgOscPeaks(g, exchData.m_avgOscsPeaks);
 
             paintMaTicks(g, phaseData.m_maCalculator, yPriceAxe);
@@ -621,7 +624,7 @@ public class TresCanvas extends JComponent {
         g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled + "; volume=" + executor.m_tradeVolume, 2, height - fontHeight * 4);
         g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 5);
         g.drawString("takes:" + executor.dumpTakesTime(), 2, height - fontHeight * 6);
-        g.drawString("tickAge: " + executor.m_tickAgeCalc.getAverage(), 2, height - fontHeight * 7);
+        g.drawString("avgTickAge: " + executor.m_tickAgeCalc.getAverage(), 2, height - fontHeight * 7);
 
         OrderData order = executor.m_order;
         if (order != null) {
@@ -902,7 +905,7 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintOscPeaks(Graphics g, LinkedList<OscTick> oscPeaks) {
-        g.setColor(Colors.LIGHT_CYAN);
+        g.setColor(OSC_PEAKS_COLOR);
 
         double min = m_xTimeAxe.m_min;
         double max = m_xTimeAxe.m_max;
