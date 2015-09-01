@@ -4,17 +4,16 @@ import bthdg.Log;
 import bthdg.exch.OrderData;
 import bthdg.exch.TradeData;
 import bthdg.osc.BaseExecutor;
+import bthdg.osc.TrendWatcher;
 import bthdg.util.Queue;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.LinkedList;
-import java.util.Locale;
-import java.util.TimeZone;
 
 public class TresExchData {
+    public static final double PEAK_TOLERANCE = 0.001;
+
     final Tres m_tres;
     final IWs m_ws;
     final LinkedList<TradeData> m_trades = new LinkedList<TradeData>();
@@ -23,6 +22,15 @@ public class TresExchData {
     final Queue<TradeData> m_tradesQueue;
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
     final LinkedList<AvgOscPoint> m_avgOscs = new LinkedList<AvgOscPoint>();
+    final public LinkedList<AvgOscPoint> m_avgOscsPeaks = new LinkedList<AvgOscPoint>();
+    final TrendWatcher<AvgOscPoint> m_avgOscsPeakCalculator = new TrendWatcher<AvgOscPoint>(PEAK_TOLERANCE) {
+        @Override protected double toDouble(AvgOscPoint avgOscPoint) { return avgOscPoint.m_avgOsc; }
+        @Override protected void onNewPeak(AvgOscPoint peak) {
+            synchronized (m_avgOscsPeaks) {
+                m_avgOscsPeaks.add(peak);
+            }
+        }
+    };
     double m_lastPrice;
     private boolean m_updated;
     long m_startTickMillis = Long.MAX_VALUE;
@@ -49,7 +57,9 @@ public class TresExchData {
                     double avgOsc = calcAvgOsc();
                     long millis = System.currentTimeMillis();
                     synchronized (m_avgOscs) {
-                        m_avgOscs.add(new AvgOscPoint(millis, avgOsc));
+                        AvgOscPoint avgOscPoint = new AvgOscPoint(millis, avgOsc);
+                        m_avgOscs.add(avgOscPoint);
+                        m_avgOscsPeakCalculator.update(avgOscPoint);
                     }
                 }
             };
@@ -112,14 +122,14 @@ public class TresExchData {
 
         long min = Math.min(m_startTickMillis, timestamp);
         if ((min < m_startTickMillis) && (m_startTickMillis != Long.MAX_VALUE)) {
-            TimeZone TZ = TimeZone.getTimeZone("Asia/Hong_Kong"); // utc+08:00 Beijing, Hong Kong, Urumqi
-            Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
-            NOW_CALENDAR.setTimeInMillis(timestamp);
-            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS Z, zzzz");
-            simpleDateFormat.setTimeZone(TZ);
-            String str = simpleDateFormat.format(NOW_CALENDAR.getTime());
-            log("str="+str);
-            log("GOT");
+//            TimeZone TZ = TimeZone.getTimeZone("Asia/Hong_Kong"); // utc+08:00 Beijing, Hong Kong, Urumqi
+//            Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
+//            NOW_CALENDAR.setTimeInMillis(timestamp);
+//            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS Z, zzzz");
+//            simpleDateFormat.setTimeZone(TZ);
+//            String str = simpleDateFormat.format(NOW_CALENDAR.getTime());
+//            log("str="+str);
+//            log("GOT");
         } else {
             m_startTickMillis = min;
         }
