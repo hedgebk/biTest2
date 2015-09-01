@@ -768,7 +768,31 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     protected enum OrderPriceMode {
-        OSC_REVERSE {
+        OSC_REVERSE_AVG {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                // directionAdjusted [-1 ... 1]
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                double diff = sell - buy;
+                double avgBuy = baseExecutor.m_buyAvgCounter.get();
+                double avgSell = baseExecutor.m_sellAvgCounter.get();
+                double avgDiff = avgSell - avgBuy;
+                double avgOsc = baseExecutor.getAvgOsc(); // [0 ... 1]
+                log("  buy=" + buy + "; sell=" + sell + "; diff=" + diff +
+                        "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
+                        "; avgOsc=" + avgOsc + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
+                double diffRate = diff / avgDiff;
+                double rate = diffRate > 1 ? Math.sqrt(diffRate) : 1;
+                double midPrice = (buy + sell) / 2;
+                double adjustedPrice = midPrice + rate * avgDiff * (0.5 - avgOsc);
+                log("    diffRate=" + diffRate + " rate=" + rate + ";  midPrice=" + midPrice + "; adjustedPrice=" + adjustedPrice);
+                RoundingMode roundMode = needOrderSide.getMktRoundMode();
+                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
+       OSC_REVERSE {
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 // directionAdjusted [-1 ... 1]
                 double buy = baseExecutor.m_buy;
