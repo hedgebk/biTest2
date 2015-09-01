@@ -54,7 +54,7 @@ class OscExecutor extends BaseExecutor {
     @Override protected double useFundsFromAvailable() { return Osc.USE_FUNDS_FROM_AVAILABLE; }
 
     public OscExecutor(IWs ws) {
-        super(ws, Osc.PAIR);
+        super(ws, Osc.PAIR, Osc.AVG_BAR_SIZE);
         m_avgStochDirectionAdjuster = new AvgStochDirectionAdjuster();
         m_avgPriceDirectionAdjuster = new AvgPriceDirectionAdjuster();
         for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {

@@ -55,6 +55,8 @@ public abstract class BaseExecutor implements Runnable {
     public final Utils.DoubleDoubleAverageCalculator m_tickAgeCalc = new Utils.DoubleDoubleAverageCalculator();
     public final LinkedList<TimeFramePoint> m_timeFramePoints = new LinkedList<TimeFramePoint>();
     public LinkedList<TopDataPoint> m_tops = new LinkedList<TopDataPoint>();
+    public final Utils.AverageCounter m_buyAvgCounter;
+    public final Utils.AverageCounter m_sellAvgCounter;
 
     protected static void log(String s) { Log.log(s); }
     public String dumpWaitTime() { return (m_taskQueueProcessor == null) ? "" : m_taskQueueProcessor.dumpWaitTime(); }
@@ -84,11 +86,13 @@ public abstract class BaseExecutor implements Runnable {
 
     protected double getAvgOsc() { return 1; }
 
-    public BaseExecutor(IWs ws, Pair pair) {
+    public BaseExecutor(IWs ws, Pair pair, long barSizeMillis) {
         m_ws = ws;
         m_pair = pair;
         m_exchange = m_ws.exchange();
         m_startMillis = System.currentTimeMillis();
+        m_buyAvgCounter = new Utils.FadingAverageCounter(barSizeMillis);
+        m_sellAvgCounter = new Utils.FadingAverageCounter(barSizeMillis);
     }
 
     @Override public void run() {
@@ -183,11 +187,14 @@ public abstract class BaseExecutor implements Runnable {
         }
         m_buy = buy;
         m_sell = sell;
+        double avgBuy = m_buyAvgCounter.add(buy);
+        double avgSell = m_sellAvgCounter.add(sell);
+
         m_topSource = topSource;
         m_topMillis = System.currentTimeMillis();
 
         TopData topData = new TopData(buy, sell);
-        TopDataPoint topDataPoint = new TopDataPoint(topData, timestamp);
+        TopDataPoint topDataPoint = new TopDataPoint(topData, timestamp, avgBuy, avgSell);
         addTopDataPoint(topDataPoint);
         m_topsData.put(m_pair, topData);
         log(" topsData'=" + m_topsData);
@@ -476,21 +483,23 @@ public abstract class BaseExecutor implements Runnable {
         long start = System.currentTimeMillis();
         TopData top = Fetcher.fetchTopOnce(m_exchange, m_pair);
         long end = System.currentTimeMillis();
-        TopDataPoint topDataPoint = new TopDataPoint(top, end);
+        TopDataPoint topDataPoint = new TopDataPoint(top, end, top.m_bid, top.m_ask);
         addTopDataPoint(topDataPoint);
         addTimeFrame(TimeFrameType.top, start, end);
         long takes = end - start;
         m_topTakesCalc.addValue((double) takes);
         if (top != null) { // we got fresh top data
-            double bidAskDiff = m_sell - m_buy;
-            double allowBuy = m_buy - TOO_OLD_TICK_RATE * bidAskDiff;
-            double allowSell = m_sell + TOO_OLD_TICK_RATE * bidAskDiff;
+            double avgBuy = m_buyAvgCounter.get();
+            double avgSell = m_sellAvgCounter.get();
+            double avgBidAskDiff = avgSell - avgBuy;
+            double allowBuy = avgBuy - TOO_OLD_TICK_RATE * avgBidAskDiff;
+            double allowSell = avgSell + TOO_OLD_TICK_RATE * avgBidAskDiff;
             double buy = top.m_bid;
             double sell = top.m_ask;
             if ((buy > allowBuy) && (sell < allowSell)) {
                 onTopInt(System.currentTimeMillis(), buy, sell, TopSource.top_fetch);
             } else {
-                log("LOADED too far top. IGNORING: buy=" + buy + "; sell=" + sell + ";  current: m_buy=" + m_buy + "; m_sell=" + m_sell);
+                log("LOADED too far top. IGNORING: top=" + top + "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + ";  current: m_buy=" + m_buy + "; m_sell=" + m_sell);
             }
         }
         postRecheckDirection();
@@ -759,16 +768,33 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     protected enum OrderPriceMode {
+        OSC_REVERSE {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                // directionAdjusted [-1 ... 1]
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                double avgOsc = baseExecutor.getAvgOsc(); // [0 ... 1]
+                log("  buy=" + buy + "; sell=" + sell + "; avgOsc=" + avgOsc + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
+                double midPrice = (buy + sell) / 2;
+                double bidAskDiff = sell - buy;
+                double adjustedPrice = buy + bidAskDiff * (1 - avgOsc);
+                log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff + "; adjustedPrice=" + adjustedPrice);
+                RoundingMode roundMode = needOrderSide.getMktRoundMode();
+                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
         OSC {
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 // directionAdjusted [-1 ... 1]
                 double buy = baseExecutor.m_buy;
                 double sell = baseExecutor.m_sell;
                 double avgOsc = baseExecutor.getAvgOsc(); // [0 ... 1]
-                log("  buy=" + buy + "; sell=" + sell + "; avgOsc="+avgOsc+"; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
+                log("  buy=" + buy + "; sell=" + sell + "; avgOsc=" + avgOsc + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
                 double midPrice = (buy + sell) / 2;
                 double bidAskDiff = sell - buy;
-                double adjustedPrice = buy + bidAskDiff*avgOsc;
+                double adjustedPrice = buy + bidAskDiff * avgOsc;
                 log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff + "; adjustedPrice=" + adjustedPrice);
                 RoundingMode roundMode = needOrderSide.getPegRoundMode();
                 double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
@@ -880,11 +906,15 @@ public abstract class BaseExecutor implements Runnable {
         public final double m_bid;
         public final double m_ask;
         public final long m_timestamp;
+        public final double m_avgBuy;
+        public final double m_avgSell;
 
-        public TopDataPoint(TopData topData, long timestamp) {
+        public TopDataPoint(TopData topData, long timestamp, double avgBuy, double avgSell) {
             m_bid = topData.m_bid;
             m_ask = topData.m_ask;
             m_timestamp = timestamp;
+            m_avgBuy = avgBuy;
+            m_avgSell = avgSell;
         }
     }
 }
