@@ -5,10 +5,7 @@ import bthdg.util.Snoozer;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
 
 public class TresFrame extends JFrame implements Runnable {
     private final Tres m_tres;
@@ -36,13 +33,46 @@ public class TresFrame extends JFrame implements Runnable {
         JPanel panel1 = new JPanel(new BorderLayout());
         {
             panel1.setBackground(Color.BLACK);
-            JPanel panel = new JPanel(new FlowLayout());
+            JPanel topPanel = new JPanel(new FlowLayout());
             {
+                topPanel.setBackground(Color.DARK_GRAY);
                 m_label = new JLabel("...");
-                panel.add(m_label);
-                panel.add(new JButton("BTN"));
+                topPanel.add(m_label);
+                topPanel.add(new JButton("BTN") {
+                    @Override protected void fireActionPerformed(ActionEvent event) {
+                        super.fireActionPerformed(event);
+                        log("BTN.fireActionPerformed: " + event);
+                    }
+
+                    @Override protected void fireItemStateChanged(ItemEvent event) {
+                        super.fireItemStateChanged(event);
+                        log("BTN.fireItemStateChanged: " + event);
+                    }
+
+                    @Override protected void fireStateChanged() {
+                        super.fireStateChanged();
+                        log("BTN.fireStateChanged");
+                    }
+                });
+                topPanel.add(new JCheckBox("osc") {
+                    @Override protected void fireStateChanged() {
+                        super.fireStateChanged();
+                        log("osc.fireStateChanged Selected=" + isSelected());
+                    }
+
+                    @Override protected void fireActionPerformed(ActionEvent event) {
+                        super.fireActionPerformed(event);
+                        log("osc.fireActionPerformed: " + event);
+                    }
+
+                    @Override protected void fireItemStateChanged(ItemEvent event) {
+                        super.fireItemStateChanged(event);
+                        log("osc.fireItemStateChanged: " + event);
+                    }
+                });
+                topPanel.add(new JCheckBox("top"));
             }
-            panel1.add(panel, BorderLayout.NORTH);
+            panel1.add(topPanel, BorderLayout.NORTH);
             m_canvas = new TresCanvas(m_tres);
             panel1.add(m_canvas, BorderLayout.CENTER);
         }

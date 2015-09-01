@@ -175,9 +175,10 @@ public class Tres {
 
     String getState() {
         StringBuilder sb = new StringBuilder();
-        for (TresExchData exchData : m_exchDatas) {
-            exchData.getState(sb);
-        }
+//        for (TresExchData exchData : m_exchDatas) {
+//            exchData.getState(sb);
+//        }
+        m_exchDatas.get(0).getState(sb);
         return sb.toString();
     }
 
