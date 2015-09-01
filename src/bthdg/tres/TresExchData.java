@@ -145,6 +145,11 @@ public class TresExchData {
         }
     }
 
+    public void getState0(StringBuilder sb) {
+        sb.append("[").append(m_ws.exchange()).append("]: last=").append(m_lastPrice);
+        m_phaseDatas[0].getState(sb);
+    }
+
     public double getDirectionAdjusted() { // [-1 ... 1]
         double directionAdjusted = 0;
         for (PhaseData phaseData : m_phaseDatas) {
