@@ -1,5 +1,8 @@
 package bthdg.tres;
 
+import bthdg.calc.OHLCCalculator;
+import bthdg.calc.OHLCTick;
+
 import java.util.LinkedList;
 
 public class TresOHLCCalculator extends OHLCCalculator {

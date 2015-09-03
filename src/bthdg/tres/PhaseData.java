@@ -1,7 +1,7 @@
 package bthdg.tres;
 
+import bthdg.calc.OscTick;
 import bthdg.exch.TradeData;
-import bthdg.osc.OscTick;
 
 import java.util.LinkedList;
 

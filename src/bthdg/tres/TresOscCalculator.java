@@ -1,8 +1,8 @@
 package bthdg.tres;
 
 import bthdg.Log;
-import bthdg.osc.OscCalculator;
-import bthdg.osc.OscTick;
+import bthdg.calc.OscCalculator;
+import bthdg.calc.OscTick;
 import bthdg.osc.TrendWatcher;
 
 import java.util.LinkedList;

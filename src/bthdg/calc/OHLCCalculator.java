@@ -1,4 +1,4 @@
-package bthdg.tres;
+package bthdg.calc;
 
 import bthdg.exch.TradeData;
 

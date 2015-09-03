@@ -3,6 +3,8 @@ package bthdg.osc;
 import bthdg.BaseChartPaint;
 import bthdg.ChartAxe;
 import bthdg.PaintChart;
+import bthdg.calc.OscCalculator;
+import bthdg.calc.OscTick;
 import bthdg.exch.Exchange;
 import bthdg.exch.OrderSide;
 import bthdg.util.Colors;

@@ -1,4 +1,4 @@
-package bthdg.osc;
+package bthdg.calc;
 
 import bthdg.util.Utils;
 

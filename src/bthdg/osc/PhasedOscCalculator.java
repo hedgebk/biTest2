@@ -1,6 +1,7 @@
 package bthdg.osc;
 
 import bthdg.Log;
+import bthdg.calc.OscCalculator;
 import bthdg.exch.OrderSide;
 
 class PhasedOscCalculator extends OscCalculator {

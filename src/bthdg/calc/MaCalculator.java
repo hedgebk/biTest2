@@ -1,4 +1,4 @@
-package bthdg.tres;
+package bthdg.calc;
 
 import bthdg.exch.TradeData;
 
@@ -15,14 +15,10 @@ public class MaCalculator extends BarCalculator {
     protected void updateMaBar(double ma) {}
     protected void endMaBar(long barEnd, double ma, TradeData tdata) {}
 
-    public MaCalculator(TresExchData exchData, int phaseIndex, MaType type, int maSize) {
-        super(exchData.m_tres.m_barSizeMillis, getOffset(phaseIndex, exchData.m_tres));
+    public MaCalculator(long barSizeMillis, long barsMillisOffset, MaType type, int maSize) {
+        super(barSizeMillis, barsMillisOffset);
         m_type = type;
         m_maSize = maSize;
-    }
-
-    private static long getOffset(int index, Tres tres) {
-        return tres.m_barSizeMillis * (index % tres.m_phases) / tres.m_phases;
     }
 
     @Override protected void finishCurrentBar(long barStart, long barEnd, TradeData tdata) {

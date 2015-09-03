@@ -2,9 +2,10 @@ package bthdg.tres;
 
 import bthdg.ChartAxe;
 import bthdg.Log;
+import bthdg.calc.OHLCTick;
+import bthdg.calc.OscTick;
 import bthdg.exch.*;
 import bthdg.osc.BaseExecutor;
-import bthdg.osc.OscTick;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
 
