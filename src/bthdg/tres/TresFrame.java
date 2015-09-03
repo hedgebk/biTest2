@@ -42,32 +42,15 @@ public class TresFrame extends JFrame implements Runnable {
                     @Override protected void fireActionPerformed(ActionEvent event) {
                         super.fireActionPerformed(event);
                         log("BTN.fireActionPerformed: " + event);
-                    }
+                        // BTN.fireActionPerformed: java.awt.event.ActionEvent[ACTION_PERFORMED,cmd=null,when=1441149624139,modifiers=Button1] on javax.swing.DefaultButtonModel@59b23128
 
-                    @Override protected void fireItemStateChanged(ItemEvent event) {
-                        super.fireItemStateChanged(event);
-                        log("BTN.fireItemStateChanged: " + event);
-                    }
-
-                    @Override protected void fireStateChanged() {
-                        super.fireStateChanged();
-                        log("BTN.fireStateChanged");
                     }
                 });
                 topPanel.add(new JCheckBox("osc") {
-                    @Override protected void fireStateChanged() {
-                        super.fireStateChanged();
-                        log("osc.fireStateChanged Selected=" + isSelected());
-                    }
-
-                    @Override protected void fireActionPerformed(ActionEvent event) {
-                        super.fireActionPerformed(event);
-                        log("osc.fireActionPerformed: " + event);
-                    }
-
                     @Override protected void fireItemStateChanged(ItemEvent event) {
                         super.fireItemStateChanged(event);
                         log("osc.fireItemStateChanged: " + event);
+                        // osc.fireItemStateChanged: java.awt.event.ItemEvent[ITEM_STATE_CHANGED,item=javax.swing.JToggleButton$ToggleButtonModel@47738e30,stateChange=SELECTED] on javax.swing.JToggleButton$ToggleButtonModel@47738e30
                     }
                 });
                 topPanel.add(new JCheckBox("top"));
