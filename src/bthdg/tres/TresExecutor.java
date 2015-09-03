@@ -14,10 +14,10 @@ import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
     private static final long MIN_ORDER_LIVE_TIME = 7000;
-    private static final double OUT_OF_MARKET_THRESHOLD = 0.5;
-    private static final long MIN_REPROCESS_DIRECTION_TIME = 10000;
+    private static final double OUT_OF_MARKET_THRESHOLD = 0.6;
+    private static final long MIN_REPROCESS_DIRECTION_TIME = 12000;
     private static final double ORDER_SIZE_TOLERANCE = 0.3;
-    private static final double MIN_ORDER_SIZE = 0.10; // btc
+    private static final double MIN_ORDER_SIZE = 0.05; // btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
 
     private final TresExchData m_exchData;
@@ -39,7 +39,7 @@ public class TresExecutor extends BaseExecutor {
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
         super(ws, pair, exchData.m_tres.m_barSizeMillis);
         m_exchData = exchData;
-        m_orderPriceMode = OrderPriceMode.OSC_REVERSE_AVG;
+        m_orderPriceMode = OrderPriceMode.DEEP_MKT;
         if (!exchData.m_tres.m_logProcessing) {
             Thread thread = new Thread(this);
             thread.setName("TresExecutor");
@@ -96,9 +96,10 @@ public class TresExecutor extends BaseExecutor {
     @Override protected void recheckDirection() throws Exception {
         log("TresExecutor.recheckDirection() direction=" + getDirectionAdjusted());
         long start = System.currentTimeMillis();
+        TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.recheckDirection, start);
         setState(m_state.onDirection(this));
         long end = System.currentTimeMillis();
-        addTimeFrame(TimeFrameType.recheckDirection, start, end);
+        timeFramePoint.m_end = end;
     }
 
     @Override public int processDirection() throws Exception {

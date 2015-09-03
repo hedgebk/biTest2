@@ -205,9 +205,10 @@ public abstract class BaseExecutor implements Runnable {
     protected void initAccount() throws Exception {
         AccountData oldAccount = m_account;
         long start = System.currentTimeMillis();
+        TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.account, start);
         AccountData newAccount = Fetcher.fetchAccount(m_exchange);
         long end = System.currentTimeMillis();
-        addTimeFrame(TimeFrameType.account, start, end);
+        timeFramePoint.m_end = end;
         if (newAccount != null) {
             m_account = newAccount;
             long takes = end - start;
@@ -230,9 +231,10 @@ public abstract class BaseExecutor implements Runnable {
 
     protected IIterationContext.BaseIterationContext getLiveOrdersContext() throws Exception {
         long start = System.currentTimeMillis();
+        TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.orders, start);
         final OrdersData ordersData = Fetcher.fetchOrders(m_exchange, m_pair);
         long end = System.currentTimeMillis();
-        addTimeFrame(TimeFrameType.orders, start, end);
+        timeFramePoint.m_end = end;
         long takes = end - start;
         m_liveOrdersTakesCalc.addValue((double) takes);
         log(" liveOrders loaded in " + Utils.millisToDHMSStr(takes) + " :" + ordersData);
@@ -260,9 +262,10 @@ public abstract class BaseExecutor implements Runnable {
     protected String cancelOrder(OrderData order) throws Exception {
         log("cancelOrder() " + order);
         long start = System.currentTimeMillis();
+        TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.cancel, start);
         String error = m_account.cancelOrder(order);
         long end = System.currentTimeMillis();
-        addTimeFrame(TimeFrameType.cancel, start, end);
+        timeFramePoint.m_end = end;
         long takes = end - start;
         m_cancelOrderTakesCalc.addValue((double) takes);
         log(" order cancelled in " + Utils.millisToDHMSStr(takes) + ": error=" + error);
@@ -481,11 +484,12 @@ public abstract class BaseExecutor implements Runnable {
     protected void onTooOldTick(long tickAge) {
         log("too old tick for order: " + tickAge);
         long start = System.currentTimeMillis();
+        TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.top, start);
         TopData top = Fetcher.fetchTopOnce(m_exchange, m_pair);
         long end = System.currentTimeMillis();
+        timeFramePoint.m_end = end;
         TopDataPoint topDataPoint = new TopDataPoint(top, end, top.m_bid, top.m_ask);
         addTopDataPoint(topDataPoint);
-        addTimeFrame(TimeFrameType.top, start, end);
         long takes = end - start;
         m_topTakesCalc.addValue((double) takes);
         if (top != null) { // we got fresh top data
@@ -536,9 +540,10 @@ public abstract class BaseExecutor implements Runnable {
     protected OrderData.OrderPlaceStatus placeOrderToExchange(Exchange exchange, OrderData order, OrderState state) throws Exception {
         OrderData.OrderPlaceStatus ret;
         long start = System.currentTimeMillis();
+        TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.place, start);
         PlaceOrderData poData = Fetcher.placeOrder(order, exchange);
         long end = System.currentTimeMillis();
-        addTimeFrame(TimeFrameType.place, start, end);
+        timeFramePoint.m_end = end;
         long takes = end - start;
         m_placeOrderTakesCalc.addValue((double) takes);
         log(" order placed in " + Utils.millisToDHMSStr(takes) + ": " + poData.toString(exchange, order.m_pair));
@@ -579,6 +584,14 @@ public abstract class BaseExecutor implements Runnable {
         }
     }
 
+    protected TimeFramePoint addTimeFrame(TimeFrameType type, long start) {
+        TimeFramePoint timeFramePoint = new TimeFramePoint(type, start);
+        synchronized (m_timeFramePoints) {
+            m_timeFramePoints.add(timeFramePoint);
+        }
+        return timeFramePoint;
+    }
+
     protected int checkOrderOutOfMarket(OrderData order) throws Exception {
         int ret = 0;
         boolean isBuy = order.m_side.isBuy();
@@ -587,11 +600,21 @@ public abstract class BaseExecutor implements Runnable {
         /// ask  110 will sell
         /// bid  100 will buy
         // order 95 buy
-        double threshold = (m_sell - m_buy) * outOfMarketThreshold(); // allow 1/2 bidAdsDiff for order price to be out of mkt prices
-        double outOfMarketDistance = isBuy ? m_buy - orderPrice : orderPrice - m_sell;
-        if (outOfMarketDistance > 0) {
+        double avgSell = m_sellAvgCounter.get();
+        double avgBuy = m_buyAvgCounter.get();
+        double avgDiff = avgSell - avgBuy;
+        double mid = m_sell - m_buy;
+        double adjSell = mid + avgDiff/2;
+        double adjBuy = mid - avgDiff/2;
+        double threshold = avgDiff * outOfMarketThreshold(); // allow 1/2 bidAdsDiff for order price to be out of mkt prices
+        double outOfMarketDistance = isBuy ? adjBuy - orderPrice : orderPrice - adjSell;
+        if (outOfMarketDistance > threshold) {
             double outOfMarketRate = outOfMarketDistance / threshold;
-            log(" checkOrderOutOfMarket " + order.m_orderId + " " + order.m_side + "@" + orderPrice + " is out of MKT [buy=" + m_buy + "; sell=" + m_sell + "] distance=" + outOfMarketDistance + "; rate=" + outOfMarketRate);
+            log(" checkOrderOutOfMarket " + order.m_orderId + " " + order.m_side + "@" + orderPrice +
+                    " avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
+                    " buy=" + m_buy + "; sell=" + m_sell + "; mid=" + mid +
+                    " adjBuy=" + adjBuy + "; adjSell=" + adjSell + "; threshold=" + threshold +
+                    " is out of MKT; distance=" + outOfMarketDistance + "; rate=" + outOfMarketRate);
             long liveTime = System.currentTimeMillis() - order.m_placeTime;
             long minOrderLiveTime = minOrderLiveTime();
             long allowOrderLiveTime = (long) (minOrderLiveTime / outOfMarketRate);
@@ -768,6 +791,23 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     protected enum OrderPriceMode {
+        DEEP_MKT {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                boolean isBuy = needOrderSide.isBuy();
+                double mktPrice = isBuy ? sell : buy;
+                log("  buy=" + buy + "; sell=" + sell + "; mktPrice=" + mktPrice + "; needOrderSide=" + needOrderSide);
+                double pip = exchange.minAmountStep(baseExecutor.m_pair);
+                int orderPlaceAttempt = baseExecutor.m_orderPlaceAttemptCounter;
+                double adjustedPrice = mktPrice + 2 * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
+                log("    orderPlaceAttempt=" + orderPlaceAttempt + "; pip=" + pip + "; adjustedPrice=" + adjustedPrice);
+                RoundingMode roundMode = needOrderSide.getMktRoundMode();
+                double orderPrice = exchange.roundPrice(mktPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
         OSC_REVERSE_AVG {
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 // directionAdjusted [-1 ... 1]
@@ -904,7 +944,11 @@ public abstract class BaseExecutor implements Runnable {
     public class TimeFramePoint {
         public final TimeFrameType m_type;
         public final long m_start;
-        public final long m_end;
+        public long m_end;
+
+        public TimeFramePoint(TimeFrameType type, long start) {
+            this(type, start, start);
+        }
 
         public TimeFramePoint(TimeFrameType type, long start, long end) {
             m_type = type;
