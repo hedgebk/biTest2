@@ -1,6 +1,6 @@
 package bthdg.calc;
 
-public class BarCalculator {
+public abstract class BarCalculator {
     private final long m_barSizeMillis;
     private final long m_barsMillisOffset;
     protected long m_currentBarStart;
@@ -24,7 +24,7 @@ public class BarCalculator {
         return updated;
     }
 
-    protected void startNewBar(long barStart, long barEnd) {}
-    protected boolean updateCurrentBar(long time, double price) { return false; }
-    protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {}
+    protected abstract void startNewBar(long barStart, long barEnd);
+    protected abstract boolean updateCurrentBar(long time, double price);
+    protected abstract void finishCurrentBar(long barStart, long barEnd, long time, double price);
 }
