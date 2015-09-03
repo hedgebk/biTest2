@@ -34,8 +34,8 @@ public class PhaseData {
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
         m_oscCalculator.update(timestamp, price);
-        boolean updated1 = m_ohlcCalculator.update(tdata);
-        boolean updated2 = m_maCalculator.update(tdata);
+        boolean updated1 = m_ohlcCalculator.update(timestamp, price);
+        boolean updated2 = m_maCalculator.update(timestamp, price);
         return updated1 || updated2;
     }
 

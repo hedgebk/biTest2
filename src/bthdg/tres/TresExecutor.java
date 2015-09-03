@@ -17,7 +17,7 @@ public class TresExecutor extends BaseExecutor {
     private static final double OUT_OF_MARKET_THRESHOLD = 0.6;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 12000;
     private static final double ORDER_SIZE_TOLERANCE = 0.3;
-    private static final double MIN_ORDER_SIZE = 0.05; // btc
+    private static final double MIN_ORDER_SIZE = 0.10; // btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
 
     private final TresExchData m_exchData;

@@ -5,20 +5,16 @@ import bthdg.util.Utils;
 import java.util.ArrayList;
 import java.util.List;
 
-public class OscCalculator {
+public class OscCalculator extends BarCalculator {
     public static boolean BLEND_AVG = true;
 
     private final int m_len1;
     private final int m_len2;
     private final int m_k;
     private final int m_d;
-    private final long m_barSize;
-    private final long m_barsMillisOffset;
 
-    private Long m_currBarStart;
-    private Long m_currBarEnd;
     private double m_close;
-    private Double m_prevBarClose;
+    private double m_prevBarClose;
     private List<Double> m_gains = new ArrayList<Double>();
     private List<Double> m_losss = new ArrayList<Double>();
     private Double m_avgGain = null;
@@ -31,33 +27,27 @@ public class OscCalculator {
     public void bar(long barStart, double stoch1, double stoch2) {}
 
     public OscCalculator(int len1, int len2, int k, int d, long barSize, long barsMillisOffset) {
+        super(barSize, barsMillisOffset);
         m_len1 = len1;
         m_len2 = len2;
         m_k = k;
         m_d = d;
-        m_barSize = barSize;
-        m_barsMillisOffset = barsMillisOffset;
     }
 
-    public boolean update(long stamp, double price) {
-        boolean newBarStarted = false;
-        if (m_currBarStart == null) {
-            startNewBar(stamp, null, 0);
-            newBarStarted = true;
-        }
-        if (stamp < m_currBarEnd) { // one more tick in current bar
-            m_close = price;
-            update(stamp, false);
-        } else { // bar fully defined
-            update(stamp, true);
-            startNewBar(stamp, m_close, price);
-            newBarStarted = true;
-        }
-        return newBarStarted;
+    @Override protected void startNewBar(long barStart, long barEnd) {
+        m_prevBarClose = m_close;
+    }
+    @Override protected boolean updateCurrentBar(long time, double price) {
+        m_close = price;
+        updateCurrentBar(time, false);
+        return true;
+    }
+    @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
+        updateCurrentBar(time, true);
     }
 
-    protected void update(long stamp, boolean finishBar) {
-        if (m_prevBarClose == null) {
+    protected void updateCurrentBar(long stamp, boolean finishBar) {
+        if (m_prevBarClose == 0) {
             return;
         }
         double change = m_close - m_prevBarClose;
@@ -99,7 +89,7 @@ public class OscCalculator {
 
                         fine(stamp, stoch1, stoch2);
                         if (finishBar) {
-                            bar(m_currBarStart, stoch1, stoch2);
+                            bar(m_currentBarStart, stoch1, stoch2);
                         }
                     }
                     if (finishBar) {
@@ -123,17 +113,6 @@ public class OscCalculator {
                 }
             }
         }
-    }
-
-    private void startNewBar(long stamp, Double prevBarClose, double close) {
-        m_currBarStart = getBarStart(stamp);
-        m_currBarEnd = m_currBarStart + m_barSize;
-        m_prevBarClose = prevBarClose;
-        m_close = close;
-    }
-
-    public long getBarStart(long stamp) {
-        return (stamp - m_barsMillisOffset) / m_barSize * m_barSize + m_barsMillisOffset;
     }
 
     public static class SimpleOscCalculator extends OscCalculator {
@@ -161,7 +140,7 @@ public class OscCalculator {
         }
 
         public List<OscTick> ret() {
-            update(0, true);
+            updateCurrentBar(0, true);
             return ret;
         }
     }

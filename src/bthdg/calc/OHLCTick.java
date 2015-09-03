@@ -1,7 +1,5 @@
 package bthdg.calc;
 
-import bthdg.exch.TradeData;
-
 public class OHLCTick {
     public final long m_barStart;
     public final long m_barEnd;
@@ -15,9 +13,8 @@ public class OHLCTick {
         m_barEnd = end;
     }
 
-    public boolean update(TradeData tdata) {
+    public boolean update(double price) {
         boolean updated = false;
-        double price = tdata.m_price;
         if (m_open == 0) {
             m_open = price;
             updated = true;

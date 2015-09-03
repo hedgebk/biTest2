@@ -2,7 +2,6 @@ package bthdg.tres;
 
 import bthdg.Log;
 import bthdg.calc.MaCalculator;
-import bthdg.exch.TradeData;
 
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -42,47 +41,40 @@ public class TresMaCalculator extends MaCalculator {
         m_tick.m_ma = ma;
     }
 
-    @Override public boolean update(TradeData tdata) {
-        boolean ret = super.update(tdata);
-        if (ret) {
-            double currentPrice = tdata.m_price;
-            double currentMa = m_tick.m_ma;
-            boolean currentPriceHigher = (currentPrice > currentMa);
+    @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
+        super.finishCurrentBar(barStart, barEnd, time, price);
 
-            if ((m_lastPriceHigher != null) && (m_lastPriceHigher != currentPriceHigher)) {
-                onMaCross(tdata, currentPriceHigher);
-            }
-            m_lastPriceHigher = currentPriceHigher;
+        double currentMa = m_tick.m_ma;
+        boolean currentPriceHigher = (price > currentMa);
+
+        if ((m_lastPriceHigher != null) && (m_lastPriceHigher != currentPriceHigher)) {
+            onMaCross(time, price, currentPriceHigher);
         }
-        return ret;
+        m_lastPriceHigher = currentPriceHigher;
     }
 
-    @Override protected void endMaBar(long barEnd, double ma, TradeData tdata) {
+    @Override protected void endMaBar(long barEnd, double ma, long time, double price) {
         if ((m_lastMaCrossUp != null) && (m_lastOscUp != null) && (m_lastMaCrossUp != m_lastOscUp)) {
-            long timestamp = tdata.m_timestamp;
-            Boolean oscUp = m_phaseData.calcOscDirection(false, timestamp);
+            Boolean oscUp = m_phaseData.calcOscDirection(false, time);
             if (oscUp != null) { // if direction defined
                 if (m_lastMaCrossUp == oscUp) {
-                    addNewMaCrossData(tdata, oscUp);
+                    addNewMaCrossData(time, price, oscUp);
                 }
             }
         }
     }
 
-    private void onMaCross(TradeData tdata, boolean maCrossUp) {
+    private void onMaCross(long time, double price, boolean maCrossUp) {
         m_tick.m_maCrossed = true;
-        long timestamp = tdata.m_timestamp;
-        Boolean oscUp = m_phaseData.calcOscDirection(true, timestamp);
+        Boolean oscUp = m_phaseData.calcOscDirection(true, time);
         if (oscUp != null) { // if direction defined
-            addNewMaCrossData(tdata, oscUp);
+            addNewMaCrossData(time, price, oscUp);
         }
         m_lastMaCrossUp = maCrossUp;
     }
 
-    private void addNewMaCrossData(TradeData tdata, Boolean oscUp) {
-        long timestamp = tdata.m_timestamp;
-        double price = tdata.m_price;
-        MaCrossData maCrossData = new MaCrossData(timestamp, oscUp, price);
+    private void addNewMaCrossData(long time, double price, Boolean oscUp) {
+        MaCrossData maCrossData = new MaCrossData(time, oscUp, price);
         synchronized (m_maCrossDatas) {
             m_maCrossDatas.add(maCrossData);
         }

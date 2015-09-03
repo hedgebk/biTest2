@@ -1,7 +1,5 @@
 package bthdg.calc;
 
-import bthdg.exch.TradeData;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,7 +11,7 @@ public class MaCalculator extends BarCalculator {
 
     protected void startMaBar(long barEnd) {}
     protected void updateMaBar(double ma) {}
-    protected void endMaBar(long barEnd, double ma, TradeData tdata) {}
+    protected void endMaBar(long barEnd, double ma, long time, double price) {}
 
     public MaCalculator(long barSizeMillis, long barsMillisOffset, MaType type, int maSize) {
         super(barSizeMillis, barsMillisOffset);
@@ -21,9 +19,9 @@ public class MaCalculator extends BarCalculator {
         m_maSize = maSize;
     }
 
-    @Override protected void finishCurrentBar(long barStart, long barEnd, TradeData tdata) {
+    @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
         double ma = calcMa();
-        endMaBar(barEnd, ma, tdata);
+        endMaBar(barEnd, ma, time, price);
     }
 
     private double calcMa() {
@@ -39,8 +37,8 @@ public class MaCalculator extends BarCalculator {
         return 0;
     }
 
-    @Override protected boolean updateCurrentBar(TradeData tdata) {
-        boolean updated = m_type.updateBarData(m_barData, tdata);
+    @Override protected boolean updateCurrentBar(long time, double price) {
+        boolean updated = m_type.updateBarData(m_barData, price);
         if (updated) {
             double ma = calcMa();
             updateMaBar(ma);
@@ -63,14 +61,14 @@ public class MaCalculator extends BarCalculator {
                 return new BaseMaBarData();
             }
 
-            @Override public boolean updateBarData(BaseMaBarData barData, TradeData tdata) {
-                boolean updated = barData.m_value != tdata.m_price;
-                barData.m_value = tdata.m_price;
+            @Override public boolean updateBarData(BaseMaBarData barData, double price) {
+                boolean updated = (barData.m_value != price);
+                barData.m_value = price;
                 return updated;
             }
         };
         public BaseMaBarData newBarData() { return null; }
-        public boolean updateBarData(BaseMaBarData barData, TradeData tdata) { return false; }
+        public boolean updateBarData(BaseMaBarData barData, double price) { return false; }
     }
 
     public static class BaseMaBarData {

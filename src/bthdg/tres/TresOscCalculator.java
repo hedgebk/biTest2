@@ -42,9 +42,9 @@ public class TresOscCalculator extends OscCalculator {
         return tres.m_barSizeMillis * (index % tres.m_phases) / tres.m_phases;
     }
 
-    @Override protected void update(long stamp, boolean finishBar) {
+    @Override protected void updateCurrentBar(long stamp, boolean finishBar) {
         m_updated = false;
-        super.update(stamp, finishBar);
+        super.updateCurrentBar(stamp, finishBar);
         if (finishBar) {
             Tres tres = m_exchData.m_tres;
             int preheatBarsNum = tres.getPreheatBarsNum();
