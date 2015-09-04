@@ -52,6 +52,7 @@ public class TresCanvas extends JComponent {
     private List<OHLCTick> m_paintOhlcTicks = new ArrayList<OHLCTick>();
     private List<OscTick> m_paintOscPeaks = new ArrayList<OscTick>();
     private List<TresExchData.AvgOscPoint> m_paintAvgOscPeaks = new ArrayList<TresExchData.AvgOscPoint>();
+    private List<TresCoppockCalculator.CoppockTick> m_paintCoppockTicks = new ArrayList<TresCoppockCalculator.CoppockTick>();
 
     private static void log(String s) { Log.log(s); }
 
@@ -226,9 +227,13 @@ public class TresCanvas extends JComponent {
                 TresOscCalculator phaseOscCalculator = phData.m_oscCalculator;
                 paintOscTicks(g, phaseOscCalculator.m_oscBars);
                 paintOscPeaks(g, phaseOscCalculator.m_oscPeaks);
+
+                TresCoppockCalculator phaseCoppockCalculator = phData.m_coppockCalculator;
+                paintCoppockTicks(g, phaseCoppockCalculator.m_coppockPoints);
+//                paintCoppockPeaks(g, phaseCoppockCalculator.m_coppockPeaks);
             }
             paintAvgOscs(g, exchData.m_avgOscs);
-//            paintOscPeaks(g, oscCalculator.m_oscPeaks);
+//            paintOscPeaks(g, oscCalculator.m_coppockPeaks);
             paintAvgOscPeaks(g, exchData.m_avgOscsPeaks);
 
             paintMaTicks(g, phaseData.m_maCalculator, yPriceAxe);
@@ -903,6 +908,51 @@ public class TresCanvas extends JComponent {
                 break;
             }
             lastX = endX;
+        }
+    }
+
+    private void paintCoppockTicks(Graphics g, LinkedList<TresCoppockCalculator.CoppockTick> ticks) {
+        double max = m_xTimeAxe.m_max;
+        double min = m_xTimeAxe.m_min;
+        // todo: clone first
+        double valMin = -0.1;
+        double valMax = 0.1;
+        m_paintCoppockTicks.clear();
+        for (Iterator<TresCoppockCalculator.CoppockTick> iterator = ticks.descendingIterator(); iterator.hasNext(); ) {
+            TresCoppockCalculator.CoppockTick tick = iterator.next();
+            long startTime = tick.m_barStart;
+            if (startTime > max) {
+                continue;
+            }
+            long endTime = startTime + m_tres.m_barSizeMillis;
+            if (endTime < min) {
+                break;
+            }
+            m_paintCoppockTicks.add(tick);
+            double val = tick.m_value;
+            valMax = Math.max(valMax, val);
+            valMin = Math.min(valMin, val);
+        }
+
+        ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
+        yAxe.m_offset = 2;
+
+        int lastX = Integer.MAX_VALUE;
+        int lastY = Integer.MAX_VALUE;
+
+        for( TresCoppockCalculator.CoppockTick tick : m_paintCoppockTicks ) {
+            long startTime = tick.m_barStart;
+            long endTime = startTime + m_tres.m_barSizeMillis;
+            int x = m_xTimeAxe.getPoint(endTime);
+            double val = tick.m_value;
+            int y = yAxe.getPointReverse(val);
+
+            if (lastX != Integer.MAX_VALUE) {
+                g.setColor(Color.RED);
+                g.drawLine(lastX, lastY, x, y);
+            }
+            lastX = x;
+            lastY = y;
         }
     }
 

@@ -11,6 +11,7 @@ public class PhaseData {
     final TresExchData m_exchData;
     final int m_phaseIndex;
     final TresOscCalculator m_oscCalculator;
+    final TresCoppockCalculator m_coppockCalculator;
     final TresOHLCCalculator m_ohlcCalculator;
     final TresMaCalculator m_maCalculator;
     private double m_direction = 0; // // [-1 ... 1].   parked initially
@@ -24,6 +25,7 @@ public class PhaseData {
                 onOscBar();
             }
         };
+        m_coppockCalculator = new TresCoppockCalculator(exchData, phaseIndex);
         m_ohlcCalculator = new TresOHLCCalculator(exchData.m_tres, phaseIndex);
         m_maCalculator = new TresMaCalculator(this, phaseIndex);
     }
@@ -34,9 +36,11 @@ public class PhaseData {
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
         m_oscCalculator.update(timestamp, price);
+        m_coppockCalculator.update(timestamp, price);
         boolean updated1 = m_ohlcCalculator.update(timestamp, price);
         boolean updated2 = m_maCalculator.update(timestamp, price);
-        return updated1 || updated2;
+//        return updated1 || updated2;
+        return true;
     }
 
     public void getState(StringBuilder sb) {

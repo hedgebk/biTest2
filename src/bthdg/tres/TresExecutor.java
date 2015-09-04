@@ -71,7 +71,9 @@ public class TresExecutor extends BaseExecutor {
                 return;
             }
         }
-        addTask(task);
+        if(DO_TRADE) {
+            addTask(task);
+        }
     }
 
     @Override protected void gotTrade(TradeData tradeData) throws Exception {
