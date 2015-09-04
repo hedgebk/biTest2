@@ -388,7 +388,7 @@ public class Utils {
         return Math.min(min(vals), lastVal);
     }
 
-    private static double avg(List<Double> vals) {
+    public static double avg(List<Double> vals) {
         double sum = 0;
         for (Double val : vals) {
             sum += val;

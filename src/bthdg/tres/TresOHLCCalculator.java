@@ -16,9 +16,10 @@ public class TresOHLCCalculator extends OHLCCalculator {
         return tres.m_barSizeMillis * (index % tres.m_phases) / tres.m_phases;
     }
 
-    @Override protected void onBarStarted(OHLCTick tick) {
+    @Override protected void startNewBar(long barStart, long barEnd) {
+        super.startNewBar(barStart, barEnd);
         synchronized (m_ohlcTicks) {
-            m_ohlcTicks.add(tick);
+            m_ohlcTicks.add(m_tick);
         }
     }
 }

@@ -6,7 +6,7 @@ public class CoppockCalculatorTest {
     private static double[] VAL = new double[]{23.89, 19.32, 16.35, 14.12, 12.78, 11.39, 8.37, 7.45, 8.79};
 
     public static void main(String[] argv) {
-        CoppockCalculator oscCalculator = new CoppockCalculator(10, 14, 11, BAR_SIZE, 0) {
+        CoppockCalculator coppockCalculator = new CoppockCalculator(10, 14, 11, BAR_SIZE, 0) {
 //            int m_indx = 0;
             @Override public void bar(long barStart, double value) {
                 System.out.println("bar\t" + value);
@@ -21,9 +21,9 @@ public class CoppockCalculatorTest {
         };
         long time = System.currentTimeMillis();
         for (double value : DATA) {
-            oscCalculator.update(time, value);
+            coppockCalculator.update(time, value);
             time += BAR_SIZE;
         }
-        oscCalculator.updateCurrentBar(time, 0);
+        coppockCalculator.updateCurrentBar(time, 0);
     }
 }

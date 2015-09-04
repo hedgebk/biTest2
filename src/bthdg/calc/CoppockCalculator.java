@@ -6,11 +6,11 @@ public class CoppockCalculator extends BarCalculator {
     private final int m_wmaLength;
     private final int m_longRocLength;
     private final int m_shortRoсLength;
-    private LinkedList<Double> m_closesShort = new LinkedList<Double>();
+    private final LinkedList<Double> m_closesShort = new LinkedList<Double>();
     private boolean m_closesShortFilled;
-    private LinkedList<Double> m_closesLong = new LinkedList<Double>();
+    private final LinkedList<Double> m_closesLong = new LinkedList<Double>();
     private boolean m_closesLongFilled;
-    private LinkedList<Double> m_rocSumms = new LinkedList<Double>();
+    private final LinkedList<Double> m_rocSumms = new LinkedList<Double>();
     private boolean m_rocSummsFilled;
     private Double m_lastCoppock;
 
@@ -92,10 +92,6 @@ public class CoppockCalculator extends BarCalculator {
             }
         }
         return false;
-    }
-
-    private static void replaceLastElement(LinkedList<Double> list, double price) {
-        list.set(list.size() - 1, price); // replace last element
     }
 
     @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {

@@ -1,5 +1,7 @@
 package bthdg.calc;
 
+import java.util.LinkedList;
+
 public abstract class BarCalculator {
     private final long m_barSizeMillis;
     private final long m_barsMillisOffset;
@@ -27,4 +29,8 @@ public abstract class BarCalculator {
     protected abstract void startNewBar(long barStart, long barEnd);
     protected abstract boolean updateCurrentBar(long time, double price);
     protected abstract void finishCurrentBar(long barStart, long barEnd, long time, double price);
+
+    protected static void replaceLastElement(LinkedList<Double> list, double price) {
+        list.set(list.size() - 1, price); // replace last element
+    }
 }
