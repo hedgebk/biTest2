@@ -21,13 +21,9 @@ public class TresMaCalculator extends MaCalculator {
     public TresMaCalculator(PhaseData phaseData, int phaseIndex) {
         //super(phaseData.m_exchData, phaseIndex, MaType.CLOSE, phaseData.m_exchData.m_tres.m_ma);
         super(phaseData.m_exchData.m_tres.m_barSizeMillis,
-                getOffset(phaseIndex, phaseData.m_exchData.m_tres),
+                phaseData.m_exchData.m_tres.getBarOffset(phaseIndex),
                 MaType.CLOSE, phaseData.m_exchData.m_tres.m_ma);
         m_phaseData = phaseData;
-    }
-
-    private static long getOffset(int index, Tres tres) {
-        return tres.m_barSizeMillis * (index % tres.m_phases) / tres.m_phases;
     }
 
     @Override protected void startMaBar(long barEnd) {

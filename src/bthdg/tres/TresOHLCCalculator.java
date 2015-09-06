@@ -9,11 +9,7 @@ public class TresOHLCCalculator extends OHLCCalculator {
     final LinkedList<OHLCTick> m_ohlcTicks = new LinkedList<OHLCTick>();
 
     public TresOHLCCalculator(Tres tres, int phaseIndex) {
-        super(tres.m_barSizeMillis, getOffset(phaseIndex, tres));
-    }
-
-    private static long getOffset(int index, Tres tres) {
-        return tres.m_barSizeMillis * (index % tres.m_phases) / tres.m_phases;
+        super(tres.m_barSizeMillis, tres.getBarOffset(phaseIndex));
     }
 
     @Override protected void startNewBar(long barStart, long barEnd) {

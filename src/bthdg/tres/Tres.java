@@ -40,6 +40,7 @@ public class Tres {
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
     public int getPreheatBarsNum() { return m_len1 + m_len2 + (m_k - 1) + (m_d - 1); }
+    public long getBarOffset(int index) { return m_barSizeMillis * (index % m_phases) / m_phases; }
 
     public Tres(String[] args) {
         m_processLogs = (args.length > 0);

@@ -39,7 +39,7 @@ public class CciCalculator extends OHLCCalculator {
         if (m_smaFilled) {
             double sma = Utils.avg(m_smaPrices);
             double medianDeviation = medianDeviation(sma);
-            double cci = (typicalPrice-sma)/(0.015*medianDeviation);
+            double cci = (typicalPrice - sma) / (0.015 * medianDeviation);
             fine(time, cci);
             m_lastCci = cci;
             return true;

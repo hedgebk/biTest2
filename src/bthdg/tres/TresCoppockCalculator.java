@@ -13,13 +13,9 @@ public class TresCoppockCalculator extends CoppockCalculator {
     LinkedList<CoppockTick> m_coppockPeaks = new LinkedList<CoppockTick>();
 
     public TresCoppockCalculator(TresExchData exchData, int phaseIndex) {
-        super(10, 14, 11, exchData.m_tres.m_barSizeMillis, getOffset(phaseIndex, exchData.m_tres));
+        super(10, 14, 11, exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex));
         m_exchData = exchData;
         m_phaseIndex = phaseIndex;
-    }
-
-    private static long getOffset(int index, Tres tres) {
-        return tres.m_barSizeMillis * (index % tres.m_phases) / tres.m_phases;
     }
 
     @Override protected void bar(long barStart, double value) {
