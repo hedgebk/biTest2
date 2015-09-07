@@ -11,7 +11,7 @@ public class CciCalculator extends OHLCCalculator {
     private Double m_lastCci;
 
     protected void fine(long time, double cci) { }
-    protected void bar(long barStart, double cci) { }
+    protected void bar(long barEnd, double cci) { }
 
     public CciCalculator(int smaLength, long barSize, long barsMillisOffset) {
         super(barSize, barsMillisOffset);
@@ -58,7 +58,7 @@ public class CciCalculator extends OHLCCalculator {
 
     @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
         if (m_lastCci != null) {
-            bar(m_currentBarStart, m_lastCci);
+            bar(m_currentBarEnd, m_lastCci);
         }
     }
 }

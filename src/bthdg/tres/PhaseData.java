@@ -12,6 +12,7 @@ public class PhaseData {
     final int m_phaseIndex;
     final TresOscCalculator m_oscCalculator;
     final TresCoppockCalculator m_coppockCalculator;
+    final TresCciCalculator m_cciCalculator;
     final TresOHLCCalculator m_ohlcCalculator;
     final TresMaCalculator m_maCalculator;
     private double m_direction = 0; // // [-1 ... 1].   parked initially
@@ -25,18 +26,32 @@ public class PhaseData {
                 onOscBar();
             }
         };
-        m_coppockCalculator = new TresCoppockCalculator(exchData, phaseIndex);
+        m_coppockCalculator = new TresCoppockCalculator(exchData, phaseIndex) {
+            @Override protected void bar(long barStart, double value) {
+                super.bar(barStart, value);
+                onCoppockBar();
+            }
+        };
+        m_cciCalculator = new TresCciCalculator(exchData, phaseIndex) {
+            @Override protected void bar(long barEnd, double value) {
+                super.bar(barEnd, value);
+                onCciBar();
+            }
+        };
         m_ohlcCalculator = new TresOHLCCalculator(exchData.m_tres, phaseIndex);
         m_maCalculator = new TresMaCalculator(this, phaseIndex);
     }
 
     protected void onOscBar() {}
+    protected void onCoppockBar() {}
+    protected void onCciBar() {}
 
     public boolean update(TradeData tdata) {
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
         m_oscCalculator.update(timestamp, price);
         m_coppockCalculator.update(timestamp, price);
+        m_cciCalculator.update(timestamp, price);
         boolean updated1 = m_ohlcCalculator.update(timestamp, price);
         boolean updated2 = m_maCalculator.update(timestamp, price);
 //        return updated1 || updated2;
@@ -124,5 +139,13 @@ public class PhaseData {
 
     public double getAvgOsc() {
         return m_oscCalculator.m_lastBar == null ? 0 : m_oscCalculator.m_lastBar.getMid();
+    }
+
+    public double getAvgCoppock() {
+        return m_coppockCalculator.m_lastValue;
+    }
+
+    public double getAvgCci() {
+        return m_cciCalculator.m_lastValue;
     }
 }

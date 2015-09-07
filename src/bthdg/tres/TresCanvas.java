@@ -33,6 +33,10 @@ public class TresCanvas extends JComponent {
     public static final Color AVG_OSCS_COLOR = Color.pink;
     public static final Color OSC_PEAKS_COLOR = Colors.setAlpha(Colors.LIGHT_CYAN, 127);
     public static final Color BAR_HIGHLIGHT_COLOR = new Color(32, 32, 32);
+    public static final Color COPPOCK_COLOR = Colors.setAlpha(Color.RED, 100);
+    public static final Color COPPOCK_AVG_COLOR = Color.RED;
+    public static final Color CCI_COLOR = Colors.setAlpha(Color.BLUE, 100);
+    public static final Color CCI_AVG_COLOR = Color.BLUE;
 
     private Tres m_tres;
     private Point m_point;
@@ -46,13 +50,16 @@ public class TresCanvas extends JComponent {
     private int m_dragDeltaBars;
     private int m_barsShift = 0;
     private List<TradeData> m_paintTades = new ArrayList<TradeData>();
-    private List<TresExchData.AvgOscPoint> m_paintAvgOscs = new ArrayList<TresExchData.AvgOscPoint>();
+    private List<TresExchData.ChartPoint> m_paintAvgOscs = new ArrayList<TresExchData.ChartPoint>();
+    private List<TresExchData.ChartPoint> m_paintAvgCoppocks = new ArrayList<TresExchData.ChartPoint>();
+    private List<TresExchData.ChartPoint> m_paintAvgCcis = new ArrayList<TresExchData.ChartPoint>();
     private List<BaseExecutor.TopDataPoint> m_paintTops = new ArrayList<BaseExecutor.TopDataPoint>();
     private List<TresExchData.OrderPoint> m_paintOrders = new ArrayList<TresExchData.OrderPoint>();
     private List<OHLCTick> m_paintOhlcTicks = new ArrayList<OHLCTick>();
     private List<OscTick> m_paintOscPeaks = new ArrayList<OscTick>();
-    private List<TresExchData.AvgOscPoint> m_paintAvgOscPeaks = new ArrayList<TresExchData.AvgOscPoint>();
+    private List<TresExchData.ChartPoint> m_paintAvgOscPeaks = new ArrayList<TresExchData.ChartPoint>();
     private List<TresCoppockCalculator.CoppockTick> m_paintCoppockTicks = new ArrayList<TresCoppockCalculator.CoppockTick>();
+    private List<TresCciCalculator.CciTick> m_paintCciTicks = new ArrayList<TresCciCalculator.CciTick>();
 
     private static void log(String s) { Log.log(s); }
 
@@ -148,7 +155,7 @@ public class TresCanvas extends JComponent {
         Graphics2D g2 = (Graphics2D) g;
 
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC );
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY );
         g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -231,10 +238,15 @@ public class TresCanvas extends JComponent {
                 TresCoppockCalculator phaseCoppockCalculator = phData.m_coppockCalculator;
                 paintCoppockTicks(g, phaseCoppockCalculator.m_coppockPoints);
 //                paintCoppockPeaks(g, phaseCoppockCalculator.m_coppockPeaks);
+
+                TresCciCalculator phaseCciCalculator = phData.m_cciCalculator;
+                paintCciTicks(g, phaseCciCalculator.m_cciPoints);
+//                paintCciPeaks(g, phaseCciCalculator.m_cciPeaks);
             }
             paintAvgOscs(g, exchData.m_avgOscs);
-//            paintOscPeaks(g, oscCalculator.m_coppockPeaks);
             paintAvgOscPeaks(g, exchData.m_avgOscsPeaks);
+            paintAvgCoppock(g, exchData.m_avgCoppock);
+            paintAvgCci(g, exchData.m_avgCci);
 
             paintMaTicks(g, phaseData.m_maCalculator, yPriceAxe);
             paintOrders(g, exchData, yPriceAxe, ordersClone);
@@ -488,15 +500,15 @@ public class TresCanvas extends JComponent {
         return m_paintTades;
     }
 
-    private void paintAvgOscs(Graphics g, LinkedList<TresExchData.AvgOscPoint> avgOscs) {
-        List<TresExchData.AvgOscPoint> avgOscsClone = cloneAvgOscs(avgOscs);
+    private void paintAvgOscs(Graphics g, LinkedList<TresExchData.ChartPoint> avgOscs) {
+        List<TresExchData.ChartPoint> avgOscsClone = cloneAvgOscs(avgOscs);
         g.setColor(AVG_OSCS_COLOR);
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
-        for (TresExchData.AvgOscPoint avgOscPoint : avgOscsClone) {
+        for (TresExchData.ChartPoint avgOscPoint : avgOscsClone) {
             long timestamp = avgOscPoint.m_millis;
             int x = m_xTimeAxe.getPoint(timestamp);
-            double avgOsc = avgOscPoint.m_avgOsc;
+            double avgOsc = avgOscPoint.m_value;
             int y = m_yAxe.getPointReverse(avgOsc);
             if(lastX != Integer.MAX_VALUE) {
                 g.drawLine(x, y, lastX, lastY);
@@ -506,20 +518,108 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private List<TresExchData.AvgOscPoint> cloneAvgOscs(LinkedList<TresExchData.AvgOscPoint> avgOscs) {
+    private List<TresExchData.ChartPoint> cloneAvgOscs(LinkedList<TresExchData.ChartPoint> avgOscs) {
         double minTime = m_xTimeAxe.m_min;
         double maxTime = m_xTimeAxe.m_max;
         m_paintAvgOscs.clear();
         synchronized (avgOscs) {
-            for (Iterator<TresExchData.AvgOscPoint> it = avgOscs.descendingIterator(); it.hasNext(); ) {
-                TresExchData.AvgOscPoint avgOscPoint = it.next();
-                long timestamp = avgOscPoint.m_millis;
+            for (Iterator<TresExchData.ChartPoint> it = avgOscs.descendingIterator(); it.hasNext(); ) {
+                TresExchData.ChartPoint chartPoint = it.next();
+                long timestamp = chartPoint.m_millis;
                 if (timestamp < minTime) { break; }
                 if (timestamp > maxTime) { continue; }
-                m_paintAvgOscs.add(avgOscPoint);
+                m_paintAvgOscs.add(chartPoint);
             }
         }
         return m_paintAvgOscs;
+    }
+
+    private void paintAvgCoppock(Graphics g, LinkedList<TresExchData.ChartPoint> avgCoppocks) {
+        ChartAxe yAxe = cloneAvgCoppocks(avgCoppocks);
+        g.setColor(COPPOCK_AVG_COLOR);
+        int lastX = Integer.MAX_VALUE;
+        int lastY = Integer.MAX_VALUE;
+        for (TresExchData.ChartPoint avgCoppockPoint : m_paintAvgCoppocks) {
+            long timestamp = avgCoppockPoint.m_millis;
+            int x = m_xTimeAxe.getPoint(timestamp);
+            double avgCoppock = avgCoppockPoint.m_value;
+            int y = yAxe.getPointReverse(avgCoppock);
+            if (lastX != Integer.MAX_VALUE) {
+                g.drawLine(x, y, lastX, lastY);
+            }
+            lastX = x;
+            lastY = y;
+        }
+    }
+
+    private ChartAxe cloneAvgCoppocks(LinkedList<TresExchData.ChartPoint> avgCoppocks) {
+        Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
+        double minTime = m_xTimeAxe.m_min;
+        double maxTime = m_xTimeAxe.m_max;
+        m_paintAvgCoppocks.clear();
+        synchronized (avgCoppocks) {
+            for (Iterator<TresExchData.ChartPoint> it = avgCoppocks.descendingIterator(); it.hasNext(); ) {
+                TresExchData.ChartPoint chartPoint = it.next();
+                long timestamp = chartPoint.m_millis;
+                if (timestamp < minTime) { break; }
+                if (timestamp > maxTime) { continue; }
+                m_paintAvgCoppocks.add(chartPoint);
+                minMaxCalculator.calculate(chartPoint.m_value);
+            }
+        }
+        Double valMin = minMaxCalculator.m_minValue;
+        Double valMax = minMaxCalculator.m_maxValue;
+        if (m_paintAvgCoppocks.isEmpty()) {
+            valMin = 0d;
+            valMax = 1d;
+        }
+        ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
+        yAxe.m_offset = 2;
+        return yAxe;
+    }
+
+    private void paintAvgCci(Graphics g, LinkedList<TresExchData.ChartPoint> avgCcis) {
+        ChartAxe yAxe = cloneAvgCcis(avgCcis);
+        g.setColor(CCI_AVG_COLOR);
+        int lastX = Integer.MAX_VALUE;
+        int lastY = Integer.MAX_VALUE;
+        for (TresExchData.ChartPoint avgCciPoint : m_paintAvgCcis) {
+            long timestamp = avgCciPoint.m_millis;
+            int x = m_xTimeAxe.getPoint(timestamp);
+            double avgCci = avgCciPoint.m_value;
+            int y = yAxe.getPointReverse(avgCci);
+            if (lastX != Integer.MAX_VALUE) {
+                g.drawLine(x, y, lastX, lastY);
+            }
+            lastX = x;
+            lastY = y;
+        }
+    }
+
+    private ChartAxe cloneAvgCcis(LinkedList<TresExchData.ChartPoint> avgCcis) {
+        Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
+        double minTime = m_xTimeAxe.m_min;
+        double maxTime = m_xTimeAxe.m_max;
+        m_paintAvgCcis.clear();
+        synchronized (avgCcis) {
+            for (Iterator<TresExchData.ChartPoint> it = avgCcis.descendingIterator(); it.hasNext(); ) {
+                TresExchData.ChartPoint chartPoint = it.next();
+                long timestamp = chartPoint.m_millis;
+                if (timestamp < minTime) { break; }
+                if (timestamp > maxTime) { continue; }
+                m_paintAvgCcis.add(chartPoint);
+                minMaxCalculator.calculate(chartPoint.m_value);
+            }
+        }
+        Double valMin = minMaxCalculator.m_minValue;
+        Double valMax = minMaxCalculator.m_maxValue;
+        if (m_paintAvgCcis.isEmpty()) {
+            valMin = 0d;
+            valMax = 1d;
+        }
+        ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
+        yAxe.m_offset = 2;
+        return yAxe;
     }
 
     private void paintTops(Graphics g, List<BaseExecutor.TopDataPoint> topsClone, ChartAxe yPriceAxe) {
@@ -915,8 +1015,7 @@ public class TresCanvas extends JComponent {
         double max = m_xTimeAxe.m_max;
         double min = m_xTimeAxe.m_min;
         // todo: clone first
-        double valMin = -0.1;
-        double valMax = 0.1;
+        Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
         m_paintCoppockTicks.clear();
         for (Iterator<TresCoppockCalculator.CoppockTick> iterator = ticks.descendingIterator(); iterator.hasNext(); ) {
             TresCoppockCalculator.CoppockTick tick = iterator.next();
@@ -930,10 +1029,11 @@ public class TresCanvas extends JComponent {
             }
             m_paintCoppockTicks.add(tick);
             double val = tick.m_value;
-            valMax = Math.max(valMax, val);
-            valMin = Math.min(valMin, val);
+            minMaxCalculator.calculate(val);
         }
 
+        Double valMin = minMaxCalculator.m_minValue;
+        Double valMax = minMaxCalculator.m_maxValue;
         ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
         yAxe.m_offset = 2;
 
@@ -948,7 +1048,51 @@ public class TresCanvas extends JComponent {
             int y = yAxe.getPointReverse(val);
 
             if (lastX != Integer.MAX_VALUE) {
-                g.setColor(Color.RED);
+                g.setColor(COPPOCK_COLOR);
+                g.drawLine(lastX, lastY, x, y);
+            }
+            lastX = x;
+            lastY = y;
+        }
+    }
+
+    private void paintCciTicks(Graphics g, LinkedList<TresCciCalculator.CciTick> ticks) {
+        double max = m_xTimeAxe.m_max;
+        double min = m_xTimeAxe.m_min;
+        // todo: clone first
+        double valMin = -0.1;
+        double valMax = 0.1;
+        m_paintCciTicks.clear();
+        for (Iterator<TresCciCalculator.CciTick> iterator = ticks.descendingIterator(); iterator.hasNext(); ) {
+            TresCciCalculator.CciTick tick = iterator.next();
+            long endTime = tick.m_barEnd;
+            long startTime = endTime - m_tres.m_barSizeMillis;
+            if (startTime > max) {
+                continue;
+            }
+            if (endTime < min) {
+                break;
+            }
+            m_paintCciTicks.add(tick);
+            double val = tick.m_value;
+            valMax = Math.max(valMax, val);
+            valMin = Math.min(valMin, val);
+        }
+
+        ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
+        yAxe.m_offset = 2;
+
+        int lastX = Integer.MAX_VALUE;
+        int lastY = Integer.MAX_VALUE;
+
+        for( TresCciCalculator.CciTick tick : m_paintCciTicks ) {
+            long endTime = tick.m_barEnd;
+            int x = m_xTimeAxe.getPoint(endTime);
+            double val = tick.m_value;
+            int y = yAxe.getPointReverse(val);
+
+            if (lastX != Integer.MAX_VALUE) {
+                g.setColor(CCI_COLOR);
                 g.drawLine(lastX, lastY, x, y);
             }
             lastX = x;
@@ -988,13 +1132,13 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private void paintAvgOscPeaks(Graphics g, LinkedList<TresExchData.AvgOscPoint> avgOscsPeaks) {
+    private void paintAvgOscPeaks(Graphics g, LinkedList<TresExchData.ChartPoint> avgOscsPeaks) {
         double min = m_xTimeAxe.m_min;
         double max = m_xTimeAxe.m_max;
         m_paintOscPeaks.clear();
         synchronized (m_paintAvgOscPeaks) {  // avoid ConcurrentModificationException - use local copy
-            for (Iterator<TresExchData.AvgOscPoint> iterator = avgOscsPeaks.descendingIterator(); iterator.hasNext(); ) {
-                TresExchData.AvgOscPoint avgOscsPeak = iterator.next();
+            for (Iterator<TresExchData.ChartPoint> iterator = avgOscsPeaks.descendingIterator(); iterator.hasNext(); ) {
+                TresExchData.ChartPoint avgOscsPeak = iterator.next();
                 long time = avgOscsPeak.m_millis;
                 if(time > max) {
                     continue;
@@ -1006,10 +1150,10 @@ public class TresCanvas extends JComponent {
             }
         }
         g.setColor(AVG_OSCS_COLOR);
-        for (TresExchData.AvgOscPoint avgOscPeak : m_paintAvgOscPeaks) {
+        for (TresExchData.ChartPoint avgOscPeak : m_paintAvgOscPeaks) {
             long time = avgOscPeak.m_millis;
             int x = m_xTimeAxe.getPoint(time);
-            double avgOsc = avgOscPeak.m_avgOsc;
+            double avgOsc = avgOscPeak.m_value;
             int y = m_yAxe.getPointReverse(avgOsc);
             g.drawLine(x - 4, y - 4, x + 4, y + 4);
             g.drawLine(x + 4, y - 4, x - 4, y + 4);

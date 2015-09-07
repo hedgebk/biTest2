@@ -13,6 +13,8 @@ import java.util.LinkedList;
 
 public class TresExchData {
     public static final double AVG_OSC_PEAK_TOLERANCE = 0.05;
+    public static final double AVG_COPPOCK_PEAK_TOLERANCE = 0.05;
+    public static final double AVG_CCI_PEAK_TOLERANCE = 0.05;
 
     final Tres m_tres;
     final IWs m_ws;
@@ -21,13 +23,35 @@ public class TresExchData {
     final TresExecutor m_executor;
     final Queue<TradeData> m_tradesQueue;
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
-    final LinkedList<AvgOscPoint> m_avgOscs = new LinkedList<AvgOscPoint>();
-    final public LinkedList<AvgOscPoint> m_avgOscsPeaks = new LinkedList<AvgOscPoint>();
-    final TrendWatcher<AvgOscPoint> m_avgOscsPeakCalculator = new TrendWatcher<AvgOscPoint>(AVG_OSC_PEAK_TOLERANCE) {
-        @Override protected double toDouble(AvgOscPoint avgOscPoint) { return avgOscPoint.m_avgOsc; }
-        @Override protected void onNewPeak(AvgOscPoint peak) {
+    final LinkedList<ChartPoint> m_avgOscs = new LinkedList<ChartPoint>();
+    final LinkedList<ChartPoint> m_avgCoppock = new LinkedList<ChartPoint>();
+    final LinkedList<ChartPoint> m_avgCci = new LinkedList<ChartPoint>();
+    final public LinkedList<ChartPoint> m_avgOscsPeaks = new LinkedList<ChartPoint>();
+    final public LinkedList<ChartPoint> m_avgCoppockPeaks = new LinkedList<ChartPoint>();
+    final public LinkedList<ChartPoint> m_avgCciPeaks = new LinkedList<ChartPoint>();
+    final TrendWatcher<ChartPoint> m_avgOscsPeakCalculator = new TrendWatcher<ChartPoint>(AVG_OSC_PEAK_TOLERANCE) {
+        @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
+        @Override protected void onNewPeak(ChartPoint peak) {
             synchronized (m_avgOscsPeaks) {
                 m_avgOscsPeaks.add(peak);
+                m_executor.postRecheckDirection();
+            }
+        }
+    };
+    final TrendWatcher<ChartPoint> m_avgCoppockPeakCalculator = new TrendWatcher<ChartPoint>(AVG_COPPOCK_PEAK_TOLERANCE) {
+        @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
+        @Override protected void onNewPeak(ChartPoint peak) {
+            synchronized (m_avgCoppockPeaks) {
+                m_avgCoppockPeaks.add(peak);
+                m_executor.postRecheckDirection();
+            }
+        }
+    };
+    final TrendWatcher<ChartPoint> m_avgCciPeakCalculator = new TrendWatcher<ChartPoint>(AVG_CCI_PEAK_TOLERANCE) {
+        @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
+        @Override protected void onNewPeak(ChartPoint peak) {
+            synchronized (m_avgCciPeaks) {
+                m_avgCciPeaks.add(peak);
                 m_executor.postRecheckDirection();
             }
         }
@@ -58,9 +82,29 @@ public class TresExchData {
                     double avgOsc = calcAvgOsc();
                     long millis = System.currentTimeMillis();
                     synchronized (m_avgOscs) {
-                        AvgOscPoint avgOscPoint = new AvgOscPoint(millis, avgOsc);
-                        m_avgOscs.add(avgOscPoint);
-                        m_avgOscsPeakCalculator.update(avgOscPoint);
+                        ChartPoint chartPoint = new ChartPoint(millis, avgOsc);
+                        m_avgOscs.add(chartPoint);
+                        m_avgOscsPeakCalculator.update(chartPoint);
+                    }
+                }
+
+                @Override protected void onCoppockBar() {
+                    double avgCoppock = calcAvgCoppock();
+                    long millis = System.currentTimeMillis();
+                    synchronized (m_avgCoppock) {
+                        ChartPoint chartPoint = new ChartPoint(millis, avgCoppock);
+                        m_avgCoppock.add(chartPoint);
+                        m_avgCoppockPeakCalculator.update(chartPoint);
+                    }
+                }
+
+                @Override protected void onCciBar() {
+                    double avgCci = calcAvgCci();
+                    long millis = System.currentTimeMillis();
+                    synchronized (m_avgCci) {
+                        ChartPoint chartPoint = new ChartPoint(millis, avgCci);
+                        m_avgCci.add(chartPoint);
+                        m_avgCciPeakCalculator.update(chartPoint);
                     }
                 }
             };
@@ -163,8 +207,26 @@ public class TresExchData {
     public double calcAvgOsc() { // [0 ... 1]
         double ret = 0;
         for (PhaseData phaseData : m_phaseDatas) {
-            double getAvgOsc = phaseData.getAvgOsc();
-            ret += getAvgOsc;
+            double avgOsc = phaseData.getAvgOsc();
+            ret += avgOsc;
+        }
+        return ret/m_phaseDatas.length;
+    }
+
+    public double calcAvgCoppock() {
+        double ret = 0;
+        for (PhaseData phaseData : m_phaseDatas) {
+            double avgCoppock = phaseData.getAvgCoppock();
+            ret += avgCoppock;
+        }
+        return ret/m_phaseDatas.length;
+    }
+
+    private double calcAvgCci() {
+        double ret = 0;
+        for (PhaseData phaseData : m_phaseDatas) {
+            double avgCci = phaseData.getAvgCci();
+            ret += avgCci;
         }
         return ret/m_phaseDatas.length;
     }
@@ -192,13 +254,13 @@ public class TresExchData {
         }
     }
 
-    protected class AvgOscPoint {
+    protected class ChartPoint {
         public final long m_millis;
-        public final double m_avgOsc;
+        public final double m_value;
 
-        public AvgOscPoint(long millis, double avgOsc) {
+        public ChartPoint(long millis, double value) {
             m_millis = millis;
-            m_avgOsc = avgOsc;
+            m_value = value;
         }
     }
 }
