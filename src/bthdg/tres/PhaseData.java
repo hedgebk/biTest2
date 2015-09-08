@@ -137,15 +137,11 @@ public class PhaseData {
         return m_direction;
     }
 
-    public double getAvgOsc() {
-        return m_oscCalculator.m_lastBar == null ? 0 : m_oscCalculator.m_lastBar.getMid();
+    public TresCoppockCalculator.CoppockTick getLastCoppock() {
+        return m_coppockCalculator.m_lastTick;
     }
 
-    public double getAvgCoppock() {
-        return m_coppockCalculator.m_lastValue;
-    }
-
-    public double getAvgCci() {
-        return m_cciCalculator.m_lastValue;
+    public TresCciCalculator.CciTick getLastCci() {
+        return m_cciCalculator.m_lastTick;
     }
 }

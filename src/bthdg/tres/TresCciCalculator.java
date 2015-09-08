@@ -21,7 +21,7 @@ public class TresCciCalculator extends CciCalculator {
             }
         }
     };
-    protected double m_lastValue;
+    protected CciTick m_lastTick;
 
     public TresCciCalculator(TresExchData exchData, int phaseIndex) {
         super(DEF_SMA_LENGTH, exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex));
@@ -33,7 +33,7 @@ public class TresCciCalculator extends CciCalculator {
 System.out.println("CciTick " + value);
         m_cciPoints.add(tick); // add to the end
         m_peakCalculator.update(tick);
-        m_lastValue = value;
+        m_lastTick = tick;
     }
 
 

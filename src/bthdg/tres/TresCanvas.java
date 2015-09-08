@@ -33,10 +33,15 @@ public class TresCanvas extends JComponent {
     public static final Color AVG_OSCS_COLOR = Color.pink;
     public static final Color OSC_PEAKS_COLOR = Colors.setAlpha(Colors.LIGHT_CYAN, 127);
     public static final Color BAR_HIGHLIGHT_COLOR = new Color(32, 32, 32);
-    public static final Color COPPOCK_COLOR = Colors.setAlpha(Color.RED, 100);
-    public static final Color COPPOCK_AVG_COLOR = Color.RED;
-    public static final Color CCI_COLOR = Colors.setAlpha(Color.BLUE, 100);
-    public static final Color CCI_AVG_COLOR = Color.BLUE;
+    public static final Color COPPOCK_COLOR = Colors.setAlpha(Color.CYAN, 50);
+    public static final Color COPPOCK_AVG_COLOR = Color.CYAN;
+    public static final Color CCI_COLOR = Colors.setAlpha(Colors.LIGHT_ORANGE, 40);
+    public static final Color CCI_AVG_COLOR = new Color(230, 100, 43);
+
+    protected static boolean m_paintSym = true;
+    protected static boolean m_paintOsc = true;
+    protected static boolean m_paintCoppock = true;
+    protected static boolean m_paintCci = true;
 
     private Tres m_tres;
     private Point m_point;
@@ -231,22 +236,34 @@ public class TresCanvas extends JComponent {
             paintLine(g, 0.8);
 
             for (PhaseData phData : phaseDatas) {
-                TresOscCalculator phaseOscCalculator = phData.m_oscCalculator;
-                paintOscTicks(g, phaseOscCalculator.m_oscBars);
-                paintOscPeaks(g, phaseOscCalculator.m_oscPeaks);
+                if (m_paintOsc) {
+                    TresOscCalculator phaseOscCalculator = phData.m_oscCalculator;
+                    paintOscTicks(g, phaseOscCalculator.m_oscBars);
+                    paintOscPeaks(g, phaseOscCalculator.m_oscPeaks);
+                }
 
-                TresCoppockCalculator phaseCoppockCalculator = phData.m_coppockCalculator;
-                paintCoppockTicks(g, phaseCoppockCalculator.m_coppockPoints);
+                if (m_paintCoppock) {
+                    TresCoppockCalculator phaseCoppockCalculator = phData.m_coppockCalculator;
+                    paintCoppockTicks(g, phaseCoppockCalculator.m_coppockPoints);
 //                paintCoppockPeaks(g, phaseCoppockCalculator.m_coppockPeaks);
+                }
 
-                TresCciCalculator phaseCciCalculator = phData.m_cciCalculator;
-                paintCciTicks(g, phaseCciCalculator.m_cciPoints);
+                if (m_paintCci) {
+                    TresCciCalculator phaseCciCalculator = phData.m_cciCalculator;
+                    paintCciTicks(g, phaseCciCalculator.m_cciPoints);
 //                paintCciPeaks(g, phaseCciCalculator.m_cciPeaks);
+                }
             }
-            paintAvgOscs(g, exchData.m_avgOscs);
-            paintAvgOscPeaks(g, exchData.m_avgOscsPeaks);
-            paintAvgCoppock(g, exchData.m_avgCoppock);
-            paintAvgCci(g, exchData.m_avgCci);
+            if (m_paintOsc) {
+                paintAvgOscs(g, exchData.m_avgOscs);
+                paintAvgOscPeaks(g, exchData.m_avgOscsPeaks);
+            }
+            if (m_paintCoppock) {
+                paintAvgCoppock(g, exchData.m_avgCoppock);
+            }
+            if (m_paintCci) {
+                paintAvgCci(g, exchData.m_avgCci);
+            }
 
             paintMaTicks(g, phaseData.m_maCalculator, yPriceAxe);
             paintOrders(g, exchData, yPriceAxe, ordersClone);
@@ -271,7 +288,7 @@ public class TresCanvas extends JComponent {
             sb.append(String.format("; dragDeltaX: %d", m_dragDeltaX));
         }
         if (m_dragDeltaBars != 0) {
-            sb.append(String.format("dragDeltaBars: %d", m_dragDeltaBars));
+            sb.append(String.format("; dragDeltaBars: %d", m_dragDeltaBars));
         }
         return sb.toString();
     }
@@ -909,8 +926,7 @@ public class TresCanvas extends JComponent {
         synchronized (maCd) { // avoid ConcurrentModificationException - use local copy
             maCrossDatas.addAll(maCd);
         }
-        for (Iterator<TresMaCalculator.MaCrossData> iterator = maCrossDatas.iterator(); iterator.hasNext(); ) {
-            TresMaCalculator.MaCrossData maCrossData = iterator.next();
+        for (TresMaCalculator.MaCrossData maCrossData : maCrossDatas) {
             Long timestamp = maCrossData.m_timestamp;
             int x = m_xTimeAxe.getPoint(timestamp);
             boolean oscUp = maCrossData.m_oscUp;
@@ -918,7 +934,7 @@ public class TresCanvas extends JComponent {
             int y = yPriceAxe.getPointReverse(price);
             if (lastOscUp != null) {
                 if (lastOscUp != oscUp) {
-                    if (x > 0) {
+                    if (m_paintSym && (x > 0)) {
                         int dy = y - lastY;
                         Color color = (lastOscUp && (dy < 0)) || (!lastOscUp && (dy > 0)) ? Color.GREEN : Color.RED;
                         g.setColor(color);
@@ -930,7 +946,7 @@ public class TresCanvas extends JComponent {
                             priceRatio = 1 / priceRatio;
                         }
                         totalPriceRatio *= priceRatio;
-                        if ((x > 0) && (x < canvasWidth)) {
+                        if (m_paintSym && ((x > 0) && (x < canvasWidth))) {
                             g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight);
                             Color color = (totalPriceRatio > 1) ? Color.GREEN : Color.RED;
                             g.setColor(color);
@@ -952,7 +968,7 @@ public class TresCanvas extends JComponent {
                 lastX = x;
                 lastPrice = price;
             }
-            if (x > 0) {
+            if (m_paintSym && (x > 0)) {
                 g.setColor(oscUp ? Color.GREEN : Color.RED);
                 g.drawLine(x, y, x + 5, y + (oscUp ? -5 : 5));
             }
@@ -962,17 +978,17 @@ public class TresCanvas extends JComponent {
         TresExchData exchData = maCalculator.m_phaseData.m_exchData;
         long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
         String runningStr = Utils.millisToDHMSStr(runningTimeMillis);
-        g.drawString("running: " + runningStr, 5, fontHeight * 8 + 5);
+        g.drawString("running: " + runningStr, 5, fontHeight * 5 + 5);
 
-        g.drawString(String.format("ratio: %.5f", totalPriceRatio), 5, fontHeight * 9 + 5);
+        g.drawString(String.format("ratio: %.5f", totalPriceRatio), 5, fontHeight * 6 + 5);
 
         double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
         double aDay = Math.pow(totalPriceRatio, 1 / runningTimeDays);
-        g.drawString(String.format("projected aDay: %.5f", aDay), 5, fontHeight * 10 + 5);
+        g.drawString(String.format("projected aDay: %.5f", aDay), 5, fontHeight * 7 + 5);
 
-        g.drawString(String.format("trade num: %d", tradeNum), 5, fontHeight * 11 + 5);
+        g.drawString(String.format("trade num: %d", tradeNum), 5, fontHeight * 8 + 5);
         long tradeFreq = (tradeNum == 0) ? 0 : (runningTimeMillis / tradeNum);
-        g.drawString(String.format("trade every " + Utils.millisToDHMSStr(tradeFreq)), 5, fontHeight * 12 + 5);
+        g.drawString(String.format("trade every " + Utils.millisToDHMSStr(tradeFreq)), 5, fontHeight * 9 + 5);
     }
 
     private void paintOHLCTicks(Graphics g, List<OHLCTick> ohlcTicksClone, ChartAxe yPriceAxe) {
@@ -988,7 +1004,11 @@ public class TresCanvas extends JComponent {
             int lowY = yPriceAxe.getPointReverse(ohlcTick.m_low);
             int openY = yPriceAxe.getPointReverse(ohlcTick.m_open);
             int closeY = yPriceAxe.getPointReverse(ohlcTick.m_close);
-            g.drawLine(midX, highY, midX, lowY);
+            if (endX - startX > 7) {
+                g.fillRect(midX - 1, highY, 2, lowY - highY);
+            } else {
+                g.drawLine(midX, highY, midX, lowY);
+            }
 
             // ohlc style
             g.drawLine(startX + 1, openY, midX, openY);
@@ -1040,15 +1060,14 @@ public class TresCanvas extends JComponent {
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
 
+        g.setColor(COPPOCK_COLOR);
         for( TresCoppockCalculator.CoppockTick tick : m_paintCoppockTicks ) {
             long startTime = tick.m_barStart;
             long endTime = startTime + m_tres.m_barSizeMillis;
             int x = m_xTimeAxe.getPoint(endTime);
             double val = tick.m_value;
             int y = yAxe.getPointReverse(val);
-
             if (lastX != Integer.MAX_VALUE) {
-                g.setColor(COPPOCK_COLOR);
                 g.drawLine(lastX, lastY, x, y);
             }
             lastX = x;
@@ -1085,6 +1104,7 @@ public class TresCanvas extends JComponent {
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
 
+        g.setColor(CCI_COLOR);
         for( TresCciCalculator.CciTick tick : m_paintCciTicks ) {
             long endTime = tick.m_barEnd;
             int x = m_xTimeAxe.getPoint(endTime);
@@ -1092,7 +1112,6 @@ public class TresCanvas extends JComponent {
             int y = yAxe.getPointReverse(val);
 
             if (lastX != Integer.MAX_VALUE) {
-                g.setColor(CCI_COLOR);
                 g.drawLine(lastX, lastY, x, y);
             }
             lastX = x;

@@ -23,6 +23,7 @@ public class TresFrame extends JFrame implements Runnable {
                 updateUI();
             }
         };
+        m_canvas = new TresCanvas(m_tres);
         setTitle("Tres");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
@@ -46,17 +47,37 @@ public class TresFrame extends JFrame implements Runnable {
 
                     }
                 });
-                topPanel.add(new JCheckBox("osc") {
+                topPanel.add(new JCheckBox("top", true));
+                topPanel.add(new JCheckBox("sym", true) {
                     @Override protected void fireItemStateChanged(ItemEvent event) {
                         super.fireItemStateChanged(event);
-                        log("osc.fireItemStateChanged: " + event);
-                        // osc.fireItemStateChanged: java.awt.event.ItemEvent[ITEM_STATE_CHANGED,item=javax.swing.JToggleButton$ToggleButtonModel@47738e30,stateChange=SELECTED] on javax.swing.JToggleButton$ToggleButtonModel@47738e30
+                        TresCanvas.m_paintSym = (event.getStateChange() == ItemEvent.SELECTED);
+                        m_canvas.repaint();
                     }
                 });
-                topPanel.add(new JCheckBox("top"));
+                topPanel.add(new JCheckBox("osc", true) {
+                    @Override protected void fireItemStateChanged(ItemEvent event) {
+                        super.fireItemStateChanged(event);
+                        TresCanvas.m_paintOsc = (event.getStateChange() == ItemEvent.SELECTED);
+                        m_canvas.repaint();
+                    }
+                });
+                topPanel.add(new JCheckBox("coppock", true) {
+                    @Override protected void fireItemStateChanged(ItemEvent event) {
+                        super.fireItemStateChanged(event);
+                        TresCanvas.m_paintCoppock = (event.getStateChange() == ItemEvent.SELECTED);
+                        m_canvas.repaint();
+                    }
+                });
+                topPanel.add(new JCheckBox("cci", true) {
+                    @Override protected void fireItemStateChanged(ItemEvent event) {
+                        super.fireItemStateChanged(event);
+                        TresCanvas.m_paintCci = (event.getStateChange() == ItemEvent.SELECTED);
+                        m_canvas.repaint();
+                    }
+                });
             }
             panel1.add(topPanel, BorderLayout.NORTH);
-            m_canvas = new TresCanvas(m_tres);
             panel1.add(m_canvas, BorderLayout.CENTER);
         }
         add(panel1);
@@ -98,5 +119,4 @@ public class TresFrame extends JFrame implements Runnable {
         m_label.setText(m_tres.getState());
         m_canvas.repaint();
     }
-
 }

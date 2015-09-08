@@ -1,6 +1,7 @@
 package bthdg.tres;
 
 import bthdg.Log;
+import bthdg.calc.OscTick;
 import bthdg.exch.OrderData;
 import bthdg.exch.TradeData;
 import bthdg.osc.BaseExecutor;
@@ -79,32 +80,32 @@ public class TresExchData {
         for (int i = 0; i < phasesNum; i++) {
             m_phaseDatas[i] = new PhaseData(this, i) {
                 @Override protected void onOscBar() {
-                    double avgOsc = calcAvgOsc();
-                    long millis = System.currentTimeMillis();
-                    synchronized (m_avgOscs) {
-                        ChartPoint chartPoint = new ChartPoint(millis, avgOsc);
-                        m_avgOscs.add(chartPoint);
-                        m_avgOscsPeakCalculator.update(chartPoint);
+                    ChartPoint chartPoint = calcAvgOsc();
+                    if (chartPoint != null) {
+                        synchronized (m_avgOscs) {
+                            m_avgOscs.add(chartPoint);
+                            m_avgOscsPeakCalculator.update(chartPoint);
+                        }
                     }
                 }
 
                 @Override protected void onCoppockBar() {
-                    double avgCoppock = calcAvgCoppock();
-                    long millis = System.currentTimeMillis();
-                    synchronized (m_avgCoppock) {
-                        ChartPoint chartPoint = new ChartPoint(millis, avgCoppock);
-                        m_avgCoppock.add(chartPoint);
-                        m_avgCoppockPeakCalculator.update(chartPoint);
+                    ChartPoint chartPoint = calcAvgCoppock();
+                    if (chartPoint != null) {
+                        synchronized (m_avgCoppock) {
+                            m_avgCoppock.add(chartPoint);
+                            m_avgCoppockPeakCalculator.update(chartPoint);
+                        }
                     }
                 }
 
                 @Override protected void onCciBar() {
-                    double avgCci = calcAvgCci();
-                    long millis = System.currentTimeMillis();
-                    synchronized (m_avgCci) {
-                        ChartPoint chartPoint = new ChartPoint(millis, avgCci);
-                        m_avgCci.add(chartPoint);
-                        m_avgCciPeakCalculator.update(chartPoint);
+                    ChartPoint chartPoint = calcAvgCci();
+                    if (chartPoint != null) {
+                        synchronized (m_avgCci) {
+                            m_avgCci.add(chartPoint);
+                            m_avgCciPeakCalculator.update(chartPoint);
+                        }
                     }
                 }
             };
@@ -204,31 +205,58 @@ public class TresExchData {
         return directionAdjusted/m_phaseDatas.length;
     }
 
-    public double calcAvgOsc() { // [0 ... 1]
+    public ChartPoint calcAvgOsc() {
         double ret = 0;
+        long time = 0;
         for (PhaseData phaseData : m_phaseDatas) {
-            double avgOsc = phaseData.getAvgOsc();
+            OscTick lastBar = phaseData.m_oscCalculator.m_lastBar;
+            if (lastBar == null) {
+                return null;  // not fully ready
+            }
+            long startTime = lastBar.m_startTime;
+            time = Math.max(time, startTime);
+
+            double avgOsc = lastBar.getMid();
             ret += avgOsc;
         }
-        return ret/m_phaseDatas.length;
+        long endTime = time + m_tres.m_barSizeMillis;
+        double avgValue = ret / m_phaseDatas.length;
+        return new ChartPoint(endTime, avgValue);
     }
 
-    public double calcAvgCoppock() {
+    public ChartPoint calcAvgCoppock() {
         double ret = 0;
+        long maxBarStart = 0;
         for (PhaseData phaseData : m_phaseDatas) {
-            double avgCoppock = phaseData.getAvgCoppock();
-            ret += avgCoppock;
+            TresCoppockCalculator.CoppockTick lastCoppock = phaseData.getLastCoppock();
+            if (lastCoppock == null) {
+                return null; // not fully ready
+            }
+            double lastValue = lastCoppock.m_value;
+            long barStart = lastCoppock.m_barStart;
+            maxBarStart = Math.max(maxBarStart, barStart);
+            ret += lastValue;
         }
-        return ret/m_phaseDatas.length;
+        long maxBarEnd = maxBarStart + m_tres.m_barSizeMillis;
+        double avgValue = ret / m_phaseDatas.length;
+        return new ChartPoint(maxBarEnd, avgValue);
     }
 
-    private double calcAvgCci() {
+    private ChartPoint calcAvgCci() {
         double ret = 0;
+        long maxBarEnd = 0;
         for (PhaseData phaseData : m_phaseDatas) {
-            double avgCci = phaseData.getAvgCci();
-            ret += avgCci;
+            TresCciCalculator.CciTick lastCci = phaseData.getLastCci();
+            if (lastCci == null) {
+                return null; // not fully ready
+            }
+            double lastValue = lastCci.m_value;
+            long barEnd = lastCci.m_barEnd;
+            maxBarEnd = Math.max(maxBarEnd, barEnd);
+            ret += lastValue;
         }
-        return ret/m_phaseDatas.length;
+        double avgValue = ret / m_phaseDatas.length;
+        return new ChartPoint(maxBarEnd, avgValue);
     }
 
     public void addOrder(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource) {

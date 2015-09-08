@@ -34,7 +34,7 @@ public class TresExecutor extends BaseExecutor {
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
     @Override protected TaskQueueProcessor createTaskQueueProcessor() { return new TresTaskQueueProcessor(); }
 
-    @Override protected double getAvgOsc() { return m_exchData.calcAvgOsc(); }
+    @Override protected double getAvgOsc() { return m_exchData.calcAvgOsc().m_value; }
 
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
         super(ws, pair, exchData.m_tres.m_barSizeMillis);

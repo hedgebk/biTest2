@@ -20,7 +20,7 @@ public class TresCoppockCalculator extends CoppockCalculator {
             }
         }
     };
-    protected double m_lastValue;
+    protected CoppockTick m_lastTick;
 
     public TresCoppockCalculator(TresExchData exchData, int phaseIndex) {
         super(10, 14, 11, exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex));
@@ -33,7 +33,7 @@ public class TresCoppockCalculator extends CoppockCalculator {
 System.out.println("CoppockTick " + value);
         m_coppockPoints.add(tick); // add to the end
         m_peakCalculator.update(tick);
-        m_lastValue = value;
+        m_lastTick = tick;
     }
 
     public static class CoppockTick {
