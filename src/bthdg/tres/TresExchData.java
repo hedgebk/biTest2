@@ -228,18 +228,18 @@ public class TresExchData {
         double ret = 0;
         long maxBarStart = 0;
         for (PhaseData phaseData : m_phaseDatas) {
-            TresCoppockCalculator.CoppockTick lastCoppock = phaseData.getLastCoppock();
+            ChartPoint lastCoppock = phaseData.getLastCoppock();
             if (lastCoppock == null) {
                 return null; // not fully ready
             }
             double lastValue = lastCoppock.m_value;
-            long barStart = lastCoppock.m_barStart;
+            long barStart = lastCoppock.m_millis;
             maxBarStart = Math.max(maxBarStart, barStart);
             ret += lastValue;
         }
-        long maxBarEnd = maxBarStart + m_tres.m_barSizeMillis;
+//        long maxBarEnd = maxBarStart + m_tres.m_barSizeMillis;
         double avgValue = ret / m_phaseDatas.length;
-        return new ChartPoint(maxBarEnd, avgValue);
+        return new ChartPoint(maxBarStart, avgValue);
     }
 
     private ChartPoint calcAvgCci() {
@@ -282,13 +282,4 @@ public class TresExchData {
         }
     }
 
-    protected class ChartPoint {
-        public final long m_millis;
-        public final double m_value;
-
-        public ChartPoint(long millis, double value) {
-            m_millis = millis;
-            m_value = value;
-        }
-    }
 }

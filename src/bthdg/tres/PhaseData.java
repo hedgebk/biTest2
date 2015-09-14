@@ -137,7 +137,7 @@ public class PhaseData {
         return m_direction;
     }
 
-    public TresCoppockCalculator.CoppockTick getLastCoppock() {
+    public ChartPoint getLastCoppock() {
         return m_coppockCalculator.m_lastTick;
     }
 

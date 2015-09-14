@@ -361,8 +361,8 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     public void postRecheckDirection() {
-        log(" posting RecheckDirectionTask");
-        if(DO_TRADE) {
+        if (DO_TRADE) {
+            log(" posting RecheckDirectionTask");
             addTask(new RecheckDirectionTask());
         }
     }

@@ -30,7 +30,6 @@ public class TresCciCalculator extends CciCalculator {
 
     @Override protected void bar(long barEnd, double value) {
         CciTick tick = new CciTick(barEnd, value);
-System.out.println("CciTick " + value);
         m_cciPoints.add(tick); // add to the end
         m_peakCalculator.update(tick);
         m_lastTick = tick;
