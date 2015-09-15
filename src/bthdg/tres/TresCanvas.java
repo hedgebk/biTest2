@@ -284,19 +284,25 @@ public class TresCanvas extends JComponent {
         }
         List<ChartPoint> avgCoppockClone = cloneChartPoints(exchData.m_avgCoppock, minMaxCalculator);
         List<ChartPoint> avgCoppockPeaksClone = cloneChartPoints(exchData.m_avgCoppockPeaks, minMaxCalculator);
-        Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
-        Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
-        ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
-        yAxe.m_offset = 2;
+        if (minMaxCalculator.hasValue()) {
+            Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
+            Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
+            ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
+            yAxe.m_offset = 2;
 
-        for (List<ChartPoint> ticksClone : ticksAr) {
-            paintCoppockTicks(g, ticksClone, yAxe, COPPOCK_COLOR);
+            g.setColor(COPPOCK_COLOR);
+            int y = yAxe.getPointReverse(0);
+            g.drawLine(0, y, getWidth(), y);
+
+            for (List<ChartPoint> ticksClone : ticksAr) {
+                paintCoppockTicks(g, ticksClone, yAxe, COPPOCK_COLOR);
+            }
+            for (List<ChartPoint> peaksClone : peaksAr) {
+                paintCoppockPeaks(g, peaksClone, yAxe, COPPOCK_PEAKS_COLOR);
+            }
+            paintCoppockTicks(g, avgCoppockClone, yAxe, COPPOCK_AVG_COLOR);
+            paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR);
         }
-        for (List<ChartPoint> peaksClone : peaksAr) {
-            paintCoppockPeaks(g, peaksClone, yAxe, COPPOCK_PEAKS_COLOR);
-        }
-        paintCoppockTicks(g, avgCoppockClone, yAxe, COPPOCK_AVG_COLOR);
-        paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR);
     }
 
     private String getBarsShiftStr() {
@@ -369,37 +375,42 @@ public class TresCanvas extends JComponent {
         double max = yPriceAxe.m_max;
 
         int step = 1;
-        int minLabel = (int) Math.ceil(min / step);
-        int maxLabel = (int) Math.floor(max / step);
+        int minLabel = (int) Math.floor(min / step);
+        int maxLabel = (int) Math.ceil(max / step);
 
         FontMetrics fontMetrics = g.getFontMetrics();
         int maxWidth = 10;
         for (int y = minLabel; y <= maxLabel; y += step) {
             Rectangle2D bounds = fontMetrics.getStringBounds(Integer.toString(y), g);
-            int width = (int) bounds.getWidth();
-            maxWidth = Math.max(maxWidth, width);
+            int stringWidth = (int) bounds.getWidth();
+            maxWidth = Math.max(maxWidth, stringWidth);
         }
-
         int width = getWidth();
         int x = width - maxWidth;
+
+        int priceY0 = yPriceAxe.getPointReverse(minLabel);
+        int priceY1 = yPriceAxe.getPointReverse(minLabel + step);
+        int stepHeight = Math.abs(priceY1 - priceY0);
+        double[] steps = new double[]{0.1, 0.2, 0.5};
+
         for (int y = minLabel; y <= maxLabel; y += step) {
             int priceY = yPriceAxe.getPointReverse(y);
             g.drawString(Integer.toString(y), x, priceY + halfFontHeight);
             g.drawLine(x - 2, priceY, x - PRICE_AXE_MARKER_WIDTH, priceY);
-        }
 
-        int priceY1 = yPriceAxe.getPointReverse(minLabel);
-        int priceY2 = yPriceAxe.getPointReverse(minLabel + step);
-        int stepHeight = Math.abs(priceY2 - priceY1);
-        if (stepHeight > fontHeight * 3) {
-            double halfStep = step / 2.0;
-            for (int y = minLabel; y < maxLabel; y += step) {
-                int priceY = yPriceAxe.getPointReverse(y + halfStep);
-                g.drawString(Double.toString(halfStep), x, priceY + halfFontHeight);
-                g.drawLine(x - 2, priceY, x - PRICE_AXE_MARKER_WIDTH / 2, priceY);
+            for (double semiStep : steps) {
+                int semiStepsNum = (int) Math.round(1.0 / semiStep);
+                int semiStepsHeight = (int) (semiStepsNum * fontHeight * 1.5);
+                if (stepHeight > semiStepsHeight) { // can fit
+                    for (double y2 = semiStep; y2 < step; y2 += semiStep) {
+                        int priceY2 = yPriceAxe.getPointReverse(y + y2);
+                        g.drawString(String.format(" %1$,.1f", y2), x, priceY2 + halfFontHeight);
+                        g.drawLine(x - 2, priceY2, x - PRICE_AXE_MARKER_WIDTH / 2, priceY2);
+                    }
+                    break;
+                }
             }
         }
-
         if (yPriceAxeWidth != maxWidth) { // changed
             calcMaxBars(width);
         }

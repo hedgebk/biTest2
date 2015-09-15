@@ -518,7 +518,7 @@ public class Utils {
         public void calculate(O obj) {
             if (obj != null) {
                 Double[] values = getValues(obj);
-                if(values != null) {
+                if (values != null) {
                     for (Double value : values) {
                         if (value != null) {
                             if ((m_maxValue == null) || (value > m_maxValue)) {
@@ -532,6 +532,8 @@ public class Utils {
                 }
             }
         }
+
+        public boolean hasValue() { return (m_minValue != null); }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
