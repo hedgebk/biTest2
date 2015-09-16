@@ -14,7 +14,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public abstract class BaseExecutor implements Runnable {
-    protected static final boolean DO_TRADE = false;
+    public static boolean DO_TRADE = true;
     public static final int STATE_NO_CHANGE = 0;
     public static final int STATE_NONE = 1;
     public static final int STATE_ORDER = 2;

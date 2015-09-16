@@ -5,6 +5,7 @@ import bthdg.Log;
 import bthdg.exch.BaseExch;
 import bthdg.exch.Pair;
 import bthdg.exch.TradeData;
+import bthdg.osc.BaseExecutor;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 import bthdg.ws.IWs;
@@ -32,10 +33,15 @@ public class Tres {
     int m_ma;
     ArrayList<TresExchData> m_exchDatas;
     private TresFrame m_frame;
-    private final boolean m_processLogs;
+    private boolean m_processLogs;
     public boolean m_silentConsole;
     public List<Long> m_tickTimes = new ArrayList<Long>();
     public boolean m_logProcessing;
+    private String m_e;
+    public TreScheme m_scheme;
+    public boolean m_calcOsc;
+    public boolean m_calcCoppock;
+    public boolean m_calcCci;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -43,7 +49,14 @@ public class Tres {
     public long getBarOffset(int index) { return m_barSizeMillis * (index % m_phases) / m_phases; }
 
     public Tres(String[] args) {
-        m_processLogs = (args.length > 0);
+        if (args.length > 0) {
+            String first = args[0];
+            if (first.equals("logs")) {
+                m_processLogs = true;
+            } else {
+                m_e = first;
+            }
+        }
     }
 
     public static void main(String[] args) {
@@ -94,7 +107,7 @@ public class Tres {
     }
 
     private void init() {
-        String exchangesStr = getProperty("tre.exchanges");
+        String exchangesStr = (m_e == null) ? getProperty("tre.exchanges") : m_e;
         log("EXCHANGES=" + exchangesStr);
         String[] exchangesArr = exchangesStr.split(",");
         int exchangesLen = exchangesArr.length;
@@ -121,6 +134,21 @@ public class Tres {
         double lockOscLevel = Double.parseDouble(getProperty("tre.osc_lock"));
         log("osc_lock=" + lockOscLevel);
         PhaseData.LOCK_OSC_LEVEL = lockOscLevel;
+
+        boolean doTrade = Boolean.parseBoolean(getProperty("tre.do_trade"));
+        log("doTrade=" + doTrade);
+        BaseExecutor.DO_TRADE = doTrade;
+
+        String treScheme = getProperty("tre.scheme");
+        log("treScheme=" + treScheme);
+        m_scheme = TreScheme.valueOf(treScheme);
+
+        m_calcOsc = Boolean.parseBoolean(getProperty("tre.calc_osc"));
+        log("calc_osc=" + m_calcOsc);
+        m_calcCoppock = Boolean.parseBoolean(getProperty("tre.calc_coppock"));
+        log("calc_osc=" + m_calcCoppock);
+        m_calcCci = Boolean.parseBoolean(getProperty("tre.calc_cci"));
+        log("calc_osc=" + m_calcCci);
 
         m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
         for (String exch : exchangesArr) {

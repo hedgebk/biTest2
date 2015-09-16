@@ -184,8 +184,16 @@ public class TresCanvas extends JComponent {
         TresExchData exchData = exchDatas.get(0);
         PhaseData[] phaseDatas = exchData.m_phaseDatas;
         PhaseData phaseData = phaseDatas[0];
-        TresOscCalculator oscCalculator = phaseData.m_oscCalculator;
-        LinkedList<OscTick> oscBars = oscCalculator.m_oscBars;
+
+        TresOscCalculator oscCalculator;
+        LinkedList<OscTick> oscBars;
+        if (m_tres.m_calcOsc) {
+            oscCalculator = phaseData.m_oscCalculator;
+            oscBars = oscCalculator.m_oscBars;
+        } else {
+            oscCalculator = null;
+            oscBars = null;
+        }
         calcXTimeAxe(width, barSize, phaseData.m_ohlcCalculator.m_ohlcTicks, oscBars);
 
         List<OHLCTick> ohlcTicksClone = cloneOhlcTicks(phaseData.m_ohlcCalculator.m_ohlcTicks);
@@ -210,14 +218,16 @@ public class TresCanvas extends JComponent {
             int fontHeight = g.getFont().getSize();
             g.drawString("Last: " + lastStr + "; buy: " + buyStr + "; sell: " + sellStr, 5, fontHeight + 5);
 
-            OscTick fineTick = oscCalculator.m_lastFineTick;
-            paintFineOsc(g, fineTick, width - 5);
+            if (m_tres.m_calcOsc) {
+                OscTick fineTick = oscCalculator.m_lastFineTick;
+                paintFineOsc(g, fineTick, width - 5);
 
-            OscTick blendedTick = oscCalculator.m_blendedLastFineTick;
-            OscTick lastBarTick = oscCalculator.m_lastBar;
-            paintBlendedOsc(g, lastBarTick, blendedTick, width - 5);
+                OscTick blendedTick = oscCalculator.m_blendedLastFineTick;
+                OscTick lastBarTick = oscCalculator.m_lastBar;
+                paintBlendedOsc(g, lastBarTick, blendedTick, width - 5);
+            }
 
-            g.drawString(String.format("Zoom: %1$,.4f", m_zoom) + "; fontHeight="+fontHeight, 5, fontHeight * 2 + 5);
+            g.drawString(String.format("Zoom: %1$,.4f", m_zoom) + "; fontHeight=" + fontHeight, 5, fontHeight * 2 + 5);
             g.drawString(getBarsShiftStr(), 5, fontHeight * 3 + 5);
 
             List<TresExchData.OrderPoint> ordersClone = getOrderClone(exchData);
@@ -236,8 +246,7 @@ public class TresCanvas extends JComponent {
                 paintLine(g, 0.2);
                 paintLine(g, 0.8);
             }
-
-            if (m_paintOsc) {
+            if (m_tres.m_calcOsc && m_paintOsc) {
                 for (PhaseData phData : phaseDatas) {
                     TresOscCalculator phaseOscCalculator = phData.m_oscCalculator;
                     paintOscTicks(g, phaseOscCalculator.m_oscBars);
@@ -329,8 +338,8 @@ public class TresCanvas extends JComponent {
             g.drawString(String.format("p: %1$,.2f", price), x, y + fontHeight);
 
             double priceRatio = coppockSym.m_priceRatio;
-            g.setColor((priceRatio> 1) ? Color.GREEN : Color.RED);
-            g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight*2);
+            g.setColor((priceRatio > 1) ? Color.GREEN : Color.RED);
+            g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight * 2);
 
             double totalPriceRatio = coppockSym.m_totalPriceRatio;
             g.setColor((totalPriceRatio > 1) ? Color.GREEN : Color.RED);
@@ -499,10 +508,12 @@ public class TresCanvas extends JComponent {
         if (lastOhlcTick != null) {
             maxTime = lastOhlcTick.m_barEnd;
         }
-        OscTick lastOscTick = bars.peekLast();
-        if (lastOscTick != null) {
-            long endTime = lastOscTick.m_startTime + barSize;
-            maxTime = Math.max(maxTime, endTime);
+        if (bars != null) {
+            OscTick lastOscTick = bars.peekLast();
+            if (lastOscTick != null) {
+                long endTime = lastOscTick.m_startTime + barSize;
+                maxTime = Math.max(maxTime, endTime);
+            }
         }
         if (maxTime == 0) {
             maxTime = System.currentTimeMillis();

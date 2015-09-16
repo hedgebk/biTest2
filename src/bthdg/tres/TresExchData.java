@@ -16,13 +16,6 @@ import java.util.LinkedList;
 public class TresExchData {
     public static final double AVG_OSC_PEAK_TOLERANCE = 0.05;
     public static final double AVG_COPPOCK_PEAK_TOLERANCE = 0.005;
-    // 0.007 1.03326;
-    // 0.006 1.035329;
-    // 0.0055 1.0348;
-    // 0.005 1.03706;
-    // 0.0045 1.03531;
-    // 0.004 1.03337;
-    // 0.003 1.028858
     public static final double AVG_CCI_PEAK_TOLERANCE = 0.05;
 
     final Tres m_tres;

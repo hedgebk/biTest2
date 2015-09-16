@@ -20,24 +20,26 @@ public class PhaseData {
     public PhaseData(TresExchData exchData, int phaseIndex) {
         m_exchData = exchData;
         m_phaseIndex = phaseIndex;
-        m_oscCalculator = new TresOscCalculator(exchData, phaseIndex) {
+        Tres tres = m_exchData.m_tres;
+        m_oscCalculator = tres.m_calcOsc ? new TresOscCalculator(exchData, phaseIndex) {
             @Override public void bar(long barStart, double stoch1, double stoch2) {
                 super.bar(barStart, stoch1, stoch2);
                 onOscBar();
             }
-        };
-        m_coppockCalculator = new TresCoppockCalculator(exchData, phaseIndex) {
+        } : null;
+
+        m_coppockCalculator = tres.m_calcCoppock ? new TresCoppockCalculator(exchData, phaseIndex) {
             @Override protected void bar(long barStart, double value) {
                 super.bar(barStart, value);
                 onCoppockBar();
             }
-        };
-        m_cciCalculator = new TresCciCalculator(exchData, phaseIndex) {
+        } : null;
+        m_cciCalculator = tres.m_calcCci ? new TresCciCalculator(exchData, phaseIndex) {
             @Override protected void bar(long barEnd, double value) {
                 super.bar(barEnd, value);
                 onCciBar();
             }
-        };
+        } : null;
         m_ohlcCalculator = new TresOHLCCalculator(exchData.m_tres, phaseIndex);
         m_maCalculator = new TresMaCalculator(this, phaseIndex);
     }
@@ -49,9 +51,16 @@ public class PhaseData {
     public boolean update(TradeData tdata) {
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
-        m_oscCalculator.update(timestamp, price);
-        m_coppockCalculator.update(timestamp, price);
-        m_cciCalculator.update(timestamp, price);
+        Tres tres = m_exchData.m_tres;
+        if (tres.m_calcOsc) {
+            m_oscCalculator.update(timestamp, price);
+        }
+        if (tres.m_calcCoppock) {
+            m_coppockCalculator.update(timestamp, price);
+        }
+        if (tres.m_calcCci) {
+            m_cciCalculator.update(timestamp, price);
+        }
         boolean updated1 = m_ohlcCalculator.update(timestamp, price);
         boolean updated2 = m_maCalculator.update(timestamp, price);
 //        return updated1 || updated2;
@@ -63,6 +72,9 @@ public class PhaseData {
     }
 
     protected Boolean calcOscDirection(boolean useLastFineTick, long timestamp) {
+        if(!m_exchData.m_tres.m_calcOsc) {
+            return null; // not calculating
+        }
         if (useLastFineTick) {
             LinkedList<TresMaCalculator.MaCrossData> maCrossDatas = m_maCalculator.m_maCrossDatas;
             TresMaCalculator.MaCrossData lastMaCrossData;
