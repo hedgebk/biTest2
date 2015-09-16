@@ -6,7 +6,7 @@ import bthdg.osc.TrendWatcher;
 import java.util.LinkedList;
 
 public class TresCoppockCalculator extends CoppockCalculator {
-    private static final double PEAK_TOLERANCE = 0.01;
+    private static final double PEAK_TOLERANCE = 0.0075;
 
     private final TresExchData m_exchData;
     private final int m_phaseIndex;
@@ -14,7 +14,7 @@ public class TresCoppockCalculator extends CoppockCalculator {
     LinkedList<ChartPoint> m_coppockPeaks = new LinkedList<ChartPoint>();
     TrendWatcher<ChartPoint> m_peakCalculator = new TrendWatcher<ChartPoint>(PEAK_TOLERANCE) {
         @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
-        @Override protected void onNewPeak(ChartPoint peak) {
+        @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
             synchronized (m_coppockPeaks) {
                 m_coppockPeaks.add(peak);
             }

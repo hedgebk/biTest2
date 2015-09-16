@@ -64,14 +64,14 @@ public class TresExecutor extends BaseExecutor {
     }
 
     @Override public void onTrade(TradeData tData) {
-        TradeTask task = new TradeTask(tData);
-        if ((m_order != null) && m_order.m_status.isActive()) {
-            if (tData.m_price == m_order.m_price) { // same price trade - process first
-                addTaskFirst(task);
-                return;
+        if (DO_TRADE) {
+            TradeTask task = new TradeTask(tData);
+            if ((m_order != null) && m_order.m_status.isActive()) {
+                if (tData.m_price == m_order.m_price) { // same price trade - process first
+                    addTaskFirst(task);
+                    return;
+                }
             }
-        }
-        if(DO_TRADE) {
             addTask(task);
         }
     }

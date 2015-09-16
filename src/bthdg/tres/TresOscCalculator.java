@@ -22,7 +22,7 @@ public class TresOscCalculator extends OscCalculator {
     LinkedList<OscTick> m_oscPeaks = new LinkedList<OscTick>();
     TrendWatcher<OscTick> m_peakCalculator = new TrendWatcher<OscTick>(PEAK_TOLERANCE) {
         @Override protected double toDouble(OscTick oscTick) { return oscTick.getMid(); }
-        @Override protected void onNewPeak(OscTick peak) {
+        @Override protected void onNewPeak(OscTick peak, OscTick last) {
             synchronized (m_oscPeaks) {
                 m_oscPeaks.add(peak);
             }

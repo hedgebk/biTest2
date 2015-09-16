@@ -41,7 +41,7 @@ public abstract class TrendWatcher<O> {
                         m_direction = Direction.BACKWARD;
                         m_peak = m_peakCandidate;
                         m_peakCandidate = value;
-                        onNewPeak(m_peak);
+                        onNewPeak(m_peak, value);
                     }
                 } else if (m_direction == Direction.BACKWARD) {
                     if (diff < 0) {
@@ -50,7 +50,7 @@ public abstract class TrendWatcher<O> {
                         m_direction = Direction.FORWARD;
                         m_peak = m_peakCandidate;
                         m_peakCandidate = value;
-                        onNewPeak(m_peak);
+                        onNewPeak(m_peak, value);
                     }
                 }
             }
@@ -59,7 +59,7 @@ public abstract class TrendWatcher<O> {
 
     protected double getTolerance(O value) { return getTolerance(toDouble(value)); }
     protected double getTolerance(double value) { return m_tolerance; }
-    protected void onNewPeak(O peak) {}
+    protected void onNewPeak(O peak, O last) {}
 
     //-------------------------------------------------------------------------------
     public static class TrendWatcherDouble extends TrendWatcher<Double> {

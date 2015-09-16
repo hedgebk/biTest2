@@ -2,6 +2,7 @@ package bthdg.tres;
 
 import bthdg.Log;
 import bthdg.calc.OscTick;
+import bthdg.exch.Direction;
 import bthdg.exch.OrderData;
 import bthdg.exch.TradeData;
 import bthdg.osc.BaseExecutor;
@@ -14,7 +15,14 @@ import java.util.LinkedList;
 
 public class TresExchData {
     public static final double AVG_OSC_PEAK_TOLERANCE = 0.05;
-    public static final double AVG_COPPOCK_PEAK_TOLERANCE = 0.05;
+    public static final double AVG_COPPOCK_PEAK_TOLERANCE = 0.005;
+    // 0.007 1.03326;
+    // 0.006 1.035329;
+    // 0.0055 1.0348;
+    // 0.005 1.03706;
+    // 0.0045 1.03531;
+    // 0.004 1.03337;
+    // 0.003 1.028858
     public static final double AVG_CCI_PEAK_TOLERANCE = 0.05;
 
     final Tres m_tres;
@@ -30,27 +38,20 @@ public class TresExchData {
     final public LinkedList<ChartPoint> m_avgOscsPeaks = new LinkedList<ChartPoint>();
     final public LinkedList<ChartPoint> m_avgCoppockPeaks = new LinkedList<ChartPoint>();
     final public LinkedList<ChartPoint> m_avgCciPeaks = new LinkedList<ChartPoint>();
+    final public LinkedList<CoppockSymData> m_сoppockSym = new LinkedList<CoppockSymData>();
     final TrendWatcher<ChartPoint> m_avgOscsPeakCalculator = new TrendWatcher<ChartPoint>(AVG_OSC_PEAK_TOLERANCE) {
         @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
-        @Override protected void onNewPeak(ChartPoint peak) {
+        @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
             synchronized (m_avgOscsPeaks) {
                 m_avgOscsPeaks.add(peak);
                 m_executor.postRecheckDirection();
             }
         }
     };
-    final TrendWatcher<ChartPoint> m_avgCoppockPeakCalculator = new TrendWatcher<ChartPoint>(AVG_COPPOCK_PEAK_TOLERANCE) {
-        @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
-        @Override protected void onNewPeak(ChartPoint peak) {
-            synchronized (m_avgCoppockPeaks) {
-                m_avgCoppockPeaks.add(peak);
-                m_executor.postRecheckDirection();
-            }
-        }
-    };
+    final AvgCoppockPeakCalculator m_avgCoppockPeakCalculator = new AvgCoppockPeakCalculator();
     final TrendWatcher<ChartPoint> m_avgCciPeakCalculator = new TrendWatcher<ChartPoint>(AVG_CCI_PEAK_TOLERANCE) {
         @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
-        @Override protected void onNewPeak(ChartPoint peak) {
+        @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
             synchronized (m_avgCciPeaks) {
                 m_avgCciPeaks.add(peak);
                 m_executor.postRecheckDirection();
@@ -237,7 +238,6 @@ public class TresExchData {
             maxBarStart = Math.max(maxBarStart, barStart);
             ret += lastValue;
         }
-//        long maxBarEnd = maxBarStart + m_tres.m_barSizeMillis;
         double avgValue = ret / m_phaseDatas.length;
         return new ChartPoint(maxBarStart, avgValue);
     }
@@ -282,4 +282,53 @@ public class TresExchData {
         }
     }
 
+    private class AvgCoppockPeakCalculator extends TrendWatcher<ChartPoint> {
+        Double m_lastPeakPrice = null;
+        double m_totalPriceRatio = 1;
+
+        public AvgCoppockPeakCalculator() {
+            super(TresExchData.AVG_COPPOCK_PEAK_TOLERANCE);
+        }
+
+        @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
+
+        @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
+            synchronized (m_avgCoppockPeaks) {
+                m_avgCoppockPeaks.add(peak);
+                m_executor.postRecheckDirection();
+
+log("new peak: " + peak.m_value + "; direction=" + m_direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + m_lastPrice);
+                if (m_lastPeakPrice != null) {
+                    double priceRatio;
+                    if (m_direction == Direction.FORWARD) { // up
+                        priceRatio = m_lastPeakPrice / m_lastPrice;
+                    } else {
+                        priceRatio = m_lastPrice / m_lastPeakPrice;
+                    }
+                    m_totalPriceRatio *= priceRatio;
+log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
+
+                    CoppockSymData data = new CoppockSymData(m_lastTickMillis, m_lastPrice, priceRatio, m_totalPriceRatio);
+                    synchronized (m_сoppockSym) {
+                        m_сoppockSym.add(data);
+                    }
+                }
+                m_lastPeakPrice = m_lastPrice;
+            }
+        }
+    }
+
+    public static class CoppockSymData {
+        public final long m_millis;
+        public final double m_price;
+        public final double m_priceRatio;
+        public final double m_totalPriceRatio;
+
+        public CoppockSymData(long millis, double price, double priceRatio, double totalPriceRatio) {
+            m_millis = millis;
+            m_price = price;
+            m_priceRatio = priceRatio;
+            m_totalPriceRatio = totalPriceRatio;
+        }
+    }
 }

@@ -15,7 +15,7 @@ public class TresCciCalculator extends CciCalculator {
     LinkedList<CciTick> m_cciPeaks = new LinkedList<CciTick>();
     TrendWatcher<CciTick> m_peakCalculator = new TrendWatcher<CciTick>(PEAK_TOLERANCE) {
         @Override protected double toDouble(CciTick tick) { return tick.m_value; }
-        @Override protected void onNewPeak(CciTick peak) {
+        @Override protected void onNewPeak(CciTick peak, CciTick last) {
             synchronized (m_cciPeaks) {
                 m_cciPeaks.add(peak);
             }

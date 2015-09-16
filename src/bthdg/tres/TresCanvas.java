@@ -247,7 +247,7 @@ public class TresCanvas extends JComponent {
                 paintAvgOscPeaks(g, exchData.m_avgOscsPeaks);
             }
             if (m_paintCoppock) {
-                paintCoppock(g, exchData, phaseDatas);
+                paintCoppock(g, exchData, phaseDatas, yPriceAxe);
             }
             if (m_paintCci) {
                 for (PhaseData phData : phaseDatas) {
@@ -271,7 +271,7 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private void paintCoppock(Graphics g, TresExchData exchData, PhaseData[] phaseDatas) {
+    private void paintCoppock(Graphics g, TresExchData exchData, PhaseData[] phaseDatas, ChartAxe yPriceAxe) {
         Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
         List<List<ChartPoint>> ticksAr = new ArrayList<List<ChartPoint>>();
         List<List<ChartPoint>> peaksAr = new ArrayList<List<ChartPoint>>();
@@ -298,11 +298,64 @@ public class TresCanvas extends JComponent {
                 paintCoppockTicks(g, ticksClone, yAxe, COPPOCK_COLOR);
             }
             for (List<ChartPoint> peaksClone : peaksAr) {
-                paintCoppockPeaks(g, peaksClone, yAxe, COPPOCK_PEAKS_COLOR);
+                paintCoppockPeaks(g, peaksClone, yAxe, COPPOCK_PEAKS_COLOR, false);
             }
             paintCoppockTicks(g, avgCoppockClone, yAxe, COPPOCK_AVG_COLOR);
-            paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR);
+            paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR, true);
         }
+
+        List<TresExchData.CoppockSymData> coppockSymClone = cloneCoppockSym(exchData.m_сoppockSym);
+        paintCoppockSym(g, coppockSymClone, yPriceAxe);
+    }
+
+    private void paintCoppockSym(Graphics g, List<TresExchData.CoppockSymData> coppockSymClone, ChartAxe yPriceAxe) {
+        int fontHeight = g.getFont().getSize();
+        int lastX = Integer.MAX_VALUE;
+        int lastY = Integer.MAX_VALUE;
+        TresExchData.CoppockSymData lastCoppockSym = null;
+        for (TresExchData.CoppockSymData coppockSym : coppockSymClone) {
+            long millis = coppockSym.m_millis;
+            int x = m_xTimeAxe.getPoint(millis);
+            double price = coppockSym.m_price;
+            int y = yPriceAxe.getPointReverse(price);
+            if (lastX != Integer.MAX_VALUE) {
+                g.setColor((lastCoppockSym.m_priceRatio > 1) ? Color.GREEN : Color.RED);
+                g.drawLine(lastX, lastY, x, y);
+            } else {
+                g.setColor(Colors.BEGIE);
+                g.drawRect(x - 1, y - 1, 2, 2);
+            }
+
+            g.drawString(String.format("p: %1$,.2f", price), x, y + fontHeight);
+
+            double priceRatio = coppockSym.m_priceRatio;
+            g.setColor((priceRatio> 1) ? Color.GREEN : Color.RED);
+            g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight*2);
+
+            double totalPriceRatio = coppockSym.m_totalPriceRatio;
+            g.setColor((totalPriceRatio > 1) ? Color.GREEN : Color.RED);
+            g.drawString(String.format("t: %1$,.5f", totalPriceRatio), x, y + fontHeight * 3);
+
+            lastCoppockSym = coppockSym;
+            lastX = x;
+            lastY = y;
+        }
+    }
+
+    private List<TresExchData.CoppockSymData> cloneCoppockSym(LinkedList<TresExchData.CoppockSymData> сoppockSym) {
+        double minTime = m_xTimeAxe.m_min;
+        double maxTime = m_xTimeAxe.m_max;
+        List<TresExchData.CoppockSymData> ret = new ArrayList<TresExchData.CoppockSymData>();
+        synchronized (сoppockSym) {
+            for (Iterator<TresExchData.CoppockSymData> it = сoppockSym.descendingIterator(); it.hasNext(); ) {
+                TresExchData.CoppockSymData сoppockSymData = it.next();
+                long timestamp = сoppockSymData.m_millis;
+                if (timestamp > maxTime) { continue; }
+                ret.add(сoppockSymData);
+                if (timestamp < minTime) { break; }
+            }
+        }
+        return ret;
     }
 
     private String getBarsShiftStr() {
@@ -1064,7 +1117,8 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private void paintCoppockPeaks(Graphics g, List<ChartPoint> peaksClone, ChartAxe yAxe, Color color) {
+    private void paintCoppockPeaks(Graphics g, List<ChartPoint> peaksClone, ChartAxe yAxe, Color color, boolean big) {
+        int size = big ? 6 : 3;
         g.setColor(color);
         for (ChartPoint peakClone : peaksClone) {
             long startTime = peakClone.m_millis;
@@ -1072,8 +1126,8 @@ public class TresCanvas extends JComponent {
             int x = m_xTimeAxe.getPoint(endTime);
             double coppock = peakClone.m_value;
             int y = yAxe.getPointReverse(coppock);
-            g.drawLine(x - 5, y - 5, x + 5, y + 5);
-            g.drawLine(x + 5, y - 5, x - 5, y + 5);
+            g.drawLine(x - size, y - size, x + size, y + size);
+            g.drawLine(x + size, y - size, x - size, y + size);
         }
     }
 
