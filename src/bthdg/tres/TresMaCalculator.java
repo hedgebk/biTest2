@@ -3,7 +3,6 @@ package bthdg.tres;
 import bthdg.Log;
 import bthdg.calc.MaCalculator;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 
 public class TresMaCalculator extends MaCalculator {
@@ -86,12 +85,7 @@ public class TresMaCalculator extends MaCalculator {
         Boolean lastOscUp = null;
         Double lastPrice = null;
         double totalPriceRatio = 1;
-        LinkedList<TresMaCalculator.MaCrossData> maCrossDatas = new LinkedList<TresMaCalculator.MaCrossData>();
-        synchronized (m_maCrossDatas) { // avoid ConcurrentModificationException - use local copy
-            maCrossDatas.addAll(m_maCrossDatas);
-        }
-        for (Iterator<MaCrossData> iterator = maCrossDatas.iterator(); iterator.hasNext(); ) {
-            TresMaCalculator.MaCrossData maCrossData = iterator.next();
+        for (MaCrossData maCrossData : m_maCrossDatas) {
             boolean oscUp = maCrossData.m_oscUp;
             double price = maCrossData.m_price;
             if (lastOscUp != null) {

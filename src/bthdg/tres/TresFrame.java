@@ -92,16 +92,6 @@ public class TresFrame extends JFrame implements Runnable {
                 });
             }
         });
-//        addWindowStateListener(new WindowAdapter() {
-//            @Override public void windowOpened(WindowEvent e) {
-//                removeWindowStateListener(this);
-//                SwingUtilities.invokeLater(new Runnable() {
-//                    @Override public void run() {
-//                        toFront();
-//                    }
-//                });
-//            }
-//        });
     }
 
      public void fireUpdated() { m_snoozer.update(); }

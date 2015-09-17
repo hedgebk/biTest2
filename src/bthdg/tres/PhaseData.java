@@ -52,19 +52,19 @@ public class PhaseData {
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
         Tres tres = m_exchData.m_tres;
+        boolean updated = false;
         if (tres.m_calcOsc) {
-            m_oscCalculator.update(timestamp, price);
+            updated |= m_oscCalculator.update(timestamp, price);
         }
         if (tres.m_calcCoppock) {
-            m_coppockCalculator.update(timestamp, price);
+            updated |= m_coppockCalculator.update(timestamp, price);
         }
         if (tres.m_calcCci) {
-            m_cciCalculator.update(timestamp, price);
+            updated |= m_cciCalculator.update(timestamp, price);
         }
-        boolean updated1 = m_ohlcCalculator.update(timestamp, price);
-        boolean updated2 = m_maCalculator.update(timestamp, price);
-//        return updated1 || updated2;
-        return true;
+        updated |=  m_ohlcCalculator.update(timestamp, price);
+        updated |=  m_maCalculator.update(timestamp, price);
+        return updated;
     }
 
     public void getState(StringBuilder sb) {

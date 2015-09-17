@@ -124,10 +124,10 @@ class TresLogProcessor extends Thread {
         long min = Utils.parseDHMSMtoMillis(split[0]);
         long max = Utils.parseDHMSMtoMillis(split[1]);
         long step = Utils.parseDHMSMtoMillis(split[2]);
-        for( long i = min; i <= max; i+=step ) {
+        for (long i = min; i <= max; i += step) {
             tres.m_barSizeMillis = i;
             double averageProjected = processAllTicks(allTicks);
-            log("averageProjected[barSizeMillis="+i+"]: " + averageProjected);
+            log("averageProjected[barSizeMillis=" + i + "]: " + averageProjected);
         }
     }
 
@@ -138,10 +138,10 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
-        for( int i = min; i <= max; i+=step ) {
+        for (int i = min; i <= max; i += step) {
             tres.m_ma = i;
             double averageProjected = processAllTicks(allTicks);
-            log("averageProjected[ma="+i+"]: " + averageProjected);
+            log("averageProjected[ma=" + i + "]: " + averageProjected);
         }
     }
 
@@ -152,10 +152,10 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
-        for( int i = min; i <= max; i+=step ) {
+        for (int i = min; i <= max; i += step) {
             tres.m_len1 = i;
             double averageProjected = processAllTicks(allTicks);
-            log("averageProjected[varyLen1="+i+"]: " + averageProjected);
+            log("averageProjected[varyLen1=" + i + "]: " + averageProjected);
         }
     }
 
@@ -166,10 +166,10 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
-        for( int i = min; i <= max; i+=step ) {
+        for (int i = min; i <= max; i += step) {
             tres.m_len2 = i;
             double averageProjected = processAllTicks(allTicks);
-            log("averageProjected[varyLen2="+i+"]: " + averageProjected);
+            log("averageProjected[varyLen2=" + i + "]: " + averageProjected);
         }
     }
 
@@ -180,10 +180,10 @@ class TresLogProcessor extends Thread {
         double min = Double.parseDouble(split[0]);
         double max = Double.parseDouble(split[1]);
         double step = Double.parseDouble(split[2]);
-        for( double i = min; i <= max; i+=step ) {
+        for (double i = min; i <= max; i += step) {
             PhaseData.LOCK_OSC_LEVEL = i;
             double averageProjected = processAllTicks(allTicks);
-            log("averageProjected[oscLock="+i+"]: " + averageProjected);
+            log("averageProjected[oscLock=" + i + "]: " + averageProjected);
         }
     }
 
@@ -236,20 +236,15 @@ class TresLogProcessor extends Thread {
         for (PhaseData phaseData : exchData.m_phaseDatas) {
             TresMaCalculator maCalculator = phaseData.m_maCalculator;
             double total = maCalculator.calcToTal();
-//            log(" total=" + total);
             calc.addValue(total);
         }
         double averageTotal = calc.getAverage();
-//        log("  avg=" + averageTotal);
 
         long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
         double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
-//        String runningStr = Utils.millisToDHMSStr(runningTimeMillis);
-//        log("   running " + runningStr + "; runningTimeDays="+runningTimeDays);
+//        log("   running " + Utils.millisToDHMSStr(runningTimeMillis) + "; runningTimeDays="+runningTimeDays);
 
         double aDay = Math.pow(averageTotal, 1 / runningTimeDays);
-//        log("    aDay="+aDay);
-
         return aDay;
     }
 
