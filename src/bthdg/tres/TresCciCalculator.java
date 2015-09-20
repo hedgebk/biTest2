@@ -11,17 +11,17 @@ public class TresCciCalculator extends CciCalculator {
     public static final int DEF_SMA_LENGTH = 20;
 
     private final TresExchData m_exchData;
-    LinkedList<CciTick> m_cciPoints = new LinkedList<CciTick>();
-    LinkedList<CciTick> m_cciPeaks = new LinkedList<CciTick>();
-    TrendWatcher<CciTick> m_peakCalculator = new TrendWatcher<CciTick>(PEAK_TOLERANCE) {
-        @Override protected double toDouble(CciTick tick) { return tick.m_value; }
-        @Override protected void onNewPeak(CciTick peak, CciTick last) {
+    LinkedList<ChartPoint> m_cciPoints = new LinkedList<ChartPoint>();
+    LinkedList<ChartPoint> m_cciPeaks = new LinkedList<ChartPoint>();
+    TrendWatcher<ChartPoint> m_peakCalculator = new TrendWatcher<ChartPoint>(PEAK_TOLERANCE) {
+        @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
+        @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
             synchronized (m_cciPeaks) {
                 m_cciPeaks.add(peak);
             }
         }
     };
-    protected CciTick m_lastTick;
+    protected ChartPoint m_lastTick;
 
     public TresCciCalculator(TresExchData exchData, int phaseIndex) {
         super(DEF_SMA_LENGTH, exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex));
@@ -29,20 +29,9 @@ public class TresCciCalculator extends CciCalculator {
     }
 
     @Override protected void bar(long barEnd, double value) {
-        CciTick tick = new CciTick(barEnd, value);
+        ChartPoint tick = new ChartPoint(barEnd, value);
         m_cciPoints.add(tick); // add to the end
         m_peakCalculator.update(tick);
         m_lastTick = tick;
-    }
-
-
-    public static class CciTick {
-        public final long m_barEnd;
-        public final double m_value;
-
-        public CciTick(long barEnd, double value) {
-            m_barEnd = barEnd;
-            m_value = value;
-        }
     }
 }

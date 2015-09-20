@@ -8,7 +8,7 @@ public class CoppockCalculatorTest {
     public static void main(String[] argv) {
         CoppockCalculator coppockCalculator = new CoppockCalculator(10, 14, 11, BAR_SIZE, 0) {
 //            int m_indx = 0;
-            @Override public void bar(long barStart, double value) {
+            @Override public void bar(long barEnd, double value) {
                 System.out.println("bar\t" + value);
 //                if (Math.abs(stoch1 - STOCH1[m_indx]) > 0.000001) {
 //                    System.out.println("  !!!! STOCH1 not matched. expected " + STOCH1[m_indx]);

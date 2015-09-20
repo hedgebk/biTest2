@@ -96,10 +96,10 @@ public class CoppockCalculator extends BarCalculator {
 
     @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
         if (m_lastCoppock != null) {
-            bar(m_currentBarStart, m_lastCoppock);
+            bar(m_currentBarEnd, m_lastCoppock);
         }
     }
 
     protected void fine(long time, double value) {}
-    protected void bar(long barStart, double value) {}
+    protected void bar(long barEnd, double value) {}
 }

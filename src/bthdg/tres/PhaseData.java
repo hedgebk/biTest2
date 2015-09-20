@@ -2,8 +2,12 @@ package bthdg.tres;
 
 import bthdg.calc.OscTick;
 import bthdg.exch.TradeData;
+import bthdg.tres.alg.TresAlgo;
+import bthdg.tres.ind.TresIndicator;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 
 public class PhaseData {
     public static double LOCK_OSC_LEVEL = 0.09;
@@ -15,12 +19,21 @@ public class PhaseData {
     final TresCciCalculator m_cciCalculator;
     final TresOHLCCalculator m_ohlcCalculator;
     final TresMaCalculator m_maCalculator;
+    private final List<TresIndicator.TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresIndicator.TresPhasedIndicator>();
     private double m_direction = 0; // // [-1 ... 1].   parked initially
 
     public PhaseData(TresExchData exchData, int phaseIndex) {
         m_exchData = exchData;
         m_phaseIndex = phaseIndex;
         Tres tres = m_exchData.m_tres;
+
+        for (TresAlgo algo : exchData.m_algos) {
+            for(TresIndicator indicator : algo.m_indicarors) {
+                TresIndicator.TresPhasedIndicator phasedIndicator = indicator.createPhased(exchData, phaseIndex);
+                m_phasedIndicators.add(phasedIndicator);
+            }
+        }
+
         m_oscCalculator = tres.m_calcOsc ? new TresOscCalculator(exchData, phaseIndex) {
             @Override public void bar(long barStart, double stoch1, double stoch2) {
                 super.bar(barStart, stoch1, stoch2);
@@ -29,8 +42,8 @@ public class PhaseData {
         } : null;
 
         m_coppockCalculator = tres.m_calcCoppock ? new TresCoppockCalculator(exchData, phaseIndex) {
-            @Override protected void bar(long barStart, double value) {
-                super.bar(barStart, value);
+            @Override protected void bar(long barEnd, double value) {
+                super.bar(barEnd, value);
                 onCoppockBar();
             }
         } : null;
@@ -62,6 +75,10 @@ public class PhaseData {
         if (tres.m_calcCci) {
             updated |= m_cciCalculator.update(timestamp, price);
         }
+        for(TresIndicator.TresPhasedIndicator phasedIndicator: m_phasedIndicators) {
+            updated |= phasedIndicator.update(timestamp, price);
+        }
+
         updated |=  m_ohlcCalculator.update(timestamp, price);
         updated |=  m_maCalculator.update(timestamp, price);
         return updated;
@@ -153,7 +170,7 @@ public class PhaseData {
         return m_coppockCalculator.m_lastTick;
     }
 
-    public TresCciCalculator.CciTick getLastCci() {
+    public ChartPoint getLastCci() {
         return m_cciCalculator.m_lastTick;
     }
 }

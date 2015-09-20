@@ -28,8 +28,8 @@ public class TresCoppockCalculator extends CoppockCalculator {
         m_phaseIndex = phaseIndex;
     }
 
-    @Override protected void bar(long barStart, double value) {
-        ChartPoint tick = new ChartPoint(barStart, value);
+    @Override protected void bar(long barEnd, double value) {
+        ChartPoint tick = new ChartPoint(barEnd, value);
         m_coppockPoints.add(tick); // add to the end
         m_peakCalculator.update(tick);
         m_lastTick = tick;

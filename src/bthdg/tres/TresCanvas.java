@@ -64,7 +64,7 @@ public class TresCanvas extends JComponent {
     private List<OHLCTick> m_paintOhlcTicks = new ArrayList<OHLCTick>();
     private List<OscTick> m_paintOscPeaks = new ArrayList<OscTick>();
     private List<ChartPoint> m_paintAvgOscPeaks = new ArrayList<ChartPoint>();
-    private List<TresCciCalculator.CciTick> m_paintCciTicks = new ArrayList<TresCciCalculator.CciTick>();
+    private List<ChartPoint> m_paintCciTicks = new ArrayList<ChartPoint>();
 
     private static void log(String s) { Log.log(s); }
 
@@ -253,7 +253,7 @@ public class TresCanvas extends JComponent {
                     paintOscPeaks(g, phaseOscCalculator.m_oscPeaks);
                 }
                 paintAvgOscs(g, exchData.m_avgOscs);
-                paintAvgOscPeaks(g, exchData.m_avgOscsPeaks);
+                paintAvgOscPeaks(g, exchData.m_avgOscsPeakCalculator.m_avgOscsPeaks);
             }
             if (m_paintCoppock) {
                 paintCoppock(g, exchData, phaseDatas, yPriceAxe);
@@ -292,7 +292,7 @@ public class TresCanvas extends JComponent {
             peaksAr.add(peaks);
         }
         List<ChartPoint> avgCoppockClone = cloneChartPoints(exchData.m_avgCoppock, minMaxCalculator);
-        List<ChartPoint> avgCoppockPeaksClone = cloneChartPoints(exchData.m_avgCoppockPeaks, minMaxCalculator);
+        List<ChartPoint> avgCoppockPeaksClone = cloneChartPoints(exchData.m_avgCoppockPeakCalculator.m_avgCoppockPeaks, minMaxCalculator);
         if (minMaxCalculator.hasValue()) {
             Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
             Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
@@ -313,16 +313,16 @@ public class TresCanvas extends JComponent {
             paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR, true);
         }
 
-        List<TresExchData.CoppockSymData> coppockSymClone = cloneCoppockSym(exchData.m_сoppockSym);
+        List<TresExchData.SymData> coppockSymClone = cloneCoppockSym(exchData.m_сoppockSym);
         paintCoppockSym(g, coppockSymClone, yPriceAxe);
     }
 
-    private void paintCoppockSym(Graphics g, List<TresExchData.CoppockSymData> coppockSymClone, ChartAxe yPriceAxe) {
+    private void paintCoppockSym(Graphics g, List<TresExchData.SymData> coppockSymClone, ChartAxe yPriceAxe) {
         int fontHeight = g.getFont().getSize();
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
-        TresExchData.CoppockSymData lastCoppockSym = null;
-        for (TresExchData.CoppockSymData coppockSym : coppockSymClone) {
+        TresExchData.SymData lastCoppockSym = null;
+        for (TresExchData.SymData coppockSym : coppockSymClone) {
             long millis = coppockSym.m_millis;
             int x = m_xTimeAxe.getPoint(millis);
             double price = coppockSym.m_price;
@@ -351,13 +351,13 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private List<TresExchData.CoppockSymData> cloneCoppockSym(LinkedList<TresExchData.CoppockSymData> сoppockSym) {
+    private List<TresExchData.SymData> cloneCoppockSym(LinkedList<TresExchData.SymData> сoppockSym) {
         double minTime = m_xTimeAxe.m_min;
         double maxTime = m_xTimeAxe.m_max;
-        List<TresExchData.CoppockSymData> ret = new ArrayList<TresExchData.CoppockSymData>();
+        List<TresExchData.SymData> ret = new ArrayList<TresExchData.SymData>();
         synchronized (сoppockSym) {
-            for (Iterator<TresExchData.CoppockSymData> it = сoppockSym.descendingIterator(); it.hasNext(); ) {
-                TresExchData.CoppockSymData сoppockSymData = it.next();
+            for (Iterator<TresExchData.SymData> it = сoppockSym.descendingIterator(); it.hasNext(); ) {
+                TresExchData.SymData сoppockSymData = it.next();
                 long timestamp = сoppockSymData.m_millis;
                 if (timestamp > maxTime) { continue; }
                 ret.add(сoppockSymData);
@@ -464,10 +464,12 @@ public class TresCanvas extends JComponent {
                 int semiStepsNum = (int) Math.round(1.0 / semiStep);
                 int semiStepsHeight = (int) (semiStepsNum * fontHeight * 1.5);
                 if (stepHeight > semiStepsHeight) { // can fit
-                    for (double y2 = semiStep; y2 < step; y2 += semiStep) {
+                    double y2 = semiStep;
+                    for (int i = 1; i < semiStepsNum; i++) {
                         int priceY2 = yPriceAxe.getPointReverse(y + y2);
                         g.drawString(String.format(" %1$,.1f", y2), x, priceY2 + halfFontHeight);
                         g.drawLine(x - 2, priceY2, x - PRICE_AXE_MARKER_WIDTH / 2, priceY2);
+                        y2 += semiStep;
                     }
                     break;
                 }
@@ -1113,8 +1115,7 @@ public class TresCanvas extends JComponent {
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
         for (ChartPoint tick : ticksClone) {
-            long startTime = tick.m_millis;
-            long endTime = startTime + m_tres.m_barSizeMillis;
+            long endTime = tick.m_millis;
             int x = m_xTimeAxe.getPoint(endTime);
             double val = tick.m_value;
             int y = yAxe.getPointReverse(val);
@@ -1132,8 +1133,7 @@ public class TresCanvas extends JComponent {
         int size = big ? 6 : 3;
         g.setColor(color);
         for (ChartPoint peakClone : peaksClone) {
-            long startTime = peakClone.m_millis;
-            long endTime = startTime + m_tres.m_barSizeMillis;
+            long endTime = peakClone.m_millis;
             int x = m_xTimeAxe.getPoint(endTime);
             double coppock = peakClone.m_value;
             int y = yAxe.getPointReverse(coppock);
@@ -1143,16 +1143,16 @@ public class TresCanvas extends JComponent {
     }
 
 
-    private void paintCciTicks(Graphics g, LinkedList<TresCciCalculator.CciTick> ticks) {
+    private void paintCciTicks(Graphics g, LinkedList<ChartPoint> ticks) {
         double max = m_xTimeAxe.m_max;
         double min = m_xTimeAxe.m_min;
         // todo: clone first
         double valMin = -0.1;
         double valMax = 0.1;
         m_paintCciTicks.clear();
-        for (Iterator<TresCciCalculator.CciTick> iterator = ticks.descendingIterator(); iterator.hasNext(); ) {
-            TresCciCalculator.CciTick tick = iterator.next();
-            long endTime = tick.m_barEnd;
+        for (Iterator<ChartPoint> iterator = ticks.descendingIterator(); iterator.hasNext(); ) {
+            ChartPoint tick = iterator.next();
+            long endTime = tick.m_millis;
             long startTime = endTime - m_tres.m_barSizeMillis;
             if (startTime > max) { continue; }
             if (endTime < min) { break; }
@@ -1169,8 +1169,8 @@ public class TresCanvas extends JComponent {
         int lastY = Integer.MAX_VALUE;
 
         g.setColor(CCI_COLOR);
-        for (TresCciCalculator.CciTick tick : m_paintCciTicks) {
-            long endTime = tick.m_barEnd;
+        for (ChartPoint tick : m_paintCciTicks) {
+            long endTime = tick.m_millis;
             int x = m_xTimeAxe.getPoint(endTime);
             double val = tick.m_value;
             int y = yAxe.getPointReverse(val);
