@@ -267,6 +267,8 @@ public class TresCanvas extends JComponent {
                 paintAvgCci(g, exchData.m_avgCci);
             }
 
+            paintAlgos(g, exchData, yPriceAxe);
+
             paintMaTicks(g, phaseData.m_maCalculator, yPriceAxe);
             paintOrders(g, exchData, yPriceAxe, ordersClone);
 
@@ -277,6 +279,12 @@ public class TresCanvas extends JComponent {
 
         if (m_point != null) {
             paintCross(g, width, height);
+        }
+    }
+
+    private void paintAlgos(Graphics g, TresExchData exchData, ChartAxe yPriceAxe) {
+        for (TresAlgoWatcher algoWatcher : exchData.m_algos) {
+            algoWatcher.paint(g, exchData, m_xTimeAxe, yPriceAxe);
         }
     }
 
@@ -1141,7 +1149,6 @@ public class TresCanvas extends JComponent {
             g.drawLine(x + size, y - size, x - size, y + size);
         }
     }
-
 
     private void paintCciTicks(Graphics g, LinkedList<ChartPoint> ticks) {
         double max = m_xTimeAxe.m_max;

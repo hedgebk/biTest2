@@ -27,8 +27,9 @@ public class PhaseData {
         m_phaseIndex = phaseIndex;
         Tres tres = m_exchData.m_tres;
 
-        for (TresAlgo algo : exchData.m_algos) {
-            for(TresIndicator indicator : algo.m_indicarors) {
+        for (TresAlgoWatcher algoWatcher : exchData.m_algos) {
+            TresAlgo algo = algoWatcher.m_algo;
+            for(TresIndicator indicator : algo.m_indicators) {
                 TresIndicator.TresPhasedIndicator phasedIndicator = indicator.createPhased(exchData, phaseIndex);
                 m_phasedIndicators.add(phasedIndicator);
             }

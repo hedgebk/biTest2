@@ -43,6 +43,7 @@ public class Tres {
     public boolean m_calcCoppock;
     public boolean m_calcCci;
     String[] m_algosArr;
+    String m_runAlgo;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -151,11 +152,18 @@ public class Tres {
         m_calcCci = Boolean.parseBoolean(getProperty("tre.calc_cci"));
         log("calc_osc=" + m_calcCci);
 
-        String algosStr = getProperty("tre.algos");
-        log("ALGOS=" + algosStr);
-        m_algosArr = algosStr.split(",");
-        int indicatorsLen = m_algosArr.length;
-        log(" .len=" + indicatorsLen);
+        String algosStr = getProperty("tre.play.algos");
+        log("PLAY.ALGOS=" + algosStr);
+        if(algosStr.length() == 0) {
+            m_algosArr = null;
+        } else {
+            m_algosArr = algosStr.split(",");
+            int indicatorsLen = m_algosArr.length;
+            log(" .len=" + indicatorsLen);
+        }
+
+        m_runAlgo = getProperty("tre.run.algo");
+        log("run.algo=" + m_runAlgo);
 
         m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
         for (String exch : exchangesArr) {

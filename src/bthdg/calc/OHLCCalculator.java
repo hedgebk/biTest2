@@ -13,5 +13,5 @@ public class OHLCCalculator extends BarCalculator {
     @Override protected void startNewBar(long barStart, long barEnd) {
         m_tick = new OHLCTick(barStart, barEnd);
     }
-    @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {}
+    @Override protected void finishCurrentBar(long time, double price) {}
 }

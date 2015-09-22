@@ -56,7 +56,7 @@ public class CciCalculator extends OHLCCalculator {
         return sum / m_smaLength;
     }
 
-    @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
+    @Override protected void finishCurrentBar(long time, double price) {
         if (m_lastCci != null) {
             bar(m_currentBarEnd, m_lastCci);
         }

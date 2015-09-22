@@ -36,8 +36,8 @@ public class TresMaCalculator extends MaCalculator {
         m_tick.m_ma = ma;
     }
 
-    @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
-        super.finishCurrentBar(barStart, barEnd, time, price);
+    @Override protected void finishCurrentBar(long time, double price) {
+        super.finishCurrentBar(time, price);
 
         double currentMa = m_tick.m_ma;
         boolean currentPriceHigher = (price > currentMa);

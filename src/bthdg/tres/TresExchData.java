@@ -40,7 +40,7 @@ public class TresExchData {
     long m_startTickMillis = Long.MAX_VALUE;
     long m_lastTickMillis = 0;
     long m_tickCount;
-    final List<TresAlgo> m_algos = new ArrayList<TresAlgo>();
+    final List<TresAlgoWatcher> m_algos = new ArrayList<TresAlgoWatcher>();
 
     public void setUpdated() { m_updated = true; }
     public void setFeeding() { m_executor.m_feeding = true; }
@@ -54,9 +54,14 @@ public class TresExchData {
         m_tres = tres;
         m_ws = ws;
         m_executor = new TresExecutor(this, ws, Tres.PAIR);
-        for (String algoName : tres.m_algosArr) {
-            TresAlgo algo = TresAlgo.get(algoName);
-            m_algos.add(algo);
+
+        //m_runAlgo
+
+        if (tres.m_algosArr != null) {
+            for (String algoName : tres.m_algosArr) {
+                TresAlgo algo = TresAlgo.get(algoName);
+                m_algos.add(new TresAlgoWatcher(algo));
+            }
         }
 
         int phasesNum = tres.m_phases;

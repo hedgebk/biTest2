@@ -42,7 +42,7 @@ public class OscCalculator extends BarCalculator {
         updateCurrentBar(time, false);
         return true;
     }
-    @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
+    @Override protected void finishCurrentBar(long time, double price) {
         updateCurrentBar(time, true);
     }
 

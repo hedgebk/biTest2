@@ -19,9 +19,9 @@ public class MaCalculator extends BarCalculator {
         m_maSize = maSize;
     }
 
-    @Override protected void finishCurrentBar(long barStart, long barEnd, long time, double price) {
+    @Override protected void finishCurrentBar(long time, double price) {
         double ma = calcMa();
-        endMaBar(barEnd, ma, time, price);
+        endMaBar(m_currentBarEnd, ma, time, price);
     }
 
     private double calcMa() {

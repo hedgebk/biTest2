@@ -16,7 +16,7 @@ public abstract class BarCalculator {
     public boolean update(long time, double price) {
         if (m_currentBarEnd < time) {
             if (m_currentBarStart != 0) {
-                finishCurrentBar(m_currentBarStart, m_currentBarEnd, time, price);
+                finishCurrentBar(time, price);
             }
             m_currentBarStart = (time - m_barsMillisOffset) / m_barSizeMillis * m_barSizeMillis + m_barsMillisOffset;
             m_currentBarEnd = m_currentBarStart + m_barSizeMillis;
@@ -28,7 +28,7 @@ public abstract class BarCalculator {
 
     protected abstract void startNewBar(long barStart, long barEnd);
     protected abstract boolean updateCurrentBar(long time, double price);
-    protected abstract void finishCurrentBar(long barStart, long barEnd, long time, double price);
+    protected abstract void finishCurrentBar(long time, double price);
 
     protected static void replaceLastElement(LinkedList<Double> list, double price) {
         list.set(list.size() - 1, price); // replace last element
