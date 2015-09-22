@@ -6,6 +6,7 @@ import bthdg.calc.OHLCTick;
 import bthdg.calc.OscTick;
 import bthdg.exch.*;
 import bthdg.osc.BaseExecutor;
+import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
 

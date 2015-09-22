@@ -1,10 +1,10 @@
 package bthdg.tres.ind;
 
 import bthdg.ChartAxe;
-import bthdg.exch.Direction;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
+import bthdg.tres.alg.TresAlgo;
 import bthdg.util.Utils;
 
 import java.awt.*;
@@ -19,34 +19,23 @@ public abstract class TresIndicator {
     final LinkedList<ChartPoint> m_avgPeaks = new LinkedList<ChartPoint>();
     final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
     final List<ChartPoint> m_avgPaintPeaks = new ArrayList<ChartPoint>();
-    private final TrendWatcher<ChartPoint> m_avgPeakCalculator;
+    public final TrendWatcher<ChartPoint> m_avgPeakCalculator;
 
-    public TresIndicator(double peakTolerance) {
+    public TresIndicator(double peakTolerance, final TresAlgo algo) {
         m_avgPeakCalculator = new TrendWatcher<ChartPoint>(peakTolerance) {
             @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
             @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
                 synchronized (m_avgPeaks) {
                     m_avgPeaks.add(peak);
                 }
-                onPeak(m_direction);
+                algo.onAvgPeak(TresIndicator.this);
             }
         };
-    }
-
-    public static TresIndicator get(String indicatorName) {
-        if (indicatorName.equals("coppock")) {
-            return new CoppockIndicator();
-        }
-        throw new RuntimeException("unsupported indicator '" + indicatorName + "'");
     }
 
     public abstract TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex);
     public abstract Color getColor();
     public abstract Color getPeakColor();
-
-    protected void onPeak(Direction direction) {
-
-    }
 
     public TresPhasedIndicator createPhased(TresExchData exchData, int phaseIndex) {
         TresPhasedIndicator phased = createPhasedInt(exchData, phaseIndex);
@@ -87,57 +76,21 @@ public abstract class TresIndicator {
             phIndicator.cloneChartPoints(xTimeAxe, minMaxCalculator);
             cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
             cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, minMaxCalculator);
-
-            if (minMaxCalculator.hasValue()) {
-                adjustMinMaxCalculator(minMaxCalculator);
-                Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
-                Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
-                ChartAxe yAxe = new ChartAxe(valMin, valMax, yPriceAxe.m_size);
-                yAxe.m_offset = yPriceAxe.m_offset;
-
-                preDraw(g, xTimeAxe, yAxe);
-
-                phIndicator.paint(g, xTimeAxe, yAxe);
-
-//                paintCoppockTicks(g, avgCoppockClone, yAxe, COPPOCK_AVG_COLOR);
-//                paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR, true);
-            }
         }
+        if (minMaxCalculator.hasValue()) {
+            adjustMinMaxCalculator(minMaxCalculator);
+            Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
+            Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
+            ChartAxe yAxe = new ChartAxe(valMin, valMax, yPriceAxe.m_size);
+            yAxe.m_offset = yPriceAxe.m_offset;
 
-
-//        List<List<ChartPoint>> ticksAr = new ArrayList<List<ChartPoint>>();
-//        List<List<ChartPoint>> peaksAr = new ArrayList<List<ChartPoint>>();
-//        for (PhaseData phData : phaseDatas) {
-//            TresCoppockCalculator calc = phData.m_coppockCalculator;
-//            List<ChartPoint> ticks = cloneChartPoints(calc.m_coppockPoints, minMaxCalculator);
-//            ticksAr.add(ticks);
-//            List<ChartPoint> peaks = cloneChartPoints(calc.m_coppockPeaks, minMaxCalculator);
-//            peaksAr.add(peaks);
-//        }
-//        List<ChartPoint> avgCoppockClone = cloneChartPoints(exchData.m_avgCoppock, minMaxCalculator);
-//        List<ChartPoint> avgCoppockPeaksClone = cloneChartPoints(exchData.m_avgCoppockPeakCalculator.m_avgCoppockPeaks, minMaxCalculator);
-//        if (minMaxCalculator.hasValue()) {
-//            Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
-//            Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
-//            ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
-//            yAxe.m_offset = 2;
-//
-//            g.setColor(COPPOCK_COLOR);
-//            int y = yAxe.getPointReverse(0);
-//            g.drawLine(0, y, getWidth(), y);
-//
-//            for (List<ChartPoint> ticksClone : ticksAr) {
-//                paintCoppockTicks(g, ticksClone, yAxe, COPPOCK_COLOR);
-//            }
-//            for (List<ChartPoint> peaksClone : peaksAr) {
-//                paintCoppockPeaks(g, peaksClone, yAxe, COPPOCK_PEAKS_COLOR, false);
-//            }
-//            paintCoppockTicks(g, avgCoppockClone, yAxe, COPPOCK_AVG_COLOR);
-//            paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR, true);
-//        }
-//
-//        List<TresExchData.SymData> coppockSymClone = cloneCoppockSym(exchData.m_сoppockSym);
-//        paintCoppockSym(g, coppockSymClone, yPriceAxe);
+            preDraw(g, xTimeAxe, yAxe);
+            for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
+                phIndicator.paint(g, xTimeAxe, yAxe);
+            }
+            paintPoints(g, xTimeAxe, yAxe, getColor(), m_avgPaintPoints);
+            paintPeaks(g, xTimeAxe, yAxe, getPeakColor(), m_avgPaintPeaks, true);
+        }
     }
 
     protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) { }

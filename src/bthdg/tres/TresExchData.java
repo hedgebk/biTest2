@@ -8,6 +8,7 @@ import bthdg.exch.TradeData;
 import bthdg.osc.BaseExecutor;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.alg.TresAlgo;
+import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.util.Queue;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
@@ -35,10 +36,10 @@ public class TresExchData {
     final AvgOscsPeakCalculator m_avgOscsPeakCalculator = new AvgOscsPeakCalculator();
     final AvgCoppockPeakCalculator m_avgCoppockPeakCalculator = new AvgCoppockPeakCalculator();
     final TrendWatcher<ChartPoint> m_avgCciPeakCalculator = new AvgCciPeakCalculator();
-    double m_lastPrice;
+    public double m_lastPrice;
     private boolean m_updated;
     long m_startTickMillis = Long.MAX_VALUE;
-    long m_lastTickMillis = 0;
+    public long m_lastTickMillis = 0;
     long m_tickCount;
     final List<TresAlgoWatcher> m_algos = new ArrayList<TresAlgoWatcher>();
 
@@ -60,7 +61,7 @@ public class TresExchData {
         if (tres.m_algosArr != null) {
             for (String algoName : tres.m_algosArr) {
                 TresAlgo algo = TresAlgo.get(algoName);
-                m_algos.add(new TresAlgoWatcher(algo));
+                m_algos.add(new TresAlgoWatcher(this, algo));
             }
         }
 
@@ -285,25 +286,28 @@ public class TresExchData {
             synchronized (m_avgCoppockPeaks) {
                 m_avgCoppockPeaks.add(peak);
                 m_executor.postRecheckDirection();
+                checkSimulate();
+            }
+        }
 
-//log("new peak: " + peak.m_value + "; direction=" + m_direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + m_lastPrice);
-                if (m_lastPeakPrice != null) {
-                    double priceRatio;
-                    if (m_direction == Direction.FORWARD) { // up
-                        priceRatio = m_lastPeakPrice / m_lastPrice;
-                    } else {
-                        priceRatio = m_lastPrice / m_lastPeakPrice;
-                    }
-                    m_totalPriceRatio *= priceRatio;
+        private void checkSimulate() {
+            //log("new peak: " + peak.m_value + "; direction=" + m_direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + m_lastPrice);
+            if (m_lastPeakPrice != null) {
+                double priceRatio;
+                if (m_direction == Direction.FORWARD) { // up
+                    priceRatio = m_lastPeakPrice / m_lastPrice;
+                } else {
+                    priceRatio = m_lastPrice / m_lastPeakPrice;
+                }
+                m_totalPriceRatio *= priceRatio;
 //log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
 
-                    SymData data = new SymData(m_lastTickMillis, m_lastPrice, priceRatio, m_totalPriceRatio);
-                    synchronized (m_сoppockSym) {
-                        m_сoppockSym.add(data);
-                    }
+                SymData data = new SymData(m_lastTickMillis, m_lastPrice, priceRatio, m_totalPriceRatio);
+                synchronized (m_сoppockSym) {
+                    m_сoppockSym.add(data);
                 }
-                m_lastPeakPrice = m_lastPrice;
             }
+            m_lastPeakPrice = m_lastPrice;
         }
     }
 

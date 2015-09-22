@@ -3,6 +3,7 @@ package bthdg.tres;
 import bthdg.calc.OscTick;
 import bthdg.exch.TradeData;
 import bthdg.tres.alg.TresAlgo;
+import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.TresIndicator;
 
 import java.util.ArrayList;

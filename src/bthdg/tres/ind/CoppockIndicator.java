@@ -4,6 +4,7 @@ import bthdg.ChartAxe;
 import bthdg.calc.CoppockCalculator;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
+import bthdg.tres.alg.TresAlgo;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
 
@@ -22,8 +23,8 @@ public class CoppockIndicator extends TresIndicator {
         return new PhasedCoppockIndicator(this, exchData, phaseIndex);
     }
 
-    public CoppockIndicator() {
-        super(PEAK_TOLERANCE);
+    public CoppockIndicator(TresAlgo algo) {
+        super(PEAK_TOLERANCE, algo);
     }
 
     @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
