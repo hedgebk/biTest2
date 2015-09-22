@@ -19,7 +19,7 @@ public class TresOscCalculator extends OscCalculator {
     OscTick m_lastBar;
     OscTick m_prevBar;
     LinkedList<OscTick> m_oscBars = new LinkedList<OscTick>();
-    LinkedList<OscTick> m_oscPeaks = new LinkedList<OscTick>();
+    final LinkedList<OscTick> m_oscPeaks = new LinkedList<OscTick>();
     TrendWatcher<OscTick> m_peakCalculator = new TrendWatcher<OscTick>(PEAK_TOLERANCE) {
         @Override protected double toDouble(OscTick oscTick) { return oscTick.getMid(); }
         @Override protected void onNewPeak(OscTick peak, OscTick last) {
@@ -99,10 +99,10 @@ public class TresOscCalculator extends OscCalculator {
     }
 
     public void getState(StringBuilder sb) {
-        sb.append(" [" + m_phaseIndex + "] ");
+        sb.append(" [").append(m_phaseIndex).append("] ");
         int preheatBarsNum = m_exchData.m_tres.getPreheatBarsNum();
         if (m_barNum < preheatBarsNum) {
-            sb.append("PREHEATING step=" + m_barNum + " from " + preheatBarsNum);
+            sb.append("PREHEATING step=").append(m_barNum).append(" from ").append(preheatBarsNum);
         } else {
             dumpTick(sb, "FINE", m_lastFineTick);
             dumpTick(sb, "BAR", m_lastBar);
@@ -110,7 +110,7 @@ public class TresOscCalculator extends OscCalculator {
     }
 
     private void dumpTick(StringBuilder sb, String prefix, OscTick tick) {
-        sb.append(" " + prefix + " ");
+        sb.append(" ").append(prefix).append(" ");
         if (tick == null) {
             sb.append("null");
         } else {

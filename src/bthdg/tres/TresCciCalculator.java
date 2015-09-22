@@ -12,7 +12,7 @@ public class TresCciCalculator extends CciCalculator {
 
     private final TresExchData m_exchData;
     LinkedList<ChartPoint> m_cciPoints = new LinkedList<ChartPoint>();
-    LinkedList<ChartPoint> m_cciPeaks = new LinkedList<ChartPoint>();
+    final LinkedList<ChartPoint> m_cciPeaks = new LinkedList<ChartPoint>();
     TrendWatcher<ChartPoint> m_peakCalculator = new TrendWatcher<ChartPoint>(PEAK_TOLERANCE) {
         @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
         @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {

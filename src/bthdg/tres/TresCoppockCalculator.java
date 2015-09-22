@@ -11,7 +11,7 @@ public class TresCoppockCalculator extends CoppockCalculator {
     private final TresExchData m_exchData;
     private final int m_phaseIndex;
     LinkedList<ChartPoint> m_coppockPoints = new LinkedList<ChartPoint>();
-    LinkedList<ChartPoint> m_coppockPeaks = new LinkedList<ChartPoint>();
+    final LinkedList<ChartPoint> m_coppockPeaks = new LinkedList<ChartPoint>();
     TrendWatcher<ChartPoint> m_peakCalculator = new TrendWatcher<ChartPoint>(PEAK_TOLERANCE) {
         @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
         @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {

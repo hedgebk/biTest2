@@ -157,7 +157,7 @@ public class TresExchData {
         }
 
         long min = Math.min(m_startTickMillis, timestamp);
-        if ((min < m_startTickMillis) && (m_startTickMillis != Long.MAX_VALUE)) {
+//        if ((min < m_startTickMillis) && (m_startTickMillis != Long.MAX_VALUE)) {
 //            TimeZone TZ = TimeZone.getTimeZone("Asia/Hong_Kong"); // utc+08:00 Beijing, Hong Kong, Urumqi
 //            Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
 //            NOW_CALENDAR.setTimeInMillis(timestamp);
@@ -166,9 +166,9 @@ public class TresExchData {
 //            String str = simpleDateFormat.format(NOW_CALENDAR.getTime());
 //            log("str="+str);
 //            log("GOT");
-        } else {
+//        } else {
             m_startTickMillis = min;
-        }
+//        }
         m_lastTickMillis = Math.max(m_lastTickMillis, timestamp);
 
         m_tres.onTrade(tdata);

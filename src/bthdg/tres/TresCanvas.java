@@ -64,7 +64,7 @@ public class TresCanvas extends JComponent {
     private List<TresExchData.OrderPoint> m_paintOrders = new ArrayList<TresExchData.OrderPoint>();
     private List<OHLCTick> m_paintOhlcTicks = new ArrayList<OHLCTick>();
     private List<OscTick> m_paintOscPeaks = new ArrayList<OscTick>();
-    private List<ChartPoint> m_paintAvgOscPeaks = new ArrayList<ChartPoint>();
+    private final List<ChartPoint> m_paintAvgOscPeaks = new ArrayList<ChartPoint>();
     private List<ChartPoint> m_paintCciTicks = new ArrayList<ChartPoint>();
 
     private static void log(String s) { Log.log(s); }
@@ -147,7 +147,7 @@ public class TresCanvas extends JComponent {
         return (ret < 1) ? 1 : (int)ret;
     }
 
-    public void paint(Graphics g) {
+    @Override public void paint(Graphics g) {
         super.paint(g);
 
         g.setFont(g.getFont().deriveFont(15.0f));
@@ -167,7 +167,7 @@ public class TresCanvas extends JComponent {
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 
-        if(m_tres.PAINT_TICK_TIMES_ONLY) {
+        if(Tres.PAINT_TICK_TIMES_ONLY) {
             paintTimeTicks(g, width, height);
         } else {
             paintMainChart(g, width, height);
@@ -377,7 +377,7 @@ public class TresCanvas extends JComponent {
     }
 
     private String getBarsShiftStr() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append(String.format("barsShift: %d", m_barsShift));
         if (m_dragStartX != null) {
             sb.append(String.format("; dragStartX: %d", m_dragStartX));

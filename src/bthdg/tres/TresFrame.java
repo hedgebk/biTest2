@@ -19,7 +19,7 @@ public class TresFrame extends JFrame implements Runnable {
     public TresFrame(Tres tres) throws java.awt.HeadlessException {
         m_tres = tres;
         m_snoozer = new Snoozer(500) {
-            protected void wakeUp() {
+            @Override protected void wakeUp() {
                 updateUI();
             }
         };
