@@ -3,10 +3,13 @@ package bthdg.tres.alg;
 import bthdg.ChartAxe;
 import bthdg.Log;
 import bthdg.exch.Direction;
+import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
 import bthdg.util.Colors;
 
+import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ItemEvent;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -19,6 +22,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     private Direction m_lastDirection;
     private Double m_lastPeakPrice;
     private double m_totalPriceRatio = 1.0;
+    private boolean m_doPaint = true;
 
     private static void log(String s) { Log.log(s); }
 
@@ -31,8 +35,10 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     public void paint(Graphics g, TresExchData exchData, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
         m_algo.paintAlgo(g, exchData, xTimeAxe, yPriceAxe);
 
-        List<AlgoWatcherPoint> pointsClone = clonePoints(xTimeAxe);
-        paintPoints(g, pointsClone, xTimeAxe, yPriceAxe);
+        if (m_doPaint) {
+            List<AlgoWatcherPoint> pointsClone = clonePoints(xTimeAxe);
+            paintPoints(g, pointsClone, xTimeAxe, yPriceAxe);
+        }
     }
 
     private List<AlgoWatcherPoint> clonePoints(ChartAxe xTimeAxe) {
@@ -89,7 +95,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         double directionValue = m_algo.getDirection();
         Direction direction = (directionValue == 1) ? Direction.FORWARD : Direction.BACKWARD;
         double lastPrice = m_tresExchData.m_lastPrice;
-log("onAlgoChanged: directionValue=" + directionValue + "; direction=" + direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + lastPrice);
+//log("onAlgoChanged: directionValue=" + directionValue + "; direction=" + direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + lastPrice);
 
         if (m_lastDirection != direction) { // direction changed
             if (m_lastDirection != null) {
@@ -100,7 +106,7 @@ log("onAlgoChanged: directionValue=" + directionValue + "; direction=" + directi
                     priceRatio = lastPrice / m_lastPeakPrice;
                 }
                 m_totalPriceRatio *= priceRatio;
-log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
+//log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
 
                 AlgoWatcherPoint data = new AlgoWatcherPoint(m_tresExchData.m_lastTickMillis, lastPrice, priceRatio, m_totalPriceRatio);
                 synchronized (m_points) {
@@ -112,6 +118,19 @@ log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
         }
     }
 
+    public JComponent getController(final TresCanvas canvas) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
+        panel.setBorder(BorderFactory.createLineBorder(Color.black));
+        panel.add(new JCheckBox(m_algo.m_name, true) {
+            @Override protected void fireItemStateChanged(ItemEvent event) {
+                super.fireItemStateChanged(event);
+                m_doPaint = (event.getStateChange() == ItemEvent.SELECTED);
+                canvas.repaint();
+            }
+        });
+        panel.add(m_algo.getController(canvas));
+        return panel;
+    }
 
     public static class AlgoWatcherPoint {
         public final long m_millis;

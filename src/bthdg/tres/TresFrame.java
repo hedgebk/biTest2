@@ -39,15 +39,13 @@ public class TresFrame extends JFrame implements Runnable {
                 topPanel.setBackground(Color.DARK_GRAY);
                 m_label = new JLabel("...");
                 topPanel.add(m_label);
-                topPanel.add(new JButton("BTN") {
+                topPanel.add(new JButton("B") {
                     @Override protected void fireActionPerformed(ActionEvent event) {
                         super.fireActionPerformed(event);
                         log("BTN.fireActionPerformed: " + event);
-                        // BTN.fireActionPerformed: java.awt.event.ActionEvent[ACTION_PERFORMED,cmd=null,when=1441149624139,modifiers=Button1] on javax.swing.DefaultButtonModel@59b23128
-
                     }
                 });
-                topPanel.add(new JCheckBox("top", true));
+//                topPanel.add(new JCheckBox("top", true));
                 topPanel.add(new JCheckBox("sym", true) {
                     @Override protected void fireItemStateChanged(ItemEvent event) {
                         super.fireItemStateChanged(event);
@@ -76,6 +74,7 @@ public class TresFrame extends JFrame implements Runnable {
                         m_canvas.repaint();
                     }
                 });
+                tres.addControllers(topPanel, m_canvas);
             }
             panel1.add(topPanel, BorderLayout.NORTH);
             panel1.add(m_canvas, BorderLayout.CENTER);

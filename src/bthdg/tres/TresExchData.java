@@ -13,6 +13,8 @@ import bthdg.util.Queue;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
+import javax.swing.*;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -253,6 +255,15 @@ public class TresExchData {
             m_orders.add(new OrderPoint(order, tickAge, buy, sell, topSource));
         }
         m_tres.postFrameRepaint();
+    }
+
+    public JComponent getController(TresCanvas canvas) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
+        panel.setBorder(BorderFactory.createLineBorder(Color.black));
+        for (TresAlgoWatcher algoWatcher : m_algos) {
+            panel.add(algoWatcher.getController(canvas));
+        }
+        return panel;
     }
 
     public static class OrderPoint {

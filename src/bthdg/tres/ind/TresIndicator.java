@@ -3,25 +3,32 @@ package bthdg.tres.ind;
 import bthdg.ChartAxe;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
+import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.util.Utils;
 
+import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ItemEvent;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
 public abstract class TresIndicator {
+    private final String m_name;
     private final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
     final LinkedList<ChartPoint> m_avgPoints = new LinkedList<ChartPoint>();
     final LinkedList<ChartPoint> m_avgPeaks = new LinkedList<ChartPoint>();
     final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
     final List<ChartPoint> m_avgPaintPeaks = new ArrayList<ChartPoint>();
     public final TrendWatcher<ChartPoint> m_avgPeakCalculator;
+    private boolean m_doPaint = true;
+    private boolean m_doPaintPhased = false;
 
-    public TresIndicator(double peakTolerance, final TresAlgo algo) {
+    public TresIndicator(String name, double peakTolerance, final TresAlgo algo) {
+        m_name = name;
         m_avgPeakCalculator = new TrendWatcher<ChartPoint>(peakTolerance) {
             @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
             @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
@@ -70,26 +77,32 @@ public abstract class TresIndicator {
         return new ChartPoint(maxBarEnd, avgValue);
     }
 
-    public void paint(Graphics g, TresExchData exchData, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
-        Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
-        for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
-            phIndicator.cloneChartPoints(xTimeAxe, minMaxCalculator);
-            cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
-            cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, minMaxCalculator);
-        }
-        if (minMaxCalculator.hasValue()) {
-            adjustMinMaxCalculator(minMaxCalculator);
-            Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
-            Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
-            ChartAxe yAxe = new ChartAxe(valMin, valMax, yPriceAxe.m_size);
-            yAxe.m_offset = yPriceAxe.m_offset;
-
-            preDraw(g, xTimeAxe, yAxe);
+    public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+        if (m_doPaint) {
+            Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
             for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
-                phIndicator.paint(g, xTimeAxe, yAxe);
+                if (m_doPaintPhased) {
+                    phIndicator.cloneChartPoints(xTimeAxe, minMaxCalculator);
+                }
+                cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
+                cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, minMaxCalculator);
             }
-            paintPoints(g, xTimeAxe, yAxe, getColor(), m_avgPaintPoints);
-            paintPeaks(g, xTimeAxe, yAxe, getPeakColor(), m_avgPaintPeaks, true);
+            if (minMaxCalculator.hasValue()) {
+                adjustMinMaxCalculator(minMaxCalculator);
+                Double valMin = minMaxCalculator.m_minValue;
+                Double valMax = minMaxCalculator.m_maxValue;
+                ChartAxe yAxe = new ChartAxe(valMin, valMax, yPriceAxe.m_size);
+                yAxe.m_offset = yPriceAxe.m_offset;
+
+                preDraw(g, xTimeAxe, yAxe);
+                if (m_doPaintPhased) {
+                    for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
+                        phIndicator.paint(g, xTimeAxe, yAxe);
+                    }
+                }
+                paintPoints(g, xTimeAxe, yAxe, getColor(), m_avgPaintPoints);
+                paintPeaks(g, xTimeAxe, yAxe, getPeakColor(), m_avgPaintPeaks, true);
+            }
         }
     }
 
@@ -144,6 +157,29 @@ public abstract class TresIndicator {
             g.drawLine(x - size, y - size, x + size, y + size);
             g.drawLine(x + size, y - size, x - size, y + size);
         }
+    }
+
+    public JComponent getController(final TresCanvas canvas) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
+        panel.setBorder(BorderFactory.createLineBorder(Color.black));
+        final JCheckBox checkBox2 = new JCheckBox("f", false) {
+            @Override protected void fireItemStateChanged(ItemEvent event) {
+                super.fireItemStateChanged(event);
+                m_doPaintPhased = (event.getStateChange() == ItemEvent.SELECTED);
+                canvas.repaint();
+            }
+        };
+        checkBox2.setEnabled(false);
+        panel.add(new JCheckBox(m_name, true) {
+            @Override protected void fireItemStateChanged(ItemEvent event) {
+                super.fireItemStateChanged(event);
+                m_doPaint = (event.getStateChange() == ItemEvent.SELECTED);
+                checkBox2.setEnabled(m_doPaint);
+                canvas.repaint();
+            }
+        });
+        panel.add(checkBox2);
+        return panel;
     }
 
 

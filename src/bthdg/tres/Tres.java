@@ -11,6 +11,7 @@ import bthdg.util.Utils;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
 
+import javax.swing.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -223,6 +224,12 @@ public class Tres {
             exchData.getState0(sb);
         }
         return sb.toString();
+    }
+
+    public void addControllers(JPanel topPanel, TresCanvas canvas) {
+        for (TresExchData exchData : m_exchDatas) {
+            topPanel.add(exchData.getController(canvas));
+        }
     }
 
     private static class IntConsoleReader extends ConsoleReader {

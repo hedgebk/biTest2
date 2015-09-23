@@ -2,17 +2,24 @@ package bthdg.tres.alg;
 
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
+import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.TresIndicator;
 
+import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class TresAlgo {
+    public final String m_name;
     public final List<TresIndicator> m_indicators = new ArrayList<TresIndicator>();
     private TresAlgoListener m_listener;
+
+    public TresAlgo(String name) {
+        m_name = name;
+    }
 
     public void setListener(TresAlgoListener listener) { m_listener = listener; }
 
@@ -25,7 +32,7 @@ public class TresAlgo {
 
     public void paintAlgo(Graphics g, TresExchData exchData, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
         for (TresIndicator indicator : m_indicators) {
-            indicator.paint(g, exchData, xTimeAxe, yPriceAxe);
+            indicator.paint(g, xTimeAxe, yPriceAxe);
         }
     }
 
@@ -41,10 +48,20 @@ public class TresAlgo {
 
     public double getDirection() { return 0; } // [-1 ... 1]
 
+    public JComponent getController(TresCanvas canvas) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
+        panel.setBorder(BorderFactory.createLineBorder(Color.black));
+        for (TresIndicator indicator : m_indicators) {
+            panel.add(indicator.getController(canvas));
+        }
+        return panel;
+    }
+
     public static class CoppockAlgo extends TresAlgo {
         final CoppockIndicator m_coppockIndicator;
 
         public CoppockAlgo() {
+            super("Coppock");
             m_coppockIndicator = new CoppockIndicator(this);
             m_indicators.add(m_coppockIndicator);
         }
