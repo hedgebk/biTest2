@@ -43,8 +43,8 @@ public class TresCanvas extends JComponent {
 
     protected static boolean m_paintSym = true;
     protected static boolean m_paintOsc = true;
-    protected static boolean m_paintCoppock = true;
-    protected static boolean m_paintCci = true;
+    protected static boolean m_paintCoppock = false;
+    protected static boolean m_paintCci = false;
 
     private Tres m_tres;
     private Point m_point;

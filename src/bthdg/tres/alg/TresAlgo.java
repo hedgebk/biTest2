@@ -4,6 +4,7 @@ import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
+import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.TresIndicator;
 
@@ -26,6 +27,8 @@ public class TresAlgo {
     public static TresAlgo get(String algoName) {
         if (algoName.equals("coppock")) {
             return new CoppockAlgo();
+        } else if (algoName.equals("c+c")) {
+            return new CciAlgo();
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -46,7 +49,7 @@ public class TresAlgo {
         }
     }
 
-    public double getDirection() { return 0; } // [-1 ... 1]
+    public Double getDirection() { return null; } // [-1 ... 1]
 
     public JComponent getController(TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
@@ -71,10 +74,33 @@ public class TresAlgo {
             notifyAlgoChanged();
         }
 
-        @Override public double getDirection() { // [-1 ... 1]
+        @Override public Double getDirection() { // [-1 ... 1]
             Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
-            return (direction == Direction.FORWARD) ? 1 : -1;
+            return (direction == Direction.FORWARD) ? 1.0 : -1.0;
         }
+    }
+
+    public static class CciAlgo extends TresAlgo {
+        final CoppockIndicator m_coppockIndicator;
+        final CciIndicator m_cciIndicator;
+
+        public CciAlgo() {
+            super("c+c");
+            m_coppockIndicator = new CoppockIndicator(this);
+            m_indicators.add(m_coppockIndicator);
+            m_cciIndicator = new CciIndicator(this);
+            m_indicators.add(m_cciIndicator);
+        }
+
+        @Override public void onAvgPeak(TresIndicator indicator) {
+            //Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
+            notifyAlgoChanged();
+        }
+
+//        @Override public double getDirection() { // [-1 ... 1]
+//            Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
+//            return (direction == Direction.FORWARD) ? 1 : -1;
+//        }
     }
 
     public interface TresAlgoListener {

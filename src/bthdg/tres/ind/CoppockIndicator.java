@@ -49,8 +49,8 @@ public class CoppockIndicator extends TresIndicator {
         @Override public Color getColor() { return COPPOCK_COLOR; }
         @Override public Color getPeakColor() { return COPPOCK_PEAKS_COLOR; }
 
-        public PhasedCoppockIndicator(CoppockIndicator indicatorAvg, TresExchData exchData, int phaseIndex) {
-            super(indicatorAvg, exchData, phaseIndex, PEAK_TOLERANCE);
+        public PhasedCoppockIndicator(CoppockIndicator indicator, TresExchData exchData, int phaseIndex) {
+            super(indicator, exchData, phaseIndex, PEAK_TOLERANCE);
             m_calculator = new CoppockCalculator(WMA_LENGTH, LONG_ROC_LENGTH, SHORT_ROС_LENGTH,
                                                  exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex)) {
                 @Override protected void bar(long barEnd, double value) {

@@ -36,33 +36,34 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         m_algo.paintAlgo(g, exchData, xTimeAxe, yPriceAxe);
 
         if (m_doPaint) {
-            List<AlgoWatcherPoint> pointsClone = clonePoints(xTimeAxe);
-            paintPoints(g, pointsClone, xTimeAxe, yPriceAxe);
+            clonePoints(xTimeAxe);
+            paintPoints(g, xTimeAxe, yPriceAxe);
         }
     }
 
-    private List<AlgoWatcherPoint> clonePoints(ChartAxe xTimeAxe) {
+    private List<AlgoWatcherPoint> m_paintPoints = new ArrayList<AlgoWatcherPoint>();
+
+    private void clonePoints(ChartAxe xTimeAxe) {
         double minTime = xTimeAxe.m_min;
         double maxTime = xTimeAxe.m_max;
-        List<AlgoWatcherPoint> ret = new ArrayList<AlgoWatcherPoint>();
+        m_paintPoints.clear();
         synchronized (m_points) {
             for (Iterator<AlgoWatcherPoint> it = m_points.descendingIterator(); it.hasNext(); ) {
                 AlgoWatcherPoint point = it.next();
                 long timestamp = point.m_millis;
                 if (timestamp > maxTime) { continue; }
-                ret.add(point);
+                m_paintPoints.add(point);
                 if (timestamp < minTime) { break; }
             }
         }
-        return ret;
     }
 
-    private void paintPoints(Graphics g, List<AlgoWatcherPoint> pointsClone, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+    private void paintPoints(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
         int fontHeight = g.getFont().getSize();
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
         AlgoWatcherPoint lastPoint = null;
-        for (AlgoWatcherPoint point : pointsClone) {
+        for (AlgoWatcherPoint point : m_paintPoints) {
             long millis = point.m_millis;
             int x = xTimeAxe.getPoint(millis);
             double price = point.m_price;
@@ -92,7 +93,10 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     }
 
     @Override public void onAlgoChanged() {
-        double directionValue = m_algo.getDirection();
+        Double directionValue = m_algo.getDirection();
+        if (directionValue == null) {
+            return; // no trade
+        }
         Direction direction = (directionValue == 1) ? Direction.FORWARD : Direction.BACKWARD;
         double lastPrice = m_tresExchData.m_lastPrice;
 //log("onAlgoChanged: directionValue=" + directionValue + "; direction=" + direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + lastPrice);
