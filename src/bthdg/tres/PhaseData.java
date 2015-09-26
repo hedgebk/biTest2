@@ -77,8 +77,10 @@ public class PhaseData {
         if (tres.m_calcCci) {
             updated |= m_cciCalculator.update(timestamp, price);
         }
-        for(TresIndicator.TresPhasedIndicator phasedIndicator: m_phasedIndicators) {
-            updated |= phasedIndicator.update(timestamp, price);
+        for (TresIndicator.TresPhasedIndicator phasedIndicator : m_phasedIndicators) {
+            if (phasedIndicator != null) {
+                updated |= phasedIndicator.update(timestamp, price);
+            }
         }
 
         updated |=  m_ohlcCalculator.update(timestamp, price);

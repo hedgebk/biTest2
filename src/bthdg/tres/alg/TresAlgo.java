@@ -2,6 +2,7 @@ package bthdg.tres.alg;
 
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
+import bthdg.tres.ChartPoint;
 import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.CciIndicator;
@@ -28,7 +29,7 @@ public class TresAlgo {
         if (algoName.equals("coppock")) {
             return new CoppockAlgo();
         } else if (algoName.equals("c+c")) {
-            return new CciAlgo();
+            return new CncAlgo();
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -89,27 +90,64 @@ public class TresAlgo {
         }
     }
 
-    public static class CciAlgo extends TresAlgo {
+    public static class CncAlgo extends TresAlgo {
+        public static final int CCI_CORRECTION_RATIO = 8000;
+
         final CoppockIndicator m_coppockIndicator;
         final CciIndicator m_cciIndicator;
+        final AndIndicator m_andIndicator;
 
-        public CciAlgo() {
+        public CncAlgo() {
             super("c+c");
-            m_coppockIndicator = new CoppockIndicator(this);
+            m_coppockIndicator = new CoppockIndicator(this) {
+                @Override protected void onBar() {
+                    super.onBar();
+                    recalcAnd();
+                }
+            };
             m_indicators.add(m_coppockIndicator);
-            m_cciIndicator = new CciIndicator(this);
+            m_cciIndicator = new CciIndicator(this) {
+                @Override protected void onBar() {
+                    super.onBar();
+                    recalcAnd();
+                }
+            };
             m_indicators.add(m_cciIndicator);
+            m_andIndicator = new AndIndicator(this);
+            m_indicators.add(m_andIndicator);
         }
 
-        @Override public void onAvgPeak(TresIndicator indicator) {
-            //Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
-            notifyAlgoChanged();
+        private void recalcAnd() {
+            ChartPoint coppock = m_coppockIndicator.getLastPoint();
+            ChartPoint cci = m_cciIndicator.getLastPoint();
+            if ((coppock != null) && (cci != null)) {
+                double coppockValue = coppock.m_value;
+                double cciValue = cci.m_value;
+                double and = coppockValue + cciValue / CCI_CORRECTION_RATIO;
+                long coppockMillis = coppock.m_millis;
+                long cciMillis = cci.m_millis;
+                long millis = Math.max(coppockMillis, cciMillis);
+                ChartPoint chartPoint = new ChartPoint(millis, and);
+                m_andIndicator.addBar(chartPoint);
+            }
         }
 
-//        @Override public double getDirection() { // [-1 ... 1]
-//            Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
-//            return (direction == Direction.FORWARD) ? 1 : -1;
-//        }
+        @Override public Double getDirection() { // [-1 ... 1]
+            Direction direction = m_andIndicator.m_avgPeakCalculator.m_direction;
+            return (direction == Direction.FORWARD) ? 1.0 : -1.0;
+        }
+
+        private class AndIndicator extends TresIndicator {
+            private static final double PEAK_TOLERANCE = 0.015;
+
+            public AndIndicator(TresAlgo algo) {
+                super("+", PEAK_TOLERANCE, algo);
+            }
+
+            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Color.red; }
+            @Override public Color getPeakColor() { return Color.red; }
+        }
     }
 
     public interface TresAlgoListener {

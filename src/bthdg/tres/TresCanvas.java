@@ -42,8 +42,8 @@ public class TresCanvas extends JComponent {
     public static final Color CCI_AVG_COLOR = new Color(230, 100, 43);
     public static final double[] STEPS = new double[]{0.1, 0.2, 0.5};
 
-    protected static boolean m_paintSym = true;
-    protected static boolean m_paintOsc = true;
+    protected static boolean m_paintSym = false;
+    protected static boolean m_paintOsc = false;
     protected static boolean m_paintCoppock = false;
     protected static boolean m_paintCci = false;
 

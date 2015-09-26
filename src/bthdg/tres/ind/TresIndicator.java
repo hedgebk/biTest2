@@ -32,6 +32,9 @@ public abstract class TresIndicator {
     private boolean m_doPaintPhased = false;
     private Utils.DoubleDoubleMinMaxCalculator m_minMaxCalculator;
     private ChartAxe m_yAxe;
+    private ChartPoint m_lastPoint;
+
+    public ChartPoint getLastPoint() { return m_lastPoint; }
 
     public TresIndicator(String name, double peakTolerance, final TresAlgo algo) {
         m_name = name;
@@ -52,18 +55,25 @@ public abstract class TresIndicator {
 
     public TresPhasedIndicator createPhased(TresExchData exchData, int phaseIndex) {
         TresPhasedIndicator phased = createPhasedInt(exchData, phaseIndex);
-        m_phasedIndicators.add(phased);
+        if (phased != null) {
+            m_phasedIndicators.add(phased);
+        }
         return phased;
     }
 
-    private void onBar() {
+    protected void onBar() {
         ChartPoint chartPoint = calcAvg();
+        addBar(chartPoint);
+    }
+
+    public void addBar(ChartPoint chartPoint) {
         if (chartPoint != null) {
             synchronized (m_avgPoints) {
                 m_avgPoints.add(chartPoint);
             }
             m_avgPeakCalculator.update(chartPoint);
         }
+        m_lastPoint = chartPoint;
     }
 
     private ChartPoint calcAvg() {
@@ -90,9 +100,9 @@ public abstract class TresIndicator {
                 if (m_doPaintPhased) {
                     phIndicator.cloneChartPoints(xTimeAxe, m_minMaxCalculator);
                 }
-                cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, m_minMaxCalculator);
-                cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, m_minMaxCalculator);
             }
+            cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, m_minMaxCalculator);
+            cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, m_minMaxCalculator);
             if (m_minMaxCalculator.hasValue()) {
                 adjustMinMaxCalculator(m_minMaxCalculator);
                 Double valMin = m_minMaxCalculator.m_minValue;
