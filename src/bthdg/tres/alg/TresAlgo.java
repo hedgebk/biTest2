@@ -33,6 +33,15 @@ public class TresAlgo {
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
 
+    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe) {
+        int width = 0;
+        for (TresIndicator indicator : m_indicators) {
+            int axeWidth = indicator.paintYAxe(g, xTimeAxe, right - width, yPriceAxe);
+            width += axeWidth;
+        }
+        return width;
+    }
+
     public void paintAlgo(Graphics g, TresExchData exchData, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
         for (TresIndicator indicator : m_indicators) {
             indicator.paint(g, xTimeAxe, yPriceAxe);

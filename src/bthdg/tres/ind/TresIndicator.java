@@ -11,12 +11,16 @@ import bthdg.util.Utils;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
+import java.awt.geom.Rectangle2D;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
 public abstract class TresIndicator {
+    public static final int AXE_MARKER_WIDTH = 10;
+
     private final String m_name;
     private final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
     final LinkedList<ChartPoint> m_avgPoints = new LinkedList<ChartPoint>();
@@ -26,6 +30,8 @@ public abstract class TresIndicator {
     public final TrendWatcher<ChartPoint> m_avgPeakCalculator;
     private boolean m_doPaint = true;
     private boolean m_doPaintPhased = false;
+    private Utils.DoubleDoubleMinMaxCalculator m_minMaxCalculator;
+    private ChartAxe m_yAxe;
 
     public TresIndicator(String name, double peakTolerance, final TresAlgo algo) {
         m_name = name;
@@ -77,32 +83,116 @@ public abstract class TresIndicator {
         return new ChartPoint(maxBarEnd, avgValue);
     }
 
-    public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe) {
         if (m_doPaint) {
-            Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
+            m_minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
             for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
                 if (m_doPaintPhased) {
-                    phIndicator.cloneChartPoints(xTimeAxe, minMaxCalculator);
+                    phIndicator.cloneChartPoints(xTimeAxe, m_minMaxCalculator);
                 }
-                cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
-                cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, minMaxCalculator);
+                cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, m_minMaxCalculator);
+                cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, m_minMaxCalculator);
             }
-            if (minMaxCalculator.hasValue()) {
-                adjustMinMaxCalculator(minMaxCalculator);
-                Double valMin = minMaxCalculator.m_minValue;
-                Double valMax = minMaxCalculator.m_maxValue;
-                ChartAxe yAxe = new ChartAxe(valMin, valMax, yPriceAxe.m_size);
-                yAxe.m_offset = yPriceAxe.m_offset;
+            if (m_minMaxCalculator.hasValue()) {
+                adjustMinMaxCalculator(m_minMaxCalculator);
+                Double valMin = m_minMaxCalculator.m_minValue;
+                Double valMax = m_minMaxCalculator.m_maxValue;
+                m_yAxe = new ChartAxe(valMin, valMax, yPriceAxe.m_size);
+                m_yAxe.m_offset = yPriceAxe.m_offset;
 
-                preDraw(g, xTimeAxe, yAxe);
-                if (m_doPaintPhased) {
-                    for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
-                        phIndicator.paint(g, xTimeAxe, yAxe);
-                    }
-                }
-                paintPoints(g, xTimeAxe, yAxe, getColor(), m_avgPaintPoints);
-                paintPeaks(g, xTimeAxe, yAxe, getPeakColor(), m_avgPaintPeaks, true);
+                return paintYAxe(g, right, m_yAxe);
             }
+        }
+        m_yAxe = null;
+        return 0;
+    }
+
+    private int paintYAxe(Graphics g, int right, ChartAxe yAxe) {
+        g.setColor(getColor());
+
+        int fontHeight = g.getFont().getSize();
+        int halfFontHeight = fontHeight / 2;
+        double min = yAxe.m_min;
+        double max = yAxe.m_max;
+        int height = yAxe.m_size;
+
+        int maxLabelsCount = height * 3 / fontHeight / 4;
+        double diff = max - min;
+        double maxLabelsStep = diff / maxLabelsCount;
+        double log = Math.log10(maxLabelsStep);
+        int floor = (int) Math.floor(log);
+        int points = Math.max(0, -floor);
+        double pow = Math.pow(10, floor);
+        double mant = maxLabelsStep / pow;
+        int stepMant;
+        if (mant == 1) {
+            stepMant = 1;
+        } else if (mant <= 2) {
+            stepMant = 2;
+        } else if (mant <= 5) {
+            stepMant = 5;
+        } else {
+            stepMant = 1;
+            floor++;
+            pow = Math.pow(10, floor);
+        }
+        double step = stepMant * pow;
+
+        double minLabel = Math.floor(min / step) * step;
+        double maxLabel = Math.ceil(max / step) * step;
+
+        NumberFormat nf = NumberFormat.getInstance();
+        nf.setMaximumFractionDigits(points);
+        nf.setMinimumFractionDigits(points);
+
+        FontMetrics fontMetrics = g.getFontMetrics();
+        int maxWidth = 10;
+        for (double y = minLabel; y <= maxLabel; y += step) {
+            String str = nf.format(y);
+            Rectangle2D bounds = fontMetrics.getStringBounds(str, g);
+            int stringWidth = (int) bounds.getWidth();
+            maxWidth = Math.max(maxWidth, stringWidth);
+        }
+
+        int x = right - maxWidth;
+
+        for (double val = minLabel; val <= maxLabel; val += step) {
+            String str = nf.format(val);
+            int y = yAxe.getPointReverse(val);
+            g.drawString(str, x, y + halfFontHeight);
+            g.drawLine(x - 2, y, x - AXE_MARKER_WIDTH, y);
+        }
+
+//        g.drawString("h" + height, x, fontHeight * 2);
+//        g.drawString("m" + maxLabelsCount, x, fontHeight * 3);
+//        g.drawString("d" + diff, x, fontHeight * 4);
+//        g.drawString("m" + maxLabelsStep, x, fontHeight * 5);
+//        g.drawString("l" + log, x, fontHeight * 6);
+//        g.drawString("f" + floor, x, fontHeight * 7);
+//        g.drawString("p" + pow, x, fontHeight * 8);
+//        g.drawString("m" + mant, x, fontHeight * 9);
+//        g.drawString("s" + stepMant, x, fontHeight * 11);
+//        g.drawString("f" + floor, x, fontHeight * 12);
+//        g.drawString("p" + pow, x, fontHeight * 13);
+//        g.drawString("s" + step, x, fontHeight * 14);
+//        g.drawString("p" + points, x, fontHeight * 15);
+//
+//        g.drawString("ma" + maxLabel, x, fontHeight * 17);
+//        g.drawString("mi" + minLabel, x, fontHeight * 18);
+
+        return maxWidth + AXE_MARKER_WIDTH + 2;
+    }
+
+    public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+        if (m_doPaint && (m_yAxe != null)) {
+            preDraw(g, xTimeAxe, m_yAxe);
+            if (m_doPaintPhased) {
+                for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
+                    phIndicator.paint(g, xTimeAxe, m_yAxe);
+                }
+            }
+            paintPoints(g, xTimeAxe, m_yAxe, getColor(), m_avgPaintPoints);
+            paintPeaks(g, xTimeAxe, m_yAxe, getPeakColor(), m_avgPaintPeaks, true);
         }
     }
 

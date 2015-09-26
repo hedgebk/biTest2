@@ -32,6 +32,10 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         algo.setListener(this);
     }
 
+    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int yRight, ChartAxe yPriceAxe) {
+        return m_algo.paintYAxe(g, xTimeAxe, yRight, yPriceAxe);
+    }
+
     public void paint(Graphics g, TresExchData exchData, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
         m_algo.paintAlgo(g, exchData, xTimeAxe, yPriceAxe);
 

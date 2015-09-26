@@ -40,6 +40,7 @@ public class TresCanvas extends JComponent {
     public static final Color COPPOCK_PEAKS_COLOR = Colors.setAlpha(COPPOCK_AVG_PEAKS_COLOR, 60);
     public static final Color CCI_COLOR = Colors.setAlpha(Colors.LIGHT_ORANGE, 40);
     public static final Color CCI_AVG_COLOR = new Color(230, 100, 43);
+    public static final double[] STEPS = new double[]{0.1, 0.2, 0.5};
 
     protected static boolean m_paintSym = true;
     protected static boolean m_paintOsc = true;
@@ -174,7 +175,7 @@ public class TresCanvas extends JComponent {
         PhaseData phaseData = phaseDatas[0];
 
         long barSize = m_tres.m_barSizeMillis;
-        if(m_xTimeAxe == null) { // guess for very first pass
+        if (m_xTimeAxe == null) { // guess for very first pass
             calcXTimeAxe(width, barSize, phaseData);
         }
 
@@ -186,7 +187,7 @@ public class TresCanvas extends JComponent {
         List<BaseExecutor.TopDataPoint> topsClone = getTopsClone(exchData.m_executor.m_tops);
         ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, buyPrice, sellPrice, ohlcTicksClone, ordersClone, topsClone);
 
-        int yAxesWidth = paintYAxes(g, height, yPriceAxe);
+        int yAxesWidth = paintYAxes(g, height, yPriceAxe, exchData);
         calcXTimeAxe(width - yAxesWidth, barSize, phaseData);
 
         if (m_point != null) {
@@ -254,10 +255,13 @@ public class TresCanvas extends JComponent {
         g.drawString(getBarsShiftStr(), 5, fontHeight * 3 + 5);
     }
 
-    private int paintYAxes(Graphics g, int height, ChartAxe yPriceAxe) {
+    private int paintYAxes(Graphics g, int height, ChartAxe yPriceAxe, TresExchData exchData) {
         int yAxesWidth = paintYPriceAxe(g, yPriceAxe);
-
-
+        int width = getWidth();
+        for (TresAlgoWatcher algoWatcher : exchData.m_algos) {
+            int axeWidth = algoWatcher.paintYAxe(g, m_xTimeAxe, width - yAxesWidth, yPriceAxe);
+            yAxesWidth += axeWidth;
+        }
         return yAxesWidth;
     }
 
@@ -456,21 +460,20 @@ public class TresCanvas extends JComponent {
         int minLabel = (int) Math.floor(min / step);
         int maxLabel = (int) Math.ceil(max / step);
 
-        int axeWidth = meauseYPriceAxeWidth(g, step, minLabel, maxLabel);
+        int axeWidth = measueYPriceAxeWidth(g, step, minLabel, maxLabel);
         int width = getWidth();
         int x = width - axeWidth;
 
         int priceY0 = yPriceAxe.getPointReverse(minLabel);
         int priceY1 = yPriceAxe.getPointReverse(minLabel + step);
         int stepHeight = Math.abs(priceY1 - priceY0);
-        double[] steps = new double[]{0.1, 0.2, 0.5};
 
         for (int y = minLabel; y <= maxLabel; y += step) {
             int priceY = yPriceAxe.getPointReverse(y);
             g.drawString(Integer.toString(y), x, priceY + halfFontHeight);
             g.drawLine(x - 2, priceY, x - PRICE_AXE_MARKER_WIDTH, priceY);
 
-            for (double semiStep : steps) {
+            for (double semiStep : STEPS) {
                 int semiStepsNum = (int) Math.round(1.0 / semiStep);
                 int semiStepsHeight = (int) (semiStepsNum * fontHeight * 1.5);
                 if (stepHeight > semiStepsHeight) { // can fit
@@ -489,7 +492,7 @@ public class TresCanvas extends JComponent {
         return yPriceAxeWidth;
     }
 
-    private int meauseYPriceAxeWidth(Graphics g, int step, int minLabel, double maxLabel) {
+    private int measueYPriceAxeWidth(Graphics g, int step, int minLabel, double maxLabel) {
         FontMetrics fontMetrics = g.getFontMetrics();
         int maxWidth = 10;
         for (int y = minLabel; y <= maxLabel; y += step) {
