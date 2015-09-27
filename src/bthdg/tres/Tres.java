@@ -45,6 +45,7 @@ public class Tres {
     public boolean m_calcCci;
     String[] m_algosArr;
     String m_runAlgo;
+    public boolean m_collectPoints = true;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }

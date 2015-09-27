@@ -15,8 +15,10 @@ public class TresCoppockCalculator extends CoppockCalculator {
     TrendWatcher<ChartPoint> m_peakCalculator = new TrendWatcher<ChartPoint>(PEAK_TOLERANCE) {
         @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
         @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
-            synchronized (m_coppockPeaks) {
-                m_coppockPeaks.add(peak);
+            if (m_exchData.m_tres.m_collectPoints) {
+                synchronized (m_coppockPeaks) {
+                    m_coppockPeaks.add(peak);
+                }
             }
         }
     };
@@ -30,7 +32,9 @@ public class TresCoppockCalculator extends CoppockCalculator {
 
     @Override protected void bar(long barEnd, double value) {
         ChartPoint tick = new ChartPoint(barEnd, value);
-        m_coppockPoints.add(tick); // add to the end
+        if (m_exchData.m_tres.m_collectPoints) {
+            m_coppockPoints.add(tick); // add to the end
+        }
         m_peakCalculator.update(tick);
         m_lastTick = tick;
     }

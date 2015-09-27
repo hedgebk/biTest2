@@ -23,8 +23,10 @@ public class TresOscCalculator extends OscCalculator {
     TrendWatcher<OscTick> m_peakCalculator = new TrendWatcher<OscTick>(PEAK_TOLERANCE) {
         @Override protected double toDouble(OscTick oscTick) { return oscTick.getMid(); }
         @Override protected void onNewPeak(OscTick peak, OscTick last) {
-            synchronized (m_oscPeaks) {
-                m_oscPeaks.add(peak);
+            if (m_exchData.m_tres.m_collectPoints) {
+                synchronized (m_oscPeaks) {
+                    m_oscPeaks.add(peak);
+                }
             }
         }
     };
@@ -93,7 +95,9 @@ public class TresOscCalculator extends OscCalculator {
         OscTick osc = new OscTick(barStart, stoch1, stoch2);
         m_prevBar = m_lastBar;
         m_lastBar = osc;
-        m_oscBars.add(osc); // add to the end
+        if (m_exchData.m_tres.m_collectPoints) {
+            m_oscBars.add(osc); // add to the end
+        }
         m_updated = true;
         m_peakCalculator.update(osc);
     }

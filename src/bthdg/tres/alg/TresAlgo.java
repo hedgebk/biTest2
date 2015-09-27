@@ -16,20 +16,22 @@ import java.util.List;
 
 public class TresAlgo {
     public final String m_name;
+    public final TresExchData m_tresExchData;
     public final List<TresIndicator> m_indicators = new ArrayList<TresIndicator>();
     private TresAlgoListener m_listener;
 
-    public TresAlgo(String name) {
+    public TresAlgo(String name, TresExchData tresExchData) {
         m_name = name;
+        m_tresExchData = tresExchData;
     }
 
     public void setListener(TresAlgoListener listener) { m_listener = listener; }
 
-    public static TresAlgo get(String algoName) {
+    public static TresAlgo get(String algoName, TresExchData tresExchData) {
         if (algoName.equals("coppock")) {
-            return new CoppockAlgo();
+            return new CoppockAlgo(tresExchData);
         } else if (algoName.equals("c+c")) {
-            return new CncAlgo();
+            return new CncAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -62,7 +64,7 @@ public class TresAlgo {
     public Double getDirection() { return null; } // [-1 ... 1]
 
     public JComponent getController(TresCanvas canvas) {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
         panel.setBorder(BorderFactory.createLineBorder(Color.black));
         for (TresIndicator indicator : m_indicators) {
             panel.add(indicator.getController(canvas));
@@ -73,8 +75,8 @@ public class TresAlgo {
     public static class CoppockAlgo extends TresAlgo {
         final CoppockIndicator m_coppockIndicator;
 
-        public CoppockAlgo() {
-            super("Coppock");
+        public CoppockAlgo(TresExchData tresExchData) {
+            super("Coppock", tresExchData);
             m_coppockIndicator = new CoppockIndicator(this);
             m_indicators.add(m_coppockIndicator);
         }
@@ -97,8 +99,8 @@ public class TresAlgo {
         final CciIndicator m_cciIndicator;
         final AndIndicator m_andIndicator;
 
-        public CncAlgo() {
-            super("c+c");
+        public CncAlgo(TresExchData tresExchData) {
+            super("c+c", tresExchData);
             m_coppockIndicator = new CoppockIndicator(this) {
                 @Override protected void onBar() {
                     super.onBar();

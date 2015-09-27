@@ -2,6 +2,7 @@ package bthdg.tres;
 
 import bthdg.Log;
 import bthdg.exch.TradeData;
+import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.util.BufferedLineReader;
 import bthdg.util.LineReader;
 import bthdg.util.Utils;
@@ -73,7 +74,9 @@ class TresLogProcessor extends Thread {
             } else {
                 log("is not a directory: " + dirPath);
             }
-            Tres.showUI();
+            if (m_exchData.m_tres.m_collectPoints) {
+                Tres.showUI();
+            }
         } catch (Exception e) {
             err("Error in LogProcessor: " + e, e);
         }
@@ -83,6 +86,7 @@ class TresLogProcessor extends Thread {
         long startTime = System.currentTimeMillis();
 
         Tres tres = m_exchData.m_tres;
+        tres.m_collectPoints = false;
         String varyMa = m_varyMa;
         if (varyMa != null) {
             varyMa(allTicks, tres, varyMa);
@@ -103,7 +107,8 @@ class TresLogProcessor extends Thread {
                         if (varyOscLock != null) {
                             varyOscLock(allTicks, tres, varyOscLock);
                         } else {
-                            double averageProjected = processAllTicks(allTicks);
+                            tres.m_collectPoints = true;
+                            Map<String, Double> averageProjected = processAllTicks(allTicks);
                             log("averageProjected: " + averageProjected);
                         }
                     }
@@ -126,8 +131,19 @@ class TresLogProcessor extends Thread {
         long step = Utils.parseDHMSMtoMillis(split[2]);
         for (long i = min; i <= max; i += step) {
             tres.m_barSizeMillis = i;
-            double averageProjected = processAllTicks(allTicks);
-            log("averageProjected[barSizeMillis=" + i + "]: " + averageProjected);
+            long start = System.currentTimeMillis();
+            Map<String, Double> averageProjected = processAllTicks(allTicks);
+            long end = System.currentTimeMillis();
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, Double> entry : averageProjected.entrySet()) {
+                String name = entry.getKey();
+                Double value = entry.getValue();
+                if (sb.length() > 0) {
+                    sb.append("; ");
+                }
+                sb.append(name).append("=").append(String.format("%.5f", value));
+            }
+            log("averageProjected[barSizeMillis=" + i + "]:\t" + sb + "\t in " + Utils.millisToDHMSStr(end - start));
         }
     }
 
@@ -140,7 +156,7 @@ class TresLogProcessor extends Thread {
         int step = Integer.parseInt(split[2]);
         for (int i = min; i <= max; i += step) {
             tres.m_ma = i;
-            double averageProjected = processAllTicks(allTicks);
+            Map<String, Double> averageProjected = processAllTicks(allTicks);
             log("averageProjected[ma=" + i + "]: " + averageProjected);
         }
     }
@@ -154,7 +170,7 @@ class TresLogProcessor extends Thread {
         int step = Integer.parseInt(split[2]);
         for (int i = min; i <= max; i += step) {
             tres.m_len1 = i;
-            double averageProjected = processAllTicks(allTicks);
+            Map<String, Double> averageProjected = processAllTicks(allTicks);
             log("averageProjected[varyLen1=" + i + "]: " + averageProjected);
         }
     }
@@ -168,7 +184,7 @@ class TresLogProcessor extends Thread {
         int step = Integer.parseInt(split[2]);
         for (int i = min; i <= max; i += step) {
             tres.m_len2 = i;
-            double averageProjected = processAllTicks(allTicks);
+            Map<String, Double> averageProjected = processAllTicks(allTicks);
             log("averageProjected[varyLen2=" + i + "]: " + averageProjected);
         }
     }
@@ -182,16 +198,16 @@ class TresLogProcessor extends Thread {
         double step = Double.parseDouble(split[2]);
         for (double i = min; i <= max; i += step) {
             PhaseData.LOCK_OSC_LEVEL = i;
-            double averageProjected = processAllTicks(allTicks);
+            Map<String, Double> averageProjected = processAllTicks(allTicks);
             log("averageProjected[oscLock=" + i + "]: " + averageProjected);
         }
     }
 
-    private double processAllTicks(List<List<TradeData>> allTicks) throws Exception {
+    private Map<String, Double> processAllTicks(List<List<TradeData>> allTicks) throws Exception {
         final AtomicInteger semafore = new AtomicInteger();
         ExecutorService executorService = Executors.newFixedThreadPool(PROCESS_THREADS_NUM);
 
-        final Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
+        final Map<String,Utils.DoubleDoubleAverageCalculator> calcMap = new HashMap<String, Utils.DoubleDoubleAverageCalculator>();
         for (final List<TradeData> ticks : allTicks) {
             synchronized (semafore) {
                 semafore.incrementAndGet();
@@ -199,9 +215,18 @@ class TresLogProcessor extends Thread {
             executorService.submit(new Runnable() {
                 @Override public void run() {
                     try {
-                        double projected = processTicks(ticks);
+                        Map<String, Double> projectedMap = processTicks(ticks);
                         synchronized (semafore) {
-                            calc.addValue(projected);
+                            for (Map.Entry<String, Double> e : projectedMap.entrySet()) {
+                                String name = e.getKey();
+                                Double projected = e.getValue();
+                                Utils.DoubleDoubleAverageCalculator calc = calcMap.get(name);
+                                if (calc == null) {
+                                    calc = new Utils.DoubleDoubleAverageCalculator();
+                                    calcMap.put(name, calc);
+                                }
+                                calc.addValue(projected);
+                            }
                             int value = semafore.decrementAndGet();
                             if (value == 0) {
                                 semafore.notify();
@@ -221,16 +246,28 @@ class TresLogProcessor extends Thread {
                 log(" nothing to wait");
             }
         }
-        return calc.getAverage();
+        Map<String, Double> ret = new HashMap<String, Double>();
+        for (Map.Entry<String, Utils.DoubleDoubleAverageCalculator> e : calcMap.entrySet()) {
+            String name = e.getKey();
+            Utils.DoubleDoubleAverageCalculator calc = e.getValue();
+            double averageProjected = calc.getAverage();
+            ret.put(name, averageProjected);
+        }
+        return ret;
     }
 
-    private double processTicks(List<TradeData> ticks) {
+    private Map<String, Double> processTicks(List<TradeData> ticks) {
+        Map<String, Double> ret = new HashMap<String, Double>();
+
         // reset before iteration
         TresExchData exchData = (cloneCounter++ == 0) ? m_exchData : m_exchData.cloneClean();
-
         for (TradeData tick : ticks) {
             exchData.processTrade(tick);
         }
+
+        long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
+        double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
+//        log("   running " + Utils.millisToDHMSStr(runningTimeMillis) + "; runningTimeDays="+runningTimeDays);
 
         Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
         for (PhaseData phaseData : exchData.m_phaseDatas) {
@@ -239,13 +276,17 @@ class TresLogProcessor extends Thread {
             calc.addValue(total);
         }
         double averageTotal = calc.getAverage();
+        double exponent = 1 / runningTimeDays;
+        double projected = Math.pow(averageTotal, exponent);
+        ret.put("osc", projected);
 
-        long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
-        double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
-//        log("   running " + Utils.millisToDHMSStr(runningTimeMillis) + "; runningTimeDays="+runningTimeDays);
-
-        double aDay = Math.pow(averageTotal, 1 / runningTimeDays);
-        return aDay;
+        for(TresAlgoWatcher algo : exchData.m_algos) {
+            String name = algo.m_algo.m_name;
+            double ratio = algo.m_totalPriceRatio;
+            double algoProjected = Math.pow(ratio, exponent);
+            ret.put(name, algoProjected);
+        }
+        return ret;
     }
 
     private List<List<TradeData>> parseFiles(Pattern pattern, File dir) throws Exception {

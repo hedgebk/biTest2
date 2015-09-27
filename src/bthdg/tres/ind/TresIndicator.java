@@ -22,6 +22,7 @@ public abstract class TresIndicator {
     public static final int AXE_MARKER_WIDTH = 10;
 
     private final String m_name;
+    private final TresAlgo m_algo;
     private final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
     final LinkedList<ChartPoint> m_avgPoints = new LinkedList<ChartPoint>();
     final LinkedList<ChartPoint> m_avgPeaks = new LinkedList<ChartPoint>();
@@ -36,15 +37,18 @@ public abstract class TresIndicator {
 
     public ChartPoint getLastPoint() { return m_lastPoint; }
 
-    public TresIndicator(String name, double peakTolerance, final TresAlgo algo) {
+    public TresIndicator(String name, double peakTolerance, TresAlgo algo) {
         m_name = name;
+        m_algo = algo;
         m_avgPeakCalculator = new TrendWatcher<ChartPoint>(peakTolerance) {
             @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
             @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
-                synchronized (m_avgPeaks) {
-                    m_avgPeaks.add(peak);
+                if (m_algo.m_tresExchData.m_tres.m_collectPoints) {
+                    synchronized (m_avgPeaks) {
+                        m_avgPeaks.add(peak);
+                    }
                 }
-                algo.onAvgPeak(TresIndicator.this);
+                m_algo.onAvgPeak(TresIndicator.this);
             }
         };
     }
@@ -68,8 +72,10 @@ public abstract class TresIndicator {
 
     public void addBar(ChartPoint chartPoint) {
         if (chartPoint != null) {
-            synchronized (m_avgPoints) {
-                m_avgPoints.add(chartPoint);
+            if (m_algo.m_tresExchData.m_tres.m_collectPoints) {
+                synchronized (m_avgPoints) {
+                    m_avgPoints.add(chartPoint);
+                }
             }
             m_avgPeakCalculator.update(chartPoint);
         }
@@ -260,8 +266,8 @@ public abstract class TresIndicator {
     }
 
     public JComponent getController(final TresCanvas canvas) {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
-        panel.setBorder(BorderFactory.createLineBorder(Color.black));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
+        panel.setBorder(BorderFactory.createLineBorder(getColor()));
         final JCheckBox checkBox2 = new JCheckBox("f", false) {
             @Override protected void fireItemStateChanged(ItemEvent event) {
                 super.fireItemStateChanged(event);
@@ -285,7 +291,7 @@ public abstract class TresIndicator {
 
     public static abstract class TresPhasedIndicator {
         private final TresIndicator m_indicator;
-        private final TresExchData m_exchData;
+        final TresExchData m_exchData;
         private final int m_phaseIndex;
         final TrendWatcher<ChartPoint> m_peakCalculator;
         final LinkedList<ChartPoint> m_points = new LinkedList<ChartPoint>();

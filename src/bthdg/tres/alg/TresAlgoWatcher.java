@@ -21,7 +21,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     final public LinkedList<AlgoWatcherPoint> m_points = new LinkedList<AlgoWatcherPoint>();
     private Direction m_lastDirection;
     private Double m_lastPeakPrice;
-    private double m_totalPriceRatio = 1.0;
+    public double m_totalPriceRatio = 1.0;
     private boolean m_doPaint = true;
 
     private static void log(String s) { Log.log(s); }
@@ -116,9 +116,11 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
                 m_totalPriceRatio *= priceRatio;
 //log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
 
-                AlgoWatcherPoint data = new AlgoWatcherPoint(m_tresExchData.m_lastTickMillis, lastPrice, priceRatio, m_totalPriceRatio);
-                synchronized (m_points) {
-                    m_points.add(data);
+                if (m_tresExchData.m_tres.m_collectPoints) {
+                    AlgoWatcherPoint data = new AlgoWatcherPoint(m_tresExchData.m_lastTickMillis, lastPrice, priceRatio, m_totalPriceRatio);
+                    synchronized (m_points) {
+                        m_points.add(data);
+                    }
                 }
             }
             m_lastDirection = direction;
@@ -127,7 +129,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     }
 
     public JComponent getController(final TresCanvas canvas) {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
         panel.setBorder(BorderFactory.createLineBorder(Color.black));
         panel.add(new JCheckBox(m_algo.m_name, true) {
             @Override protected void fireItemStateChanged(ItemEvent event) {

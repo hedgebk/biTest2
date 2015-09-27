@@ -2,12 +2,8 @@ package bthdg.exch;
 
 import bthdg.util.Utils;
 
-public class TradeData {
-    public static final TradeData END_MARKER = new TradeData(0, 0, 0, 0, null);
-
+public class TradeData extends TradeDataLight {
     public double m_amount;
-    public final double m_price;
-    public final long m_timestamp;
     public final long m_tid;
     public final TradeType m_type;
 
@@ -16,9 +12,8 @@ public class TradeData {
     }
 
     public TradeData(double amount, double price, long timestamp, long tid, TradeType type) {
+        super(timestamp, price);
         m_amount = amount;
-        m_price = price;
-        m_timestamp = timestamp;
         m_tid = tid;
         m_type= type;
     }

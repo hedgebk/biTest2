@@ -213,9 +213,7 @@ public class TresCanvas extends JComponent {
             paintTrades(g, exchData.m_trades, yPriceAxe);
 
             paintOscs(g, exchData, phaseDatas);
-            if (m_paintCoppock) {
-                paintCoppock(g, exchData, phaseDatas, yPriceAxe);
-            }
+            paintCoppock(g, exchData, phaseDatas, yPriceAxe);
             paintCcis(g, exchData, phaseDatas);
 
             paintAlgos(g, exchData, yPriceAxe);
@@ -266,7 +264,7 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintCcis(Graphics g, TresExchData exchData, PhaseData[] phaseDatas) {
-        if (m_paintCci) {
+        if (exchData.m_tres.m_calcCoppock && m_paintCci) {
             for (PhaseData phData : phaseDatas) {
                 TresCciCalculator phaseCciCalculator = phData.m_cciCalculator;
                 paintCciTicks(g, phaseCciCalculator.m_cciPoints);
@@ -301,40 +299,42 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintCoppock(Graphics g, TresExchData exchData, PhaseData[] phaseDatas, ChartAxe yPriceAxe) {
-        Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
-        List<List<ChartPoint>> ticksAr = new ArrayList<List<ChartPoint>>();
-        List<List<ChartPoint>> peaksAr = new ArrayList<List<ChartPoint>>();
-        for (PhaseData phData : phaseDatas) {
-            TresCoppockCalculator calc = phData.m_coppockCalculator;
-            List<ChartPoint> ticks = cloneChartPoints(calc.m_coppockPoints, minMaxCalculator);
-            ticksAr.add(ticks);
-            List<ChartPoint> peaks = cloneChartPoints(calc.m_coppockPeaks, minMaxCalculator);
-            peaksAr.add(peaks);
-        }
-        List<ChartPoint> avgCoppockClone = cloneChartPoints(exchData.m_avgCoppock, minMaxCalculator);
-        List<ChartPoint> avgCoppockPeaksClone = cloneChartPoints(exchData.m_avgCoppockPeakCalculator.m_avgCoppockPeaks, minMaxCalculator);
-        if (minMaxCalculator.hasValue()) {
-            Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
-            Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
-            ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
-            yAxe.m_offset = 2;
-
-            g.setColor(COPPOCK_COLOR);
-            int y = yAxe.getPointReverse(0);
-            g.drawLine(0, y, getWidth(), y);
-
-            for (List<ChartPoint> ticksClone : ticksAr) {
-                paintCoppockTicks(g, ticksClone, yAxe, COPPOCK_COLOR);
+        if (exchData.m_tres.m_calcCoppock && m_paintCoppock) {
+            Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
+            List<List<ChartPoint>> ticksAr = new ArrayList<List<ChartPoint>>();
+            List<List<ChartPoint>> peaksAr = new ArrayList<List<ChartPoint>>();
+            for (PhaseData phData : phaseDatas) {
+                TresCoppockCalculator calc = phData.m_coppockCalculator;
+                List<ChartPoint> ticks = cloneChartPoints(calc.m_coppockPoints, minMaxCalculator);
+                ticksAr.add(ticks);
+                List<ChartPoint> peaks = cloneChartPoints(calc.m_coppockPeaks, minMaxCalculator);
+                peaksAr.add(peaks);
             }
-            for (List<ChartPoint> peaksClone : peaksAr) {
-                paintCoppockPeaks(g, peaksClone, yAxe, COPPOCK_PEAKS_COLOR, false);
-            }
-            paintCoppockTicks(g, avgCoppockClone, yAxe, COPPOCK_AVG_COLOR);
-            paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR, true);
-        }
+            List<ChartPoint> avgCoppockClone = cloneChartPoints(exchData.m_avgCoppock, minMaxCalculator);
+            List<ChartPoint> avgCoppockPeaksClone = cloneChartPoints(exchData.m_avgCoppockPeakCalculator.m_avgCoppockPeaks, minMaxCalculator);
+            if (minMaxCalculator.hasValue()) {
+                Double valMin = Math.min(-0.1, minMaxCalculator.m_minValue);
+                Double valMax = Math.max(0.1, minMaxCalculator.m_maxValue);
+                ChartAxe yAxe = new ChartAxe(valMin, valMax, getHeight() - 4);
+                yAxe.m_offset = 2;
 
-        List<TresExchData.SymData> coppockSymClone = cloneCoppockSym(exchData.m_сoppockSym);
-        paintCoppockSym(g, coppockSymClone, yPriceAxe);
+                g.setColor(COPPOCK_COLOR);
+                int y = yAxe.getPointReverse(0);
+                g.drawLine(0, y, getWidth(), y);
+
+                for (List<ChartPoint> ticksClone : ticksAr) {
+                    paintCoppockTicks(g, ticksClone, yAxe, COPPOCK_COLOR);
+                }
+                for (List<ChartPoint> peaksClone : peaksAr) {
+                    paintCoppockPeaks(g, peaksClone, yAxe, COPPOCK_PEAKS_COLOR, false);
+                }
+                paintCoppockTicks(g, avgCoppockClone, yAxe, COPPOCK_AVG_COLOR);
+                paintCoppockPeaks(g, avgCoppockPeaksClone, yAxe, COPPOCK_AVG_PEAKS_COLOR, true);
+            }
+
+            List<TresExchData.SymData> coppockSymClone = cloneCoppockSym(exchData.m_сoppockSym);
+            paintCoppockSym(g, coppockSymClone, yPriceAxe);
+        }
     }
 
     private void paintCoppockSym(Graphics g, List<TresExchData.SymData> coppockSymClone, ChartAxe yPriceAxe) {

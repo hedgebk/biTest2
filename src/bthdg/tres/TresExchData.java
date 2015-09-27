@@ -58,11 +58,9 @@ public class TresExchData {
         m_ws = ws;
         m_executor = new TresExecutor(this, ws, Tres.PAIR);
 
-        //m_runAlgo
-
         if (tres.m_algosArr != null) {
             for (String algoName : tres.m_algosArr) {
-                TresAlgo algo = TresAlgo.get(algoName);
+                TresAlgo algo = TresAlgo.get(algoName, this);
                 m_algos.add(new TresAlgoWatcher(this, algo));
             }
         }
@@ -75,7 +73,9 @@ public class TresExchData {
                     ChartPoint chartPoint = calcAvgOsc();
                     if (chartPoint != null) {
                         synchronized (m_avgOscs) {
-                            m_avgOscs.add(chartPoint);
+                            if (m_tres.m_collectPoints) {
+                                m_avgOscs.add(chartPoint);
+                            }
                             m_avgOscsPeakCalculator.update(chartPoint);
                         }
                     }
@@ -85,7 +85,9 @@ public class TresExchData {
                     ChartPoint chartPoint = calcAvgCoppock();
                     if (chartPoint != null) {
                         synchronized (m_avgCoppock) {
-                            m_avgCoppock.add(chartPoint);
+                            if (m_tres.m_collectPoints) {
+                                m_avgCoppock.add(chartPoint);
+                            }
                             m_avgCoppockPeakCalculator.update(chartPoint);
                         }
                     }
@@ -95,7 +97,9 @@ public class TresExchData {
                     ChartPoint chartPoint = calcAvgCci();
                     if (chartPoint != null) {
                         synchronized (m_avgCci) {
-                            m_avgCci.add(chartPoint);
+                            if (m_tres.m_collectPoints) {
+                                m_avgCci.add(chartPoint);
+                            }
                             m_avgCciPeakCalculator.update(chartPoint);
                         }
                     }
@@ -313,9 +317,11 @@ public class TresExchData {
                 m_totalPriceRatio *= priceRatio;
 //log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
 
-                SymData data = new SymData(m_lastTickMillis, m_lastPrice, priceRatio, m_totalPriceRatio);
-                synchronized (m_сoppockSym) {
-                    m_сoppockSym.add(data);
+                if (m_tres.m_collectPoints) {
+                    SymData data = new SymData(m_lastTickMillis, m_lastPrice, priceRatio, m_totalPriceRatio);
+                    synchronized (m_сoppockSym) {
+                        m_сoppockSym.add(data);
+                    }
                 }
             }
             m_lastPeakPrice = m_lastPrice;
