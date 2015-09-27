@@ -1,7 +1,7 @@
 package bthdg.tres;
 
 import bthdg.calc.OscTick;
-import bthdg.exch.TradeData;
+import bthdg.exch.TradeDataLight;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.TresIndicator;
@@ -63,7 +63,7 @@ public class PhaseData {
     protected void onCoppockBar() {}
     protected void onCciBar() {}
 
-    public boolean update(TradeData tdata) {
+    public boolean update(TradeDataLight tdata) {
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
         Tres tres = m_exchData.m_tres;

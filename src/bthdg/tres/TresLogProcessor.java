@@ -1,8 +1,9 @@
 package bthdg.tres;
 
 import bthdg.Log;
-import bthdg.exch.TradeData;
+import bthdg.exch.TradeDataLight;
 import bthdg.tres.alg.TresAlgoWatcher;
+import bthdg.tres.ind.CoppockIndicator;
 import bthdg.util.BufferedLineReader;
 import bthdg.util.LineReader;
 import bthdg.util.Utils;
@@ -35,6 +36,7 @@ class TresLogProcessor extends Thread {
     private String m_varyLen1;
     private String m_varyLen2;
     private String m_varyOscLock;
+    private String m_varyCoppPeak;
     private int cloneCounter = 0;
 
     private static void log(String s) { Log.log(s); }
@@ -58,6 +60,8 @@ class TresLogProcessor extends Thread {
         log("varyLen2=" + m_varyLen2);
         m_varyOscLock = keys.getProperty("tre.vary.osc_lock");
         log("varyOscLock=" + m_varyOscLock);
+        m_varyCoppPeak = keys.getProperty("tre.vary.copp_peak");
+        log("varyCoppPeak=" + m_varyCoppPeak);
     }
 
     @Override public void run() {
@@ -69,7 +73,7 @@ class TresLogProcessor extends Thread {
 
             File dir = new File(dirPath);
             if (dir.isDirectory()) {
-                List<List<TradeData>> ticks = parseFiles(pattern, dir);
+                List<List<TradeDataLight>> ticks = parseFiles(pattern, dir);
                 processAll(ticks);
             } else {
                 log("is not a directory: " + dirPath);
@@ -82,7 +86,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void processAll(List<List<TradeData>> allTicks) throws Exception {
+    private void processAll(List<List<TradeDataLight>> allTicks) throws Exception {
         long startTime = System.currentTimeMillis();
 
         Tres tres = m_exchData.m_tres;
@@ -107,9 +111,14 @@ class TresLogProcessor extends Thread {
                         if (varyOscLock != null) {
                             varyOscLock(allTicks, tres, varyOscLock);
                         } else {
-                            tres.m_collectPoints = true;
-                            Map<String, Double> averageProjected = processAllTicks(allTicks);
-                            log("averageProjected: " + averageProjected);
+                            String varyCoppPeak = m_varyCoppPeak;
+                            if (varyCoppPeak != null) {
+                                varyCoppockPeakTolerance(allTicks, tres, varyCoppPeak);
+                            } else {
+                                tres.m_collectPoints = true;
+                                Map<String, Double> averageProjected = processAllTicks(allTicks);
+                                log("averageProjected: " + averageProjected);
+                            }
                         }
                     }
                 }
@@ -122,7 +131,7 @@ class TresLogProcessor extends Thread {
         log("takes " + takesStr);
     }
 
-    private void varyBarSize(List<List<TradeData>> allTicks, Tres tres, String varyBarSize) throws Exception {
+    private void varyBarSize(List<List<TradeDataLight>> allTicks, Tres tres, String varyBarSize) throws Exception {
         log("varyBarSize: " + varyBarSize);
 
         String[] split = varyBarSize.split(";"); // 2000ms;10000ms;500ms
@@ -147,7 +156,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void varyMa(List<List<TradeData>> allTicks, Tres tres, String varyMa) throws Exception {
+    private void varyMa(List<List<TradeDataLight>> allTicks, Tres tres, String varyMa) throws Exception {
         log("varyMa: " + varyMa);
 
         String[] split = varyMa.split(";"); // 3;10;1
@@ -161,7 +170,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void varyLen1(List<List<TradeData>> allTicks, Tres tres, String varyLen1) throws Exception {
+    private void varyLen1(List<List<TradeDataLight>> allTicks, Tres tres, String varyLen1) throws Exception {
         log("varyLen1: " + varyLen1);
 
         String[] split = varyLen1.split(";"); // 10;30;1
@@ -175,7 +184,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void varyLen2(List<List<TradeData>> allTicks, Tres tres, String varyLen2) throws Exception {
+    private void varyLen2(List<List<TradeDataLight>> allTicks, Tres tres, String varyLen2) throws Exception {
         log("varyLen2: " + varyLen2);
 
         String[] split = varyLen2.split(";"); // 10;30;1
@@ -189,7 +198,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private void varyOscLock(List<List<TradeData>> allTicks, Tres tres, String varyOscLock) throws Exception {
+    private void varyOscLock(List<List<TradeDataLight>> allTicks, Tres tres, String varyOscLock) throws Exception {
         log("varyOscLock: " + varyOscLock);
 
         String[] split = varyOscLock.split(";"); // 0.09;0.11;0.001
@@ -203,12 +212,25 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private Map<String, Double> processAllTicks(List<List<TradeData>> allTicks) throws Exception {
+    private void varyCoppockPeakTolerance(List<List<TradeDataLight>> allTicks, Tres tres, String varyCoppPeak) throws Exception {
+        log("varyCoppPeak: " + varyCoppPeak);
+        String[] split = varyCoppPeak.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        for (double i = min; i <= max; i += step) {
+            CoppockIndicator.PEAK_TOLERANCE = i;
+            Map<String, Double> averageProjected = processAllTicks(allTicks);
+            log("averageProjected[oscLock=" + i + "]: " + averageProjected);
+        }
+    }
+
+    private Map<String, Double> processAllTicks(List<List<TradeDataLight>> allTicks) throws Exception {
         final AtomicInteger semafore = new AtomicInteger();
         ExecutorService executorService = Executors.newFixedThreadPool(PROCESS_THREADS_NUM);
 
         final Map<String,Utils.DoubleDoubleAverageCalculator> calcMap = new HashMap<String, Utils.DoubleDoubleAverageCalculator>();
-        for (final List<TradeData> ticks : allTicks) {
+        for (final List<TradeDataLight> ticks : allTicks) {
             synchronized (semafore) {
                 semafore.incrementAndGet();
             }
@@ -256,12 +278,12 @@ class TresLogProcessor extends Thread {
         return ret;
     }
 
-    private Map<String, Double> processTicks(List<TradeData> ticks) {
+    private Map<String, Double> processTicks(List<TradeDataLight> ticks) {
         Map<String, Double> ret = new HashMap<String, Double>();
 
         // reset before iteration
         TresExchData exchData = (cloneCounter++ == 0) ? m_exchData : m_exchData.cloneClean();
-        for (TradeData tick : ticks) {
+        for (TradeDataLight tick : ticks) {
             exchData.processTrade(tick);
         }
 
@@ -289,12 +311,12 @@ class TresLogProcessor extends Thread {
         return ret;
     }
 
-    private List<List<TradeData>> parseFiles(Pattern pattern, File dir) throws Exception {
+    private List<List<TradeDataLight>> parseFiles(Pattern pattern, File dir) throws Exception {
         final AtomicInteger semafore = new AtomicInteger();
         ExecutorService executorService = Executors.newFixedThreadPool(PARSE_THREADS_NUM);
 
         long startTime = System.currentTimeMillis();
-        final List<List<TradeData>> ticks = new ArrayList<List<TradeData>>();
+        final List<List<TradeDataLight>> ticks = new ArrayList<List<TradeDataLight>>();
         File[] files = dir.listFiles();
         log(files.length + " file(s) is directory " + dir);
         int toParse = 0;
@@ -308,7 +330,7 @@ class TresLogProcessor extends Thread {
                 executorService.submit(new Runnable() {
                     @Override public void run() {
                         log("next file to parse: " + name);
-                        List<TradeData> fileTicks = null;
+                        List<TradeDataLight> fileTicks = null;
                         try {
                             fileTicks = parseFile(file);
                         } catch (Exception e) {
@@ -351,7 +373,7 @@ class TresLogProcessor extends Thread {
         return ticks;
     }
 
-    private List<TradeData> parseFile(File file) throws Exception {
+    private List<TradeDataLight> parseFile(File file) throws Exception {
         LineReader reader = new LineReader(file, READ_BUFFER_SIZE);
         try {
             return parseLines(reader, file);
@@ -360,15 +382,15 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private List<TradeData> parseLines(LineReader reader, File file) throws IOException {
+    private List<TradeDataLight> parseLines(LineReader reader, File file) throws IOException {
         BufferedLineReader blr = new BufferedLineReader(reader);
         try {
-            List<TradeData> ret = new ArrayList<TradeData>();
+            List<TradeDataLight> ret = new ArrayList<TradeDataLight>();
             long startTime = System.currentTimeMillis();
             long linesProcessed = 0;
             String line;
             while ((line = blr.getLine()) != null) {
-                TradeData tData = parseTheLine(line);
+                TradeDataLight tData = parseTheLine(line);
                 if(tData != null) {
                     ret.add(tData);
                 }
@@ -384,7 +406,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private TradeData parseFxTradeLine(String line) {
+    private TradeDataLight parseFxTradeLine(String line) {
         // EUR/USD,20150601 00:00:00.859,1.0957,1.09579
         Matcher matcher = FX_TRADE_PATTERN.matcher(line);
         if (matcher.matches()) {
@@ -418,7 +440,7 @@ class TresLogProcessor extends Thread {
             }
             double mid = (bid + ask) / 2;
 
-            TradeData tradeData = new TradeData(0, mid, timestamp);
+            TradeDataLight tradeData = new TradeDataLight(timestamp, mid);
             return tradeData;
         } else {
             throw new RuntimeException("not matched FX_TRADE_PATTERN line: " + line);
@@ -426,7 +448,7 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private TradeData parseTheLine(String line) {
+    private TradeDataLight parseTheLine(String line) {
         if (line.startsWith("onTrade[") && line.contains("]: TradeData{")) {
             return parseTradeLine(line);
         } else if (line.contains(": State.onTrade(")) {
@@ -437,14 +459,14 @@ class TresLogProcessor extends Thread {
         return null;
     }
 
-    private TradeData parseOscTradeLine(String line) {
+    private TradeDataLight parseOscTradeLine(String line) {
         // 1426040622351: State.onTrade(tData=TradeData{amount=5.00000, price=1831.00000, time=1426040623000, tid=0, type=ASK}) on NONE *********************************************
         Matcher matcher = OSC_TRADE_PATTERN.matcher(line);
         if (matcher.matches()) {
             String priceStr = matcher.group(1);
             String millisStr = matcher.group(2);
 //                log("GOT TRADE: millisStr=" + millisStr + "; priceStr=" + priceStr);
-            TradeData tradeData = parseTrade(millisStr, priceStr);
+            TradeDataLight tradeData = parseTrade(millisStr, priceStr);
             return tradeData;
         } else {
 //                throw new RuntimeException("not matched OSC_TRADE_PATTERN line: " + line);
@@ -453,23 +475,23 @@ class TresLogProcessor extends Thread {
         }
     }
 
-    private TradeData parseTradeLine(String line) {
+    private TradeDataLight parseTradeLine(String line) {
         Matcher matcher = TRE_TRADE_PATTERN.matcher(line);
         if (matcher.matches()) {
             String priceStr = matcher.group(1);
             String timeStr = matcher.group(2);
 //                log("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
-            TradeData tradeData = parseTrade(timeStr, priceStr);
+            TradeDataLight tradeData = parseTrade(timeStr, priceStr);
             return tradeData;
         } else {
             throw new RuntimeException("not matched TRE_TRADE_PATTERN line: " + line);
         }
     }
 
-    private TradeData parseTrade(String millisStr, String priceStr) {
+    private TradeDataLight parseTrade(String millisStr, String priceStr) {
         long millis = Long.parseLong(millisStr);
         double price = Double.parseDouble(priceStr);
-        return new TradeData(0, price, millis);
+        return new TradeDataLight(millis, price);
     }
 
     private String getProperty(Properties keys, String key) {

@@ -4,7 +4,7 @@ import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.exch.BaseExch;
 import bthdg.exch.Pair;
-import bthdg.exch.TradeData;
+import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
@@ -205,7 +205,7 @@ public class Tres {
         }
     }
 
-    public void onTrade(TradeData tdata) {
+    public void onTrade(TradeDataLight tdata) {
         if(PAINT_TICK_TIMES_ONLY) { // collect tickTimes
             long timestamp = tdata.m_timestamp;
             m_tickTimes.add(timestamp);

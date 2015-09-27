@@ -5,6 +5,7 @@ import bthdg.calc.OscTick;
 import bthdg.exch.Direction;
 import bthdg.exch.OrderData;
 import bthdg.exch.TradeData;
+import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.alg.TresAlgo;
@@ -26,10 +27,10 @@ public class TresExchData {
 
     public final Tres m_tres;
     final IWs m_ws;
-    final LinkedList<TradeData> m_trades = new LinkedList<TradeData>();
+    final LinkedList<TradeDataLight> m_trades = new LinkedList<TradeDataLight>();
     final PhaseData[] m_phaseDatas;
     final TresExecutor m_executor;
-    final Queue<TradeData> m_tradesQueue;
+    Queue<TradeData> m_tradesQueue;
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
     final LinkedList<ChartPoint> m_avgOscs = new LinkedList<ChartPoint>();
     final LinkedList<ChartPoint> m_avgCoppock = new LinkedList<ChartPoint>();
@@ -106,10 +107,12 @@ public class TresExchData {
                 }
             };
         }
-        m_tradesQueue = new Queue<TradeData>("tradesQueue") {
-            @Override protected void processItem(TradeData tData) { processTrade(tData); }
-        };
-        m_tradesQueue.start();
+        if(BaseExecutor.DO_TRADE) {
+            m_tradesQueue = new Queue<TradeData>("tradesQueue") {
+                @Override protected void processItem(TradeData tData) { processTrade(tData); }
+            };
+            m_tradesQueue.start();
+        }
     }
 
     public void start() {
@@ -139,13 +142,15 @@ public class TresExchData {
         }
     }
 
-    public void processTrade(TradeData tdata) {
+    public void processTrade(TradeDataLight tdata) {
         m_tickCount++;
         if (!m_tres.m_silentConsole) {
             log("onTrade[" + m_ws.exchange() + "]: " + tdata);
         }
-        synchronized (m_trades) {
-            m_trades.add(tdata);
+        if (m_tres.m_collectPoints) {
+            synchronized (m_trades) {
+                m_trades.add(tdata);
+            }
         }
         m_lastPrice = tdata.m_price;
         long timestamp = tdata.m_timestamp;

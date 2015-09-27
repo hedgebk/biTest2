@@ -2,7 +2,7 @@ package bthdg.osc;
 
 import bthdg.IIterationContext;
 import bthdg.Log;
-import bthdg.exch.TradeData;
+import bthdg.exch.TradeDataLight;
 
 enum OscState {
     NONE { // no order placed
@@ -19,7 +19,7 @@ enum OscState {
             int stateCode = executor.processDirection();
             return codeToState(stateCode);
         }
-        @Override public OscState onTrade(OscExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+        @Override public OscState onTrade(OscExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
             BaseExecutor.log("State.ORDER.onTrade(tData=" + tData + ") on " + this + " *********************************************");
             int stateCode = executor.processTrade(tData, iContext);
             return codeToState(stateCode);
@@ -31,7 +31,7 @@ enum OscState {
         public int toCode() { return BaseExecutor.STATE_ORDER; }
     },
     ERROR {
-        @Override public OscState onTrade(OscExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+        @Override public OscState onTrade(OscExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
             BaseExecutor.log("State.ERROR.onTrade(tData=" + tData + ") on " + this + " *********************************************");
             executor.onError();
             return NONE;
@@ -45,7 +45,7 @@ enum OscState {
         log("State.onTop(buy=" + executor.m_buy + ", sell=" + executor.m_sell + ") on " + this + " *********************************************");
     }
 
-    public OscState onTrade(OscExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+    public OscState onTrade(OscExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
         log("State.onTrade(tData=" + tData + ") on " + this + " *********************************************");
         return this;
     }

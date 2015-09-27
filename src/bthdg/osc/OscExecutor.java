@@ -4,7 +4,7 @@ import bthdg.IIterationContext;
 import bthdg.exch.Direction;
 import bthdg.exch.OrderData;
 import bthdg.exch.OrderSide;
-import bthdg.exch.TradeData;
+import bthdg.exch.TradeDataLight;
 import bthdg.util.Utils;
 import bthdg.ws.IWs;
 
@@ -99,7 +99,7 @@ class OscExecutor extends BaseExecutor {
         m_state.onTop(this);
     }
 
-    @Override protected void gotTrade(TradeData tData) throws Exception {
+    @Override protected void gotTrade(TradeDataLight tData) throws Exception {
         log("OscExecutor.gotTrade() tData=" + tData);
 
         StringBuilder builder = new StringBuilder();
@@ -178,7 +178,7 @@ class OscExecutor extends BaseExecutor {
         return false;
     }
 
-    private IIterationContext.BaseIterationContext checkCloseOrdersStateIfNeeded(TradeData tData, IIterationContext.BaseIterationContext inContext) throws Exception {
+    private IIterationContext.BaseIterationContext checkCloseOrdersStateIfNeeded(TradeDataLight tData, IIterationContext.BaseIterationContext inContext) throws Exception {
         IIterationContext.BaseIterationContext iContext = inContext;
         if (!m_closeOrders.isEmpty()) {
             double tradePrice = tData.m_price;
@@ -240,7 +240,7 @@ class OscExecutor extends BaseExecutor {
         return iContext;
     }
 
-    @Override public void onTrade(TradeData tData) {
+    @Override public void onTrade(TradeDataLight tData) {
         m_noTradesWatcher.onTrade();
         long timestamp = tData.m_timestamp;
         for (int i = 0; i < AVG_PRICE_PERIOD_RATIOS.length; i++) {
@@ -341,7 +341,7 @@ class OscExecutor extends BaseExecutor {
         return cumCancelOrdersSize;
     }
 
-    @Override public int processTrade(TradeData tData, IIterationContext.BaseIterationContext inContext) throws Exception {
+    @Override public int processTrade(TradeDataLight tData, IIterationContext.BaseIterationContext inContext) throws Exception {
         log("processTrade(tData=" + tData + ") m_order=" + m_order);
         return super.processTrade(tData, inContext);
     }

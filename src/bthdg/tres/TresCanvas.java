@@ -56,7 +56,7 @@ public class TresCanvas extends JComponent {
     private Integer m_dragDeltaX;
     private int m_dragDeltaBars;
     private int m_barsShift = 0;
-    private List<TradeData> m_paintTades = new ArrayList<TradeData>();
+    private List<TradeDataLight> m_paintTades = new ArrayList<TradeDataLight>();
     private List<ChartPoint> m_paintAvgOscs = new ArrayList<ChartPoint>();
     private List<ChartPoint> m_paintAvgCcis = new ArrayList<ChartPoint>();
     private List<BaseExecutor.TopDataPoint> m_paintTops = new ArrayList<BaseExecutor.TopDataPoint>();
@@ -607,10 +607,10 @@ public class TresCanvas extends JComponent {
         return yPriceAxe;
     }
 
-    private void paintTrades(Graphics g, LinkedList<TradeData> trades, ChartAxe yPriceAxe) {
-        List<TradeData> tradesClone = cloneTrades(trades);
+    private void paintTrades(Graphics g, LinkedList<TradeDataLight> trades, ChartAxe yPriceAxe) {
+        List<TradeDataLight> tradesClone = cloneTrades(trades);
         g.setColor(Color.DARK_GRAY);
-        for (TradeData tradeData : tradesClone) {
+        for (TradeDataLight tradeData : tradesClone) {
             long timestamp = tradeData.m_timestamp;
             int x = m_xTimeAxe.getPoint(timestamp);
             double price = tradeData.m_price;
@@ -620,13 +620,13 @@ public class TresCanvas extends JComponent {
         }
     }
 
-    private List<TradeData> cloneTrades(LinkedList<TradeData> trades) {
+    private List<TradeDataLight> cloneTrades(LinkedList<TradeDataLight> trades) {
         double minTime = m_xTimeAxe.m_min;
         double maxTime = m_xTimeAxe.m_max;
         m_paintTades.clear();
         synchronized (trades) {
-            for (Iterator<TradeData> it = trades.descendingIterator(); it.hasNext(); ) {
-                TradeData tradeData = it.next();
+            for (Iterator<TradeDataLight> it = trades.descendingIterator(); it.hasNext(); ) {
+                TradeDataLight tradeData = it.next();
                 long timestamp = tradeData.m_timestamp;
                 if (timestamp < minTime) { break; }
                 if (timestamp > maxTime) { continue; }

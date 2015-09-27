@@ -2,7 +2,7 @@ package bthdg.tres;
 
 import bthdg.IIterationContext;
 import bthdg.Log;
-import bthdg.exch.TradeData;
+import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 
 public enum TresState {
@@ -20,7 +20,7 @@ public enum TresState {
             int stateCode = executor.processDirection();
             return codeToState(stateCode);
         }
-        @Override public TresState onTrade(TresExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+        @Override public TresState onTrade(TresExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
             log("State.ORDER.onTrade(tData=" + tData + ") on " + this + " *********************************************");
             int stateCode = executor.processTrade(tData, iContext);
             return codeToState(stateCode);
@@ -32,7 +32,7 @@ public enum TresState {
         @Override public int toCode() { return BaseExecutor.STATE_ORDER; }
     },
     ERROR {
-        @Override public TresState onTrade(TresExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+        @Override public TresState onTrade(TresExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
             log("State.ERROR.onTrade(tData=" + tData + ") on " + this + " *********************************************");
             executor.onError();
             return NONE;
@@ -46,7 +46,7 @@ public enum TresState {
         log("State.onTop(buy=" + executor.m_buy + ", sell=" + executor.m_sell + ") on " + this + " *********************************************");
     }
 
-    public TresState onTrade(TresExecutor executor, TradeData tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+    public TresState onTrade(TresExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
         log("State.onTrade(tData=" + tData + ") on " + this + " *********************************************");
         return null; // no change
     }

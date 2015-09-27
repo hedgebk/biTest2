@@ -64,7 +64,7 @@ public abstract class BaseExecutor implements Runnable {
 
     // abstract
     protected abstract void gotTop() throws Exception;
-    protected abstract void gotTrade(TradeData tradeData) throws Exception;
+    protected abstract void gotTrade(TradeDataLight tradeData) throws Exception;
     protected abstract void cancelAllOrders() throws Exception;
     protected abstract void recheckDirection() throws Exception;
     protected abstract List<OrderData> getAllOrders();
@@ -151,7 +151,7 @@ public abstract class BaseExecutor implements Runnable {
 
     protected TaskQueueProcessor createTaskQueueProcessor() { return new TaskQueueProcessor(); }
 
-    public void onTrade(TradeData tData) {
+    public void onTrade(TradeDataLight tData) {
         addTask(new TradeTask(tData));
     }
 
@@ -650,7 +650,7 @@ public abstract class BaseExecutor implements Runnable {
         return ret;
     }
 
-    public int processTrade(TradeData tData, IIterationContext.BaseIterationContext inContext) throws Exception {
+    public int processTrade(TradeDataLight tData, IIterationContext.BaseIterationContext inContext) throws Exception {
         double tradePrice = tData.m_price;
         if (hasOrdersWithMatchedPrice(tradePrice)) {
             log("  same price - MAYBE SOME PART OF OUR ORDER EXECUTED ?");
@@ -722,9 +722,9 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     public class TradeTask extends TaskQueueProcessor.BaseOrderTask {
-        private final TradeData m_tData;
+        private final TradeDataLight m_tData;
 
-        public TradeTask(TradeData tData) {
+        public TradeTask(TradeDataLight tData) {
             m_tData = tData;
         }
 

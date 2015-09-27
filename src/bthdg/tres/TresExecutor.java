@@ -4,7 +4,7 @@ import bthdg.IIterationContext;
 import bthdg.exch.OrderData;
 import bthdg.exch.OrderSide;
 import bthdg.exch.Pair;
-import bthdg.exch.TradeData;
+import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.osc.TaskQueueProcessor;
 import bthdg.ws.IWs;
@@ -63,7 +63,7 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    @Override public void onTrade(TradeData tData) {
+    @Override public void onTrade(TradeDataLight tData) {
         if (DO_TRADE) {
             TradeTask task = new TradeTask(tData);
             if ((m_order != null) && m_order.m_status.isActive()) {
@@ -76,7 +76,7 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    @Override protected void gotTrade(TradeData tradeData) throws Exception {
+    @Override protected void gotTrade(TradeDataLight tradeData) throws Exception {
 //        log("TresExecutor.gotTrade() tData=" + tradeData);
 
         TresState newState = m_state.onTrade(this, tradeData, null);
