@@ -2,6 +2,7 @@ package bthdg.tres;
 
 import bthdg.Log;
 import bthdg.exch.TradeDataLight;
+import bthdg.tres.alg.TresAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.util.BufferedLineReader;
@@ -37,6 +38,8 @@ class TresLogProcessor extends Thread {
     private String m_varyLen2;
     private String m_varyOscLock;
     private String m_varyCoppPeak;
+    private String m_varyAndPeak;
+    private String m_varyCciCorr;
     private int cloneCounter = 0;
 
     private static void log(String s) { Log.log(s); }
@@ -62,6 +65,10 @@ class TresLogProcessor extends Thread {
         log("varyOscLock=" + m_varyOscLock);
         m_varyCoppPeak = keys.getProperty("tre.vary.copp_peak");
         log("varyCoppPeak=" + m_varyCoppPeak);
+        m_varyAndPeak = keys.getProperty("tre.vary.and_peak");
+        log("varyAndPeak=" + m_varyAndPeak);
+        m_varyCciCorr = keys.getProperty("tre.vary.cci_corr");
+        log("varyCciCorr=" + m_varyCciCorr);
     }
 
     @Override public void run() {
@@ -115,9 +122,19 @@ class TresLogProcessor extends Thread {
                             if (varyCoppPeak != null) {
                                 varyCoppockPeakTolerance(allTicks, tres, varyCoppPeak);
                             } else {
-                                tres.m_collectPoints = true;
-                                Map<String, Double> averageProjected = processAllTicks(allTicks);
-                                log("averageProjected: " + averageProjected);
+                                String varyAndPeak = m_varyAndPeak;
+                                if (varyAndPeak != null) {
+                                    varyAndPeakTolerance(allTicks, tres, varyAndPeak);
+                                } else {
+                                    String varyCciCorr = m_varyCciCorr;
+                                    if (varyCciCorr != null) {
+                                        varyCciCorrection(allTicks, tres, varyCciCorr);
+                                    } else {
+                                        tres.m_collectPoints = true;
+                                        Map<String, Double> averageProjected = processAllTicks(allTicks);
+                                        log("averageProjected: " + averageProjected);
+                                    }
+                                }
                             }
                         }
                     }
@@ -140,20 +157,30 @@ class TresLogProcessor extends Thread {
         long step = Utils.parseDHMSMtoMillis(split[2]);
         for (long i = min; i <= max; i += step) {
             tres.m_barSizeMillis = i;
-            long start = System.currentTimeMillis();
-            Map<String, Double> averageProjected = processAllTicks(allTicks);
-            long end = System.currentTimeMillis();
-            StringBuilder sb = new StringBuilder();
-            for (Map.Entry<String, Double> entry : averageProjected.entrySet()) {
-                String name = entry.getKey();
-                Double value = entry.getValue();
-                if (sb.length() > 0) {
-                    sb.append("; ");
-                }
-                sb.append(name).append("=").append(String.format("%.5f", value));
-            }
-            log("averageProjected[barSizeMillis=" + i + "]:\t" + sb + "\t in " + Utils.millisToDHMSStr(end - start));
+            iterate(allTicks, i, "%d", "barSizeMillis");
         }
+    }
+
+    private void iterate(List<List<TradeDataLight>> allTicks, Number num, String format, String key) throws Exception {
+        long start = System.currentTimeMillis();
+        Map<String, Double> averageProjected = processAllTicks(allTicks);
+        long end = System.currentTimeMillis();
+        long takes = end - start;
+        log(key, num, format, averageProjected, takes);
+    }
+
+    private void log(String key, Number num, String format, Map<String, Double> averageProjected, long takes) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Double> entry : averageProjected.entrySet()) {
+            String name = entry.getKey();
+            Double value = entry.getValue();
+            if (sb.length() > 0) {
+                sb.append("; ");
+            }
+            sb.append(name).append("=").append(String.format("%.6f", value));
+        }
+        String numFormatted = String.format(format, num);
+        log("averageProjected[" + key + "=" + numFormatted + "]:\t" + sb + "\t in " + Utils.millisToDHMSStr(takes));
     }
 
     private void varyMa(List<List<TradeDataLight>> allTicks, Tres tres, String varyMa) throws Exception {
@@ -220,8 +247,31 @@ class TresLogProcessor extends Thread {
         double step = Double.parseDouble(split[2]);
         for (double i = min; i <= max; i += step) {
             CoppockIndicator.PEAK_TOLERANCE = i;
-            Map<String, Double> averageProjected = processAllTicks(allTicks);
-            log("averageProjected[oscLock=" + i + "]: " + averageProjected);
+            iterate(allTicks, i, "%.5f", "CoppPeak");
+        }
+    }
+
+    private void varyAndPeakTolerance(List<List<TradeDataLight>> allTicks, Tres tres, String varyAndPeak) throws Exception {
+        log("varyAndPeak: " + varyAndPeak);
+        String[] split = varyAndPeak.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        for (double i = min; i <= max; i += step) {
+            TresAlgo.CncAlgo.AndIndicator.PEAK_TOLERANCE = i;
+            iterate(allTicks, i, "%.5f", "AndPeak");
+        }
+    }
+
+    private void varyCciCorrection(List<List<TradeDataLight>> allTicks, Tres tres, String varyCciCorr) throws Exception {
+        log("varyCciCorrection: " + varyCciCorr);
+        String[] split = varyCciCorr.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        for (double i = min; i <= max; i += step) {
+            TresAlgo.CncAlgo.CCI_CORRECTION_RATIO = i;
+            iterate(allTicks, i, "%.0f", "CciCorr");
         }
     }
 
@@ -275,6 +325,7 @@ class TresLogProcessor extends Thread {
             double averageProjected = calc.getAverage();
             ret.put(name, averageProjected);
         }
+        executorService.shutdown();
         return ret;
     }
 
@@ -370,6 +421,7 @@ class TresLogProcessor extends Thread {
         String takesStr = Utils.millisToDHMSStr(timeTakes);
         log("parsing done in " + takesStr);
 
+        executorService.shutdown();
         return ticks;
     }
 

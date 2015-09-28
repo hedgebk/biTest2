@@ -11,7 +11,7 @@ import bthdg.util.Utils;
 import java.awt.*;
 
 public class CoppockIndicator extends TresIndicator {
-    public static double PEAK_TOLERANCE = 0.0075;
+    public static double PEAK_TOLERANCE = 0.007433;
     public static final Color COPPOCK_AVG_COLOR = Color.CYAN;
     public static final Color COPPOCK_AVG_PEAKS_COLOR = Color.WHITE;
     public static final Color COPPOCK_COLOR = Colors.setAlpha(COPPOCK_AVG_COLOR, 40);

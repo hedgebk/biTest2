@@ -93,7 +93,7 @@ public class TresAlgo {
     }
 
     public static class CncAlgo extends TresAlgo {
-        public static final int CCI_CORRECTION_RATIO = 8000;
+        public static double CCI_CORRECTION_RATIO = 7160;
 
         final CoppockIndicator m_coppockIndicator;
         final CciIndicator m_cciIndicator;
@@ -139,8 +139,8 @@ public class TresAlgo {
             return (direction == Direction.FORWARD) ? 1.0 : -1.0;
         }
 
-        private class AndIndicator extends TresIndicator {
-            private static final double PEAK_TOLERANCE = 0.015;
+        public static class AndIndicator extends TresIndicator {
+            public static double PEAK_TOLERANCE = 0.05715;
 
             public AndIndicator(TresAlgo algo) {
                 super("+", PEAK_TOLERANCE, algo);
