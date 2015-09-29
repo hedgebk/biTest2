@@ -6,6 +6,8 @@ import bthdg.exch.BaseExch;
 import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
+import bthdg.tres.alg.TresAlgo;
+import bthdg.tres.ind.CoppockIndicator;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
 import bthdg.ws.IWs;
@@ -44,7 +46,7 @@ public class Tres {
     public boolean m_calcCoppock;
     public boolean m_calcCci;
     String[] m_algosArr;
-    String m_runAlgo;
+    String m_runAlgoName;
     public boolean m_collectPoints = true;
 
     private static void log(String s) { Log.log(s); }
@@ -164,8 +166,43 @@ public class Tres {
             log(" .len=" + indicatorsLen);
         }
 
-        m_runAlgo = getProperty("tre.run.algo");
-        log("run.algo=" + m_runAlgo);
+        m_runAlgoName = getProperty("tre.run.algo");
+        log("run.algo=" + m_runAlgoName);
+
+        String andPeakStr = getProperty("tre.and_peak");
+        log("and_peak=" + andPeakStr);
+        if (andPeakStr != null) {
+            double andPeak = Double.parseDouble(andPeakStr);
+            TresAlgo.CncAlgo.AndIndicator.PEAK_TOLERANCE = andPeak;
+        }
+
+        String cciCorrStr = getProperty("tre.cci_corr");
+        log("cci_corr=" + cciCorrStr);
+        if (cciCorrStr != null) {
+            double cciCorr = Double.parseDouble(cciCorrStr);
+            TresAlgo.CncAlgo.CCI_CORRECTION_RATIO = cciCorr;
+        }
+
+        String wmaStr = getProperty("tre.wma");
+        log("wma=" + wmaStr);
+        if (wmaStr != null) {
+            int wma = Integer.parseInt(wmaStr);
+            CoppockIndicator.PhasedCoppockIndicator.WMA_LENGTH = wma;
+        }
+
+        String lrocStr = getProperty("tre.lroc");
+        log("lroc=" + lrocStr);
+        if (lrocStr != null) {
+            int lroc = Integer.parseInt(lrocStr);
+            CoppockIndicator.PhasedCoppockIndicator.LONG_ROC_LENGTH = lroc;
+        }
+
+        String srocStr = getProperty("tre.sroc");
+        log("sroc=" + srocStr);
+        if (srocStr != null) {
+            int sroc = Integer.parseInt(srocStr);
+            CoppockIndicator.PhasedCoppockIndicator.SHORT_ROС_LENGTH = sroc;
+        }
 
         m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
         for (String exch : exchangesArr) {
