@@ -40,9 +40,9 @@ public class CoppockIndicator extends TresIndicator {
     }
 
     public static class PhasedCoppockIndicator extends TresPhasedIndicator {
-        public static final int WMA_LENGTH = 10;
-        public static final int LONG_ROC_LENGTH = 14;
-        public static final int SHORT_ROС_LENGTH = 11;
+        public static int WMA_LENGTH = 13; // 10
+        public static int SHORT_ROС_LENGTH = 11;
+        public static int LONG_ROC_LENGTH = 15; // 14
 
         private final CoppockCalculator m_calculator;
 

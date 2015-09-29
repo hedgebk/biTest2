@@ -32,6 +32,8 @@ public class TresAlgo {
             return new CoppockAlgo(tresExchData);
         } else if (algoName.equals("c+c")) {
             return new CncAlgo(tresExchData);
+        } else if (algoName.equals("osc")) {
+            return tresExchData.getOscAlgo();
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -55,13 +57,13 @@ public class TresAlgo {
         notifyAlgoChanged();
     }
 
-    protected void notifyAlgoChanged() {
+    public void notifyAlgoChanged() {
         if (m_listener != null) {
             m_listener.onAlgoChanged();
         }
     }
 
-    public Double getDirection() { return null; } // [-1 ... 1]
+    public double getDirection() { return 0; } // [-1 ... 1]
 
     public JComponent getController(TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
@@ -76,31 +78,26 @@ public class TresAlgo {
         final CoppockIndicator m_coppockIndicator;
 
         public CoppockAlgo(TresExchData tresExchData) {
-            super("Coppock", tresExchData);
+            super("COPPOCK", tresExchData);
             m_coppockIndicator = new CoppockIndicator(this);
             m_indicators.add(m_coppockIndicator);
         }
 
-        @Override public void onAvgPeak(TresIndicator indicator) {
-            //Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
-            notifyAlgoChanged();
-        }
-
-        @Override public Double getDirection() { // [-1 ... 1]
+        @Override public double getDirection() { // [-1 ... 1]
             Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
             return (direction == Direction.FORWARD) ? 1.0 : -1.0;
         }
     }
 
     public static class CncAlgo extends TresAlgo {
-        public static double CCI_CORRECTION_RATIO = 7160;
+        public static double CCI_CORRECTION_RATIO = 7408;
 
         final CoppockIndicator m_coppockIndicator;
         final CciIndicator m_cciIndicator;
         final AndIndicator m_andIndicator;
 
         public CncAlgo(TresExchData tresExchData) {
-            super("c+c", tresExchData);
+            super("C+C", tresExchData);
             m_coppockIndicator = new CoppockIndicator(this) {
                 @Override protected void onBar() {
                     super.onBar();
@@ -134,13 +131,13 @@ public class TresAlgo {
             }
         }
 
-        @Override public Double getDirection() { // [-1 ... 1]
+        @Override public double getDirection() { // [-1 ... 1]
             Direction direction = m_andIndicator.m_avgPeakCalculator.m_direction;
             return (direction == Direction.FORWARD) ? 1.0 : -1.0;
         }
 
         public static class AndIndicator extends TresIndicator {
-            public static double PEAK_TOLERANCE = 0.05715;
+            public static double PEAK_TOLERANCE = 0.06470;
 
             public AndIndicator(TresAlgo algo) {
                 super("+", PEAK_TOLERANCE, algo);

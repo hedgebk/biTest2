@@ -23,6 +23,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     private Double m_lastPeakPrice;
     public double m_totalPriceRatio = 1.0;
     private boolean m_doPaint = true;
+    private List<AlgoWatcherPoint> m_paintPoints = new ArrayList<AlgoWatcherPoint>();
 
     private static void log(String s) { Log.log(s); }
 
@@ -44,8 +45,6 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
             paintPoints(g, xTimeAxe, yPriceAxe);
         }
     }
-
-    private List<AlgoWatcherPoint> m_paintPoints = new ArrayList<AlgoWatcherPoint>();
 
     private void clonePoints(ChartAxe xTimeAxe) {
         double minTime = xTimeAxe.m_min;
