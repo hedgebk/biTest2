@@ -8,7 +8,10 @@ public class OHLCCalculator extends BarCalculator {
     }
 
     @Override protected boolean updateCurrentBar(long time, double price) {
-        return m_tick.update(price);
+        if (m_tick != null) {
+            return m_tick.update(price);
+        }
+        return false;
     }
     @Override protected void startNewBar(long barStart, long barEnd) {
         m_tick = new OHLCTick(barStart, barEnd);

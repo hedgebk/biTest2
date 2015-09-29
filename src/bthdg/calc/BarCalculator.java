@@ -31,6 +31,8 @@ public abstract class BarCalculator {
     protected abstract void finishCurrentBar(long time, double price);
 
     protected static void replaceLastElement(LinkedList<Double> list, double price) {
-        list.set(list.size() - 1, price); // replace last element
+        if (!list.isEmpty()) {
+            list.set(list.size() - 1, price); // replace last element
+        }
     }
 }
