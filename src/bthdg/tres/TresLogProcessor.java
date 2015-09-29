@@ -2,6 +2,7 @@ package bthdg.tres;
 
 import bthdg.Log;
 import bthdg.exch.TradeDataLight;
+import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.CoppockIndicator;
@@ -40,6 +41,9 @@ class TresLogProcessor extends Thread {
     private String m_varyCoppPeak;
     private String m_varyAndPeak;
     private String m_varyCciCorr;
+    private String m_varyWma;
+    private String m_varyLroc;
+    private String m_varySroc;
     private int cloneCounter = 0;
 
     private static void log(String s) { Log.log(s); }
@@ -69,6 +73,15 @@ class TresLogProcessor extends Thread {
         log("varyAndPeak=" + m_varyAndPeak);
         m_varyCciCorr = keys.getProperty("tre.vary.cci_corr");
         log("varyCciCorr=" + m_varyCciCorr);
+        m_varyWma = keys.getProperty("tre.vary.wma");
+        log("varyWma=" + m_varyWma);
+        m_varyLroc = keys.getProperty("tre.vary.lroc");
+        log("varyLroc=" + m_varyLroc);
+        m_varySroc = keys.getProperty("tre.vary.sroc");
+        log("m_varySroc=" + m_varySroc);
+
+        BaseExecutor.DO_TRADE = false;
+        log("DO_TRADE set to false");
     }
 
     @Override public void run() {
@@ -81,7 +94,10 @@ class TresLogProcessor extends Thread {
             File dir = new File(dirPath);
             if (dir.isDirectory()) {
                 List<List<TradeDataLight>> ticks = parseFiles(pattern, dir);
+                long startTime = System.currentTimeMillis();
                 processAll(ticks);
+                long endTime = System.currentTimeMillis();
+                log("takes " + Utils.millisToDHMSStr(endTime - startTime));
             } else {
                 log("is not a directory: " + dirPath);
             }
@@ -94,58 +110,57 @@ class TresLogProcessor extends Thread {
     }
 
     private void processAll(List<List<TradeDataLight>> allTicks) throws Exception {
-        long startTime = System.currentTimeMillis();
-
         Tres tres = m_exchData.m_tres;
         tres.m_collectPoints = false;
-        String varyMa = m_varyMa;
-        if (varyMa != null) {
-            varyMa(allTicks, tres, varyMa);
-        } else {
-            String varyBarSize = m_varyBarSize;
-            if (varyBarSize != null) {
-                varyBarSize(allTicks, tres, varyBarSize);
-            } else {
-                String varyLen1 = m_varyLen1;
-                if (varyLen1 != null) {
-                    varyLen1(allTicks, tres, varyLen1);
-                } else {
-                    String varyLen2 = m_varyLen2;
-                    if (varyLen2 != null) {
-                        varyLen2(allTicks, tres, varyLen2);
-                    } else {
-                        String varyOscLock = m_varyOscLock;
-                        if (varyOscLock != null) {
-                            varyOscLock(allTicks, tres, varyOscLock);
-                        } else {
-                            String varyCoppPeak = m_varyCoppPeak;
-                            if (varyCoppPeak != null) {
-                                varyCoppockPeakTolerance(allTicks, tres, varyCoppPeak);
-                            } else {
-                                String varyAndPeak = m_varyAndPeak;
-                                if (varyAndPeak != null) {
-                                    varyAndPeakTolerance(allTicks, tres, varyAndPeak);
-                                } else {
-                                    String varyCciCorr = m_varyCciCorr;
-                                    if (varyCciCorr != null) {
-                                        varyCciCorrection(allTicks, tres, varyCciCorr);
-                                    } else {
-                                        tres.m_collectPoints = true;
-                                        Map<String, Double> averageProjected = processAllTicks(allTicks);
-                                        log("averageProjected: " + averageProjected);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        if (m_varyMa != null) {
+            varyMa(allTicks, tres, m_varyMa);
+            return;
+        }
+        if (m_varyBarSize != null) {
+            varyBarSize(allTicks, tres, m_varyBarSize);
+            return;
+        }
+        if (m_varyLen1 != null) {
+            varyLen1(allTicks, tres, m_varyLen1);
+            return;
+        }
+        if (m_varyLen2 != null) {
+            varyLen2(allTicks, tres, m_varyLen2);
+            return;
+        }
+        if (m_varyOscLock != null) {
+            varyOscLock(allTicks, tres, m_varyOscLock);
+            return;
+        }
+        if (m_varyCoppPeak != null) {
+            varyCoppockPeakTolerance(allTicks, tres, m_varyCoppPeak);
+            return;
+        }
+        if (m_varyAndPeak != null) {
+            varyAndPeakTolerance(allTicks, tres, m_varyAndPeak);
+            return;
+        }
+        if (m_varyCciCorr != null) {
+            varyCciCorrection(allTicks, tres, m_varyCciCorr);
+            return;
         }
 
-        long endTime = System.currentTimeMillis();
-        long timeTakes = endTime - startTime;
-        String takesStr = Utils.millisToDHMSStr(timeTakes);
-        log("takes " + takesStr);
+        if (m_varyWma != null) {
+            varyWma(allTicks, tres, m_varyWma);
+            return;
+        }
+        if (m_varyLroc != null) {
+            varyLroc(allTicks, tres, m_varyLroc);
+            return;
+        }
+        if (m_varySroc != null) {
+            varySroc(allTicks, tres, m_varySroc);
+            return;
+        }
+
+        tres.m_collectPoints = true;
+        Map<String, Double> averageProjected = processAllTicks(allTicks);
+        log("averageProjected: " + averageProjected);
     }
 
     private void varyBarSize(List<List<TradeDataLight>> allTicks, Tres tres, String varyBarSize) throws Exception {
@@ -192,8 +207,7 @@ class TresLogProcessor extends Thread {
         int step = Integer.parseInt(split[2]);
         for (int i = min; i <= max; i += step) {
             tres.m_ma = i;
-            Map<String, Double> averageProjected = processAllTicks(allTicks);
-            log("averageProjected[ma=" + i + "]: " + averageProjected);
+            iterate(allTicks, i, "%d", "ma");
         }
     }
 
@@ -206,8 +220,7 @@ class TresLogProcessor extends Thread {
         int step = Integer.parseInt(split[2]);
         for (int i = min; i <= max; i += step) {
             tres.m_len1 = i;
-            Map<String, Double> averageProjected = processAllTicks(allTicks);
-            log("averageProjected[varyLen1=" + i + "]: " + averageProjected);
+            iterate(allTicks, i, "%d", "len1");
         }
     }
 
@@ -220,8 +233,7 @@ class TresLogProcessor extends Thread {
         int step = Integer.parseInt(split[2]);
         for (int i = min; i <= max; i += step) {
             tres.m_len2 = i;
-            Map<String, Double> averageProjected = processAllTicks(allTicks);
-            log("averageProjected[varyLen2=" + i + "]: " + averageProjected);
+            iterate(allTicks, i, "%d", "len2");
         }
     }
 
@@ -234,8 +246,7 @@ class TresLogProcessor extends Thread {
         double step = Double.parseDouble(split[2]);
         for (double i = min; i <= max; i += step) {
             PhaseData.LOCK_OSC_LEVEL = i;
-            Map<String, Double> averageProjected = processAllTicks(allTicks);
-            log("averageProjected[oscLock=" + i + "]: " + averageProjected);
+            iterate(allTicks, i, "%.5f", "oscLock");
         }
     }
 
@@ -272,6 +283,45 @@ class TresLogProcessor extends Thread {
         for (double i = min; i <= max; i += step) {
             TresAlgo.CncAlgo.CCI_CORRECTION_RATIO = i;
             iterate(allTicks, i, "%.0f", "CciCorr");
+        }
+    }
+
+    private void varyWma(List<List<TradeDataLight>> allTicks, Tres tres, String varyWma) throws Exception {
+        log("varyWma: " + varyWma);
+
+        String[] split = varyWma.split(";"); // 10;30;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        for (int i = min; i <= max; i += step) {
+            CoppockIndicator.PhasedCoppockIndicator.WMA_LENGTH = i;
+            iterate(allTicks, i, "%d", "wma");
+        }
+    }
+
+    private void varyLroc(List<List<TradeDataLight>> allTicks, Tres tres, String varyLroc) throws Exception {
+        log("varyLroc: " + varyLroc);
+
+        String[] split = varyLroc.split(";"); // 10;30;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        for (int i = min; i <= max; i += step) {
+            CoppockIndicator.PhasedCoppockIndicator.LONG_ROC_LENGTH = i;
+            iterate(allTicks, i, "%d", "lroc");
+        }
+    }
+
+    private void varySroc(List<List<TradeDataLight>> allTicks, Tres tres, String varySroc) throws Exception {
+        log("varySroc: " + varySroc);
+
+        String[] split = varySroc.split(";"); // 10;30;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        for (int i = min; i <= max; i += step) {
+            CoppockIndicator.PhasedCoppockIndicator.SHORT_ROС_LENGTH = i;
+            iterate(allTicks, i, "%d", "sroc");
         }
     }
 
@@ -353,7 +403,7 @@ class TresLogProcessor extends Thread {
         double projected = Math.pow(averageTotal, exponent);
         ret.put("osc", projected);
 
-        for(TresAlgoWatcher algo : exchData.m_algos) {
+        for(TresAlgoWatcher algo : exchData.m_playAlgos) {
             String name = algo.m_algo.m_name;
             double ratio = algo.m_totalPriceRatio;
             double algoProjected = Math.pow(ratio, exponent);
