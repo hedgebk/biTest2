@@ -256,7 +256,7 @@ public class TresCanvas extends JComponent {
     private int paintYAxes(Graphics g, int height, ChartAxe yPriceAxe, TresExchData exchData) {
         int yAxesWidth = paintYPriceAxe(g, yPriceAxe);
         int width = getWidth();
-        for (TresAlgoWatcher algoWatcher : exchData.m_algos) {
+        for (TresAlgoWatcher algoWatcher : exchData.m_playAlgos) {
             int axeWidth = algoWatcher.paintYAxe(g, m_xTimeAxe, width - yAxesWidth, yPriceAxe);
             yAxesWidth += axeWidth;
         }
@@ -293,7 +293,7 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintAlgos(Graphics g, TresExchData exchData, ChartAxe yPriceAxe) {
-        for (TresAlgoWatcher algoWatcher : exchData.m_algos) {
+        for (TresAlgoWatcher algoWatcher : exchData.m_playAlgos) {
             algoWatcher.paint(g, exchData, m_xTimeAxe, yPriceAxe);
         }
     }

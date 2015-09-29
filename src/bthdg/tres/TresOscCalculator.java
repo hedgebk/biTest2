@@ -51,9 +51,6 @@ public class TresOscCalculator extends OscCalculator {
                 if (!tres.m_silentConsole) {
                     log("update[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: PREHEATING step=" + m_barNum + " from " + preheatBarsNum);
                 }
-                if (!tres.m_logProcessing && (m_barNum == preheatBarsNum - INIT_BARS_BEFORE)) {
-                    m_exchData.m_executor.init();
-                }
                 m_updated = true;
             } else {
                 m_exchData.setFeeding();

@@ -44,7 +44,9 @@ public class TresExchData {
     long m_startTickMillis = Long.MAX_VALUE;
     public long m_lastTickMillis = 0;
     long m_tickCount;
-    final List<TresAlgoWatcher> m_algos = new ArrayList<TresAlgoWatcher>();
+    final List<TresAlgoWatcher> m_playAlgos = new ArrayList<TresAlgoWatcher>();
+    TresAlgo m_runAlgo;
+    private OscAlgo m_oscAlgo;
 
     public void setUpdated() { m_updated = true; }
     public void setFeeding() { m_executor.m_feeding = true; }
@@ -62,8 +64,24 @@ public class TresExchData {
         if (tres.m_algosArr != null) {
             for (String algoName : tres.m_algosArr) {
                 TresAlgo algo = TresAlgo.get(algoName, this);
-                m_algos.add(new TresAlgoWatcher(this, algo));
+                m_playAlgos.add(new TresAlgoWatcher(this, algo));
             }
+        }
+
+        m_runAlgo = TresAlgo.get(tres.m_runAlgoName, this);
+        if (BaseExecutor.DO_TRADE) {
+            m_runAlgo.setListener(new TresAlgo.TresAlgoListener() {
+                @Override public void onAlgoChanged() {
+                    if (m_executor.m_initialized) {
+                        m_executor.postRecheckDirection();
+                    } else {
+                        if (!m_tres.m_logProcessing) {
+                            m_executor.init();
+                        }
+                        setFeeding();
+                    }
+                }
+            });
         }
 
         int phasesNum = tres.m_phases;
@@ -79,6 +97,9 @@ public class TresExchData {
                             }
                             m_avgOscsPeakCalculator.update(chartPoint);
                         }
+                    }
+                    if(m_oscAlgo != null) {
+                        m_oscAlgo.notifyAlgoChanged();
                     }
                 }
 
@@ -107,7 +128,7 @@ public class TresExchData {
                 }
             };
         }
-        if(BaseExecutor.DO_TRADE) {
+        if (BaseExecutor.DO_TRADE) {
             m_tradesQueue = new Queue<TradeData>("tradesQueue") {
                 @Override protected void processItem(TradeData tData) { processTrade(tData); }
             };
@@ -198,12 +219,7 @@ public class TresExchData {
     }
 
     public double getDirectionAdjusted() { // [-1 ... 1]
-        double directionAdjusted = 0;
-        for (PhaseData phaseData : m_phaseDatas) {
-            double direction = phaseData.getDirection();
-            directionAdjusted += direction;
-        }
-        return directionAdjusted/m_phaseDatas.length;
+        return m_runAlgo.getDirection();
     }
 
     public ChartPoint calcAvgOsc() {
@@ -269,10 +285,31 @@ public class TresExchData {
     public JComponent getController(TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
         panel.setBorder(BorderFactory.createLineBorder(Color.black));
-        for (TresAlgoWatcher algoWatcher : m_algos) {
+        for (TresAlgoWatcher algoWatcher : m_playAlgos) {
             panel.add(algoWatcher.getController(canvas));
         }
         return panel;
+    }
+
+    public TresAlgo getOscAlgo() {
+        return m_oscAlgo = new OscAlgo();
+    }
+
+
+    public class OscAlgo extends TresAlgo {
+        public OscAlgo() {
+            super("OSC", TresExchData.this);
+        }
+
+        @Override public double getDirection() { // [-1 ... 1]
+            double directionAdjusted = 0;
+            for (PhaseData phaseData : m_phaseDatas) {
+                double direction = phaseData.getDirection();
+                directionAdjusted += direction;
+            }
+            return directionAdjusted/m_phaseDatas.length
+* (1-Math.random() * 0.1); // add random for now
+        }
     }
 
     public static class OrderPoint {
@@ -320,7 +357,6 @@ public class TresExchData {
                     priceRatio = m_lastPrice / m_lastPeakPrice;
                 }
                 m_totalPriceRatio *= priceRatio;
-//log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
 
                 if (m_tres.m_collectPoints) {
                     SymData data = new SymData(m_lastTickMillis, m_lastPrice, priceRatio, m_totalPriceRatio);
@@ -380,5 +416,4 @@ public class TresExchData {
             m_totalPriceRatio = totalPriceRatio;
         }
     }
-
 }

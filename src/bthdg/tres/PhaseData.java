@@ -28,12 +28,14 @@ public class PhaseData {
         m_phaseIndex = phaseIndex;
         Tres tres = m_exchData.m_tres;
 
-        for (TresAlgoWatcher algoWatcher : exchData.m_algos) {
+        for (TresAlgoWatcher algoWatcher : exchData.m_playAlgos) {
             TresAlgo algo = algoWatcher.m_algo;
-            for(TresIndicator indicator : algo.m_indicators) {
-                TresIndicator.TresPhasedIndicator phasedIndicator = indicator.createPhased(exchData, phaseIndex);
-                m_phasedIndicators.add(phasedIndicator);
-            }
+            registerPhasedIndicators(exchData, phaseIndex, algo);
+        }
+
+        TresAlgo runAlgo = exchData.m_runAlgo;
+        if (runAlgo != null) {
+            registerPhasedIndicators(exchData, phaseIndex, runAlgo);
         }
 
         m_oscCalculator = tres.m_calcOsc ? new TresOscCalculator(exchData, phaseIndex) {
@@ -57,6 +59,15 @@ public class PhaseData {
         } : null;
         m_ohlcCalculator = new TresOHLCCalculator(exchData.m_tres, phaseIndex);
         m_maCalculator = new TresMaCalculator(this, phaseIndex);
+    }
+
+    protected void registerPhasedIndicators(TresExchData exchData, int phaseIndex, TresAlgo algo) {
+        for (TresIndicator indicator : algo.m_indicators) {
+            TresIndicator.TresPhasedIndicator phasedIndicator = indicator.createPhased(exchData, phaseIndex);
+            if (phasedIndicator != null) {
+                m_phasedIndicators.add(phasedIndicator);
+            }
+        }
     }
 
     protected void onOscBar() {}
@@ -89,7 +100,9 @@ public class PhaseData {
     }
 
     public void getState(StringBuilder sb) {
-        m_oscCalculator.getState(sb);
+        if (m_oscCalculator != null) {
+            m_oscCalculator.getState(sb);
+        }
     }
 
     protected Boolean calcOscDirection(boolean useLastFineTick, long timestamp) {
