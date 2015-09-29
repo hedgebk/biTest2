@@ -142,7 +142,18 @@ public abstract class BaseExch {
     public static Properties loadKeys() throws IOException {
         Properties properties = new Properties();
         properties.load(new FileReader("keys.txt"));
-        return properties;
+
+        Properties ret = new Properties();
+        for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+            String value = (String) entry.getValue();
+            int index = value.indexOf('#');
+            if (index != -1) { // cut comments
+                value = value.substring(0, index).trim();
+            }
+            Object key = entry.getKey();
+            ret.put(key, value);
+        }
+        return ret;
     }
 
     protected static String readJson(HttpURLConnection con) throws IOException {
