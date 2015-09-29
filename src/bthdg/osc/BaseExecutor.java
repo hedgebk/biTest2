@@ -20,7 +20,7 @@ public abstract class BaseExecutor implements Runnable {
     public static final int STATE_ORDER = 2;
     public static final int STATE_ERROR = 3;
     public static final int MAX_TICK_AGE_FOR_ORDER = 1000;
-    private static final double TOO_OLD_TICK_RATE = 1.1;
+    private static final double TOO_FAR_TICK_DISTANCE = 1.1;
 
     protected static int FLAG_CANCELED = 1 << 0;
     protected static int FLAG_NEED_CHECK_LIVE_ORDERS = 1 << 1;
@@ -32,7 +32,7 @@ public abstract class BaseExecutor implements Runnable {
     protected final Exchange m_exchange;
     protected TaskQueueProcessor m_taskQueueProcessor;
     private boolean m_run = true;
-    protected boolean m_initialized;
+    public boolean m_initialized;
     private boolean m_changed;
     protected TopsData m_initTops;
     protected TopsData m_topsData;
@@ -398,13 +398,18 @@ public abstract class BaseExecutor implements Runnable {
         double exchMinOrderToCreate = m_exchange.minOrderToCreate(m_pair);
         double minOrderSizeToCreate = minOrderSizeToCreate();
         if ((orderSize < exchMinOrderToCreate) || (orderSize < minOrderSizeToCreate)) {
-            log("small needOrderSide=" + needOrderSide +
+            log("small orderSize. needOrderSide=" + needOrderSide +
                     "; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
-            if (m_maySyncAccount) {
-                log("no orders - we may re-check account");
-                initAccount();
+            log(" seems funds balance is ok. cancelOrderIfPresent...");
+
+            int ret = cancelOrderIfPresent();
+            if (ret == STATE_NO_CHANGE) { // cancel attempt was not performed
+                if (m_maySyncAccount) {
+                    log("no orders - we may re-check account");
+                    initAccount();
+                }
             }
-            return STATE_NO_CHANGE;
+            return ret;
         }
 
         if (orderSize != 0) {
@@ -489,18 +494,19 @@ public abstract class BaseExecutor implements Runnable {
         long start = System.currentTimeMillis();
         TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.top, start);
         TopData top = Fetcher.fetchTopOnce(m_exchange, m_pair);
-        long end = System.currentTimeMillis();
-        timeFramePoint.m_end = end;
-        TopDataPoint topDataPoint = new TopDataPoint(top, end, top.m_bid, top.m_ask);
-        addTopDataPoint(topDataPoint);
-        long takes = end - start;
-        m_topTakesCalc.addValue((double) takes);
         if (top != null) { // we got fresh top data
+            long end = System.currentTimeMillis();
+            timeFramePoint.m_end = end;
+            TopDataPoint topDataPoint = new TopDataPoint(top, end, top.m_bid, top.m_ask);
+            addTopDataPoint(topDataPoint);
+            long takes = end - start;
+            m_topTakesCalc.addValue((double) takes);
             double avgBuy = m_buyAvgCounter.get();
             double avgSell = m_sellAvgCounter.get();
             double avgBidAskDiff = avgSell - avgBuy;
-            double allowBuy = avgBuy - TOO_OLD_TICK_RATE * avgBidAskDiff;
-            double allowSell = avgSell + TOO_OLD_TICK_RATE * avgBidAskDiff;
+            double farDistance = TOO_FAR_TICK_DISTANCE * avgBidAskDiff;
+            double allowBuy = avgBuy - farDistance;
+            double allowSell = avgSell + farDistance;
             double buy = top.m_bid;
             double sell = top.m_ask;
             if ((buy > allowBuy) && (sell < allowSell)) {
@@ -607,17 +613,19 @@ public abstract class BaseExecutor implements Runnable {
         double avgBuy = m_buyAvgCounter.get();
         double avgDiff = avgSell - avgBuy;
         double mid = m_sell - m_buy;
-        double adjSell = mid + avgDiff/2;
-        double adjBuy = mid - avgDiff/2;
+        double halfAvgDiff = avgDiff / 2;
+        double adjSell = mid + halfAvgDiff;
+        double adjBuy = mid - halfAvgDiff;
         double threshold = avgDiff * outOfMarketThreshold(); // allow 1/2 bidAdsDiff for order price to be out of mkt prices
         double outOfMarketDistance = isBuy ? adjBuy - orderPrice : orderPrice - adjSell;
+        double outOfMarketRate = outOfMarketDistance / threshold;
+        log(" checkOrderOutOfMarket " + order.m_orderId + " " + order.m_side + "@" + orderPrice +
+                "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
+                "; buy=" + m_buy + "; sell=" + m_sell + "; mid=" + mid +
+                "; adjBuy=" + adjBuy + "; adjSell=" + adjSell + "; threshold=" + threshold +
+                "; distance=" + outOfMarketDistance + "; rate=" + outOfMarketRate);
         if (outOfMarketDistance > threshold) {
-            double outOfMarketRate = outOfMarketDistance / threshold;
-            log(" checkOrderOutOfMarket " + order.m_orderId + " " + order.m_side + "@" + orderPrice +
-                    " avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
-                    " buy=" + m_buy + "; sell=" + m_sell + "; mid=" + mid +
-                    " adjBuy=" + adjBuy + "; adjSell=" + adjSell + "; threshold=" + threshold +
-                    " is out of MKT; distance=" + outOfMarketDistance + "; rate=" + outOfMarketRate);
+            log("  out of MKT. try cancel...");
             long liveTime = System.currentTimeMillis() - order.m_placeTime;
             long minOrderLiveTime = minOrderLiveTime();
             long allowOrderLiveTime = (long) (minOrderLiveTime / outOfMarketRate);
