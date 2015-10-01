@@ -133,7 +133,7 @@ public class TresAlgo {
 
         @Override public double getDirection() { // [-1 ... 1]
             Direction direction = m_andIndicator.m_avgPeakCalculator.m_direction;
-            return (direction == Direction.FORWARD) ? 1.0 : -1.0;
+            return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
 
         public static class AndIndicator extends TresIndicator {
