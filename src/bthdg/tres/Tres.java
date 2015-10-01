@@ -7,6 +7,7 @@ import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.TresAlgo;
+import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
@@ -202,6 +203,27 @@ public class Tres {
         if (srocStr != null) {
             int sroc = Integer.parseInt(srocStr);
             CoppockIndicator.PhasedCoppockIndicator.SHORT_ROС_LENGTH = sroc;
+        }
+
+        String smaStr = getProperty("tre.sma");
+        log("sma=" + smaStr);
+        if (smaStr != null) {
+            int sma = Integer.parseInt(smaStr);
+            CciIndicator.PhasedCciIndicator.SMA_LENGTH = sma;
+        }
+
+        String minOrderStr = getProperty("tre.min_order");
+        log("min_order=" + minOrderStr);
+        if (minOrderStr != null) {
+            double minOrder = Double.parseDouble(minOrderStr);
+            TresExecutor.MIN_ORDER_SIZE = minOrder;
+        }
+
+        String maxOrderStr = getProperty("tre.max_order");
+        log("max_order=" + maxOrderStr);
+        if (maxOrderStr != null) {
+            double maxOrder = Double.parseDouble(maxOrderStr);
+            TresExecutor.MAX_ORDER_SIZE = maxOrder;
         }
 
         m_exchDatas = new ArrayList<TresExchData>(exchangesLen);

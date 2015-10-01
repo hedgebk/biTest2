@@ -235,23 +235,33 @@ public class Utils {
             if (str.endsWith("d")) {
                 String dig = str.substring(0, str.length() - 1);
                 int d = Integer.parseInt(dig);
-                millis = d;
+                millis += 24 * 60 * 60 * 1000 * d;
             } else if (str.endsWith("h")) {
                 String dig = str.substring(0, str.length() - 1);
                 int h = Integer.parseInt(dig);
-                millis = millis * 24 + h;
+                millis += 60 * 60 * 1000 * h;
             } else if (str.endsWith("min")) {
                 String dig = str.substring(0, str.length() - 3);
                 int min = Integer.parseInt(dig);
-                millis = millis * 60 + min;
+                millis += 60 * 1000 * min;
+            } else if (str.endsWith("m")) {
+                String dig = str.substring(0, str.length() - 1);
+                int min = Integer.parseInt(dig);
+                millis += 60 * 1000 * min;
             } else if (str.endsWith("sec")) {
                 String dig = str.substring(0, str.length() - 3);
                 int sec = Integer.parseInt(dig);
-                millis = millis * 60 + sec;
+                millis += 1000 * sec;
+            } else if (str.endsWith("s")) {
+                String dig = str.substring(0, str.length() - 1);
+                int sec = Integer.parseInt(dig);
+                millis += 1000 * sec;
             } else if (str.endsWith("ms")) {
                 String dig = str.substring(0, str.length() - 2);
                 int ms = Integer.parseInt(dig);
-                millis = millis * 1000 + ms;
+                millis += ms;
+            } else {
+                throw new RuntimeException("error parsing DHMSM time: " + elapsed);
             }
         }
         return millis;

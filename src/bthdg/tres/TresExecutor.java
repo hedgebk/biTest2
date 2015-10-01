@@ -9,6 +9,7 @@ import bthdg.osc.BaseExecutor;
 import bthdg.osc.TaskQueueProcessor;
 import bthdg.ws.IWs;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -17,7 +18,8 @@ public class TresExecutor extends BaseExecutor {
     private static final double OUT_OF_MARKET_THRESHOLD = 0.6;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 12000;
     private static final double ORDER_SIZE_TOLERANCE = 0.3;
-    private static final double MIN_ORDER_SIZE = 0.05; // btc
+    static double MIN_ORDER_SIZE = 0.05; // in btc
+    static double MAX_ORDER_SIZE = 1.00; // in btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
 
     private final TresExchData m_exchData;
@@ -30,6 +32,7 @@ public class TresExecutor extends BaseExecutor {
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
     @Override protected double minOrderSizeToCreate() { return MIN_ORDER_SIZE; }
+    @Override protected double maxOrderSizeToCreate() { return MAX_ORDER_SIZE; }
     @Override protected double useFundsFromAvailable() { return USE_FUNDS_FROM_AVAILABLE; }
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
     @Override protected TaskQueueProcessor createTaskQueueProcessor() { return new TresTaskQueueProcessor(); }
@@ -190,12 +193,15 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    @Override protected void cancelAllOrders() throws Exception {
-        log("  cancelAllOrders() " + m_order);
+    @Override public List<String> cancelAllOrders() throws Exception {
+        log("  cancelAllOrders() order=" + m_order);
+        List<String> cancelledOrdIds = null;
         if (m_order != null) {
             log("   we have existing order, will cancel: " + m_order);
             String error = cancelOrder(m_order);
             if (error == null) {
+                cancelledOrdIds = new ArrayList<String>();
+                cancelledOrdIds.add(m_order.m_orderId);
                 m_order = null;
             } else {
                 log("    error in cancel order: " + error + "; " + m_order);
@@ -203,6 +209,7 @@ public class TresExecutor extends BaseExecutor {
             }
             log("    order cancel attempted - need sync account since part can be executed in the middle");
         }
+        return cancelledOrdIds;
     }
 
     @Override protected List<OrderData> getAllOrders() {

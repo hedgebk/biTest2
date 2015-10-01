@@ -5,6 +5,7 @@ import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
+import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.util.BufferedLineReader;
 import bthdg.util.LineReader;
@@ -44,6 +45,7 @@ class TresLogProcessor extends Thread {
     private String m_varyWma;
     private String m_varyLroc;
     private String m_varySroc;
+    private String m_varySma;
     private int cloneCounter = 0;
 
     private static void log(String s) { Log.log(s); }
@@ -78,7 +80,9 @@ class TresLogProcessor extends Thread {
         m_varyLroc = keys.getProperty("tre.vary.lroc");
         log("varyLroc=" + m_varyLroc);
         m_varySroc = keys.getProperty("tre.vary.sroc");
-        log("m_varySroc=" + m_varySroc);
+        log("varySroc=" + m_varySroc);
+        m_varySma = keys.getProperty("tre.vary.sma");
+        log("varySma=" + m_varySma);
 
         BaseExecutor.DO_TRADE = false;
         log("DO_TRADE set to false");
@@ -155,6 +159,10 @@ class TresLogProcessor extends Thread {
         }
         if (m_varySroc != null) {
             varySroc(allTicks, tres, m_varySroc);
+            return;
+        }
+        if (m_varySma != null) {
+            varySma(allTicks, tres, m_varySma);
             return;
         }
 
@@ -322,6 +330,19 @@ class TresLogProcessor extends Thread {
         for (int i = min; i <= max; i += step) {
             CoppockIndicator.PhasedCoppockIndicator.SHORT_ROС_LENGTH = i;
             iterate(allTicks, i, "%d", "sroc");
+        }
+    }
+
+    private void varySma(List<List<TradeDataLight>> allTicks, Tres tres, String varySma) throws Exception {
+        log("varySma: " + varySma);
+
+        String[] split = varySma.split(";"); // 10;30;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        for (int i = min; i <= max; i += step) {
+            CciIndicator.PhasedCciIndicator.SMA_LENGTH = i;
+            iterate(allTicks, i, "%d", "sma");
         }
     }
 

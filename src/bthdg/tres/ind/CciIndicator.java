@@ -25,7 +25,7 @@ public class CciIndicator extends TresIndicator {
     }
 
     public static class PhasedCciIndicator extends TresPhasedIndicator {
-        public static final int DEF_SMA_LENGTH = 20;
+        public static int SMA_LENGTH = 20;
 
         private final CciCalculator m_calculator;
 
@@ -34,7 +34,7 @@ public class CciIndicator extends TresIndicator {
 
         public PhasedCciIndicator(CciIndicator indicator, TresExchData exchData, int phaseIndex) {
             super(indicator, exchData, phaseIndex, PEAK_TOLERANCE);
-            m_calculator = new CciCalculator(DEF_SMA_LENGTH, exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex)) {
+            m_calculator = new CciCalculator(SMA_LENGTH, exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex)) {
                 @Override protected void bar(long barEnd, double value) {
                     ChartPoint tick = new ChartPoint(barEnd, value);
                     m_points.add(tick); // add to the end
