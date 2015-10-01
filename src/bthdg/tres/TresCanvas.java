@@ -26,8 +26,8 @@ public class TresCanvas extends JComponent {
     public static final int LAST_PRICE_MARKER_WIDTH = 10;
     public static final int PRICE_AXE_MARKER_WIDTH = 10;
     public static final Color TR_COLOR = new Color(20, 20, 20);
-    public static final Color OSC_1_LINE_COLOR = Colors.setAlpha(Color.RED, 44);
-    public static final Color OSC_2_LINE_COLOR = Colors.setAlpha(Color.BLUE, 44);
+    public static final Color OSC_1_LINE_COLOR = Colors.setAlpha(Color.RED, 25);
+    public static final Color OSC_2_LINE_COLOR = Colors.setAlpha(Color.BLUE, 25);
     public static final Color OSC_MID_LINE_COLOR = new Color(30, 30, 30, 128);
     public static final int DIRECTION_ARROW_SIZE = 20;
     public static final Color BID_ASK_COLOR = Colors.setAlpha(Color.darkGray, 90);
@@ -35,10 +35,10 @@ public class TresCanvas extends JComponent {
     public static final Color OSC_PEAKS_COLOR = Colors.setAlpha(Colors.LIGHT_CYAN, 127);
     public static final Color BAR_HIGHLIGHT_COLOR = new Color(32, 32, 32);
     public static final Color COPPOCK_AVG_COLOR = Color.CYAN;
-    public static final Color COPPOCK_COLOR = Colors.setAlpha(COPPOCK_AVG_COLOR, 40);
+    public static final Color COPPOCK_COLOR = Colors.setAlpha(COPPOCK_AVG_COLOR, 25);
     public static final Color COPPOCK_AVG_PEAKS_COLOR = Color.WHITE;
     public static final Color COPPOCK_PEAKS_COLOR = Colors.setAlpha(COPPOCK_AVG_PEAKS_COLOR, 60);
-    public static final Color CCI_COLOR = Colors.setAlpha(Colors.LIGHT_ORANGE, 40);
+    public static final Color CCI_COLOR = Colors.setAlpha(Colors.LIGHT_ORANGE, 25);
     public static final Color CCI_AVG_COLOR = new Color(230, 100, 43);
     public static final double[] STEPS = new double[]{0.1, 0.2, 0.5};
 

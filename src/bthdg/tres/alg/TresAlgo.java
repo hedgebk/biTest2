@@ -84,8 +84,9 @@ public class TresAlgo {
         }
 
         @Override public double getDirection() { // [-1 ... 1]
-            Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
-            return (direction == Direction.FORWARD) ? 1.0 : -1.0;
+            return m_coppockIndicator.getAvgDirection();
+//            Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
+//            return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
     }
 

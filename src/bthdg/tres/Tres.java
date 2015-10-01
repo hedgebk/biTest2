@@ -79,7 +79,7 @@ public class Tres {
 
     private static boolean onConsoleLine(String line) {
         log("onConsoleLine: " + line);
-        if (line.equals("stop")) {
+        if (line.equals("s") || line.equals("stop")) {
             s_inst.onStop();
             return true;
         }
@@ -169,6 +169,13 @@ public class Tres {
 
         m_runAlgoName = getProperty("tre.run.algo");
         log("run.algo=" + m_runAlgoName);
+
+        String coppPeakStr = getProperty("tre.copp_peak");
+        log("copp_peak=" + coppPeakStr);
+        if (coppPeakStr != null) {
+            double coppPeak = Double.parseDouble(coppPeakStr);
+            CoppockIndicator.PEAK_TOLERANCE = coppPeak;
+        }
 
         String andPeakStr = getProperty("tre.and_peak");
         log("and_peak=" + andPeakStr);

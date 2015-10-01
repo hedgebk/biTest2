@@ -1,6 +1,7 @@
 package bthdg.tres.ind;
 
 import bthdg.ChartAxe;
+import bthdg.exch.Direction;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresCanvas;
@@ -31,7 +32,6 @@ public abstract class TresIndicator {
     public final TrendWatcher<ChartPoint> m_avgPeakCalculator;
     private boolean m_doPaint = true;
     private boolean m_doPaintPhased = false;
-    private Utils.DoubleDoubleMinMaxCalculator m_minMaxCalculator;
     private ChartAxe m_yAxe;
     private ChartPoint m_lastPoint;
 
@@ -101,19 +101,21 @@ public abstract class TresIndicator {
 
     public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe) {
         if (m_doPaint) {
-            m_minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
+            Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
             for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
                 if (m_doPaintPhased) {
-                    phIndicator.cloneChartPoints(xTimeAxe, m_minMaxCalculator);
+                    phIndicator.cloneChartPoints(xTimeAxe, minMaxCalculator);
                 }
             }
-            cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, m_minMaxCalculator);
-            cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, m_minMaxCalculator);
-            if (m_minMaxCalculator.hasValue()) {
-                adjustMinMaxCalculator(m_minMaxCalculator);
-                Double valMin = m_minMaxCalculator.m_minValue;
-                Double valMax = m_minMaxCalculator.m_maxValue;
-                m_yAxe = new ChartAxe(valMin, valMax, yPriceAxe.m_size);
+            cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
+            cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, minMaxCalculator);
+            if (minMaxCalculator.hasValue()) {
+                adjustMinMaxCalculator(minMaxCalculator);
+                Double valMin = minMaxCalculator.m_minValue;
+                Double valMax = minMaxCalculator.m_maxValue;
+                double diff = valMax - valMin;
+                double extra = diff * 0.01;
+                m_yAxe = new ChartAxe(valMin - extra, valMax + extra, yPriceAxe.m_size);
                 m_yAxe.m_offset = yPriceAxe.m_offset;
 
                 return paintYAxe(g, right, m_yAxe);
@@ -288,6 +290,15 @@ public abstract class TresIndicator {
         return panel;
     }
 
+    public double getAvgDirection() { // [1...-1]
+        double sum = 0;
+        for (TresPhasedIndicator phasedIndicator : m_phasedIndicators) {
+            double direction = phasedIndicator.getDirection();
+            sum += direction;
+        }
+        return sum / m_phasedIndicators.size();
+    }
+
 
     public static abstract class TresPhasedIndicator {
         private final TresIndicator m_indicator;
@@ -334,6 +345,11 @@ public abstract class TresIndicator {
         public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
             paintPoints(g, xTimeAxe, yAxe, getColor(), m_paintPoints);
             paintPeaks(g, xTimeAxe, yAxe, getPeakColor(), m_paintPeaks, false);
+        }
+
+        public double getDirection() {
+            Direction direction = m_peakCalculator.m_direction;
+            return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
     }
 }
