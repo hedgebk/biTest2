@@ -252,14 +252,14 @@ public class Utils {
                 String dig = str.substring(0, str.length() - 3);
                 int sec = Integer.parseInt(dig);
                 millis += 1000 * sec;
-            } else if (str.endsWith("s")) {
-                String dig = str.substring(0, str.length() - 1);
-                int sec = Integer.parseInt(dig);
-                millis += 1000 * sec;
             } else if (str.endsWith("ms")) {
                 String dig = str.substring(0, str.length() - 2);
                 int ms = Integer.parseInt(dig);
                 millis += ms;
+            } else if (str.endsWith("s")) {
+                String dig = str.substring(0, str.length() - 1);
+                int sec = Integer.parseInt(dig);
+                millis += 1000 * sec;
             } else {
                 throw new RuntimeException("error parsing DHMSM time: " + elapsed);
             }
