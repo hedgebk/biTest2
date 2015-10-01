@@ -9,6 +9,9 @@ public abstract class BarCalculator {
     protected long m_currentBarEnd;
 
     public BarCalculator(long barSizeMillis, long barsMillisOffset) {
+        if(barSizeMillis == 0) {
+            throw new RuntimeException( "barSizeMillis==0" );
+        }
         m_barSizeMillis = barSizeMillis;
         m_barsMillisOffset = barsMillisOffset;
     }

@@ -34,15 +34,17 @@ public class CciCalculator extends OHLCCalculator {
 
     @Override protected boolean updateCurrentBar(long time, double price) {
         boolean ret = super.updateCurrentBar(time, price);
-        double typicalPrice = m_tick.m_close; // this can be HLC or OHLC
-        replaceLastElement(m_smaPrices, typicalPrice);
-        if (m_smaFilled) {
-            double sma = Utils.avg(m_smaPrices);
-            double medianDeviation = medianDeviation(sma);
-            double cci = (typicalPrice - sma) / (0.015 * medianDeviation);
-            fine(time, cci);
-            m_lastCci = cci;
-            return true;
+        if (m_tick != null) {
+            double typicalPrice = m_tick.m_close; // this can be HLC or OHLC
+            replaceLastElement(m_smaPrices, typicalPrice);
+            if (m_smaFilled) {
+                double sma = Utils.avg(m_smaPrices);
+                double medianDeviation = medianDeviation(sma);
+                double cci = (typicalPrice - sma) / (0.015 * medianDeviation);
+                fine(time, cci);
+                m_lastCci = cci;
+                return true;
+            }
         }
         return ret;
     }

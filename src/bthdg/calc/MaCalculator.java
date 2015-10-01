@@ -38,12 +38,15 @@ public class MaCalculator extends BarCalculator {
     }
 
     @Override protected boolean updateCurrentBar(long time, double price) {
-        boolean updated = m_type.updateBarData(m_barData, price);
-        if (updated) {
-            double ma = calcMa();
-            updateMaBar(ma);
+        if (m_barData != null) {
+            boolean updated = m_type.updateBarData(m_barData, price);
+            if (updated) {
+                double ma = calcMa();
+                updateMaBar(ma);
+            }
+            return updated;
         }
-        return updated;
+        return false;
     }
 
     @Override protected void startNewBar(long barStart, long barEnd) {
