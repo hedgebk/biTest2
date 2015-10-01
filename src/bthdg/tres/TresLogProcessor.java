@@ -178,18 +178,49 @@ class TresLogProcessor extends Thread {
         long min = Utils.parseDHMSMtoMillis(split[0]);
         long max = Utils.parseDHMSMtoMillis(split[1]);
         long step = Utils.parseDHMSMtoMillis(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (long i = min; i <= max; i += step) {
             tres.m_barSizeMillis = i;
-            iterate(allTicks, i, "%d", "barSizeMillis");
+            iterate(allTicks, i, "%d", "barSizeMillis", maxMap);
+        }
+        logMax(maxMap, "barSizeMillis");
+    }
+
+    private void logMax(Map<String, Map.Entry<Number, Double>> maxMap, String key) {
+        for (Map.Entry<String, Map.Entry<Number, Double>> entry : maxMap.entrySet()) {
+            String name = entry.getKey();
+            Map.Entry<Number, Double> maxEntry = entry.getValue();
+            Number num = maxEntry.getKey();
+            Double value = maxEntry.getValue();
+            log(name + "[" + key + "=" + num + "]=" + value);
         }
     }
 
-    private void iterate(List<List<TradeDataLight>> allTicks, Number num, String format, String key) throws Exception {
+    private void iterate(List<List<TradeDataLight>> allTicks, Number num, String format,
+                         String key, Map<String, Map.Entry<Number, Double>> maxMap) throws Exception {
         long start = System.currentTimeMillis();
         Map<String, Double> averageProjected = processAllTicks(allTicks);
         long end = System.currentTimeMillis();
         long takes = end - start;
         log(key, num, format, averageProjected, takes);
+        updateMaxMap(maxMap, averageProjected, num);
+    }
+
+    private void updateMaxMap(Map<String, Map.Entry<Number, Double>> maxMap, Map<String, Double> averageProjected,
+                              Number num) {
+        for (Map.Entry<String, Double> entry : averageProjected.entrySet()) {
+            String name = entry.getKey();
+            Double newValue = entry.getValue();
+            Map.Entry<Number, Double> maxEntry = maxMap.get(name);
+            if(maxEntry == null) {
+                maxMap.put(name, new AbstractMap.SimpleEntry<Number, Double>(num, newValue));
+            } else {
+                Double value = maxEntry.getValue();
+                if (newValue > value) {
+                    maxMap.put(name, new AbstractMap.SimpleEntry<Number, Double>(num, newValue));
+                }
+            }
+        }
     }
 
     private void log(String key, Number num, String format, Map<String, Double> averageProjected, long takes) {
@@ -200,7 +231,7 @@ class TresLogProcessor extends Thread {
             if (sb.length() > 0) {
                 sb.append("; ");
             }
-            sb.append(name).append("=").append(String.format("%.6f", value));
+            sb.append(name).append("=").append(String.format("%.7f", value));
         }
         String numFormatted = String.format(format, num);
         log("averageProjected[" + key + "=" + numFormatted + "]:\t" + sb + "\t in " + Utils.millisToDHMSStr(takes));
@@ -213,10 +244,12 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (int i = min; i <= max; i += step) {
             tres.m_ma = i;
-            iterate(allTicks, i, "%d", "ma");
+            iterate(allTicks, i, "%d", "ma", maxMap);
         }
+        logMax(maxMap, "ma");
     }
 
     private void varyLen1(List<List<TradeDataLight>> allTicks, Tres tres, String varyLen1) throws Exception {
@@ -226,10 +259,12 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (int i = min; i <= max; i += step) {
             tres.m_len1 = i;
-            iterate(allTicks, i, "%d", "len1");
+            iterate(allTicks, i, "%d", "len1", maxMap);
         }
+        logMax(maxMap, "len1");
     }
 
     private void varyLen2(List<List<TradeDataLight>> allTicks, Tres tres, String varyLen2) throws Exception {
@@ -239,10 +274,12 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (int i = min; i <= max; i += step) {
             tres.m_len2 = i;
-            iterate(allTicks, i, "%d", "len2");
+            iterate(allTicks, i, "%d", "len2", maxMap);
         }
+        logMax(maxMap, "len2");
     }
 
     private void varyOscLock(List<List<TradeDataLight>> allTicks, Tres tres, String varyOscLock) throws Exception {
@@ -252,10 +289,12 @@ class TresLogProcessor extends Thread {
         double min = Double.parseDouble(split[0]);
         double max = Double.parseDouble(split[1]);
         double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
             PhaseData.LOCK_OSC_LEVEL = i;
-            iterate(allTicks, i, "%.5f", "oscLock");
+            iterate(allTicks, i, "%.5f", "oscLock", maxMap);
         }
+        logMax(maxMap, "oscLock");
     }
 
     private void varyCoppockPeakTolerance(List<List<TradeDataLight>> allTicks, Tres tres, String varyCoppPeak) throws Exception {
@@ -264,10 +303,12 @@ class TresLogProcessor extends Thread {
         double min = Double.parseDouble(split[0]);
         double max = Double.parseDouble(split[1]);
         double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
             CoppockIndicator.PEAK_TOLERANCE = i;
-            iterate(allTicks, i, "%.5f", "CoppPeak");
+            iterate(allTicks, i, "%.6f", "CoppPeak", maxMap);
         }
+        logMax(maxMap, "CoppPeak");
     }
 
     private void varyAndPeakTolerance(List<List<TradeDataLight>> allTicks, Tres tres, String varyAndPeak) throws Exception {
@@ -276,10 +317,12 @@ class TresLogProcessor extends Thread {
         double min = Double.parseDouble(split[0]);
         double max = Double.parseDouble(split[1]);
         double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
             TresAlgo.CncAlgo.AndIndicator.PEAK_TOLERANCE = i;
-            iterate(allTicks, i, "%.5f", "AndPeak");
+            iterate(allTicks, i, "%.5f", "AndPeak", maxMap);
         }
+        logMax(maxMap, "AndPeak");
     }
 
     private void varyCciCorrection(List<List<TradeDataLight>> allTicks, Tres tres, String varyCciCorr) throws Exception {
@@ -288,10 +331,12 @@ class TresLogProcessor extends Thread {
         double min = Double.parseDouble(split[0]);
         double max = Double.parseDouble(split[1]);
         double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
             TresAlgo.CncAlgo.CCI_CORRECTION_RATIO = i;
-            iterate(allTicks, i, "%.0f", "CciCorr");
+            iterate(allTicks, i, "%.0f", "CciCorr", maxMap);
         }
+        logMax(maxMap, "CciCorr");
     }
 
     private void varyWma(List<List<TradeDataLight>> allTicks, Tres tres, String varyWma) throws Exception {
@@ -301,10 +346,12 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (int i = min; i <= max; i += step) {
             CoppockIndicator.PhasedCoppockIndicator.WMA_LENGTH = i;
-            iterate(allTicks, i, "%d", "wma");
+            iterate(allTicks, i, "%d", "wma", maxMap);
         }
+        logMax(maxMap, "wma");
     }
 
     private void varyLroc(List<List<TradeDataLight>> allTicks, Tres tres, String varyLroc) throws Exception {
@@ -314,10 +361,12 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (int i = min; i <= max; i += step) {
             CoppockIndicator.PhasedCoppockIndicator.LONG_ROC_LENGTH = i;
-            iterate(allTicks, i, "%d", "lroc");
+            iterate(allTicks, i, "%d", "lroc", maxMap);
         }
+        logMax(maxMap, "lroc");
     }
 
     private void varySroc(List<List<TradeDataLight>> allTicks, Tres tres, String varySroc) throws Exception {
@@ -327,10 +376,12 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (int i = min; i <= max; i += step) {
             CoppockIndicator.PhasedCoppockIndicator.SHORT_ROС_LENGTH = i;
-            iterate(allTicks, i, "%d", "sroc");
+            iterate(allTicks, i, "%d", "sroc", maxMap);
         }
+        logMax(maxMap, "sroc");
     }
 
     private void varySma(List<List<TradeDataLight>> allTicks, Tres tres, String varySma) throws Exception {
@@ -340,10 +391,12 @@ class TresLogProcessor extends Thread {
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (int i = min; i <= max; i += step) {
             CciIndicator.PhasedCciIndicator.SMA_LENGTH = i;
-            iterate(allTicks, i, "%d", "sma");
+            iterate(allTicks, i, "%d", "sma", maxMap);
         }
+        logMax(maxMap, "sma");
     }
 
     private Map<String, Double> processAllTicks(List<List<TradeDataLight>> allTicks) throws Exception {
