@@ -38,14 +38,15 @@ public class TresMaCalculator extends MaCalculator {
 
     @Override protected void finishCurrentBar(long time, double price) {
         super.finishCurrentBar(time, price);
+        if (m_tick != null) {
+            double currentMa = m_tick.m_ma;
+            boolean currentPriceHigher = (price > currentMa);
 
-        double currentMa = m_tick.m_ma;
-        boolean currentPriceHigher = (price > currentMa);
-
-        if ((m_lastPriceHigher != null) && (m_lastPriceHigher != currentPriceHigher)) {
-            onMaCross(time, price, currentPriceHigher);
+            if ((m_lastPriceHigher != null) && (m_lastPriceHigher != currentPriceHigher)) {
+                onMaCross(time, price, currentPriceHigher);
+            }
+            m_lastPriceHigher = currentPriceHigher;
         }
-        m_lastPriceHigher = currentPriceHigher;
     }
 
     @Override protected void endMaBar(long barEnd, double ma, long time, double price) {
