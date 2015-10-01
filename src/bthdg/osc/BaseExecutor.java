@@ -65,7 +65,7 @@ public abstract class BaseExecutor implements Runnable {
     // abstract
     protected abstract void gotTop() throws Exception;
     protected abstract void gotTrade(TradeDataLight tradeData) throws Exception;
-    protected abstract void cancelAllOrders() throws Exception;
+    protected abstract List<String> cancelAllOrders() throws Exception;
     protected abstract void recheckDirection() throws Exception;
     protected abstract List<OrderData> getAllOrders();
     protected abstract IIterationContext.BaseIterationContext checkLiveOrders() throws Exception;
@@ -86,6 +86,7 @@ public abstract class BaseExecutor implements Runnable {
     protected abstract double useFundsFromAvailable();
 
     protected double getAvgOsc() { return 1; }
+    protected double maxOrderSizeToCreate() { return 1000000; }
 
     public BaseExecutor(IWs ws, Pair pair, long barSizeMillis) {
         m_ws = ws;
@@ -289,8 +290,33 @@ public abstract class BaseExecutor implements Runnable {
                 }
             }
         }
-        cancelAllOrders();
+        List<String> cancelledOrdIds = cancelAllOrders();
+        cancelOfflineOrders(liveOrders, cancelledOrdIds);
         initAccount();
+        log("onError() end");
+    }
+
+    private void cancelOfflineOrders(OrdersData liveOrders, List<String> cancelledOrdIds) {
+        if (liveOrders.m_ords != null) {
+            log("cancelOfflineOrders() liveOrders ids:" + liveOrders.m_ords.keySet());
+            for (OrdersData.OrdData nextOrder : liveOrders.m_ords.values()) {
+                String orderId = nextOrder.m_orderId;
+                if ((cancelledOrdIds != null) && cancelledOrdIds.contains(orderId)) {
+                    log(" orderId=" + orderId + " is registered as cancelled");
+                    continue;
+                }
+                OrderData order = nextOrder.toOrderData();
+                log(" cancelling live order: " + order);
+                try {
+                    String error = cancelOrder(order);
+                    if (error != null) {
+                        log("  error cancelling live order: " + error);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     protected void logValuate() {
@@ -439,9 +465,21 @@ public abstract class BaseExecutor implements Runnable {
                 }
             }
 
+            double diff = m_sell - m_buy;
+            double avgDiff = m_sellAvgCounter.get() - m_buyAvgCounter.get();
+            if (diff > avgDiff) {
+                log("      bidAskDiff=" + diff + "; avgDiff bidAskDiff=" + avgDiff + " => HALVING order size");
+            }
+
             double orderSizeRound = m_exchange.roundAmount(canBuyBtc, m_pair);
             double placeOrderSize = Math.abs(orderSizeRound);
             log("        orderSizeAdjusted=" + Utils.format8(canBuyBtc) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
+
+            double maxOrderSizeToCreate = maxOrderSizeToCreate();
+            if (placeOrderSize > maxOrderSizeToCreate) {
+                placeOrderSize = maxOrderSizeToCreate;
+                log("      placeOrderSize=" + placeOrderSize + "; maxOrderSizeToCreate=" + maxOrderSizeToCreate + " => CAPPED");
+            }
 
             if ((placeOrderSize >= exchMinOrderToCreate) && (placeOrderSize >= minOrderSizeToCreate)) {
                 if (checkNoOpenOrders()) {
@@ -450,8 +488,11 @@ public abstract class BaseExecutor implements Runnable {
                     double averageTickAge = m_tickAgeCalc.getAverage();
                     log("   tickAge=" + tickAge + "; averageTickAge=" + averageTickAge);
                     if (tickAge > MAX_TICK_AGE_FOR_ORDER) {
-                        onTooOldTick(tickAge);
-                        return STATE_NO_CHANGE;
+                        boolean freshTopLoaded = onTooOldTick(tickAge);
+                        if (freshTopLoaded) {
+                            return STATE_NO_CHANGE;
+                        }
+                        log("unable to load fresh top - using OLD");
                     }
 
                     double orderPrice = calcOrderPrice(m_exchange, directionAdjusted, needOrderSide);
@@ -489,7 +530,8 @@ public abstract class BaseExecutor implements Runnable {
         return ret;
     }
 
-    protected void onTooOldTick(long tickAge) {
+    protected boolean onTooOldTick(long tickAge) {
+        boolean ret = false;
         log("too old tick for order: " + tickAge);
         long start = System.currentTimeMillis();
         TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.top, start);
@@ -510,12 +552,15 @@ public abstract class BaseExecutor implements Runnable {
             double buy = top.m_bid;
             double sell = top.m_ask;
             if ((buy > allowBuy) && (sell < allowSell)) {
+                log("LOADED fresh top=" + top);
+                ret = true;
                 onTopInt(System.currentTimeMillis(), buy, sell, TopSource.top_fetch);
             } else {
                 log("LOADED too far top. IGNORING: top=" + top + "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + ";  current: m_buy=" + m_buy + "; m_sell=" + m_sell);
             }
         }
         postRecheckDirection();
+        return ret;
     }
 
     protected void addTopDataPoint(TopDataPoint topDataPoint) {

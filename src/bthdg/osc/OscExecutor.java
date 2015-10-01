@@ -443,11 +443,14 @@ class OscExecutor extends BaseExecutor {
         return null;
     }
 
-    @Override protected void cancelAllOrders() throws Exception {
+    @Override protected List<String> cancelAllOrders() throws Exception {
+        List<String> cancelledOrdIds = null;
         if (m_order != null) {
             log("  we have existing order, will cancel: " + m_order);
             String error = cancelOrder(m_order);
             if (error == null) {
+                cancelledOrdIds = new ArrayList<String>();
+                cancelledOrdIds.add(m_order.m_orderId);
                 m_order = null;
             } else {
                 log("error in cancel order: " + error + "; " + m_order);
@@ -462,11 +465,16 @@ class OscExecutor extends BaseExecutor {
                 log("  need cancel existing close order: " + closeOrder);
                 String error = cancelOrder(closeOrder);
                 if (error != null) {
+                    if(cancelledOrdIds == null) {
+                        cancelledOrdIds = new ArrayList<String>();
+                    }
+                    cancelledOrdIds.add(closeOrder.m_orderId);
                     log("error canceling close order: " + error + "; " + m_order);
                 }
                 iterator.remove();
             }
         }
+        return cancelledOrdIds;
     }
 
     @Override public void stop() throws Exception {

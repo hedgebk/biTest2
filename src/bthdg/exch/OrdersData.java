@@ -63,5 +63,11 @@ public class OrdersData {
                     ", status=" + m_status +
                     '}';
         }
+
+        public OrderData toOrderData() {
+            OrderData orderData = new OrderData(m_pair, m_orderSide, m_rate, m_orderAmount);
+            orderData.m_orderId = m_orderId;
+            return orderData;
+        }
     }
 }
