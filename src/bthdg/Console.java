@@ -326,7 +326,7 @@ public class Console {
         System.out.println("cancel ALL requested - query orders...");
         OrdersData od = s_exchange.requirePairForOrders() ? fetchAllOrders() : Fetcher.fetchOrders(s_exchange);
         Map<String, OrdersData.OrdData> orders = od.m_ords;
-        if(!orders.isEmpty()) {
+        if((orders != null) && !orders.isEmpty()) {
             for(OrdersData.OrdData order:orders.values()) {
                 System.out.println("canceling order: " + order);
                 String orderId = order.m_orderId;
