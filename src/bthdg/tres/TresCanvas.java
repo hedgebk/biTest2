@@ -587,12 +587,12 @@ public class TresCanvas extends JComponent {
         if (maxPrice == 0) {
             maxPrice = lastPrice;
             minPrice = lastPrice;
-        }
-        if (sellPrice > 0) {
-            maxPrice = Math.max(maxPrice, sellPrice);
-        }
-        if (buyPrice > 0) {
-            minPrice = Math.min(minPrice, buyPrice);
+            if (sellPrice > 0) {
+                maxPrice = Math.max(maxPrice, sellPrice);
+            }
+            if (buyPrice > 0) {
+                minPrice = Math.min(minPrice, buyPrice);
+            }
         }
         double priceDiff = maxPrice - minPrice;
         if (priceDiff == 0) {
@@ -838,7 +838,7 @@ public class TresCanvas extends JComponent {
         int height = getHeight();
         g.drawString(executor.valuate(), 2, height - fontHeight);
         g.drawString("acct: " + executor.m_account, 2, height - fontHeight * 2);
-        g.drawString("dir.adj=" + exchData.getDirectionAdjusted(), 2, height - fontHeight * 3);
+        g.drawString("dir.adj=" + exchData.getDirectionAdjusted() + "; " + exchData.getRunAlgoParams(), 2, height - fontHeight * 3);
         g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled + "; volume=" + executor.m_tradeVolume, 2, height - fontHeight * 4);
         g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 5);
         g.drawString("takes:" + executor.dumpTakesTime(), 2, height - fontHeight * 6);

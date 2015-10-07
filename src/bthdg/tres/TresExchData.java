@@ -71,7 +71,7 @@ public class TresExchData {
         m_runAlgo = TresAlgo.get(tres.m_runAlgoName, this);
         if (BaseExecutor.DO_TRADE) {
             m_runAlgo.setListener(new TresAlgo.TresAlgoListener() {
-                @Override public void onAlgoChanged() {
+                @Override public void onValueChange() {
                     if (m_executor.m_initialized) {
                         m_executor.postRecheckDirection();
                     } else {
@@ -99,7 +99,7 @@ public class TresExchData {
                         }
                     }
                     if(m_oscAlgo != null) {
-                        m_oscAlgo.notifyAlgoChanged();
+                        m_oscAlgo.notifyValueChange();
                     }
                 }
 
@@ -219,7 +219,7 @@ public class TresExchData {
     }
 
     public double getDirectionAdjusted() { // [-1 ... 1]
-        return m_runAlgo.getDirection();
+        return m_runAlgo.getDirectionAdjusted();
     }
 
     public ChartPoint calcAvgOsc() {
@@ -295,20 +295,23 @@ public class TresExchData {
         return m_oscAlgo = new OscAlgo();
     }
 
+    public String getRunAlgoParams() {
+        return m_runAlgo.getRunAlgoParams();
+    }
+
 
     public class OscAlgo extends TresAlgo {
         public OscAlgo() {
             super("OSC", TresExchData.this);
         }
 
-        @Override public double getDirection() { // [-1 ... 1]
+        @Override public double getDirectionAdjusted() { // [-1 ... 1]
             double directionAdjusted = 0;
             for (PhaseData phaseData : m_phaseDatas) {
                 double direction = phaseData.getDirection();
                 directionAdjusted += direction;
             }
-            return directionAdjusted/m_phaseDatas.length
-* (1-Math.random() * 0.1); // add random for now
+            return directionAdjusted/m_phaseDatas.length;
         }
     }
 

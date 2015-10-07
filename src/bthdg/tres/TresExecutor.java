@@ -42,7 +42,7 @@ public class TresExecutor extends BaseExecutor {
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
         super(ws, pair, exchData.m_tres.m_barSizeMillis);
         m_exchData = exchData;
-        m_orderPriceMode = OrderPriceMode.DEEP_MKT;
+        m_orderPriceMode = OrderPriceMode.MID; // OrderPriceMode.DEEP_MKT;
         if (!exchData.m_tres.m_logProcessing) {
             Thread thread = new Thread(this);
             thread.setName("TresExecutor");
