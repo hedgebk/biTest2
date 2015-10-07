@@ -41,6 +41,7 @@ class TresLogProcessor extends Thread {
     private String m_varyOscLock;
     private String m_varyCoppPeak;
     private String m_varyAndPeak;
+    private String m_varyCciPeak;
     private String m_varyCciCorr;
     private String m_varyWma;
     private String m_varyLroc;
@@ -73,6 +74,8 @@ class TresLogProcessor extends Thread {
         log("varyCoppPeak=" + m_varyCoppPeak);
         m_varyAndPeak = keys.getProperty("tre.vary.and_peak");
         log("varyAndPeak=" + m_varyAndPeak);
+        m_varyCciPeak = keys.getProperty("tre.vary.cci_peak");
+        log("varyCciPeak=" + m_varyCciPeak);
         m_varyCciCorr = keys.getProperty("tre.vary.cci_corr");
         log("varyCciCorr=" + m_varyCciCorr);
         m_varyWma = keys.getProperty("tre.vary.wma");
@@ -142,6 +145,10 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyAndPeak != null) {
             varyAndPeakTolerance(allTicks, tres, m_varyAndPeak);
+            return;
+        }
+        if (m_varyCciPeak != null) {
+            varyCciPeakTolerance(allTicks, tres, m_varyCciPeak);
             return;
         }
         if (m_varyCciCorr != null) {
@@ -323,6 +330,20 @@ class TresLogProcessor extends Thread {
             iterate(allTicks, i, "%.5f", "AndPeak", maxMap);
         }
         logMax(maxMap, "AndPeak");
+    }
+
+    private void varyCciPeakTolerance(List<List<TradeDataLight>> allTicks, Tres tres, String varyCciPeak) throws Exception {
+        log("varyCciPeak: " + varyCciPeak);
+        String[] split = varyCciPeak.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (double i = min; i <= max; i += step) {
+            CciIndicator.PEAK_TOLERANCE = i;
+            iterate(allTicks, i, "%.2f", "CciPeak", maxMap);
+        }
+        logMax(maxMap, "CciPeak");
     }
 
     private void varyCciCorrection(List<List<TradeDataLight>> allTicks, Tres tres, String varyCciCorr) throws Exception {
