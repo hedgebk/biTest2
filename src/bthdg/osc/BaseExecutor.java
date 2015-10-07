@@ -19,7 +19,7 @@ public abstract class BaseExecutor implements Runnable {
     public static final int STATE_NONE = 1;
     public static final int STATE_ORDER = 2;
     public static final int STATE_ERROR = 3;
-    public static final int MAX_TICK_AGE_FOR_ORDER = 1000;
+    public static final int MAX_TICK_AGE_FOR_ORDER = 1500;
     private static final double TOO_FAR_TICK_DISTANCE = 1.1;
 
     protected static int FLAG_CANCELED = 1 << 0;
@@ -58,6 +58,8 @@ public abstract class BaseExecutor implements Runnable {
     public LinkedList<TopDataPoint> m_tops = new LinkedList<TopDataPoint>();
     public final Utils.AverageCounter m_buyAvgCounter;
     public final Utils.AverageCounter m_sellAvgCounter;
+    private double m_lastTopBid;
+    private double m_lastTopAsk;
 
     protected static void log(String s) { Log.log(s); }
     public String dumpWaitTime() { return (m_taskQueueProcessor == null) ? "" : m_taskQueueProcessor.dumpWaitTime(); }
@@ -539,24 +541,30 @@ public abstract class BaseExecutor implements Runnable {
         if (top != null) { // we got fresh top data
             long end = System.currentTimeMillis();
             timeFramePoint.m_end = end;
-            TopDataPoint topDataPoint = new TopDataPoint(top, end, top.m_bid, top.m_ask);
-            addTopDataPoint(topDataPoint);
-            long takes = end - start;
-            m_topTakesCalc.addValue((double) takes);
-            double avgBuy = m_buyAvgCounter.get();
-            double avgSell = m_sellAvgCounter.get();
-            double avgBidAskDiff = avgSell - avgBuy;
-            double farDistance = TOO_FAR_TICK_DISTANCE * avgBidAskDiff;
-            double allowBuy = avgBuy - farDistance;
-            double allowSell = avgSell + farDistance;
             double buy = top.m_bid;
             double sell = top.m_ask;
-            if ((buy > allowBuy) && (sell < allowSell)) {
-                log("LOADED fresh top=" + top);
-                ret = true;
-                onTopInt(System.currentTimeMillis(), buy, sell, TopSource.top_fetch);
+            if ((buy == m_lastTopBid) && (sell == m_lastTopAsk)) {
+                log("looks STUCK top data. IGNORING: top=" + top);
             } else {
-                log("LOADED too far top. IGNORING: top=" + top + "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + ";  current: m_buy=" + m_buy + "; m_sell=" + m_sell);
+                m_lastTopBid = buy;
+                m_lastTopAsk = sell;
+                TopDataPoint topDataPoint = new TopDataPoint(top, end, buy, sell);
+                addTopDataPoint(topDataPoint);
+                long takes = end - start;
+                m_topTakesCalc.addValue((double) takes);
+                double avgBuy = m_buyAvgCounter.get();
+                double avgSell = m_sellAvgCounter.get();
+                double avgBidAskDiff = avgSell - avgBuy;
+                double farDistance = TOO_FAR_TICK_DISTANCE * avgBidAskDiff;
+                double allowBuy = avgBuy - farDistance;
+                double allowSell = avgSell + farDistance;
+                if ((buy > allowBuy) && (sell < allowSell)) {
+                    log("LOADED fresh top=" + top);
+                    ret = true;
+                    onTopInt(System.currentTimeMillis(), buy, sell, TopSource.top_fetch);
+                } else {
+                    log("LOADED too far top. IGNORING: top=" + top + "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + ";  current: m_buy=" + m_buy + "; m_sell=" + m_sell);
+                }
             }
         }
         postRecheckDirection();
