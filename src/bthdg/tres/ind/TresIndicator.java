@@ -24,11 +24,13 @@ public abstract class TresIndicator {
 
     private final String m_name;
     private final TresAlgo m_algo;
-    private final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
+    public final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
     final LinkedList<ChartPoint> m_avgPoints = new LinkedList<ChartPoint>();
     final LinkedList<ChartPoint> m_avgPeaks = new LinkedList<ChartPoint>();
+    final LinkedList<ChartPoint> m_avgPeakTime = new LinkedList<ChartPoint>();
     final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
     final List<ChartPoint> m_avgPaintPeaks = new ArrayList<ChartPoint>();
+    final List<ChartPoint> m_avgPaintPeakTime = new ArrayList<ChartPoint>();
     public final TrendWatcher<ChartPoint> m_avgPeakCalculator;
     private boolean m_doPaint = true;
     private boolean m_doPaintPhased = false;
@@ -46,6 +48,9 @@ public abstract class TresIndicator {
                 if (m_algo.m_tresExchData.m_tres.m_collectPoints) {
                     synchronized (m_avgPeaks) {
                         m_avgPeaks.add(peak);
+                    }
+                    synchronized (m_avgPeakTime) {
+                        m_avgPeakTime.add(last);
                     }
                 }
                 m_algo.onAvgPeak(TresIndicator.this);
@@ -109,6 +114,7 @@ public abstract class TresIndicator {
             }
             cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
             cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, minMaxCalculator);
+            cloneChartPoints(m_avgPeakTime, m_avgPaintPeakTime, xTimeAxe, minMaxCalculator);
             if (minMaxCalculator.hasValue()) {
                 adjustMinMaxCalculator(minMaxCalculator);
                 Double valMin = minMaxCalculator.m_minValue;
@@ -210,7 +216,8 @@ public abstract class TresIndicator {
                 }
             }
             paintPoints(g, xTimeAxe, m_yAxe, getColor(), m_avgPaintPoints);
-            paintPeaks(g, xTimeAxe, m_yAxe, getPeakColor(), m_avgPaintPeaks, true);
+            paintPeaks(g, xTimeAxe, m_yAxe, getPeakColor(), m_avgPaintPeaks, true, true);
+            paintPeaks(g, xTimeAxe, m_yAxe, getPeakColor(), m_avgPaintPeakTime, false, false);
         }
     }
 
@@ -222,13 +229,21 @@ public abstract class TresIndicator {
         paintPoints.clear();
         double minTime = xTimeAxe.m_min;
         double maxTime = xTimeAxe.m_max;
+        ChartPoint rightPlusPoint = null; // paint one extra point at right side
         synchronized (points) {
             for (Iterator<ChartPoint> it = points.descendingIterator(); it.hasNext(); ) {
                 ChartPoint chartPoint = it.next();
                 long timestamp = chartPoint.m_millis;
-                if (timestamp < minTime) { break; }
-                if (timestamp > maxTime) { continue; }
+                if (timestamp > maxTime) {
+                    rightPlusPoint = chartPoint;
+                    continue;
+                }
+                if(rightPlusPoint != null) {
+                    paintPoints.add(rightPlusPoint);
+                    rightPlusPoint = null;
+                }
                 paintPoints.add(chartPoint);
+                if (timestamp < minTime) { break; }
                 double val = chartPoint.m_value;
                 minMaxCalculator.calculate(val);
             }
@@ -254,7 +269,8 @@ public abstract class TresIndicator {
         }
     }
 
-    protected static void paintPeaks(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe, Color color, List<ChartPoint> paintPeaks, boolean big) {
+    protected static void paintPeaks(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe, Color color, List<ChartPoint> paintPeaks,
+                                     boolean big, boolean cross) {
         int size = big ? 6 : 3;
         g.setColor(color);
         for (ChartPoint peak : paintPeaks) {
@@ -262,8 +278,13 @@ public abstract class TresIndicator {
             int x = xTimeAxe.getPoint(endTime);
             double coppock = peak.m_value;
             int y = yAxe.getPointReverse(coppock);
-            g.drawLine(x - size, y - size, x + size, y + size);
-            g.drawLine(x + size, y - size, x - size, y + size);
+            if(cross) {
+                g.drawLine(x - size, y - size, x + size, y + size);
+                g.drawLine(x + size, y - size, x - size, y + size);
+            } else {
+                int side = size + size;
+                g.drawRect(x - size, y - size, side, side);
+            }
         }
     }
 
@@ -290,10 +311,10 @@ public abstract class TresIndicator {
         return panel;
     }
 
-    public double getAvgDirection() { // [1...-1]
+    public double getDirectionAdjusted() { // [-1...1]
         double sum = 0;
         for (TresPhasedIndicator phasedIndicator : m_phasedIndicators) {
-            double direction = phasedIndicator.getDirection();
+            double direction = phasedIndicator.getDirectionAdjusted();
             sum += direction;
         }
         return sum / m_phasedIndicators.size();
@@ -304,7 +325,7 @@ public abstract class TresIndicator {
         private final TresIndicator m_indicator;
         final TresExchData m_exchData;
         private final int m_phaseIndex;
-        final TrendWatcher<ChartPoint> m_peakCalculator;
+        public final TrendWatcher<ChartPoint> m_peakCalculator;
         final LinkedList<ChartPoint> m_points = new LinkedList<ChartPoint>();
         final LinkedList<ChartPoint> m_peaks = new LinkedList<ChartPoint>();
         final List<ChartPoint> m_paintPoints = new ArrayList<ChartPoint>();
@@ -344,10 +365,10 @@ public abstract class TresIndicator {
 
         public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
             paintPoints(g, xTimeAxe, yAxe, getColor(), m_paintPoints);
-            paintPeaks(g, xTimeAxe, yAxe, getPeakColor(), m_paintPeaks, false);
+            paintPeaks(g, xTimeAxe, yAxe, getPeakColor(), m_paintPeaks, false, true);
         }
 
-        public double getDirection() {
+        public double getDirectionAdjusted() {  // [-1 ... 1]
             Direction direction = m_peakCalculator.m_direction;
             return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
