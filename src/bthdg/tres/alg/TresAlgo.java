@@ -8,6 +8,7 @@ import bthdg.tres.TresExchData;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.TresIndicator;
+import bthdg.util.Utils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -30,6 +31,8 @@ public class TresAlgo {
     public static TresAlgo get(String algoName, TresExchData tresExchData) {
         if (algoName.equals("coppock")) {
             return new CoppockAlgo(tresExchData);
+        } else if (algoName.equals("cci")) {
+            return new CciAlgo(tresExchData);
         } else if (algoName.equals("c+c")) {
             return new CncAlgo(tresExchData);
         } else if (algoName.equals("osc")) {
@@ -54,16 +57,17 @@ public class TresAlgo {
     }
 
     public void onAvgPeak(TresIndicator indicator) {
-        notifyAlgoChanged();
+        notifyValueChange();
     }
 
-    public void notifyAlgoChanged() {
+    public void notifyValueChange() {
         if (m_listener != null) {
-            m_listener.onAlgoChanged();
+            m_listener.onValueChange();
         }
     }
 
-    public double getDirection() { return 0; } // [-1 ... 1]
+    public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
+    public Direction getDirection() { return null; } // UP/DOWN
 
     public JComponent getController(TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
@@ -72,6 +76,10 @@ public class TresAlgo {
             panel.add(indicator.getController(canvas));
         }
         return panel;
+    }
+
+    public String getRunAlgoParams() {
+        return "";
     }
 
     public static class CoppockAlgo extends TresAlgo {
@@ -83,10 +91,28 @@ public class TresAlgo {
             m_indicators.add(m_coppockIndicator);
         }
 
-        @Override public double getDirection() { // [-1 ... 1]
-            return m_coppockIndicator.getAvgDirection();
-//            Direction direction = m_coppockIndicator.m_avgPeakCalculator.m_direction;
-//            return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
+        @Override public double getDirectionAdjusted() { return m_coppockIndicator.getDirectionAdjusted(); } // [-1 ... 1]
+        @Override public Direction getDirection() { return m_coppockIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
+
+        @Override public String getRunAlgoParams() {
+            return "COPPOCK.tolerance=" + m_coppockIndicator.m_avgPeakCalculator.m_tolerance;
+        }
+    }
+
+    public static class CciAlgo extends TresAlgo {
+        final CciIndicator m_cciIndicator;
+
+        public CciAlgo(TresExchData tresExchData) {
+            super("CCI", tresExchData);
+            m_cciIndicator = new CciIndicator(this);
+            m_indicators.add(m_cciIndicator);
+        }
+
+        @Override public double getDirectionAdjusted() { return m_cciIndicator.getDirectionAdjusted(); } // [-1 ... 1]
+        @Override public Direction getDirection() { return m_cciIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
+
+        @Override public String getRunAlgoParams() {
+            return "CCI.tolerance=" + m_cciIndicator.m_avgPeakCalculator.m_tolerance;
         }
     }
 
@@ -132,10 +158,11 @@ public class TresAlgo {
             }
         }
 
-        @Override public double getDirection() { // [-1 ... 1]
+        @Override public double getDirectionAdjusted() { // [-1 ... 1]
             Direction direction = m_andIndicator.m_avgPeakCalculator.m_direction;
             return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
+        @Override public Direction getDirection() { return m_andIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
         public static class AndIndicator extends TresIndicator {
             public static double PEAK_TOLERANCE = 0.06470;
@@ -147,10 +174,15 @@ public class TresAlgo {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
             @Override public Color getColor() { return Color.red; }
             @Override public Color getPeakColor() { return Color.red; }
+            @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
+                double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
+                minMaxCalculator.m_minValue = -max;
+                minMaxCalculator.m_maxValue = max;
+            }
         }
     }
 
     public interface TresAlgoListener {
-        void onAlgoChanged();
+        void onValueChange();
     }
 }

@@ -3,7 +3,7 @@ package bthdg.osc;
 import bthdg.exch.Direction;
 
 public abstract class TrendWatcher<O> {
-    protected final double m_tolerance;
+    public double m_tolerance;
     O m_peak;
     private O m_peakCandidate;
     public Direction m_direction;

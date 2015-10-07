@@ -95,14 +95,14 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         }
     }
 
-    @Override public void onAlgoChanged() {
-        Double directionValue = m_algo.getDirection();
-        if (directionValue == null) {
+    // significant value change - in most cases: peak detected
+    @Override public void onValueChange() {
+        Direction direction = m_algo.getDirection(); // UP/DOWN
+        if (direction == null) { // undefined direction
             return; // no trade
         }
-        Direction direction = (directionValue == 1) ? Direction.FORWARD : Direction.BACKWARD;
         double lastPrice = m_tresExchData.m_lastPrice;
-//log("onAlgoChanged: directionValue=" + directionValue + "; direction=" + direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + lastPrice);
+//log("onValueChange: direction=" + direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + lastPrice);
 
         if (m_lastDirection != direction) { // direction changed
             if (m_lastDirection != null) {
@@ -124,6 +124,11 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
             }
             m_lastDirection = direction;
             m_lastPeakPrice = lastPrice;
+//        } else {
+//            AlgoWatcherPoint data = new AlgoWatcherPoint(m_tresExchData.m_lastTickMillis, lastPrice, 0, m_totalPriceRatio);
+//            synchronized (m_points) {
+//                m_points.add(data);
+//            }
         }
     }
 

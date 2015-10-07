@@ -9,7 +9,7 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class CciIndicator extends TresIndicator {
-    public static final double PEAK_TOLERANCE = 20;
+    public static double PEAK_TOLERANCE = 20;
     public static final Color CCI_COLOR = Colors.setAlpha(Colors.LIGHT_ORANGE, 25);
     public static final Color CCI_AVG_COLOR = new Color(230, 100, 43);
 
