@@ -10,6 +10,7 @@ import bthdg.util.Utils;
 
 import java.awt.*;
 
+// http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:coppock_curve
 public class CoppockIndicator extends TresIndicator {
     public static double PEAK_TOLERANCE = 0.007433;
     public static final Color COPPOCK_AVG_COLOR = Color.CYAN;
@@ -48,6 +49,8 @@ public class CoppockIndicator extends TresIndicator {
 
         @Override public Color getColor() { return COPPOCK_COLOR; }
         @Override public Color getPeakColor() { return COPPOCK_PEAKS_COLOR; }
+        @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
+        @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
 
         public PhasedCoppockIndicator(CoppockIndicator indicator, TresExchData exchData, int phaseIndex) {
             super(indicator, exchData, phaseIndex, PEAK_TOLERANCE);
@@ -60,6 +63,10 @@ public class CoppockIndicator extends TresIndicator {
                     }
                     m_peakCalculator.update(tick);
                     onBar(tick);
+                }
+
+                @Override protected void setLastTickTimePrice(long time, double price) {
+                    m_indicator.setLastTickTimePrice(time, price);
                 }
             };
         }

@@ -28,7 +28,7 @@ public class TresExchData {
     public final Tres m_tres;
     final IWs m_ws;
     final LinkedList<TradeDataLight> m_trades = new LinkedList<TradeDataLight>();
-    final PhaseData[] m_phaseDatas;
+    public final PhaseData[] m_phaseDatas;
     final TresExecutor m_executor;
     Queue<TradeData> m_tradesQueue;
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
@@ -46,7 +46,7 @@ public class TresExchData {
     long m_tickCount;
     final List<TresAlgoWatcher> m_playAlgos = new ArrayList<TresAlgoWatcher>();
     TresAlgo m_runAlgo;
-    private OscAlgo m_oscAlgo;
+    public TresAlgo.OscAlgo m_oscAlgo;
 
     public void setUpdated() { m_updated = true; }
     public void setFeeding() { m_executor.m_feeding = true; }
@@ -291,28 +291,8 @@ public class TresExchData {
         return panel;
     }
 
-    public TresAlgo getOscAlgo() {
-        return m_oscAlgo = new OscAlgo();
-    }
-
     public String getRunAlgoParams() {
         return m_runAlgo.getRunAlgoParams();
-    }
-
-
-    public class OscAlgo extends TresAlgo {
-        public OscAlgo() {
-            super("OSC", TresExchData.this);
-        }
-
-        @Override public double getDirectionAdjusted() { // [-1 ... 1]
-            double directionAdjusted = 0;
-            for (PhaseData phaseData : m_phaseDatas) {
-                double direction = phaseData.getDirection();
-                directionAdjusted += direction;
-            }
-            return directionAdjusted/m_phaseDatas.length;
-        }
     }
 
     public static class OrderPoint {

@@ -37,8 +37,8 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         return m_algo.paintYAxe(g, xTimeAxe, yRight, yPriceAxe);
     }
 
-    public void paint(Graphics g, TresExchData exchData, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
-        m_algo.paintAlgo(g, exchData, xTimeAxe, yPriceAxe);
+    public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+        m_algo.paintAlgo(g, xTimeAxe, yPriceAxe);
 
         if (m_doPaint) {
             clonePoints(xTimeAxe);
@@ -101,7 +101,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         if (direction == null) { // undefined direction
             return; // no trade
         }
-        double lastPrice = m_tresExchData.m_lastPrice;
+        double lastPrice = m_algo.lastTickPrice();
 //log("onValueChange: direction=" + direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + lastPrice);
 
         if (m_lastDirection != direction) { // direction changed
@@ -116,7 +116,8 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
 //log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
 
                 if (m_tresExchData.m_tres.m_collectPoints) {
-                    AlgoWatcherPoint data = new AlgoWatcherPoint(m_tresExchData.m_lastTickMillis, lastPrice, priceRatio, m_totalPriceRatio);
+                    long lastTickTime = m_algo.lastTickTime();
+                    AlgoWatcherPoint data = new AlgoWatcherPoint(lastTickTime, lastPrice, priceRatio, m_totalPriceRatio);
                     synchronized (m_points) {
                         m_points.add(data);
                     }

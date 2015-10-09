@@ -8,6 +8,7 @@ import bthdg.util.Colors;
 
 import java.awt.*;
 
+// http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:commodity_channel_index_cci
 public class CciIndicator extends TresIndicator {
     public static double PEAK_TOLERANCE = 20;
     public static final Color CCI_COLOR = Colors.setAlpha(Colors.LIGHT_ORANGE, 25);
@@ -31,6 +32,8 @@ public class CciIndicator extends TresIndicator {
 
         @Override public Color getColor() { return CCI_COLOR; }
         @Override public Color getPeakColor() { return CCI_COLOR; }
+        @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
+        @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
 
         public PhasedCciIndicator(CciIndicator indicator, TresExchData exchData, int phaseIndex) {
             super(indicator, exchData, phaseIndex, PEAK_TOLERANCE);

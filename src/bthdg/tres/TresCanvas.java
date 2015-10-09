@@ -294,7 +294,7 @@ public class TresCanvas extends JComponent {
 
     private void paintAlgos(Graphics g, TresExchData exchData, ChartAxe yPriceAxe) {
         for (TresAlgoWatcher algoWatcher : exchData.m_playAlgos) {
-            algoWatcher.paint(g, exchData, m_xTimeAxe, yPriceAxe);
+            algoWatcher.paint(g, m_xTimeAxe, yPriceAxe);
         }
     }
 

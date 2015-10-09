@@ -183,7 +183,7 @@ public class OkCoinWs extends BaseWs {
                             String side = (String) tradeItem.get(3);
                             long millis = parseTimeToDate(time);
                             if (millis < lastMillis) {
-                                System.out.println("got not increasing time: millis=" + millis + ", lastMillis=" + lastMillis);
+                                System.out.println("got not increasing time: millis=" + millis + ", lastMillis=" + lastMillis + "; diff=" + (millis - lastMillis));
                             }
 //System.out.println("     price=" + priceStr + "; size=" + size + "; time=" + time + "; side=" + side + "; millis=" + millis);
                             if (millis != 0) {

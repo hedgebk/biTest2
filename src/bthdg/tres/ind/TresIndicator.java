@@ -36,6 +36,8 @@ public abstract class TresIndicator {
     private boolean m_doPaintPhased = false;
     private ChartAxe m_yAxe;
     private ChartPoint m_lastPoint;
+    private long m_lastTickTime;
+    private double m_lastTickPrice;
 
     public ChartPoint getLastPoint() { return m_lastPoint; }
 
@@ -238,7 +240,7 @@ public abstract class TresIndicator {
                     rightPlusPoint = chartPoint;
                     continue;
                 }
-                if(rightPlusPoint != null) {
+                if (rightPlusPoint != null) {
                     paintPoints.add(rightPlusPoint);
                     rightPlusPoint = null;
                 }
@@ -320,9 +322,42 @@ public abstract class TresIndicator {
         return sum / m_phasedIndicators.size();
     }
 
+    public void setLastTickTimePrice(long time, double price) {
+        m_lastTickTime = time;
+        m_lastTickPrice = price;
+    }
+
+    public long lastTickTime() {
+        if (m_lastTickTime != 0) {
+            return m_lastTickTime;
+        }
+        long lastTickTime = 0;
+        for (TresPhasedIndicator phasedIndicator : m_phasedIndicators) {
+            long time = phasedIndicator.lastTickTime();
+            lastTickTime = Math.max(lastTickTime, time);
+        }
+        return lastTickTime;
+    }
+
+    public double lastTickPrice() {
+        if (m_lastTickPrice != 0) {
+            return m_lastTickPrice;
+        }
+        double lastTickPrice = 0;
+        long lastTickTime = 0;
+        for (TresPhasedIndicator phasedIndicator : m_phasedIndicators) {
+            long time = phasedIndicator.lastTickTime();
+            if(lastTickTime < time) {
+                lastTickTime = time;
+                lastTickPrice = phasedIndicator.lastTickPrice();
+            }
+        }
+        return lastTickPrice;
+    }
+
 
     public static abstract class TresPhasedIndicator {
-        private final TresIndicator m_indicator;
+        final TresIndicator m_indicator;
         final TresExchData m_exchData;
         private final int m_phaseIndex;
         public final TrendWatcher<ChartPoint> m_peakCalculator;
@@ -335,6 +370,8 @@ public abstract class TresIndicator {
         public abstract boolean update(long timestamp, double price);
         public abstract Color getColor();
         public abstract Color getPeakColor();
+        public abstract double lastTickPrice();
+        public abstract long lastTickTime();
 
         public ChartPoint getLastBar() { return m_lastBar; }
 

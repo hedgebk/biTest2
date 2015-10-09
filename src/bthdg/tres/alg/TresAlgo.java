@@ -3,6 +3,7 @@ package bthdg.tres.alg;
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.tres.ChartPoint;
+import bthdg.tres.PhaseData;
 import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.CciIndicator;
@@ -15,11 +16,14 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TresAlgo {
+public abstract class TresAlgo {
     public final String m_name;
     public final TresExchData m_tresExchData;
     public final List<TresIndicator> m_indicators = new ArrayList<TresIndicator>();
     private TresAlgoListener m_listener;
+
+    public abstract double lastTickPrice();
+    public abstract long lastTickTime();
 
     public TresAlgo(String name, TresExchData tresExchData) {
         m_name = name;
@@ -36,10 +40,51 @@ public class TresAlgo {
         } else if (algoName.equals("c+c")) {
             return new CncAlgo(tresExchData);
         } else if (algoName.equals("osc")) {
-            return tresExchData.getOscAlgo();
+            return new OscAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
+
+    public static class OscAlgo extends TresAlgo {
+        final OscIndicator m_oscIndicator;
+
+        public OscAlgo(TresExchData exchData) {
+            super("OSC", exchData);
+            exchData.m_oscAlgo = this;
+
+            m_oscIndicator = new OscIndicator(this);
+            m_indicators.add(m_oscIndicator);
+        }
+
+        @Override public double lastTickPrice() { return m_tresExchData.m_lastPrice; }
+        @Override public long lastTickTime() { return m_tresExchData.m_lastTickMillis; }
+
+        @Override public double getDirectionAdjusted() { // [-1 ... 1]
+            double directionAdjusted = 0;
+            PhaseData[] phaseDatas = m_tresExchData.m_phaseDatas;
+            for (PhaseData phaseData : phaseDatas) {
+                double direction = phaseData.getDirection();
+                directionAdjusted += direction;
+            }
+            return directionAdjusted/phaseDatas.length;
+        }
+
+        @Override public Direction getDirection() { return m_oscIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
+
+        private static class OscIndicator extends TresIndicator {
+            private static final double PEAK_TOLERANCE = 0.1;
+
+            public OscIndicator(OscAlgo oscAlgo) {
+                super("osc", PEAK_TOLERANCE, oscAlgo);
+            }
+
+            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+
+            @Override public Color getColor() { return Color.yellow; }
+            @Override public Color getPeakColor() { return Color.yellow; }
+        }
+    }
+
 
     public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe) {
         int width = 0;
@@ -50,7 +95,7 @@ public class TresAlgo {
         return width;
     }
 
-    public void paintAlgo(Graphics g, TresExchData exchData, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+    public void paintAlgo(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
         for (TresIndicator indicator : m_indicators) {
             indicator.paint(g, xTimeAxe, yPriceAxe);
         }
@@ -91,6 +136,8 @@ public class TresAlgo {
             m_indicators.add(m_coppockIndicator);
         }
 
+        @Override public double lastTickPrice() { return m_coppockIndicator.lastTickPrice(); }
+        @Override public long lastTickTime() { return m_coppockIndicator.lastTickTime(); }
         @Override public double getDirectionAdjusted() { return m_coppockIndicator.getDirectionAdjusted(); } // [-1 ... 1]
         @Override public Direction getDirection() { return m_coppockIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
@@ -108,6 +155,8 @@ public class TresAlgo {
             m_indicators.add(m_cciIndicator);
         }
 
+        @Override public double lastTickPrice() { return m_cciIndicator.lastTickPrice(); }
+        @Override public long lastTickTime() { return m_cciIndicator.lastTickTime(); }
         @Override public double getDirectionAdjusted() { return m_cciIndicator.getDirectionAdjusted(); } // [-1 ... 1]
         @Override public Direction getDirection() { return m_cciIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
@@ -156,6 +205,16 @@ public class TresAlgo {
                 ChartPoint chartPoint = new ChartPoint(millis, and);
                 m_andIndicator.addBar(chartPoint);
             }
+        }
+
+        @Override public double lastTickPrice() {
+            return (m_coppockIndicator.lastTickTime() > m_cciIndicator.lastTickTime())
+                    ? m_coppockIndicator.lastTickPrice()
+                    : m_cciIndicator.lastTickPrice();
+        }
+
+        @Override public long lastTickTime() {
+            return Math.max(m_coppockIndicator.lastTickTime(), m_cciIndicator.lastTickTime());
         }
 
         @Override public double getDirectionAdjusted() { // [-1 ... 1]
