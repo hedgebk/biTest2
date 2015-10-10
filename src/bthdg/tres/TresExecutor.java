@@ -1,10 +1,8 @@
 package bthdg.tres;
 
+import bthdg.Fetcher;
 import bthdg.IIterationContext;
-import bthdg.exch.OrderData;
-import bthdg.exch.OrderSide;
-import bthdg.exch.Pair;
-import bthdg.exch.TradeDataLight;
+import bthdg.exch.*;
 import bthdg.osc.BaseExecutor;
 import bthdg.osc.TaskQueueProcessor;
 import bthdg.ws.IWs;
@@ -18,6 +16,7 @@ public class TresExecutor extends BaseExecutor {
     private static final double OUT_OF_MARKET_THRESHOLD = 0.6;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 12000;
     private static final double ORDER_SIZE_TOLERANCE = 0.3;
+    public static final int MAX_STOP_ORDER_AGE = 15000;
     static double MIN_ORDER_SIZE = 0.05; // in btc
     static double MAX_ORDER_SIZE = 1.00; // in btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
@@ -28,6 +27,7 @@ public class TresExecutor extends BaseExecutor {
     public int m_ordersPlaced;
     public int m_ordersFilled;
     public double m_tradeVolume;
+    Runnable m_stopCallback;
 
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
@@ -310,5 +310,76 @@ public class TresExecutor extends BaseExecutor {
     @Override protected void addTopDataPoint(TopDataPoint topDataPoint) {
         super.addTopDataPoint(topDataPoint);
         m_exchData.m_tres.postFrameRepaint();
+    }
+
+    public void postStopTask() {
+        log(" posting RecheckDirectionTask");
+        addTask(new StopTask());
+    }
+
+    private void onStopRequested() throws Exception {
+        log("TresExecutor.onStopRequested()");
+        setState(m_state.onStopRequested(this));
+    }
+
+    public TresState parkAccount() throws Exception {
+        if (!m_initialized) {
+            initialize();
+        }
+        TopsData topsData = m_topsData;
+        if (topsData == null) {
+            Fetcher.fetchTops(m_exchange, m_exchange.supportedPairs());
+        }
+        OrderData parkOrder = FundMap.test(m_account, topsData, m_exchange, 0.95);
+        if (parkOrder != null) {
+            log("   parkOrder=" + parkOrder);
+            int rett = placeOrderToExchange(parkOrder);
+            if (rett == STATE_ORDER) {
+                log("    park order placed");
+                return TresState.STOP;
+            }
+            log("    park order place error. post stop task again");
+            postStopTask(); // post stop task again
+            return TresState.ERROR;
+        }
+        onStopped();
+        return TresState.NONE;
+    }
+
+    public void onStopped() { // notify that stopped
+        log("     notify that stopped. stopCallback=" + m_stopCallback);
+        if (m_stopCallback != null) {
+            m_stopCallback.run();
+        }
+    }
+
+    public boolean tooOldStopOrder() {
+        if (m_order != null) {
+            long placeTime = m_order.m_placeTime;
+            long now = System.currentTimeMillis();
+            long orderAge = now - placeTime;
+            if (orderAge > MAX_STOP_ORDER_AGE) {
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    //-------------------------------------------------------------------------------
+    public class StopTask extends TaskQueueProcessor.SinglePresenceTask {
+        public StopTask() {}
+
+        @Override public TaskQueueProcessor.DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
+            TaskQueueProcessor.DuplicateAction duplicate = super.isDuplicate(other);
+            if (duplicate != null) {
+                duplicate = TaskQueueProcessor.DuplicateAction.REMOVE_ALL_AND_PUT_AS_FIRST;
+            }
+            return duplicate;
+        }
+
+        @Override public void process() throws Exception {
+            onStopRequested();
+        }
     }
 }

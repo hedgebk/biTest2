@@ -295,6 +295,10 @@ public class TresExchData {
         return m_runAlgo.getRunAlgoParams();
     }
 
+    public void sendStopTask() {
+        m_executor.postStopTask();
+    }
+
     public static class OrderPoint {
         public final OrderData m_order;
         public final long m_tickAge;

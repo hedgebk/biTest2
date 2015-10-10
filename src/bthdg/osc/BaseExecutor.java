@@ -167,13 +167,7 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected void initImpl() throws Exception {
-        m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
-        log(" topsData=" + m_topsData);
-
-        initAccount();
-        m_initAccount = m_account.copy();
-        m_initTops = m_topsData.copy();
-        m_initialized = true;
+        initialize();
 
         log("initImpl() continue: subscribeTop()");
         m_ws.subscribeTop(m_pair, new ITopListener() {
@@ -181,6 +175,16 @@ public abstract class BaseExecutor implements Runnable {
                 onTopInt(timestamp, buy, sell, TopSource.top_subscribe);
             }
         });
+    }
+
+    protected void initialize() throws Exception {
+        m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
+        log(" topsData=" + m_topsData);
+
+        initAccount();
+        m_initAccount = m_account.copy();
+        m_initTops = m_topsData.copy();
+        m_initialized = true;
     }
 
     protected void onTopInt(long timestamp, double buy, double sell, TopSource topSource) {
@@ -279,6 +283,11 @@ public abstract class BaseExecutor implements Runnable {
 
     public void onError() throws Exception {
         log("onError() resetting...  -------------------------- ");
+        cancelOrdersAndReset();
+        log("onError() end");
+    }
+
+    public void cancelOrdersAndReset() throws Exception {
         IIterationContext.BaseIterationContext iContext = checkLiveOrders();
         iContext = getLiveOrdersContextIfNeeded(iContext);
         OrdersData liveOrders = iContext.getLiveOrders(m_exchange);
@@ -294,8 +303,11 @@ public abstract class BaseExecutor implements Runnable {
         }
         List<String> cancelledOrdIds = cancelAllOrders();
         cancelOfflineOrders(liveOrders, cancelledOrdIds);
-        initAccount();
-        log("onError() end");
+        if (m_initialized) {
+            initAccount();
+        } else {
+            initialize();
+        }
     }
 
     private void cancelOfflineOrders(OrdersData liveOrders, List<String> cancelledOrdIds) {
@@ -504,15 +516,11 @@ public abstract class BaseExecutor implements Runnable {
                     double buy = m_buy;
                     double sell = m_sell;
                     TopSource topSource = m_topSource;
-                    if (placeOrderToExchange(m_exchange, placeOrder)) {
-                        m_orderPlaceAttemptCounter++;
-                        log("    orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
-                        onOrderPlace(placeOrder, tickAge, buy, sell, topSource);
-                        return STATE_ORDER;
-                    } else {
-                        log("order place error - switch to ERROR state");
-                        return STATE_ERROR;
+                    int rett = placeOrderToExchange(placeOrder);
+                    if (rett == STATE_ORDER) {
+                        onOrderPlace(placeOrder, tickAge, buy, sell, topSource); // notify on order place
                     }
+                    return rett;
                 } else {
                     return STATE_ERROR;
                 }
@@ -530,6 +538,17 @@ public abstract class BaseExecutor implements Runnable {
             postRecheckDirection();
         }
         return ret;
+    }
+
+    protected int placeOrderToExchange(OrderData placeOrder) throws Exception {
+        if (placeOrderToExchange(m_exchange, placeOrder)) {
+            m_orderPlaceAttemptCounter++;
+            log("    orderPlaceAttemptCounter=" + m_orderPlaceAttemptCounter);
+            return STATE_ORDER;
+        } else {
+            log("order place error - switch to ERROR state");
+            return STATE_ERROR;
+        }
     }
 
     protected boolean onTooOldTick(long tickAge) {

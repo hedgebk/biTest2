@@ -12,6 +12,10 @@ public enum TresState {
             int stateCode = executor.processDirection();
             return codeToState(stateCode);
         }
+        @Override public TresState onStopRequested(TresExecutor executor) throws Exception {
+            executor.cancelOrdersAndReset();
+            return executor.parkAccount();
+        }
         @Override public int toCode() { return BaseExecutor.STATE_NONE; }
     },
     ORDER {  // order placed - waiting execution
@@ -29,7 +33,33 @@ public enum TresState {
             log("State.ORDER.onTop(buy=" + executor.m_buy + ", sell=" + executor.m_sell + ") on " + this + " *********************************************");
             executor.processTop();
         }
+        @Override public TresState onStopRequested(TresExecutor executor) throws Exception {
+            executor.cancelOrdersAndReset();
+            return executor.parkAccount();
+        }
         @Override public int toCode() { return BaseExecutor.STATE_ORDER; }
+    },
+    STOP {
+        @Override public TresState onTrade(TresExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
+            log("State.STOP.onTrade(tData=" + tData + ") on " + this + " *********************************************");
+            int stateCode = executor.processTrade(tData, iContext);
+            if (stateCode == BaseExecutor.STATE_NONE) {
+                log(" park order finished. ");
+                executor.onStopped();
+                return NONE;
+            }
+            if (stateCode != BaseExecutor.STATE_NO_CHANGE) {
+                log(" STOP state. onTrade. processTrade unexpected code " + stateCode);
+                executor.cancelOrdersAndReset();
+                return executor.parkAccount();
+            }
+            if (executor.tooOldStopOrder()) {
+                log("     tooOldStopOrder - need reset");
+                executor.cancelOrdersAndReset();
+                return executor.parkAccount();
+            }
+            return null; // no change
+        }
     },
     ERROR {
         @Override public TresState onTrade(TresExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
@@ -53,6 +83,11 @@ public enum TresState {
 
     public TresState onDirection(TresExecutor executor) throws Exception {
         log("State.onDirection(direction=" + executor.getDirectionAdjusted() + ") on " + this + " *********************************************");
+        return null; // no change
+    }
+
+    public TresState onStopRequested(TresExecutor executor) throws Exception {
+        log("State.onStopRequested() on " + this + " *********************************************");
         return null; // no change
     }
 

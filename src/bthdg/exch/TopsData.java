@@ -35,10 +35,14 @@ public class TopsData {
     public void put(Pair pair, TopData top) { m_map.put(pair, top); }
     public Set<Map.Entry<Pair, TopData>> entrySet() { return m_map.entrySet(); }
 
-    public double convert(Currency inCurrency, Currency outCurrency, double all, Exchange exchange) {
-        double rate = rate(exchange, inCurrency, outCurrency);
-        double converted = all / rate;
-        return converted;
+    public Double convert(Currency inCurrency, Currency outCurrency, double all, Exchange exchange) {
+        Double rate = rate(exchange, inCurrency, outCurrency);
+        if (rate != null) {
+            double converted = all / rate;
+            return converted;
+        } else {
+            return null;
+        }
     }
 
     public Double rate(Exchange exchange, Currency from, Currency to) {
@@ -51,7 +55,13 @@ public class TopsData {
                 rate = rate(from, to);
             } else {
                 Currency baseCurrency = exchange.baseCurrency();
-                rate = rate(from, baseCurrency) * rate(baseCurrency, to);
+                Double rate1 = rate(from, baseCurrency);
+                Double rate2 = rate(baseCurrency, to);
+                if ((rate1 != null) && (rate2 != null)) {
+                    rate = rate1 * rate2;
+                } else {
+                    rate = null;
+                }
             }
         }
         return rate;

@@ -149,8 +149,8 @@ public class TaskQueueProcessor implements Runnable {
         public long m_postTime;
         public long m_processTime;
 
-        abstract void process() throws Exception;
-        abstract DuplicateAction isDuplicate(BaseOrderTask other);
+        protected abstract void process() throws Exception;
+        public abstract DuplicateAction isDuplicate(BaseOrderTask other);
     }
 
     public enum DuplicateAction {

@@ -82,6 +82,7 @@ public enum Exchange {
            null, null, "", "", null, null, null, null, null),
 // read some spec: https://github.com/timmolter/XChange/blob/develop/xchange-bitfinex/api-specification.txt
 //  sign https://github.com/timmolter/XChange/blob/develop/xchange-bitfinex/src/main/java/com/xeiam/xchange/bitfinex/v1/service/BitfinexHmacPostBodyDigest.java
+// http://docs.bitfinex.com/#websocket
     BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.0015, true, // https://www.bitfinex.com/pages/api
            null, null,
            null, null, "", "", null, null, null, null, null),

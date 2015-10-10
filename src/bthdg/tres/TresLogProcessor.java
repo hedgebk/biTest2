@@ -47,7 +47,7 @@ class TresLogProcessor extends Thread {
     private String m_varyLroc;
     private String m_varySroc;
     private String m_varySma;
-    private int cloneCounter = 0;
+    private AtomicInteger cloneCounter = new AtomicInteger(0);
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -478,7 +478,7 @@ class TresLogProcessor extends Thread {
         Map<String, Double> ret = new HashMap<String, Double>();
 
         // reset before iteration
-        TresExchData exchData = (cloneCounter++ == 0) ? m_exchData : m_exchData.cloneClean();
+        TresExchData exchData = (cloneCounter.getAndDecrement() == 0) ? m_exchData : m_exchData.cloneClean();
         for (TradeDataLight tick : ticks) {
             exchData.processTrade(tick);
         }

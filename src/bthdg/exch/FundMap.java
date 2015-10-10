@@ -30,19 +30,20 @@ public class FundMap {
         TreeMap<Double, Currency> difMap = new TreeMap<Double, Currency>();
         TreeMap<Double, Currency> difMapBtc = new TreeMap<Double, Currency>();
         for (Currency currencyIn : currencies) {
-            double inValue = account.getAllValue(currencyIn);
+            Double inValue = account.getAllValue(currencyIn);
             Double weight = ratioMap.get(currencyIn);
-            double convertedBtc = (currencyIn == currencyOut)
+            Double convertedBtc = (currencyIn == currencyOut)
                     ? inValue :
                     tops.convert(currencyIn, currencyOut, inValue, exchange);
+            if (convertedBtc != null) {
+                double expectedBtc = weight * valuateBtc;
 
-            double expectedBtc = weight * valuateBtc;
+                double diffBtc = convertedBtc - expectedBtc;
+                difMapBtc.put(diffBtc, currencyIn);
 
-            double diffBtc = convertedBtc - expectedBtc;
-            difMapBtc.put(diffBtc, currencyIn);
-
-            double diff = inValue - valuateBtc;
-            difMap.put(diff, currencyIn);
+                double diff = inValue - valuateBtc;
+                difMap.put(diff, currencyIn);
+            }
         }
 
         Map.Entry<Double, Currency> first = difMapBtc.firstEntry();

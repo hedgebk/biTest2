@@ -136,14 +136,14 @@ public abstract class BalancedMgr {
                 log(" check balanced for exchanges: " + list);
                 Utils.doInParallel("сheckBalanced", list.toArray(new Exchange[list.size()]), new Utils.IExchangeRunnable() {
                     @Override public void run(Exchange exchange) throws Exception {
-                        сheckBalancedExch(ih, exchange);
+                        checkBalancedExch(ih, exchange);
                     }
                 });
             }
         }
     }
 
-    private void сheckBalancedExch(IBalancedHelper ih, Exchange exchange) throws Exception {
+    private void checkBalancedExch(IBalancedHelper ih, Exchange exchange) throws Exception {
         log(" check balanced for exchange: " + exchange + " -------------------------------");
 
         Map<Currency, Double> ratioMap = ih.getRatioMap();

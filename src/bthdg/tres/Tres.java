@@ -13,6 +13,7 @@ import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.TresIndicator;
 import bthdg.util.ConsoleReader;
+import bthdg.util.Sync;
 import bthdg.util.Utils;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
@@ -24,6 +25,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Tres {
     public static final Pair PAIR = Pair.BTC_CNH;
@@ -133,9 +135,23 @@ public class Tres {
 
     private void onStop() {
         log("stop()-----------------------------------------------------");
-        for (TresExchData exchData : m_exchDatas) {
-            exchData.stop();
+
+        List<AtomicBoolean> syncList = null;
+        for (final TresExchData exchData : m_exchDatas) {
+            final AtomicBoolean sync = new AtomicBoolean(false);
+            exchData.m_executor.m_stopCallback = new Runnable() {
+                @Override public void run() {
+                    log(" stop() finished for " + exchData);
+                    exchData.stop();
+                    Sync.setAndNotify(sync);
+                }
+            };
+            syncList = Sync.addSync(syncList, sync);
+            exchData.sendStopTask();
         }
+        Sync.wait(syncList);
+        log(" stop() finished for all exchanges");
+
         stopFrame();
     }
 
