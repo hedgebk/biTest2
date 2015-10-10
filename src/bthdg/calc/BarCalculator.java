@@ -3,9 +3,12 @@ package bthdg.calc;
 import bthdg.Log;
 
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.LinkedList;
 
 public abstract class BarCalculator {
+    private static boolean LOG_JUMP = false;
+
     private final long m_barSizeMillis;
     private final long m_barsMillisOffset;
     protected long m_currentBarStart;
@@ -45,7 +48,9 @@ public abstract class BarCalculator {
             startNewBar(m_currentBarStart, m_currentBarEnd);
         } else {
             if (m_pendingTickTime != 0) {
-                log("  not confirmed pendings for time=" + m_pendingTickTime + " got time=" + time + " in current bar; currentBarEnd=" + m_currentBarEnd + "; pendings=" + m_pendings);
+                if (LOG_JUMP) {
+                    log("  not confirmed pendings for time=" + m_pendingTickTime + " got time=" + time + " in current bar; currentBarEnd=" + m_currentBarEnd + "; pendings=" + m_pendings);
+                }
                 if (m_pendings != null) {
                     m_pendings.clear();
                 }
@@ -66,10 +71,14 @@ public abstract class BarCalculator {
         long diff = time - m_currentBarEnd;
         if (diff > m_barSizeMillis) {
             // bar jump. some bar skipped - need to confirm tick by other tick from the same bar ...
-            log("got bar jump. diff=" + diff);
+            if (LOG_JUMP) {
+                log("got bar jump. diff=" + diff);
+            }
 
             if (time < m_pendingTickTime) {
-                log(" still bar jump, but closer. updating for diff=" + diff + "; forgetting pending ticks: " + m_pendings);
+                if (LOG_JUMP) {
+                    log(" still bar jump, but closer. updating for diff=" + diff + "; forgetting pending ticks: " + m_pendings);
+                }
                 if (m_pendings != null) {
                     m_pendings.clear();
                 }
@@ -78,33 +87,54 @@ public abstract class BarCalculator {
 
             if (m_pendingTickTime == 0) { // first jump tick
                 addToPendings(time, price, true);
-                log("  tick added to pending queue. pendingTickTime=" + m_pendingTickTime + "; queue.size=" + m_pendings.size() + "; queue=" + m_pendings);
+                if (LOG_JUMP) {
+                    log("  tick added to pending queue. pendingTickTime=" + m_pendingTickTime + "; queue.size=" + m_pendings.size() + "; queue=" + m_pendings);
+                }
             } else if (m_pendingTickTime == time) { // jump tick at the same time as previous
                 addToPendings(time, price, false);
-                log("  tick added to pending queue. pendingTickTime=" + m_pendingTickTime + "; queue.size=" + m_pendings.size() + "; queue=" + m_pendings);
+                if (LOG_JUMP) {
+                    log("  tick added to pending queue. pendingTickTime=" + m_pendingTickTime + "; queue.size=" + m_pendings.size() + "; queue=" + m_pendings);
+                }
             } else if (m_pendingTickTime < time) { // got tick after pending time. is this confirmation ?
-                log(" got tick after pending time. is this confirmation? pendingTickTime=" + m_pendingTickTime + "; time=" + time);
+                if (LOG_JUMP) {
+                    log(" got tick after pending time. is this confirmation? pendingTickTime=" + m_pendingTickTime + "; time=" + time);
+                }
                 long pendingBarStart = getBarStart(m_pendingTickTime);
                 long tickBarStart = getBarStart(time);
                 if (pendingBarStart == tickBarStart) {
                     long dif2 = time - m_pendingTickTime;
-                    log("  tick and pending are from the same bar (dif2=" + dif2 + ") - confirming ticks: " + m_pendings);
-                    for (double pending : m_pendings) {
-                        update(m_pendingTickTime, pending, false);
+                    if (LOG_JUMP) {
+                        log("  tick and pending are from the same bar (dif2=" + dif2 + ") - confirming ticks: " + m_pendings);
                     }
-                    m_pendings.clear();
-                    m_pendingTickTime = 0;
+                    ArrayList<Double> pendings = new ArrayList<Double>(m_pendings);
+                    try {
+                        m_pendings.clear();
+                        m_pendingTickTime = 0;
+
+                        for (Double pending : pendings) {
+                            update(m_pendingTickTime, pending, false);
+                        }
+                    } catch (ConcurrentModificationException cme) {
+                        log("GOT ConcurrentModificationException. pendings=" + pendings);
+                        throw cme;
+                    }
                     update(time, price, false);
                     return true;
                 }
-                log("  tick is from older bar than pending. forgetting pending ticks. " + m_pendings);
+                if (LOG_JUMP) {
+                    log("  tick is from older bar than pending. forgetting pending ticks. " + m_pendings);
+                }
                 addToPendings(time, price, true);
-                log("   tick added to pending queue. pendingTickTime=" + m_pendingTickTime + "; queue.size=" + m_pendings);
+                if (LOG_JUMP) {
+                    log("   tick added to pending queue. pendingTickTime=" + m_pendingTickTime + "; queue.size=" + m_pendings);
+                }
             }
             return false;
         }
         if (m_pendingTickTime != 0) {
-            log("  not confirmed pendings for time=" + m_pendingTickTime + ": " + m_pendings);
+            if (LOG_JUMP) {
+                log("  not confirmed pendings for time=" + m_pendingTickTime + ": " + m_pendings);
+            }
             if (m_pendings != null) {
                 m_pendings.clear();
             }
