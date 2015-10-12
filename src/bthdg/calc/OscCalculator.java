@@ -81,7 +81,7 @@ public class OscCalculator extends BarCalculator {
             if (rsis.size() == m_len2 - 1) {
                 double highest = Utils.max(rsis, rsi);
                 double lowest = Utils.min(rsis, rsi);
-                double stoch = (rsi - lowest) / (highest - lowest);
+                double stoch = (highest == lowest) ? 0 : (rsi - lowest) / (highest - lowest);
                 if (stochs.size() == m_k - 1) {
                     double stoch1 = Utils.avg(stochs, stoch);
                     if (stoch1s.size() == m_d - 1) {
