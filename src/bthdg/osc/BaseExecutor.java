@@ -322,6 +322,8 @@ public abstract class BaseExecutor implements Runnable {
                 OrderData order = nextOrder.toOrderData();
                 log(" cancelling live order: " + order);
                 try {
+// NPE can be inside - order side can be null here since loaded from live orders -
+// TODO: guess order side from order price and bid/ask prices
                     String error = cancelOrder(order);
                     if (error != null) {
                         log("  error cancelling live order: " + error);

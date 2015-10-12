@@ -245,9 +245,9 @@ public abstract class TresIndicator {
                     rightPlusPoint = null;
                 }
                 paintPoints.add(chartPoint);
-                if (timestamp < minTime) { break; }
                 double val = chartPoint.m_value;
                 minMaxCalculator.calculate(val);
+                if (timestamp < minTime) { break; }
             }
         }
     }
