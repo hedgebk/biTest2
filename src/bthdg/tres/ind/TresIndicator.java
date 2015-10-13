@@ -23,41 +23,26 @@ public abstract class TresIndicator {
     public static final int AXE_MARKER_WIDTH = 10;
 
     private final String m_name;
-    private final TresAlgo m_algo;
+    final TresAlgo m_algo;
     public final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
     final LinkedList<ChartPoint> m_avgPoints = new LinkedList<ChartPoint>();
-    final LinkedList<ChartPoint> m_avgPeaks = new LinkedList<ChartPoint>();
-    final LinkedList<ChartPoint> m_avgPeakTime = new LinkedList<ChartPoint>();
     final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
-    final List<ChartPoint> m_avgPaintPeaks = new ArrayList<ChartPoint>();
-    final List<ChartPoint> m_avgPaintPeakTime = new ArrayList<ChartPoint>();
-    public final TrendWatcher<ChartPoint> m_avgPeakCalculator;
     private boolean m_doPaint = true;
     private boolean m_doPaintPhased = false;
     private ChartAxe m_yAxe;
     private ChartPoint m_lastPoint;
     private long m_lastTickTime;
     private double m_lastTickPrice;
+    public final PeakWatcher m_peakWatcher;
+    public final PeakWatcher m_halfPeakWatcher;
 
     public ChartPoint getLastPoint() { return m_lastPoint; }
 
     public TresIndicator(String name, double peakTolerance, TresAlgo algo) {
         m_name = name;
         m_algo = algo;
-        m_avgPeakCalculator = new TrendWatcher<ChartPoint>(peakTolerance) {
-            @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
-            @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
-                if (m_algo.m_tresExchData.m_tres.m_collectPoints) {
-                    synchronized (m_avgPeaks) {
-                        m_avgPeaks.add(peak);
-                    }
-                    synchronized (m_avgPeakTime) {
-                        m_avgPeakTime.add(last);
-                    }
-                }
-                m_algo.onAvgPeak(TresIndicator.this);
-            }
-        };
+        m_peakWatcher = new PeakWatcher(this, peakTolerance);
+        m_halfPeakWatcher = new PeakWatcher(this, peakTolerance/2.0);
     }
 
     public abstract TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex);
@@ -84,7 +69,8 @@ public abstract class TresIndicator {
                     m_avgPoints.add(chartPoint);
                 }
             }
-            m_avgPeakCalculator.update(chartPoint);
+            m_peakWatcher.m_avgPeakCalculator.update(chartPoint);
+            m_halfPeakWatcher.m_avgPeakCalculator.update(chartPoint);
         }
         m_lastPoint = chartPoint;
     }
@@ -115,8 +101,8 @@ public abstract class TresIndicator {
                 }
             }
             cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
-            cloneChartPoints(m_avgPeaks, m_avgPaintPeaks, xTimeAxe, minMaxCalculator);
-            cloneChartPoints(m_avgPeakTime, m_avgPaintPeakTime, xTimeAxe, minMaxCalculator);
+            m_peakWatcher.cloneChartPoints(xTimeAxe, minMaxCalculator);
+            m_halfPeakWatcher.cloneChartPoints(xTimeAxe, minMaxCalculator);
             if (minMaxCalculator.hasValue()) {
                 adjustMinMaxCalculator(minMaxCalculator);
                 Double valMin = minMaxCalculator.m_minValue;
@@ -218,8 +204,9 @@ public abstract class TresIndicator {
                 }
             }
             paintPoints(g, xTimeAxe, m_yAxe, getColor(), m_avgPaintPoints);
-            paintPeaks(g, xTimeAxe, m_yAxe, getPeakColor(), m_avgPaintPeaks, true, true);
-            paintPeaks(g, xTimeAxe, m_yAxe, getPeakColor(), m_avgPaintPeakTime, false, false);
+            Color peakColor = getPeakColor();
+            m_peakWatcher.paintPeaks(g, xTimeAxe, m_yAxe, peakColor);
+            m_halfPeakWatcher.paintPeaks(g, xTimeAxe, m_yAxe, peakColor);
         }
     }
 
@@ -353,6 +340,10 @@ public abstract class TresIndicator {
             }
         }
         return lastTickPrice;
+    }
+
+    void onAvgPeak() {
+        m_algo.onAvgPeak(TresIndicator.this);
     }
 
 

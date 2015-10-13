@@ -69,7 +69,7 @@ public abstract class TresAlgo {
             return directionAdjusted/phaseDatas.length;
         }
 
-        @Override public Direction getDirection() { return m_oscIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
+        @Override public Direction getDirection() { return m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
         private static class OscIndicator extends TresIndicator {
             private static final double PEAK_TOLERANCE = 0.1;
@@ -139,10 +139,10 @@ public abstract class TresAlgo {
         @Override public double lastTickPrice() { return m_coppockIndicator.lastTickPrice(); }
         @Override public long lastTickTime() { return m_coppockIndicator.lastTickTime(); }
         @Override public double getDirectionAdjusted() { return m_coppockIndicator.getDirectionAdjusted(); } // [-1 ... 1]
-        @Override public Direction getDirection() { return m_coppockIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
+        @Override public Direction getDirection() { return m_coppockIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
         @Override public String getRunAlgoParams() {
-            return "COPPOCK.tolerance=" + m_coppockIndicator.m_avgPeakCalculator.m_tolerance;
+            return "COPPOCK.tolerance=" + m_coppockIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
         }
     }
 
@@ -158,10 +158,10 @@ public abstract class TresAlgo {
         @Override public double lastTickPrice() { return m_cciIndicator.lastTickPrice(); }
         @Override public long lastTickTime() { return m_cciIndicator.lastTickTime(); }
         @Override public double getDirectionAdjusted() { return m_cciIndicator.getDirectionAdjusted(); } // [-1 ... 1]
-        @Override public Direction getDirection() { return m_cciIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
+        @Override public Direction getDirection() { return m_cciIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
         @Override public String getRunAlgoParams() {
-            return "CCI.tolerance=" + m_cciIndicator.m_avgPeakCalculator.m_tolerance;
+            return "CCI.tolerance=" + m_cciIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
         }
     }
 
@@ -218,10 +218,10 @@ public abstract class TresAlgo {
         }
 
         @Override public double getDirectionAdjusted() { // [-1 ... 1]
-            Direction direction = m_andIndicator.m_avgPeakCalculator.m_direction;
+            Direction direction = m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction;
             return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
-        @Override public Direction getDirection() { return m_andIndicator.m_avgPeakCalculator.m_direction; } // UP/DOWN
+        @Override public Direction getDirection() { return m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
         public static class AndIndicator extends TresIndicator {
             public static double PEAK_TOLERANCE = 0.06470;
@@ -238,6 +238,10 @@ public abstract class TresAlgo {
                 minMaxCalculator.m_minValue = -max;
                 minMaxCalculator.m_maxValue = max;
             }
+        }
+
+        @Override public String getRunAlgoParams() {
+            return "And.tolerance=" + m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
         }
     }
 

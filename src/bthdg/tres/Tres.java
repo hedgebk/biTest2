@@ -88,7 +88,7 @@ public class Tres {
             s_inst.onStop();
             return true;
         }
-        if (line.equals("ui")) {
+        if (line.equals("ui") || line.equals("u")) {
             showUI();
         }
         if (line.startsWith("copp_peak=")) {
@@ -121,7 +121,7 @@ public class Tres {
         if (algo instanceof TresAlgo.CoppockAlgo) {
             TresAlgo.CoppockAlgo coppAlgo = (TresAlgo.CoppockAlgo) algo;
             for (TresIndicator indicator : coppAlgo.m_indicators) {
-                TrendWatcher<ChartPoint> avgPeakCalculator = indicator.m_avgPeakCalculator;
+                TrendWatcher<ChartPoint> avgPeakCalculator = indicator.m_peakWatcher.m_avgPeakCalculator;
                 avgPeakCalculator.m_tolerance = coppPeak;
                 log(" avgPeakCalculator.m_tolerance set to " + coppPeak);
                 for (TresIndicator.TresPhasedIndicator phasedIndicator : indicator.m_phasedIndicators) {
