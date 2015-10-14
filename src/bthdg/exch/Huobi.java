@@ -56,7 +56,7 @@ public class Huobi extends BaseExch {
     @Override public String getNextNonce() { return null; }
     @Override protected String getCryproAlgo() { return null; }
     @Override protected String getSecret() { return null; }
-    @Override protected String getApiEndpoint() { return "https://api.huobi.com/api.php"; }
+    @Override protected String getApiEndpoint() { return "https://api.huobi.com/apiv3"; }
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; }
 
@@ -83,7 +83,8 @@ public class Huobi extends BaseExch {
         add(3,  "Restarting failed - transaction has started, you can not start again");
         add(4,  "Transaction is over - transaction has ended");
         add(10, "Insufficient BTC");
-        add(18, "funding password error");
+        add(11, "Insufficient LTC");
+        add(18, "funding password error - Incorrect payment password");
         add(26, "Order is not existed");
         add(41, "Unable to modify due to filled order, can not be modified");
         add(42, "Order has been cancelled, unable to modify");
@@ -99,16 +100,17 @@ public class Huobi extends BaseExch {
         add(67, "Invalid private key");
         add(68, "Invalid price");
         add(69, "Invalid amount");
-        add(70, "Invalid submitting time");
-        add(71, "Too many requests");
+        add(70, "Invalid submitting time - Invalid POST time");
+        add(71, "Too many requests - Overflowed requests");
         add(87, "Buying price cannot exceed 101% of last price when transaction amount is less than 0.1 BTC.");
         add(88, "Selling price cannot below 99% of last price when transaction amount is less than 0.1 BTC.");
-        add(90, "less than the number of transactions 0.1 LTC, please do not sell below the market price of a 1%");
+        add(89, "Buying price cannot exceed 1% of market price when transaction amount is less than 0.1 BTC.");
+        add(90, "Selling price cannot be lower 1% of market price when transaction amount is less than 0.1 BTC.");
         add(91, "Invalid currency");
         add(92, "110% of the purchase price can not be higher than current prices");
         add(93, "selling price can not be less than 90% of the price of");
-        add(93, "selling price can not be less than 90% of the price of");
-        add(97, "trading capital you have opened your password, please submit funding password parameters");
+        add(97, "trading capital you have opened your password, please submit funding password parameters - Please enter payment password.");
+        add(107, "Order is exist.");
     }
 
     private static void add(long code, String str) {
@@ -389,6 +391,10 @@ public class Huobi extends BaseExch {
         double ltcLocked = Utils.getDouble(jObj.get("frozen_ltc_display"));
         accountData.setAllocated(Currency.LTC, ltcLocked);
 
+//        "loan_cny_display" - CNY Loan Amount
+//        "loan_btc_display" - BTC Loan Amount
+//        "loan_ltc_display" - LTC Loan Amount
+
         return accountData;
     }
 
@@ -409,6 +415,7 @@ public class Huobi extends BaseExch {
                 double remainedAmount = orderAmount - filled;
                 double rate = Utils.getDouble(order.get("order_price"));
                 Long type = (Long) order.get("type");
+                // "order_time" - Order Time
                 OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, null, pair, getOrderSide(type));
                 ords.put(orderId, ord);
             }
@@ -477,4 +484,27 @@ public class Huobi extends BaseExch {
         }
         return "Unable to parse error. msg: " + jObj;
     }
+
+    // order_info:
+    // Field name	Req'd	    Description
+    // method	    Required	Request method: order_info
+    // access_key	Required	Access Key
+    // coin_type	Required	Type: 1 -Bitcoin 2 -Litecoin
+    // id	        Required	Order ID
+    // created	    Required	Submit 10 digits timestamp
+    // sign	        Required	MD5 Signature
+    // Encryption Instance	sign = md5(access_key=xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx&coin_type=1&created=1386844119&id=2&method=order_info&secret_key=xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx)
+    //
+    // Results
+    // Field name	    Description
+    // id	            Order ID
+    // type	            Type: 1 -buy　2 -sell
+    // order_price	    Order Price
+    // order_amount	    Order Amount
+    // processed_price	Average Filled Price
+    // processed_amount	Filled Amount
+    // vot	            Volume
+    // fee	            Trading Fee
+    // total	        Total Transaction Amount
+    // status	        Status　0 -Waiting　1 -Partially filled　2 -Filled　3 -Cancelled
 }

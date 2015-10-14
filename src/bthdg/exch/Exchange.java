@@ -139,13 +139,13 @@ public enum Exchange {
         @Override public boolean requirePairForCancel() { return true; }
     },
     HUOBI("Huobi", new Huobi(), "", 11, 0.000001, false, // https://github.com/xiaojay/huobi/blob/master/huobi.py
-           null, "http://market.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
-           null, "http://market.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
+           null, "http://api.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
+           null, "http://api.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",
-           null, new UrlDef("https://api.huobi.com/apiv2.php"),
-           new UrlDef("https://api.huobi.com/apiv2.php"),
-           new UrlDef("https://api.huobi.com/apiv2.php"),
-           new UrlDef("https://api.huobi.com/apiv2.php")) {
+           null, new UrlDef("https://api.huobi.com/apiv3.php"),
+           new UrlDef("https://api.huobi.com/apiv3.php"),
+           new UrlDef("https://api.huobi.com/apiv3.php"),
+           new UrlDef("https://api.huobi.com/apiv3.php")) {
         @Override public void init(Properties keys) { Huobi.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
