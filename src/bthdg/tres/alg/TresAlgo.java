@@ -2,6 +2,7 @@ package bthdg.tres.alg;
 
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
+import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.PhaseData;
 import bthdg.tres.TresCanvas;
@@ -219,7 +220,35 @@ public abstract class TresAlgo {
 
         @Override public double getDirectionAdjusted() { // [-1 ... 1]
             Direction direction = m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction;
-            return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
+            TrendWatcher<ChartPoint> halfPeakWatcher = m_andIndicator.m_halfPeakWatcher.m_avgPeakCalculator;
+            Direction halfDirection = halfPeakWatcher.m_direction;
+            if (direction == null) {
+                return 0;
+            } else if (direction == Direction.FORWARD) {
+                if (halfDirection == null) {
+                    return 1.0;
+                } else if (halfDirection == Direction.FORWARD) {
+                    return 1.0;
+                } else { // Direction.BACKWARD
+                    double force = halfPeakWatcher.getDirectionForce();
+                    double dirAdjusted = -2 * force + 3;
+                    dirAdjusted = Math.max(dirAdjusted, -1);
+                    dirAdjusted = Math.min(dirAdjusted, 1);
+                    return dirAdjusted;
+                }
+            } else { // Direction.BACKWARD
+                if (halfDirection == null) {
+                    return -1.0;
+                } else if (halfDirection == Direction.BACKWARD) {
+                    return -1.0;
+                } else { // Direction.FORWARD
+                    double force = halfPeakWatcher.getDirectionForce();
+                    double dirAdjusted = 2 * force - 3;
+                    dirAdjusted = Math.max(dirAdjusted, -1);
+                    dirAdjusted = Math.min(dirAdjusted, 1);
+                    return dirAdjusted;
+                }
+            }
         }
         @Override public Direction getDirection() { return m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
