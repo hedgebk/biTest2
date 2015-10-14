@@ -150,6 +150,23 @@ public class Console {
         return ordersData;
     }
 
+    private static OrdersData fetchOrders(Currency currency) throws Exception {
+        OrdersData ordersData = new OrdersData();
+        for (Pair pair : s_exchange.supportedPairs()) {
+            if((pair.m_to == currency) || (pair.m_from == currency)) {
+                OrdersData od = Fetcher.fetchOrders(s_exchange, pair);
+                if(od.m_error != null) {
+                    return od;
+                }
+                if (ordersData.m_ords == null) {
+                    ordersData.m_ords = new HashMap<String, OrdersData.OrdData>();
+                }
+                ordersData.m_ords.putAll(od.m_ords);
+            }
+        }
+        return ordersData;
+    }
+
     /*
         private static void cancelLiveOrders() throws Exception {
         OrdersData od = fetchOrders(Exchange.BTCE, null);
@@ -291,6 +308,7 @@ public class Console {
     private static void doCancel(String line) throws Exception {
         // cancel 12345 [LTC_CNH]
         // cancel ALL
+        // cancel BTC
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
         if (tokensNum >= 2) {
@@ -298,6 +316,8 @@ public class Console {
             String orderId = tok.nextToken();
             if( orderId.equalsIgnoreCase("all") ) {
                 cancelAll();
+            } else if( orderId.equalsIgnoreCase("btc") ) {
+                cancelBtc();
             } else {
                 if(s_exchange.requirePairForCancel()) {
                     if (tokensNum == 3) {
@@ -322,9 +342,19 @@ public class Console {
         }
     }
 
+    private static void cancelBtc() throws Exception {
+        System.out.println("cancel BTC requested - query orders...");
+        OrdersData od = fetchOrders(Currency.BTC);
+        cancelOrders(od);
+    }
+
     private static void cancelAll() throws Exception {
         System.out.println("cancel ALL requested - query orders...");
         OrdersData od = s_exchange.requirePairForOrders() ? fetchAllOrders() : Fetcher.fetchOrders(s_exchange);
+        cancelOrders(od);
+    }
+
+    private static void cancelOrders(OrdersData od) throws Exception {
         Map<String, OrdersData.OrdData> orders = od.m_ords;
         if((orders != null) && !orders.isEmpty()) {
             for(OrdersData.OrdData order:orders.values()) {
