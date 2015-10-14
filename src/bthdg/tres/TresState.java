@@ -61,6 +61,7 @@ public enum TresState {
             return null; // no change
         }
     },
+    STOPPED,
     ERROR {
         @Override public TresState onTrade(TresExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
             log("State.ERROR.onTrade(tData=" + tData + ") on " + this + " *********************************************");

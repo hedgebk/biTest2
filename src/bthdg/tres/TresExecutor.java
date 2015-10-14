@@ -16,7 +16,7 @@ public class TresExecutor extends BaseExecutor {
     private static final double OUT_OF_MARKET_THRESHOLD = 0.6;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 12000;
     private static final double ORDER_SIZE_TOLERANCE = 0.3;
-    public static final int MAX_STOP_ORDER_AGE = 15000;
+    public static final int MAX_STOP_ORDER_AGE = 20000;
     static double MIN_ORDER_SIZE = 0.05; // in btc
     static double MAX_ORDER_SIZE = 1.00; // in btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
@@ -297,7 +297,7 @@ public class TresExecutor extends BaseExecutor {
     @Override protected void onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource) {
         m_order = placeOrder;
         m_ordersPlaced++;
-        m_exchData.addOrder(placeOrder, tickAge, buy, sell, topSource); // will call postFrameRepaint inside
+        m_exchData.addOrder(placeOrder, tickAge, buy, sell, topSource, getGainAvg()); // will call postFrameRepaint inside
     }
 
     private void onOrderFilled() {
@@ -335,7 +335,8 @@ public class TresExecutor extends BaseExecutor {
             log("   parkOrder=" + parkOrder);
             int rett = placeOrderToExchange(parkOrder);
             if (rett == STATE_ORDER) {
-                log("    park order placed");
+                log("    park order placed: " + parkOrder);
+                m_order = parkOrder;
                 return TresState.STOP;
             }
             log("    park order place error. post stop task again");
@@ -359,10 +360,12 @@ public class TresExecutor extends BaseExecutor {
             long now = System.currentTimeMillis();
             long orderAge = now - placeTime;
             if (orderAge > MAX_STOP_ORDER_AGE) {
+                log("   orderAge=" + orderAge + "; MAX_STOP_ORDER_AGE=" + MAX_STOP_ORDER_AGE);
                 return true;
             }
             return false;
         }
+        log("   no stop order");
         return true;
     }
 
