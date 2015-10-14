@@ -22,7 +22,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     private Direction m_lastDirection;
     private Double m_lastPeakPrice;
     public double m_totalPriceRatio = 1.0;
-    private boolean m_doPaint = true;
+    private boolean m_doPaint = false;
     private List<AlgoWatcherPoint> m_paintPoints = new ArrayList<AlgoWatcherPoint>();
 
     private static void log(String s) { Log.log(s); }
@@ -136,7 +136,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     public JComponent getController(final TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
         panel.setBorder(BorderFactory.createLineBorder(Color.black));
-        panel.add(new JCheckBox(m_algo.m_name, true) {
+        panel.add(new JCheckBox(m_algo.m_name, m_doPaint) {
             @Override protected void fireItemStateChanged(ItemEvent event) {
                 super.fireItemStateChanged(event);
                 m_doPaint = (event.getStateChange() == ItemEvent.SELECTED);

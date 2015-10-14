@@ -46,28 +46,28 @@ public class TresFrame extends JFrame implements Runnable {
                     }
                 });
 //                topPanel.add(new JCheckBox("top", true));
-                topPanel.add(new JCheckBox("sym", false) {
+                topPanel.add(new JCheckBox("sym", TresCanvas.m_paintSym) {
                     @Override protected void fireItemStateChanged(ItemEvent event) {
                         super.fireItemStateChanged(event);
                         TresCanvas.m_paintSym = (event.getStateChange() == ItemEvent.SELECTED);
                         m_canvas.repaint();
                     }
                 });
-                topPanel.add(new JCheckBox("osc", false) {
+                topPanel.add(new JCheckBox("osc", TresCanvas.m_paintOsc) {
                     @Override protected void fireItemStateChanged(ItemEvent event) {
                         super.fireItemStateChanged(event);
                         TresCanvas.m_paintOsc = (event.getStateChange() == ItemEvent.SELECTED);
                         m_canvas.repaint();
                     }
                 });
-                topPanel.add(new JCheckBox("coppock", false) {
+                topPanel.add(new JCheckBox("coppock", TresCanvas.m_paintCoppock) {
                     @Override protected void fireItemStateChanged(ItemEvent event) {
                         super.fireItemStateChanged(event);
                         TresCanvas.m_paintCoppock = (event.getStateChange() == ItemEvent.SELECTED);
                         m_canvas.repaint();
                     }
                 });
-                topPanel.add(new JCheckBox("cci", false) {
+                topPanel.add(new JCheckBox("cci", TresCanvas.m_paintCci) {
                     @Override protected void fireItemStateChanged(ItemEvent event) {
                         super.fireItemStateChanged(event);
                         TresCanvas.m_paintCci = (event.getStateChange() == ItemEvent.SELECTED);
