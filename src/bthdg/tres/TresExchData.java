@@ -275,9 +275,9 @@ public class TresExchData {
         return new ChartPoint(maxBarEnd, avgValue);
     }
 
-    public void addOrder(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource) {
+    public void addOrder(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource, double gainAvg) {
         synchronized (m_orders) {
-            m_orders.add(new OrderPoint(order, tickAge, buy, sell, topSource));
+            m_orders.add(new OrderPoint(order, tickAge, buy, sell, topSource, gainAvg));
         }
         m_tres.postFrameRepaint();
     }
@@ -305,13 +305,15 @@ public class TresExchData {
         public final double m_buy;
         public final double m_sell;
         public final BaseExecutor.TopSource m_topSource;
+        final double m_gainAvg;
 
-        public OrderPoint(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource) {
+        public OrderPoint(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource, double gainAvg) {
             m_order = order;
             m_tickAge = tickAge;
             m_buy = buy;
             m_sell = sell;
             m_topSource = topSource;
+            m_gainAvg = gainAvg;
         }
     }
 
