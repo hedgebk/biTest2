@@ -42,7 +42,7 @@ public abstract class TresIndicator {
         m_name = name;
         m_algo = algo;
         m_peakWatcher = new PeakWatcher(this, peakTolerance);
-        m_halfPeakWatcher = new PeakWatcher(this, peakTolerance/2.0);
+        m_halfPeakWatcher = new PeakWatcher(this, peakTolerance / 2.0);
     }
 
     public abstract TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex);
@@ -280,7 +280,7 @@ public abstract class TresIndicator {
     public JComponent getController(final TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
         panel.setBorder(BorderFactory.createLineBorder(getColor()));
-        final JCheckBox checkBox2 = new JCheckBox("f", false) {
+        final JCheckBox checkBox2 = new JCheckBox("f", m_doPaintPhased) {
             @Override protected void fireItemStateChanged(ItemEvent event) {
                 super.fireItemStateChanged(event);
                 m_doPaintPhased = (event.getStateChange() == ItemEvent.SELECTED);
