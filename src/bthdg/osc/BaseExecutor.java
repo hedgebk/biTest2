@@ -60,6 +60,7 @@ public abstract class BaseExecutor implements Runnable {
     public final Utils.AverageCounter m_sellAvgCounter;
     private double m_lastTopBid;
     private double m_lastTopAsk;
+    private Thread m_timer;
 
     protected static void log(String s) { Log.log(s); }
     public String dumpWaitTime() { return (m_taskQueueProcessor == null) ? "" : m_taskQueueProcessor.dumpWaitTime(); }
@@ -175,6 +176,22 @@ public abstract class BaseExecutor implements Runnable {
                 onTopInt(timestamp, buy, sell, TopSource.top_subscribe);
             }
         });
+
+        m_timer = new Thread("timer") {
+            @Override public void run() {
+                log("timer thread started");
+                while(m_run) {
+                    try {
+                        sleep(1000);
+                    } catch (InterruptedException e) {
+                        log("timer thread interrupted: " + e);
+                    }
+                    postRecheckDirection();
+                }
+                log("timer thread finished");
+            }
+        };
+        m_timer.start();
     }
 
     protected void initialize() throws Exception {
@@ -355,6 +372,17 @@ public abstract class BaseExecutor implements Runnable {
         double projected = Math.pow(gainAvg, pow);
         log("  GAIN: Btc=" + gainBtc + "; Cnh=" + gainCnh + " CNH; avg=" + gainAvg + "; projected=" + projected + "; takes: " + Utils.millisToDHMSStr(takesMillis));
         log("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}");
+    }
+
+    protected double getGainAvg() {
+        double valuateBtcInit = m_initAccount.evaluateAll(m_initTops, Currency.BTC, m_exchange);
+        double valuateCnhInit = m_initAccount.evaluateAll(m_initTops, Currency.CNH, m_exchange);
+        double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
+        double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
+        double gainBtc = valuateBtcNow / valuateBtcInit;
+        double gainCnh = valuateCnhNow / valuateCnhInit;
+        double gainAvg = (gainBtc + gainCnh) / 2;
+        return gainAvg;
     }
 
     public String valuate() {
@@ -661,12 +689,6 @@ public abstract class BaseExecutor implements Runnable {
         return ret;
     }
 
-    protected void addTimeFrame(TimeFrameType type, long start, long end) {
-        synchronized (m_timeFramePoints) {
-            m_timeFramePoints.add(new TimeFramePoint(type, start, end));
-        }
-    }
-
     protected TimeFramePoint addTimeFrame(TimeFrameType type, long start) {
         TimeFramePoint timeFramePoint = new TimeFramePoint(type, start);
         synchronized (m_timeFramePoints) {
@@ -686,7 +708,8 @@ public abstract class BaseExecutor implements Runnable {
         double avgSell = m_sellAvgCounter.get();
         double avgBuy = m_buyAvgCounter.get();
         double avgDiff = avgSell - avgBuy;
-        double mid = m_sell - m_buy;
+        double diff = m_sell - m_buy;
+        double mid = (m_sell + m_buy) / 2;
         double halfAvgDiff = avgDiff / 2;
         double adjSell = mid + halfAvgDiff;
         double adjBuy = mid - halfAvgDiff;
@@ -695,7 +718,7 @@ public abstract class BaseExecutor implements Runnable {
         double outOfMarketRate = outOfMarketDistance / threshold;
         log(" checkOrderOutOfMarket " + order.m_orderId + " " + order.m_side + "@" + orderPrice +
                 "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
-                "; buy=" + m_buy + "; sell=" + m_sell + "; mid=" + mid +
+                "; buy=" + m_buy + "; sell=" + m_sell + "; diff=" + diff + "; mid=" + mid +
                 "; adjBuy=" + adjBuy + "; adjSell=" + adjSell + "; threshold=" + threshold +
                 "; distance=" + outOfMarketDistance + "; rate=" + outOfMarketRate);
         if (outOfMarketDistance > threshold) {
