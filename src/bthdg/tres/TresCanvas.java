@@ -818,18 +818,27 @@ public class TresCanvas extends JComponent {
                 g.setColor(borderColor);
                 g.drawPolygon(p);
             }
+
+            int yy = isBuy ? y + 2 + fontHeight : y - 5;
+            int yStep = isBuy ? fontHeight : -fontHeight;
             g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
+
             String amount = ((order.m_filled == 0) || (order.m_filled == order.m_amount))
                     ? Utils.X_YYY.format(order.m_amount)
                     : Utils.X_YYY.format(order.m_filled) + "/" + Utils.X_YYY.format(order.m_amount);
-            g.drawString(amount, x, isBuy ? y + 2 + fontHeight : y - 5);
+            g.drawString(amount, x, yy);
+            yy += yStep;
 
-            long tickAge = orderPoint.m_tickAge;
-            String tickAgeStr = Utils.millisToDHMSStr(tickAge);
-            g.drawString(tickAgeStr, x, isBuy ? y + 2 + fontHeight * 2 : y - 5 - fontHeight);
+            String tickAgeStr = Utils.millisToDHMSStr(orderPoint.m_tickAge);
+            g.drawString(tickAgeStr, x, yy);
+            yy += yStep;
 
-            String ordId = order.m_orderId.substring(order.m_orderId.length() - 5);
-            g.drawString(ordId, x, isBuy ? y + 2 + fontHeight * 3 : y - 5 - fontHeight * 2);
+            String gainStr = Utils.X_YYYYYYYY.format(orderPoint.m_gainAvg);
+            g.drawString(gainStr, x, yy);
+            yy += yStep;
+
+            String ordId = order.m_orderId.substring(order.m_orderId.length() - 4);
+            g.drawString(ordId, x, yy);
         }
 
         paintTimeFramePoints(g, executor);
