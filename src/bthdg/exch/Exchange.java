@@ -95,7 +95,7 @@ public enum Exchange {
     ITBIT("ItBit", null, "itbitUSD", 8, 0.0017, true,
            null, null,
            null, null, "", "", null, null, null, null, null),
-    BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.000001, true,
+    BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.0001, true,
          null, "https://data.btcchina.com/data/ticker?market=XXXX", // XXXX like "btccny"
          null, "https://data.btcchina.com/data/orderbook?market=XXXX",
          "", "",
