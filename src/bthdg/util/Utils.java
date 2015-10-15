@@ -27,6 +27,7 @@ public class Utils {
 
     public static String format8(double value) { return X_YYYYYYYY.format(value); }
     public static String format5(double value) { return X_YYYYY.format(value); }
+    public static String format3(double value) { return X_YYY.format(value); }
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }

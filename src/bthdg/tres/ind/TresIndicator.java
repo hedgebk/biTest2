@@ -27,7 +27,7 @@ public abstract class TresIndicator {
     public final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
     final LinkedList<ChartPoint> m_avgPoints = new LinkedList<ChartPoint>();
     final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
-    private boolean m_doPaint = true;
+    protected boolean m_doPaint = false;
     private boolean m_doPaintPhased = false;
     private ChartAxe m_yAxe;
     private ChartPoint m_lastPoint;
@@ -287,8 +287,7 @@ public abstract class TresIndicator {
                 canvas.repaint();
             }
         };
-        checkBox2.setEnabled(false);
-        panel.add(new JCheckBox(m_name, true) {
+        panel.add(new JCheckBox(m_name, m_doPaint) {
             @Override protected void fireItemStateChanged(ItemEvent event) {
                 super.fireItemStateChanged(event);
                 m_doPaint = (event.getStateChange() == ItemEvent.SELECTED);

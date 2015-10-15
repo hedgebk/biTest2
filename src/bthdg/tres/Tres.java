@@ -211,9 +211,9 @@ public class Tres {
         m_calcOsc = Boolean.parseBoolean(getProperty("tre.calc_osc"));
         log("calc_osc=" + m_calcOsc);
         m_calcCoppock = Boolean.parseBoolean(getProperty("tre.calc_coppock"));
-        log("calc_osc=" + m_calcCoppock);
+        log("calc_coppock=" + m_calcCoppock);
         m_calcCci = Boolean.parseBoolean(getProperty("tre.calc_cci"));
-        log("calc_osc=" + m_calcCci);
+        log("calc_cci=" + m_calcCci);
 
         String algosStr = getProperty("tre.play.algos");
         log("PLAY.ALGOS=" + algosStr);

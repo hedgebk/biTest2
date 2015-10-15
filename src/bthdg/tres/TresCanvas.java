@@ -837,7 +837,7 @@ public class TresCanvas extends JComponent {
             g.drawString(gainStr, x, yy);
             yy += yStep;
 
-            String ordId = order.m_orderId.substring(order.m_orderId.length() - 4);
+            String ordId = order.m_orderId.substring(order.m_orderId.length() - 6);
             g.drawString(ordId, x, yy);
         }
 
@@ -848,10 +848,11 @@ public class TresCanvas extends JComponent {
         g.drawString(executor.valuate(), 2, height - fontHeight);
         g.drawString("acct: " + executor.m_account, 2, height - fontHeight * 2);
         g.drawString("dir.adj=" + exchData.getDirectionAdjusted() + "; " + exchData.getRunAlgoParams(), 2, height - fontHeight * 3);
-        g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled + "; volume=" + executor.m_tradeVolume, 2, height - fontHeight * 4);
+        g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled +
+                     "; volume=" + Utils.format3(executor.m_tradeVolume), 2, height - fontHeight * 4);
         g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 5);
         g.drawString("takes:" + executor.dumpTakesTime(), 2, height - fontHeight * 6);
-        g.drawString("avgTickAge: " + executor.m_tickAgeCalc.getAverage(), 2, height - fontHeight * 7);
+        g.drawString("avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()), 2, height - fontHeight * 7);
 
         OrderData order = executor.m_order;
         if (order != null) {
