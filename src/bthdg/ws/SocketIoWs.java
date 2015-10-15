@@ -128,7 +128,7 @@ public abstract class SocketIoWs {
 //        });
     }
 
-    public void emit(String event, String arg) {
+    public void emit(String event, String ... arg) {
         m_socket.emit(event, arg);
     }
 
