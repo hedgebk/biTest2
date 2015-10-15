@@ -7,6 +7,8 @@ import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.osc.TrendWatcher;
+import bthdg.tres.alg.CncAlgo;
+import bthdg.tres.alg.CoppockAlgo;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.CciIndicator;
@@ -118,8 +120,8 @@ public class Tres {
     }
 
     private void updateCoppPeak(double coppPeak, TresAlgo algo) {
-        if (algo instanceof TresAlgo.CoppockAlgo) {
-            TresAlgo.CoppockAlgo coppAlgo = (TresAlgo.CoppockAlgo) algo;
+        if (algo instanceof CoppockAlgo) {
+            CoppockAlgo coppAlgo = (CoppockAlgo) algo;
             for (TresIndicator indicator : coppAlgo.m_indicators) {
                 TrendWatcher<ChartPoint> avgPeakCalculator = indicator.m_peakWatcher.m_avgPeakCalculator;
                 avgPeakCalculator.m_tolerance = coppPeak;
@@ -246,14 +248,14 @@ public class Tres {
         log("and_peak=" + andPeakStr);
         if (andPeakStr != null) {
             double andPeak = Double.parseDouble(andPeakStr);
-            TresAlgo.CncAlgo.AndIndicator.PEAK_TOLERANCE = andPeak;
+            CncAlgo.AndIndicator.PEAK_TOLERANCE = andPeak;
         }
 
         String cciCorrStr = getProperty("tre.cci_corr");
         log("cci_corr=" + cciCorrStr);
         if (cciCorrStr != null) {
             double cciCorr = Double.parseDouble(cciCorrStr);
-            TresAlgo.CncAlgo.CCI_CORRECTION_RATIO = cciCorr;
+            CncAlgo.CCI_CORRECTION_RATIO = cciCorr;
         }
 
         String wmaStr = getProperty("tre.wma");

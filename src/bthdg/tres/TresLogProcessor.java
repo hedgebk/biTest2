@@ -3,7 +3,7 @@ package bthdg.tres;
 import bthdg.Log;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
-import bthdg.tres.alg.TresAlgo;
+import bthdg.tres.alg.CncAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
@@ -326,7 +326,7 @@ class TresLogProcessor extends Thread {
         double step = Double.parseDouble(split[2]);
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
-            TresAlgo.CncAlgo.AndIndicator.PEAK_TOLERANCE = i;
+            CncAlgo.AndIndicator.PEAK_TOLERANCE = i;
             iterate(allTicks, i, "%.5f", "AndPeak", maxMap);
         }
         logMax(maxMap, "AndPeak");
@@ -354,7 +354,7 @@ class TresLogProcessor extends Thread {
         double step = Double.parseDouble(split[2]);
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
-            TresAlgo.CncAlgo.CCI_CORRECTION_RATIO = i;
+            CncAlgo.CCI_CORRECTION_RATIO = i;
             iterate(allTicks, i, "%.0f", "CciCorr", maxMap);
         }
         logMax(maxMap, "CciCorr");
