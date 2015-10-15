@@ -14,6 +14,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 public abstract class BaseExecutor implements Runnable {
+    public static final int TIMER_SLEEP_TIME = 2000;
+    public static final int DEEP_MKT_PIP_RATIO = 1;
     public static boolean DO_TRADE = true;
     public static final int STATE_NO_CHANGE = 0;
     public static final int STATE_NONE = 1;
@@ -47,7 +49,7 @@ public abstract class BaseExecutor implements Runnable {
     protected int m_orderPlaceAttemptCounter;
     protected long m_lastProcessDirectionTime;
     public boolean m_feeding;
-    protected OrderPriceMode m_orderPriceMode = OrderPriceMode.NORMAL;
+    protected OrderPriceMode m_orderPriceMode = OrderPriceMode.PEG_TO_MKT;
     final Utils.DoubleDoubleAverageCalculator m_cancelOrderTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     final Utils.DoubleDoubleAverageCalculator m_initAccountTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     final Utils.DoubleDoubleAverageCalculator m_liveOrdersTakesCalc = new Utils.DoubleDoubleAverageCalculator();
@@ -182,7 +184,7 @@ public abstract class BaseExecutor implements Runnable {
                 log("timer thread started");
                 while(m_run) {
                     try {
-                        sleep(1000);
+                        sleep(TIMER_SLEEP_TIME);
                     } catch (InterruptedException e) {
                         log("timer thread interrupted: " + e);
                     }
@@ -339,8 +341,8 @@ public abstract class BaseExecutor implements Runnable {
                 OrderData order = nextOrder.toOrderData();
                 log(" cancelling live order: " + order);
                 try {
-// NPE can be inside - order side can be null here since loaded from live orders -
-// TODO: guess order side from order price and bid/ask prices
+//  NPE can be inside - order side can be null here since loaded from live orders -
+//  TODO: guess order side from order price and bid/ask prices
                     String error = cancelOrder(order);
                     if (error != null) {
                         log("  error cancelling live order: " + error);
@@ -793,11 +795,11 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     public String dumpTakesTime() {
-        return " order:" + Utils.format5(m_placeOrderTakesCalc.getAverage()) +
-                " live:" + Utils.format5(m_liveOrdersTakesCalc.getAverage()) +
-                " account:" + Utils.format5(m_initAccountTakesCalc.getAverage()) +
-                " cancel:" + Utils.format5(m_cancelOrderTakesCalc.getAverage()) +
-                " top:" + Utils.format5(m_topTakesCalc.getAverage());
+        return " order:" + Utils.format3(m_placeOrderTakesCalc.getAverage()) +
+                " live:" + Utils.format3(m_liveOrdersTakesCalc.getAverage()) +
+                " account:" + Utils.format3(m_initAccountTakesCalc.getAverage()) +
+                " cancel:" + Utils.format3(m_cancelOrderTakesCalc.getAverage()) +
+                " top:" + Utils.format3(m_topTakesCalc.getAverage());
     }
 
 
@@ -899,6 +901,61 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     protected enum OrderPriceMode {
+        DEEP_MKT_AVG {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                double diff = sell - buy;
+                double midPrice = (buy + sell) / 2;
+                double avgBuy = baseExecutor.m_buyAvgCounter.get();
+                double avgSell = baseExecutor.m_sellAvgCounter.get();
+                double avgDiff = avgSell - avgBuy;
+                double diffRate = diff / avgDiff;
+                double rate = Math.min(1, diffRate);
+                log("  buy=" + buy + "; sell=" + sell + "; diff=" + diff + "; midPrice=" + midPrice +
+                        "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
+                        "; diffRate=" + diffRate + "; rate=" + rate +
+                        "; needOrderSide=" + needOrderSide);
+                boolean isBuy = needOrderSide.isBuy();
+                int sideDirection = isBuy ? 1 : -1;
+                double offset = rate * avgDiff / 2;
+                int orderPlaceAttempt = baseExecutor.m_orderPlaceAttemptCounter;
+                double pip = exchange.minAmountStep(baseExecutor.m_pair);
+                double adjustedPrice = midPrice + offset * sideDirection + DEEP_MKT_PIP_RATIO * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
+                log("    sideDirection=" + sideDirection + " offset=" + offset +
+                        "; orderPlaceAttempt=" + orderPlaceAttempt + "; pip=" + pip +
+                        "; adjustedPrice=" + adjustedPrice );
+                RoundingMode roundMode = needOrderSide.getMktRoundMode();
+                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
+        MKT_AVG {
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                double diff = sell - buy;
+                double midPrice = (buy + sell) / 2;
+                double avgBuy = baseExecutor.m_buyAvgCounter.get();
+                double avgSell = baseExecutor.m_sellAvgCounter.get();
+                double avgDiff = avgSell - avgBuy;
+                double diffRate = diff / avgDiff;
+                double rate = Math.min(1, diffRate);
+                log("  buy=" + buy + "; sell=" + sell + "; diff=" + diff + "; midPrice=" + midPrice +
+                        "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
+                        "; diffRate=" + diffRate + "; rate=" + rate +
+                        "; needOrderSide=" + needOrderSide);
+                int sideDirection = needOrderSide.isBuy() ? 1 : -1;
+                double offset = rate * avgDiff / 2;
+                double adjustedPrice = midPrice + offset * sideDirection;
+                log("    sideDirection=" + sideDirection + " offset=" + offset + "; adjustedPrice=" + adjustedPrice);
+                RoundingMode roundMode = needOrderSide.getMktRoundMode();
+                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
         DEEP_MKT {
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 double buy = baseExecutor.m_buy;
@@ -908,8 +965,10 @@ public abstract class BaseExecutor implements Runnable {
                 log("  buy=" + buy + "; sell=" + sell + "; mktPrice=" + mktPrice + "; needOrderSide=" + needOrderSide);
                 double pip = exchange.minAmountStep(baseExecutor.m_pair);
                 int orderPlaceAttempt = baseExecutor.m_orderPlaceAttemptCounter;
-                double adjustedPrice = mktPrice + 2 * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
-                log("    orderPlaceAttempt=" + orderPlaceAttempt + "; pip=" + pip + "; adjustedPrice=" + adjustedPrice);
+                double adjustedPrice = mktPrice + DEEP_MKT_PIP_RATIO * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
+                log("    orderPlaceAttempt=" + orderPlaceAttempt +
+                        "; pip=" + pip +
+                        "; adjustedPrice=" + adjustedPrice);
                 RoundingMode roundMode = needOrderSide.getMktRoundMode();
                 double orderPrice = exchange.roundPrice(mktPrice, baseExecutor.m_pair, roundMode);
                 log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
@@ -940,7 +999,7 @@ public abstract class BaseExecutor implements Runnable {
                 return orderPrice;
             }
         },
-       OSC_REVERSE {
+        OSC_REVERSE {
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 // directionAdjusted [-1 ... 1]
                 double buy = baseExecutor.m_buy;
@@ -974,7 +1033,26 @@ public abstract class BaseExecutor implements Runnable {
                 return orderPrice;
             }
         },
-        NORMAL {
+        MID_TO_MKT { // mid->mkt
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                // directionAdjusted [-1 ... 1]
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                log("  buy=" + buy + "; sell=" + sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
+                double midPrice = (buy + sell) / 2;
+                double bidAskDiff = sell - buy;
+                log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff);
+                int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
+                double orderPriceCounterCorrection = bidAskDiff / 5 * orderPlaceAttemptCounter;
+                double adjustedPrice = midPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
+                log("   orderPlaceAttemptCounter=" + orderPlaceAttemptCounter + "; orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
+                RoundingMode roundMode = needOrderSide.getPegRoundMode();
+                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
+        PEG_TO_MKT { // peg->mkt
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 // directionAdjusted [-1 ... 1]
                 double buy = baseExecutor.m_buy;
