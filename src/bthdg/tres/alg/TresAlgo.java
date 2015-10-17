@@ -2,7 +2,6 @@ package bthdg.tres.alg;
 
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
-import bthdg.tres.PhaseData;
 import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.TresIndicator;
@@ -39,46 +38,6 @@ public abstract class TresAlgo {
             return new OscAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
-    }
-
-    public static class OscAlgo extends TresAlgo {
-        final OscIndicator m_oscIndicator;
-
-        public OscAlgo(TresExchData exchData) {
-            super("OSC", exchData);
-            exchData.m_oscAlgo = this;
-
-            m_oscIndicator = new OscIndicator(this);
-            m_indicators.add(m_oscIndicator);
-        }
-
-        @Override public double lastTickPrice() { return m_tresExchData.m_lastPrice; }
-        @Override public long lastTickTime() { return m_tresExchData.m_lastTickMillis; }
-
-        @Override public double getDirectionAdjusted() { // [-1 ... 1]
-            double directionAdjusted = 0;
-            PhaseData[] phaseDatas = m_tresExchData.m_phaseDatas;
-            for (PhaseData phaseData : phaseDatas) {
-                double direction = phaseData.getDirection();
-                directionAdjusted += direction;
-            }
-            return directionAdjusted/phaseDatas.length;
-        }
-
-        @Override public Direction getDirection() { return m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
-
-        private static class OscIndicator extends TresIndicator {
-            private static final double PEAK_TOLERANCE = 0.1;
-
-            public OscIndicator(OscAlgo oscAlgo) {
-                super("osc", PEAK_TOLERANCE, oscAlgo);
-            }
-
-            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-
-            @Override public Color getColor() { return Color.yellow; }
-            @Override public Color getPeakColor() { return Color.yellow; }
-        }
     }
 
 

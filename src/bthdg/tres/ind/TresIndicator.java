@@ -333,7 +333,7 @@ public abstract class TresIndicator {
         long lastTickTime = 0;
         for (TresPhasedIndicator phasedIndicator : m_phasedIndicators) {
             long time = phasedIndicator.lastTickTime();
-            if(lastTickTime < time) {
+            if (lastTickTime < time) {
                 lastTickTime = time;
                 lastTickPrice = phasedIndicator.lastTickPrice();
             }
@@ -348,10 +348,10 @@ public abstract class TresIndicator {
 
     public static abstract class TresPhasedIndicator {
         final TresIndicator m_indicator;
-        final TresExchData m_exchData;
+        protected final TresExchData m_exchData;
         private final int m_phaseIndex;
         public final TrendWatcher<ChartPoint> m_peakCalculator;
-        final LinkedList<ChartPoint> m_points = new LinkedList<ChartPoint>();
+        protected final LinkedList<ChartPoint> m_points = new LinkedList<ChartPoint>();
         final LinkedList<ChartPoint> m_peaks = new LinkedList<ChartPoint>();
         final List<ChartPoint> m_paintPoints = new ArrayList<ChartPoint>();
         final List<ChartPoint> m_paintPeaks = new ArrayList<ChartPoint>();

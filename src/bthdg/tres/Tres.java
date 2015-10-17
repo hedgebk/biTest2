@@ -200,7 +200,7 @@ public class Tres {
 
         double lockOscLevel = Double.parseDouble(getProperty("tre.osc_lock"));
         log("osc_lock=" + lockOscLevel);
-        PhaseData.LOCK_OSC_LEVEL = lockOscLevel;
+        TresOscCalculator.LOCK_OSC_LEVEL = lockOscLevel;
 
         boolean doTrade = Boolean.parseBoolean(getProperty("tre.do_trade"));
         log("doTrade=" + doTrade);

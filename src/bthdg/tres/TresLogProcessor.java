@@ -298,7 +298,7 @@ class TresLogProcessor extends Thread {
         double step = Double.parseDouble(split[2]);
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
-            PhaseData.LOCK_OSC_LEVEL = i;
+            TresOscCalculator.LOCK_OSC_LEVEL = i;
             iterate(allTicks, i, "%.5f", "oscLock", maxMap);
         }
         logMax(maxMap, "oscLock");

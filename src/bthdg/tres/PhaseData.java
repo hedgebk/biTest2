@@ -7,12 +7,9 @@ import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.TresIndicator;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 public class PhaseData {
-    public static double LOCK_OSC_LEVEL = 0.09;
-
     final TresExchData m_exchData;
     final int m_phaseIndex;
     final TresOscCalculator m_oscCalculator;
@@ -106,15 +103,11 @@ public class PhaseData {
     }
 
     protected Boolean calcOscDirection(boolean useLastFineTick, long timestamp) {
-        if(!m_exchData.m_tres.m_calcOsc) {
+        if (!m_exchData.m_tres.m_calcOsc) {
             return null; // not calculating
         }
         if (useLastFineTick) {
-            LinkedList<TresMaCalculator.MaCrossData> maCrossDatas = m_maCalculator.m_maCrossDatas;
-            TresMaCalculator.MaCrossData lastMaCrossData;
-            synchronized (maCrossDatas) {
-                lastMaCrossData = maCrossDatas.peekLast();
-            }
+            TresMaCalculator.MaCrossData lastMaCrossData = m_maCalculator.lastMaCrossData();
             if (lastMaCrossData != null) {
                 long lastMaCrossTime = lastMaCrossData.m_timestamp;
                 long passed = timestamp - lastMaCrossTime;
@@ -127,9 +120,9 @@ public class PhaseData {
         OscTick newestTick = useLastFineTick ? m_oscCalculator.m_blendedLastFineTick : m_oscCalculator.m_lastBar;
         if (newestTick != null) {
             double newestMid = newestTick.getMid();
-            if (newestMid < LOCK_OSC_LEVEL) {
+            if (newestMid < TresOscCalculator.LOCK_OSC_LEVEL) {
                 return false; // oscDown
-            } else if (newestMid > 1 - LOCK_OSC_LEVEL) {
+            } else if (newestMid > 1 - TresOscCalculator.LOCK_OSC_LEVEL) {
                 return true; // oscUp
             }
             double newestVal1 = newestTick.m_val1;

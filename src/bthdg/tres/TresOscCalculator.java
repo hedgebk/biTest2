@@ -11,13 +11,16 @@ public class TresOscCalculator extends OscCalculator {
     public static final double PEAK_TOLERANCE = 0.001;
     public static final int INIT_BARS_BEFORE = 6;
 
-    private TresExchData m_exchData;
+    public static double LOCK_OSC_LEVEL = 0.09;
+
+
+    protected TresExchData m_exchData;
     private final int m_phaseIndex;
     public int m_barNum;
     OscTick m_lastFineTick;
-    OscTick m_blendedLastFineTick;
-    OscTick m_lastBar;
-    OscTick m_prevBar;
+    public OscTick m_blendedLastFineTick;
+    public OscTick m_lastBar;
+    public OscTick m_prevBar;
     LinkedList<OscTick> m_oscBars = new LinkedList<OscTick>();
     final LinkedList<OscTick> m_oscPeaks = new LinkedList<OscTick>();
     TrendWatcher<OscTick> m_peakCalculator = new TrendWatcher<OscTick>(PEAK_TOLERANCE) {
