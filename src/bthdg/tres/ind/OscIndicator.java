@@ -1,14 +1,9 @@
 package bthdg.tres.ind;
 
 import bthdg.calc.OscTick;
-import bthdg.tres.BaseTresMaCalculator;
-import bthdg.tres.TresExchData;
-import bthdg.tres.TresMaCalculator;
-import bthdg.tres.TresOscCalculator;
-import bthdg.tres.alg.OscAlgo;
+import bthdg.tres.*;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.util.Colors;
-import bthdg.util.Utils;
 
 import java.awt.*;
 
@@ -28,11 +23,11 @@ public class OscIndicator extends TresIndicator {
     @Override public Color getColor() { return OSC_AVG_COLOR; }
     @Override public Color getPeakColor() { return OSC_AVG_COLOR; }
 
-    @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-        double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
-        minMaxCalculator.m_minValue = -max;
-        minMaxCalculator.m_maxValue = max;
-    }
+//    @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
+//        double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
+//        minMaxCalculator.m_minValue = -max;
+//        minMaxCalculator.m_maxValue = max;
+//    }
 
     private class OscPhasedIndicator extends TresPhasedIndicator {
         private final TresOscCalculator m_oscCalculator;
@@ -51,7 +46,7 @@ public class OscIndicator extends TresIndicator {
                     super.bar(barStart, stoch1, stoch2);
 
                     long barEnd = barStart + m_exchData.m_tres.m_barSizeMillis;
-                    OscAlgo.OscChartPoint tick = new OscAlgo.OscChartPoint(barEnd, stoch1, stoch2);
+                    OscChartPoint tick = new OscChartPoint(barEnd, stoch1, stoch2);
                     if (m_exchData.m_tres.m_collectPoints) {
                         m_points.add(tick); // add to the end
                     }
@@ -145,4 +140,14 @@ public class OscIndicator extends TresIndicator {
             return null; // meant undefined direction
         }
     }
+
+    public static class OscChartPoint extends ChartPoint {
+        private final double m_stoch2;
+
+        public OscChartPoint(long millis, double stoch1, double stoch2) {
+            super(millis, stoch1);
+            m_stoch2 = stoch2;
+        }
+    }
+
 }
