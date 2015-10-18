@@ -50,11 +50,19 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         double minTime = xTimeAxe.m_min;
         double maxTime = xTimeAxe.m_max;
         m_paintPoints.clear();
+        AlgoWatcherPoint rightPlusPoint = null; // paint one extra point at right side
         synchronized (m_points) {
             for (Iterator<AlgoWatcherPoint> it = m_points.descendingIterator(); it.hasNext(); ) {
                 AlgoWatcherPoint point = it.next();
                 long timestamp = point.m_millis;
-                if (timestamp > maxTime) { continue; }
+                if (timestamp > maxTime) {
+                    rightPlusPoint = point;
+                    continue;
+                }
+                if (rightPlusPoint != null) {
+                    m_paintPoints.add(rightPlusPoint);
+                    rightPlusPoint = null;
+                }
                 m_paintPoints.add(point);
                 if (timestamp < minTime) { break; }
             }

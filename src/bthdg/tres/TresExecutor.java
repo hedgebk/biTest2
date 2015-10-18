@@ -5,6 +5,7 @@ import bthdg.IIterationContext;
 import bthdg.exch.*;
 import bthdg.osc.BaseExecutor;
 import bthdg.osc.TaskQueueProcessor;
+import bthdg.util.Utils;
 import bthdg.ws.IWs;
 
 import java.util.ArrayList;
@@ -134,7 +135,7 @@ public class TresExecutor extends BaseExecutor {
             if (needOrderSide == haveOrderSide) {
                 double remained = m_order.remained();
                 double orderSizeDiff = orderSize - remained;
-                log("       remained=" + remained + "; orderSizeDiff=" + orderSizeDiff);
+                log("       remained=" + remained + "; orderSizeDiff=" + Utils.format8(orderSizeDiff));
                 if (orderSizeDiff > 0) {
                     double adjusted = adjustSizeToAvailable(orderSizeDiff);
                     if (orderSizeDiff != adjusted) {

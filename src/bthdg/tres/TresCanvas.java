@@ -42,6 +42,7 @@ public class TresCanvas extends JComponent {
     public static final Color CCI_AVG_COLOR = new Color(230, 100, 43);
     public static final double[] STEPS = new double[]{0.1, 0.2, 0.5};
 
+    protected static boolean m_paintOrders = true;
     protected static boolean m_paintSym = false;
     protected static boolean m_paintOsc = false;
     protected static boolean m_paintCoppock = false;
@@ -60,7 +61,7 @@ public class TresCanvas extends JComponent {
     private List<ChartPoint> m_paintAvgOscs = new ArrayList<ChartPoint>();
     private List<ChartPoint> m_paintAvgCcis = new ArrayList<ChartPoint>();
     private List<BaseExecutor.TopDataPoint> m_paintTops = new ArrayList<BaseExecutor.TopDataPoint>();
-    private List<TresExchData.OrderPoint> m_paintOrders = new ArrayList<TresExchData.OrderPoint>();
+    private List<TresExchData.OrderPoint> m_ordersToPaint = new ArrayList<TresExchData.OrderPoint>();
     private List<OHLCTick> m_paintOhlcTicks = new ArrayList<OHLCTick>();
     private List<OscTick> m_paintOscPeaks = new ArrayList<OscTick>();
     private final List<ChartPoint> m_paintAvgOscPeaks = new ArrayList<ChartPoint>();
@@ -862,21 +863,23 @@ public class TresCanvas extends JComponent {
     }
 
     private List<TresExchData.OrderPoint> getOrderClone(TresExchData exchData) {
-        LinkedList<TresExchData.OrderPoint> orders = exchData.m_orders;
-        double min = m_xTimeAxe.m_min;
-        double max = m_xTimeAxe.m_max;
-        m_paintOrders.clear();
-        synchronized (orders) { // avoid ConcurrentModificationException - use local copy
-            for (Iterator<TresExchData.OrderPoint> iterator = orders.descendingIterator(); iterator.hasNext(); ) {
-                TresExchData.OrderPoint orderPoint = iterator.next();
-                OrderData order = orderPoint.m_order;
-                long placeTime = order.m_placeTime;
-                if (placeTime > max) { continue; }
-                if (placeTime < min) { break; }
-                m_paintOrders.add(orderPoint);
+        m_ordersToPaint.clear();
+        if (m_paintOrders) {
+            LinkedList<TresExchData.OrderPoint> orders = exchData.m_orders;
+            double min = m_xTimeAxe.m_min;
+            double max = m_xTimeAxe.m_max;
+            synchronized (orders) { // avoid ConcurrentModificationException - use local copy
+                for (Iterator<TresExchData.OrderPoint> iterator = orders.descendingIterator(); iterator.hasNext(); ) {
+                    TresExchData.OrderPoint orderPoint = iterator.next();
+                    OrderData order = orderPoint.m_order;
+                    long placeTime = order.m_placeTime;
+                    if (placeTime > max) { continue; }
+                    if (placeTime < min) { break; }
+                    m_ordersToPaint.add(orderPoint);
+                }
             }
         }
-        return m_paintOrders;
+        return m_ordersToPaint;
     }
 
     private List<OHLCTick> cloneOhlcTicks(LinkedList<OHLCTick> ohlcTicks) {

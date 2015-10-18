@@ -22,9 +22,9 @@ public abstract class BaseExecutor implements Runnable {
     public static final int STATE_ORDER = 2;
     public static final int STATE_ERROR = 3;
     public static final int MAX_TICK_AGE_FOR_ORDER = 1500;
-    private static final double TOO_FAR_TICK_DISTANCE = 1.1;
+    private static final double TOO_FAR_TICK_DISTANCE = 1.2;
 
-    protected static int FLAG_CANCELED = 1 << 0;
+    protected static int FLAG_CANCELED  = 1 << 0;
     protected static int FLAG_NEED_CHECK_LIVE_ORDERS = 1 << 1;
     protected static int FLAG_NEED_RECHECK_DIRECTION = 1 << 2;
 
@@ -416,14 +416,14 @@ public abstract class BaseExecutor implements Runnable {
             double needSellCnh = m_topsData.convert(Currency.BTC, Currency.CNH, needBuyBtc, m_exchange);
             double canSellCnh = Math.min(needSellCnh, haveCnh * useFundsFromAvailable());
             double canBuyBtc = m_topsData.convert(Currency.CNH, Currency.BTC, canSellCnh, m_exchange);
-            log("   need to sell " + needSellCnh + " CNH; can Sell " + canSellCnh + " CNH; this will buy " + canBuyBtc + " BTC");
+            log("   need to sell " + Utils.format8(needSellCnh) + " CNH; can Sell " + Utils.format8(canSellCnh) + " CNH; this will buy " + Utils.format8(canBuyBtc) + " BTC");
             buyBtc = canBuyBtc;
         } else if (needBuyBtc < 0) {
             log("  will sell Btc:");
             double needSellBtc = -needBuyBtc;
             double canSellBtc = Math.min(needSellBtc, haveBtc * useFundsFromAvailable());
             double canBuyCnh = m_topsData.convert(Currency.BTC, Currency.CNH, canSellBtc, m_exchange);
-            log("   need to sell " + needSellBtc + " BTC; can Sell " + canSellBtc + " BTC; this will buy " + canBuyCnh + " CNH");
+            log("   need to sell " + Utils.format8(needSellBtc) + " BTC; can Sell " + Utils.format8(canSellBtc) + " BTC; this will buy " + Utils.format8(canBuyCnh) + " CNH");
             buyBtc = -canSellBtc;
         } else {
             log("  do not buy/sell anything");
@@ -912,21 +912,24 @@ public abstract class BaseExecutor implements Runnable {
                 double avgDiff = avgSell - avgBuy;
                 double diffRate = diff / avgDiff;
                 double rate = Math.min(1, diffRate);
-                log("  buy=" + buy + "; sell=" + sell + "; diff=" + diff + "; midPrice=" + midPrice +
-                        "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
-                        "; diffRate=" + diffRate + "; rate=" + rate +
+
+                Pair pair = baseExecutor.m_pair;
+                log("  buy=" + exchange.roundPriceStr(buy, pair) + "; sell=" + exchange.roundPriceStr(sell, pair) +
+                        "; diff=" + exchange.roundPriceStr(diff, pair) + "; midPrice=" + Utils.format5(midPrice) +
+                        "; avgBuy=" + Utils.format5(avgBuy) + "; avgSell=" + Utils.format5(avgSell) + "; avgDiff=" + Utils.format5(avgDiff) +
+                        "; diffRate=" + Utils.format5(diffRate) + "; rate=" + Utils.format5(rate) +
                         "; needOrderSide=" + needOrderSide);
                 boolean isBuy = needOrderSide.isBuy();
                 int sideDirection = isBuy ? 1 : -1;
                 double offset = rate * avgDiff / 2;
                 int orderPlaceAttempt = baseExecutor.m_orderPlaceAttemptCounter;
-                double pip = exchange.minAmountStep(baseExecutor.m_pair);
+                double pip = exchange.minAmountStep(pair);
                 double adjustedPrice = midPrice + offset * sideDirection + DEEP_MKT_PIP_RATIO * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
                 log("    sideDirection=" + sideDirection + " offset=" + offset +
                         "; orderPlaceAttempt=" + orderPlaceAttempt + "; pip=" + pip +
                         "; adjustedPrice=" + adjustedPrice );
                 RoundingMode roundMode = needOrderSide.getMktRoundMode();
-                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
+                double orderPrice = exchange.roundPrice(adjustedPrice, pair, roundMode);
                 log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
                 return orderPrice;
             }

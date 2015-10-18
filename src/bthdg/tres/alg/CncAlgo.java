@@ -97,6 +97,10 @@ public class CncAlgo extends TresAlgo {
     }
     @Override public Direction getDirection() { return m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
+    @Override public String getRunAlgoParams() {
+        return "Cnc.And.tolerance=" + m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
+    }
+
     public static class AndIndicator extends TresIndicator {
         public static double PEAK_TOLERANCE = 0.06470;
 
@@ -113,9 +117,5 @@ public class CncAlgo extends TresAlgo {
             minMaxCalculator.m_minValue = -max;
             minMaxCalculator.m_maxValue = max;
         }
-    }
-
-    @Override public String getRunAlgoParams() {
-        return "And.tolerance=" + m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
     }
 }

@@ -8,7 +8,6 @@ import bthdg.exch.TradeData;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.osc.TrendWatcher;
-import bthdg.tres.alg.OscAlgo;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.util.Queue;
@@ -47,7 +46,7 @@ public class TresExchData {
     long m_tickCount;
     final List<TresAlgoWatcher> m_playAlgos = new ArrayList<TresAlgoWatcher>();
     TresAlgo m_runAlgo;
-    public OscAlgo m_oscAlgo;
+//    public OscAlgo m_oscAlgo;
 
     public void setUpdated() { m_updated = true; }
     public void setFeeding() { m_executor.m_feeding = true; }
@@ -99,9 +98,9 @@ public class TresExchData {
                             m_avgOscsPeakCalculator.update(chartPoint);
                         }
                     }
-                    if(m_oscAlgo != null) {
-                        m_oscAlgo.notifyValueChange();
-                    }
+//                    if(m_oscAlgo != null) {
+//                        m_oscAlgo.notifyValueChange();
+//                    }
                 }
 
                 @Override protected void onCoppockBar() {

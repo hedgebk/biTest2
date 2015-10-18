@@ -28,4 +28,12 @@ public enum Direction {
     public static Direction get(double diff) {
         return (diff > 0) ? FORWARD : BACKWARD;
     }
+
+    public static boolean isForward(Direction oscDirection) {
+        return (oscDirection != null) && oscDirection.isForward();
+    }
+
+    public static boolean isBackward(Direction oscDirection) {
+        return (oscDirection != null) && oscDirection.isBackward();
+    }
 }

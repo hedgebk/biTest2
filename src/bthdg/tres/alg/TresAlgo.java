@@ -34,6 +34,8 @@ public abstract class TresAlgo {
             return new CciAlgo(tresExchData);
         } else if (algoName.equals("c+c")) {
             return new CncAlgo(tresExchData);
+        } else if (algoName.equals("c+o")) {
+            return new CnoAlgo(tresExchData);
         } else if (algoName.equals("osc")) {
             return new OscAlgo(tresExchData);
         }

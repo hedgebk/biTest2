@@ -20,8 +20,8 @@ public class OkCoin extends BaseExch {
     private static String PARTNER;
     public static boolean LOG_PARSE = false;
     public static boolean JOIN_SMALL_QUOTES = false;
-    public static final int CONNECT_TIMEOUT = 15000;
-    public static final int READ_TIMEOUT = 25000;
+    public static final int CONNECT_TIMEOUT = 10000;
+    public static final int READ_TIMEOUT = 20000;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
@@ -386,7 +386,7 @@ public class OkCoin extends BaseExch {
 
     public static CancelOrderData parseCancelOrders(Object obj) {
 // {"result":true, "order_id":123456}
-// {"result":false,"errorCode":10000
+// {"result":false,"errorCode":10000}
         JSONObject jObj = (JSONObject) obj;
         if (LOG_PARSE) {
             log("OkCoin.parseCancelOrders() " + jObj);
@@ -415,35 +415,7 @@ public class OkCoin extends BaseExch {
         return "errorCode: " + errorCode + ": " + error;
     }
 
-    /*String url = " https://www.okcoin.com/api/trade.do";
-    		Map<String, String> map = new HashMap<String, String>();
-    		map.put("partner", "3283163");
-    		map.put("symbol", "btc_cny");
-    		map.put("type", "buy");
-    		map.put("rate", "1411.99");
-    		map.put("amount", "0.01");
-    		//amount=1.0&partner=2088101568338364&rate=680&symbol=btc_cny&type=buy
-    		String signString = "amount=0.01&partner=3283163&rate=1411.99&symbol=btc_cny&type=buy80CE60C9CF0CCAEDAE86A56CC7A31AB4";
-    		map.put("sign", md5(signString).toUpperCase());//签�??需�?大写
-    		String reslut = HttpUtil.http(url, map);
-    		System.out.println(reslut);
-
-    		{"result":true,"order_id":123456}
-    		?"result":false,"errorCode":10000?
-
-https://www.okcoin.com/api/cancelorder.do
-
-Map<String, String> map = new HashMap<String, String>();
-		map.put("order_id", orderId);
-		map.put("partner", "3283163");
-		map.put("symbol",  "btc_cny");
-		//amount=1.0&partner=2088101568338364&rate=680&symbol=btc_cny&type=buy
-		String signString = "order_id="+orderId+"&partner=3283163&symbol=btc_cny80CE60C9CF0CCAEDAE86A56CC7A31AB4";
-
-?{"result":true,"order_id":123456}
-?{"result":false,"errorCode":10000?
-
-
+    /*
 https://www.okcoin.com/api/getorder.do
 partner     true    long    partner
 order_id    true    long    Order Number (-1 query all pending, otherwise the corresponding single number of inquiries pending)
@@ -476,11 +448,5 @@ sign        true    string  In the parameters of the request to make a signature
 deal_amount - Has been traded quantity
 avg_rate - The average transaction price
     		*/
-
-// error codes:
-//add(10001 - Too frequent user requests
-//	          # too much api request, 2s interval
-//            # TODO need to check whether the order was placed or not
-//            print ("# too frequent api request, pls retry after 2s interval")
 
 }
