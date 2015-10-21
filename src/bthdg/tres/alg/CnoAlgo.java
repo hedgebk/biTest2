@@ -11,6 +11,9 @@ import bthdg.util.Utils;
 import java.awt.*;
 
 public class CnoAlgo extends TresAlgo {
+    public static double AND_PEAK_TOLERANCE = 0.3;
+    private static final double OSC_TOLERANCE = 0.35;
+
     final CciIndicator m_cciIndicator;
     final OscIndicator m_oscIndicator;
     final AndIndicator m_andIndicator;
@@ -25,7 +28,7 @@ public class CnoAlgo extends TresAlgo {
         };
         m_indicators.add(m_cciIndicator);
 
-        m_oscIndicator = new OscIndicator(this) {
+        m_oscIndicator = new OscIndicator(this, OSC_TOLERANCE) {
             @Override protected void onBar() {
                 super.onBar();
                 recalcAnd();
@@ -86,10 +89,8 @@ public class CnoAlgo extends TresAlgo {
 
 
     public static class AndIndicator extends TresIndicator {
-        public static double PEAK_TOLERANCE = 0.2;
-
         public AndIndicator(TresAlgo algo) {
-            super("+", PEAK_TOLERANCE, algo);
+            super("+", AND_PEAK_TOLERANCE, algo);
             m_doPaint = true;
         }
 

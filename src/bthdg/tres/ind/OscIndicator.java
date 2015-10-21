@@ -14,7 +14,11 @@ public class OscIndicator extends TresIndicator {
     public static final Color OSC_COLOR = Colors.setAlpha(Color.yellow, 35);
 
     public OscIndicator(TresAlgo oscAlgo) {
-        super("osc", PEAK_TOLERANCE, oscAlgo);
+        this(oscAlgo, PEAK_TOLERANCE);
+    }
+
+    public OscIndicator(TresAlgo oscAlgo, double tolerance) {
+        super("osc", tolerance, oscAlgo);
     }
 
     @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) {
