@@ -20,16 +20,16 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
     private final SmoochedIndicator m_smoochedIndicator;
     private final VelocityIndicator m_velocityIndicator;
-    private final CursorPainter m_painter;
+    private final CursorPainter m_cursorPainter;
 
     public CoppockVelocityAlgo(TresExchData tresExchData) {
         super(tresExchData);
-        m_painter = new CursorPainter(m_coppockIndicator);
+        m_cursorPainter = new CursorPainter(m_coppockIndicator);
 
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
         m_smoochedIndicator = new SmoochedIndicator(this, RATIO * barSizeMillis) {
-            private CursorPainter m_painter = new CursorPainter(this);
+            private CursorPainter m_cursorPainter = new CursorPainter(this);
 
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
@@ -42,7 +42,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
                 super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
                 g.setColor(Color.RED);
-                m_painter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
+                m_cursorPainter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
             }
         };
         m_indicators.add(m_smoochedIndicator);
@@ -54,7 +54,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     @Override public void paintAlgo(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
         super.paintAlgo(g, xTimeAxe, yPriceAxe, cursorPoint);
         g.setColor(Color.BLUE);
-        m_painter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
+        m_cursorPainter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
     }
 
     @Override protected void onCoppockBar() {
@@ -67,6 +67,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     public static class CursorPainter {
         private final TresIndicator m_indicator;
         private final long m_barSizeMillis;
+        private final Interpolator m_interpolator = new Interpolator();
 
         public CursorPainter(TresIndicator indicator) {
             m_indicator = indicator;
@@ -76,37 +77,72 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
             if (m_indicator.m_doPaint && (m_indicator.m_yAxe != null)) {
                 if (cursorPoint != null) {
-                    int x = (int) cursorPoint.getX();
-                    long timeRight = (long) xTimeAxe.getValueFromPoint(x);
+                    int cursorPointX = (int) cursorPoint.getX();
 
-                    long timeMid = timeRight - m_barSizeMillis;
-                    long timeLeft = timeMid - m_barSizeMillis;
+                    int xMin = xTimeAxe.m_offset;
+                    int xMax = xMin + xTimeAxe.m_size;
+                    if((cursorPointX > xMin) && (cursorPointX < xMax)) {
+                        long timeRight = (long) xTimeAxe.getValueFromPoint(cursorPointX);
+                        long timeMid = timeRight - m_barSizeMillis;
+                        long timeLeft = timeMid - m_barSizeMillis;
 
-                    int xRight = xTimeAxe.getPoint(timeRight);
-                    int xMid = xTimeAxe.getPoint(timeMid);
-                    int xLeft = xTimeAxe.getPoint(timeLeft);
+                        int xRight = xTimeAxe.getPoint(timeRight);
+                        int xMid = xTimeAxe.getPoint(timeMid);
+                        int xLeft = xTimeAxe.getPoint(timeLeft);
 
-                    double yMin = yPriceAxe.m_offset;
-                    double yMax = yMin + yPriceAxe.m_size;
-                    double yMid = (yMax - yMin) / 2;
+                        double yMin = yPriceAxe.m_offset;
+                        double yMax = yMin + yPriceAxe.m_size;
+                        double yMid = (yMax - yMin) / 2;
 
-                    int yTop = (int) (yMid - 100);
-                    int yBottom = (int) (yMid + 100);
+                        int yTop = (int) (yMid - 100);
+                        int yBottom = (int) (yMid + 100);
 
-                    g.drawLine(xRight, yTop, xRight, yBottom);
-                    g.drawLine(xMid, yTop, xMid, yBottom);
-                    g.drawLine(xLeft, yTop, xLeft, yBottom);
+                        g.drawLine(xRight, yTop, xRight, yBottom);
+                        g.drawLine(xMid, yTop, xMid, yBottom);
+                        g.drawLine(xLeft, yTop, xLeft, yBottom);
 
-                    ChartPoint right = findClosest(timeRight);
-                    ChartPoint mid = findClosest(timeMid);
-                    ChartPoint left = findClosest(timeLeft);
+                        ChartPoint right = findClosest(timeRight);
+                        ChartPoint mid = findClosest(timeMid);
+                        ChartPoint left = findClosest(timeLeft);
 
-                    drawX(g, xTimeAxe, right);
-                    drawX(g, xTimeAxe, mid);
-                    drawX(g, xTimeAxe, left);
+                        drawX(g, xTimeAxe, right);
+                        drawX(g, xTimeAxe, mid);
+                        drawX(g, xTimeAxe, left);
+
+                        long minMillis = left.m_millis;
+                        long midMillis = mid.m_millis;
+                        long maxMillis = right.m_millis;
+                        if( (minMillis < midMillis) && (midMillis<maxMillis)) { // should linearly increase
+                            PolynomialSplineFunction polynomialFunc = null;
+                            try {
+                                polynomialFunc = m_interpolator.interpolate(minMillis, left.m_value, midMillis, mid.m_value, maxMillis, right.m_value);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+
+//                    PolynomialFunction[] polynomials = polynomialFunc.getPolynomials();
+//                    PolynomialFunction polynomial = polynomials[1];
+//                    UnivariateFunction derivative = polynomial.derivative();
+
+                            int lastX = Integer.MAX_VALUE;
+                            int lastY = Integer.MAX_VALUE;
+                            for (int x = xLeft; x <= xRight; x++) {
+                                long time = (long) xTimeAxe.getValueFromPoint(x);
+                                if ((time >= minMillis) && (time <= maxMillis)) {
+                                    double value = polynomialFunc.value(time);
+                                    int xx = xTimeAxe.getPoint(time);
+                                    int yy = m_indicator.m_yAxe.getPointReverse(value);
+                                    if (lastX != Integer.MAX_VALUE) {
+                                        g.drawLine(lastX, lastY, xx, yy);
+                                    }
+                                    lastX = xx;
+                                    lastY = yy;
+                                }
+                            }
+                        }
+                    }
                 }
             }
-
         }
 
         protected void drawX(Graphics g, ChartAxe xTimeAxe, ChartPoint cp) {
@@ -194,9 +230,8 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     private static class VelocityTracker {
         private final Utils.SlidingValuesFrame m_small;
         private final Utils.SlidingValuesFrame m_big;
-        private final double m_x[] = new double[3];
-        private final double m_y[] = new double[3];
-        private final SplineInterpolator m_spline = new SplineInterpolator();
+
+        private final Interpolator m_interpolator = new Interpolator();
 
         public VelocityTracker(long frameSizeMillis) {
             m_small = new Utils.SlidingValuesFrame(frameSizeMillis);
@@ -208,28 +243,19 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                 Map.Entry<Long, Double> oldest = m_big.m_map.firstEntry();
                 Long x1 = oldest.getKey();
                 Double y1 = oldest.getValue();
-                m_x[0] = x1;
-                m_y[0] = y1;
-//                System.out.println(" x1=" + x1 + " y1=" + y1);
 
                 Map.Entry<Long, Double> mid = m_small.m_map.firstEntry();
                 Long x2 = mid.getKey();
                 Double y2 = mid.getValue();
-                m_x[1] = x2;
-                m_y[1] = y2;
-//                System.out.println(" x2=" + x2 + " y2=" + y2);
 
                 Map.Entry<Long, Double> newest = m_small.m_map.lastEntry();
                 Long x3 = newest.getKey();
                 Double y3 = newest.getValue();
-                m_x[2] = x3;
-                m_y[2] = y3;
-//                System.out.println(" x3=" + x3 + " y3=" + y3);
 
-                PolynomialSplineFunction f = m_spline.interpolate(m_x, m_y);
-
-                PolynomialFunction[] polynomials = f.getPolynomials();
+                PolynomialSplineFunction polynomialFunc = m_interpolator.interpolate(x1, y1, x2, y2, x3, y3);
+                PolynomialFunction[] polynomials = polynomialFunc.getPolynomials();
                 PolynomialFunction polynomial = polynomials[1];
+
 //                System.out.println(" polynomial=" + polynomial);
                 UnivariateFunction derivative = polynomial.derivative();
 //                System.out.println("  derivative=" + derivative);
@@ -265,6 +291,28 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         public void add(long millis, double value) {
             m_small.justAdd(millis, value);
             m_big.justAdd(millis, value);
+        }
+    }
+
+
+    private static class Interpolator {
+        private final SplineInterpolator m_spline = new SplineInterpolator();
+        private final double m_x[] = new double[3];
+        private final double m_y[] = new double[3];
+
+        public PolynomialSplineFunction interpolate(Long x1, Double y1, Long x2, Double y2, Long x3, Double y3) {
+            m_x[0] = x1;
+            m_y[0] = y1;
+//                System.out.println(" x1=" + x1 + " y1=" + y1);
+            m_x[1] = x2;
+            m_y[1] = y2;
+//                System.out.println(" x2=" + x2 + " y2=" + y2);
+            m_x[2] = x3;
+            m_y[2] = y3;
+//                System.out.println(" x3=" + x3 + " y3=" + y3);
+
+            PolynomialSplineFunction f = m_spline.interpolate(m_x, m_y);
+            return f;
         }
     }
 }
