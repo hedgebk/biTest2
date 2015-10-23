@@ -6,6 +6,10 @@ import bthdg.tres.TresExchData;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.TresIndicator;
 import bthdg.util.Utils;
+import org.apache.commons.math3.analysis.UnivariateFunction;
+import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
+import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
+import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 
 import java.awt.*;
 import java.util.Map;
@@ -43,34 +47,14 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     }
 
 
-    private static class VelocityTracker extends Utils.SlidingValuesFrame {
-        public VelocityTracker(long frameSizeMillis) {
-            super(frameSizeMillis);
-        }
-
-        public double getValue() {
-            if (m_map.size() > 1) {
-                Map.Entry<Long, Double> oldest = m_map.firstEntry();
-                Map.Entry<Long, Double> last = m_map.lastEntry();
-                double diff = last.getValue() - oldest.getValue();
-                if (!m_full) {
-                    long timeDiff = last.getKey() - oldest.getKey();
-                    double fullRatio = ((double) timeDiff) / m_frameSizeMillis;
-                    diff *= fullRatio;
-                }
-                return diff;
-            }
-            return 0; // parked
-        }
-    }
-
-
     public static class VelocityIndicator extends TresIndicator {
+        private final long m_frameSizeMillis;
         private final VelocityTracker m_velocityTracker;
 
         public VelocityIndicator(TresAlgo algo, long frameSizeMillis) {
             super("v", 0.1, algo);
             m_velocityTracker = new VelocityTracker(frameSizeMillis);
+            m_frameSizeMillis = frameSizeMillis;
         }
 
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
@@ -80,10 +64,38 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         @Override public void addBar(ChartPoint chartPoint) {
             long millis = chartPoint.m_millis;
             double value = chartPoint.m_value;
-            m_velocityTracker.justAdd(millis, value);
+            m_velocityTracker.add(millis, value);
             double velocity = m_velocityTracker.getValue();
             ChartPoint smoochPoint = new ChartPoint(millis, velocity);
             super.addBar(smoochPoint);
+        }
+
+        @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
+            super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
+            if (m_doPaint && (m_yAxe != null)) {
+                if (cursorPoint != null) {
+                    int x = (int) cursorPoint.getX();
+                    long timeRight = (long) xTimeAxe.getValueFromPoint(x);
+                    long timeMid = timeRight - m_frameSizeMillis;
+                    long timeLeft = timeMid - m_frameSizeMillis;
+
+                    int xRight = xTimeAxe.getPoint(timeRight);
+                    int xMid = xTimeAxe.getPoint(timeMid);
+                    int xLeft = xTimeAxe.getPoint(timeLeft);
+
+                    double yMin = yPriceAxe.m_offset;
+                    double yMax = yMin + yPriceAxe.m_size;
+                    double yMid = (yMax - yMin) / 2;
+
+                    int yTop = (int) (yMid - 100);
+                    int yBottom = (int) (yMid + 100);
+
+                    g.setColor(Color.RED);
+                    g.drawLine(xRight, yTop, xRight, yBottom);
+                    g.drawLine(xMid, yTop, xMid, yBottom);
+                    g.drawLine(xLeft, yTop, xLeft, yBottom);
+                }
+            }
         }
 
         @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
@@ -118,6 +130,83 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
             minMaxCalculator.m_minValue = -max;
             minMaxCalculator.m_maxValue = max;
+        }
+    }
+
+    private static class VelocityTracker {
+        private final Utils.SlidingValuesFrame m_small;
+        private final Utils.SlidingValuesFrame m_big;
+        private final double m_x[] = new double[3];
+        private final double m_y[] = new double[3];
+        private final SplineInterpolator m_spline = new SplineInterpolator();
+
+        public VelocityTracker(long frameSizeMillis) {
+            m_small = new Utils.SlidingValuesFrame(frameSizeMillis);
+            m_big = new Utils.SlidingValuesFrame(frameSizeMillis * 2);
+        }
+
+        public double getValue() {
+            if (m_big.m_full) {
+                Map.Entry<Long, Double> oldest = m_big.m_map.firstEntry();
+                Long x1 = oldest.getKey();
+                Double y1 = oldest.getValue();
+                m_x[0] = x1;
+                m_y[0] = y1;
+//                System.out.println(" x1=" + x1 + " y1=" + y1);
+
+                Map.Entry<Long, Double> mid = m_small.m_map.firstEntry();
+                Long x2 = mid.getKey();
+                Double y2 = mid.getValue();
+                m_x[1] = x2;
+                m_y[1] = y2;
+//                System.out.println(" x2=" + x2 + " y2=" + y2);
+
+                Map.Entry<Long, Double> newest = m_small.m_map.lastEntry();
+                Long x3 = newest.getKey();
+                Double y3 = newest.getValue();
+                m_x[2] = x3;
+                m_y[2] = y3;
+//                System.out.println(" x3=" + x3 + " y3=" + y3);
+
+                PolynomialSplineFunction f = m_spline.interpolate(m_x, m_y);
+
+                PolynomialFunction[] polynomials = f.getPolynomials();
+                PolynomialFunction polynomial = polynomials[1];
+//                System.out.println(" polynomial=" + polynomial);
+                UnivariateFunction derivative = polynomial.derivative();
+//                System.out.println("  derivative=" + derivative);
+
+//                double polynomialValue = polynomial.value(x3);
+//                System.out.println("   polynomialValue=" + polynomialValue);
+//                double polynomialValue2 = polynomial.value(x3-x2);
+//                System.out.println("    polynomialValue2=" + polynomialValue2);
+
+//                double derivativeValue = derivative.value(x3);
+//                System.out.println("   derivativeValue=" + derivativeValue);
+                double derivativeValue2 = derivative.value(x3 - x2);
+//                System.out.println("    derivativeValue2=" + derivativeValue2);
+//                System.out.println("    done");
+
+                return derivativeValue2;
+            }
+
+//            if (m_small.m_map.size() > 1) {
+//                Map.Entry<Long, Double> oldest = m_small.m_map.firstEntry();
+//                Map.Entry<Long, Double> last = m_small.m_map.lastEntry();
+//                double diff = last.getValue() - oldest.getValue();
+//                if (!m_small.m_full) {
+//                    long timeDiff = last.getKey() - oldest.getKey();
+//                    double fullRatio = ((double) timeDiff) / m_small.m_frameSizeMillis;
+//                    diff *= fullRatio;
+//                }
+//                return diff;
+//            }
+            return 0; // parked
+        }
+
+        public void add(long millis, double value) {
+            m_small.justAdd(millis, value);
+            m_big.justAdd(millis, value);
         }
     }
 }

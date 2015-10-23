@@ -29,7 +29,7 @@ public abstract class TresIndicator {
     final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
     protected boolean m_doPaint = false;
     private boolean m_doPaintPhased = false;
-    private ChartAxe m_yAxe;
+    protected ChartAxe m_yAxe;
     private ChartPoint m_lastPoint;
     private long m_lastTickTime;
     private double m_lastTickPrice;
@@ -195,7 +195,7 @@ public abstract class TresIndicator {
         return maxWidth + AXE_MARKER_WIDTH + 2;
     }
 
-    public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+    public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
         if (m_doPaint && (m_yAxe != null)) {
             preDraw(g, xTimeAxe, m_yAxe);
             if (m_doPaintPhased) {

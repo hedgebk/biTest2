@@ -54,9 +54,9 @@ public abstract class TresAlgo {
         return width;
     }
 
-    public void paintAlgo(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+    public void paintAlgo(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
         for (TresIndicator indicator : m_indicators) {
-            indicator.paint(g, xTimeAxe, yPriceAxe);
+            indicator.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
         }
     }
 

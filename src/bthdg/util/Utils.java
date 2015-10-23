@@ -593,7 +593,7 @@ public class Utils {
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class SlidingValuesFrame {
         public final TreeMap<Long,Double> m_map; // sorted by time
-        protected final long m_frameSizeMillis;
+        public final long m_frameSizeMillis;
         public boolean m_full;
 
         public SlidingValuesFrame(long frameSizeMillis) {

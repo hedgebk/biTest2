@@ -37,8 +37,8 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         return m_algo.paintYAxe(g, xTimeAxe, yRight, yPriceAxe);
     }
 
-    public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
-        m_algo.paintAlgo(g, xTimeAxe, yPriceAxe);
+    public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
+        m_algo.paintAlgo(g, xTimeAxe, yPriceAxe, cursorPoint);
 
         if (m_doPaint) {
             clonePoints(xTimeAxe);
