@@ -9,10 +9,16 @@ public class CoppockAlgo extends TresAlgo {
 
     public CoppockAlgo(TresExchData tresExchData) {
         super("COPPOCK", tresExchData);
-        m_coppockIndicator = new CoppockIndicator(this);
+        m_coppockIndicator = new CoppockIndicator(this) {
+            @Override protected void onBar() {
+                super.onBar();
+                onCoppockBar();
+            }
+        };
         m_indicators.add(m_coppockIndicator);
     }
 
+    protected void onCoppockBar() {}
     @Override public double lastTickPrice() { return m_coppockIndicator.lastTickPrice(); }
     @Override public long lastTickTime() { return m_coppockIndicator.lastTickTime(); }
     @Override public double getDirectionAdjusted() { return m_coppockIndicator.getDirectionAdjusted(); } // [-1 ... 1]

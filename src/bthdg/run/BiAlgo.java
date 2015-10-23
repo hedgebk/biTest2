@@ -470,7 +470,7 @@ class BiAlgo implements Runner.IAlgo {
             double bidAskDiff1 = td1.getBidAskDiff();
             double bidAskDiff2 = td2.getBidAskDiff();
             double bidAskDiff = bidAskDiff1 + bidAskDiff2;
-            double avgDiff = m_diffAverageCounter.add(diff);
+            double avgDiff = m_diffAverageCounter.addAtCurrentTime(diff);
             double diffDiff = diff - avgDiff;
             log(name() + " diff=" + e1.roundPriceStr(diff, PAIR) + // TODO: introduce roundPriceStrPlus - to add some precision
                     ", avgDiff=" + e1.roundPriceStr(avgDiff, PAIR) +

@@ -593,15 +593,15 @@ public class Utils {
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class SlidingValuesFrame {
         public final TreeMap<Long,Double> m_map; // sorted by time
-        protected final long m_limit;
+        protected final long m_frameSizeMillis;
         public boolean m_full;
 
-        public SlidingValuesFrame(long limit) {
-            this(limit, new TreeMap<Long, Double>());
+        public SlidingValuesFrame(long frameSizeMillis) {
+            this(frameSizeMillis, new TreeMap<Long, Double>());
         }
 
-        public SlidingValuesFrame(long limit, TreeMap<Long, Double> map) {
-            m_limit = limit;
+        public SlidingValuesFrame(long frameSizeMillis, TreeMap<Long, Double> map) {
+            m_frameSizeMillis = frameSizeMillis;
             m_map = map;
         }
 
@@ -610,7 +610,7 @@ public class Utils {
         }
 
         public void justAdd(long millis, double addValue) {
-            long limit = millis - m_limit;
+            long limit = millis - m_frameSizeMillis;
             synchronized (m_map) {
                 removeOld(limit, m_map);
                 m_map.put(millis, addValue);
@@ -671,15 +671,15 @@ public class Utils {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class AverageCounter extends SlidingValuesFrame {
-        public AverageCounter(long limit) {
-            this(limit, new TreeMap<Long, Double>());
+        public AverageCounter(long frameSizeMillis) {
+            this(frameSizeMillis, new TreeMap<Long, Double>());
         }
 
-        public AverageCounter(long limit, TreeMap<Long, Double> map) {
-            super(limit, map);
+        public AverageCounter(long frameSizeMillis, TreeMap<Long, Double> map) {
+            super(frameSizeMillis, map);
         }
 
-        public double add(double addValue) {
+        public double addAtCurrentTime(double addValue) {
             return add(System.currentTimeMillis(), addValue);
         }
 
@@ -709,7 +709,7 @@ public class Utils {
         }
 
         public void serialize(StringBuilder sb) {
-            sb.append("AvgCntr[limit=").append(m_limit);
+            sb.append("AvgCntr[limit=").append(m_frameSizeMillis);
             sb.append("; map=[");
             synchronized (m_map) {
                 for (Map.Entry<Long, Double> e : m_map.entrySet()) {
@@ -744,8 +744,8 @@ public class Utils {
         }
 
         public void compare(AverageCounter other) {
-            if (m_limit != other.m_limit) {
-                throw new RuntimeException("m_limit");
+            if (m_frameSizeMillis != other.m_frameSizeMillis) {
+                throw new RuntimeException("m_frameSizeMillis");
             }
             compareMaps(m_map, other.m_map);
         }
@@ -785,13 +785,13 @@ public class Utils {
     } // AverageCounter
 
     public static class FadingAverageCounter extends AverageCounter {
-        public FadingAverageCounter(long limit) {
-            super(limit);
+        public FadingAverageCounter(long frameSizeMillis) {
+            super(frameSizeMillis);
         }
 
         @Override protected Double getWeight(Long time, Long lastKey) {
             double age = lastKey - time;
-            double minus = age / m_limit;
+            double minus = age / m_frameSizeMillis;
             return 1.0 - minus;
         }
     }

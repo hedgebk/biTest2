@@ -241,18 +241,32 @@ public abstract class TresIndicator {
 
     protected static void paintPoints(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe, Color color, List<ChartPoint> paintPoints) {
         g.setColor(color);
+//int count = 0;
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
+//int repeatedX = 0;
         for (ChartPoint tick : paintPoints) {
             long endTime = tick.m_millis;
             int x = xTimeAxe.getPoint(endTime);
             double val = tick.m_value;
             int y = yAxe.getPointReverse(val);
+//g.setColor(((count++) % 2 == 0) ? color : Color.white);
             if (lastX != Integer.MAX_VALUE) {
                 g.drawLine(lastX, lastY, x, y);
+//g.drawLine(lastX, lastY, x, lastY);
+//g.drawLine(x, lastY, x, y);
             } else {
                 g.drawRect(x - 1, y - 1, 2, 2);
             }
+//g.setColor(Color.red);
+//g.drawLine(x, y, x, y+1);
+//if(lastX == x) {
+//    repeatedX++;
+//    g.drawLine(x, y+5+repeatedX*3, x, y+6+repeatedX*3);
+//} else {
+//    repeatedX = 0;
+//}
+
             lastX = x;
             lastY = y;
         }

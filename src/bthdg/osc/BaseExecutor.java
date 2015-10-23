@@ -214,8 +214,8 @@ public abstract class BaseExecutor implements Runnable {
         }
         m_buy = buy;
         m_sell = sell;
-        double avgBuy = m_buyAvgCounter.add(buy);
-        double avgSell = m_sellAvgCounter.add(sell);
+        double avgBuy = m_buyAvgCounter.addAtCurrentTime(buy);
+        double avgSell = m_sellAvgCounter.addAtCurrentTime(sell);
 
         m_topSource = topSource;
         m_topMillis = System.currentTimeMillis();

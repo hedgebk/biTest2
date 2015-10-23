@@ -30,6 +30,8 @@ public abstract class TresAlgo {
     public static TresAlgo get(String algoName, TresExchData tresExchData) {
         if (algoName.equals("coppock")) {
             return new CoppockAlgo(tresExchData);
+        } else if (algoName.equals("cov")) {
+            return new CoppockVelocityAlgo(tresExchData);
         } else if (algoName.equals("cci")) {
             return new CciAlgo(tresExchData);
         } else if (algoName.equals("c+c")) {
