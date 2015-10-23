@@ -1,5 +1,6 @@
 package bthdg.tres.alg;
 
+import bthdg.BaseChartPaint;
 import bthdg.ChartAxe;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
@@ -19,12 +20,17 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
     private final SmoochedIndicator m_smoochedIndicator;
     private final VelocityIndicator m_velocityIndicator;
+    private final CursorPainter m_painter;
 
     public CoppockVelocityAlgo(TresExchData tresExchData) {
         super(tresExchData);
-        long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
+        m_painter = new CursorPainter(m_coppockIndicator);
+
+        final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
         m_smoochedIndicator = new SmoochedIndicator(this, RATIO * barSizeMillis) {
+            private CursorPainter m_painter = new CursorPainter(this);
+
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 ChartPoint lastPoint = getLastPoint();
@@ -32,11 +38,23 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                     m_velocityIndicator.addBar(lastPoint);
                 }
             }
+
+            @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
+                super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
+                g.setColor(Color.RED);
+                m_painter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
+            }
         };
         m_indicators.add(m_smoochedIndicator);
 
         m_velocityIndicator = new VelocityIndicator(this, barSizeMillis);
         m_indicators.add(m_velocityIndicator);
+    }
+
+    @Override public void paintAlgo(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
+        super.paintAlgo(g, xTimeAxe, yPriceAxe, cursorPoint);
+        g.setColor(Color.BLUE);
+        m_painter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
     }
 
     @Override protected void onCoppockBar() {
@@ -46,6 +64,74 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         }
     }
 
+    public static class CursorPainter {
+        private final TresIndicator m_indicator;
+        private final long m_barSizeMillis;
+
+        public CursorPainter(TresIndicator indicator) {
+            m_indicator = indicator;
+            m_barSizeMillis = m_indicator.m_algo.m_tresExchData.m_tres.m_barSizeMillis;
+        }
+
+        public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
+            if (m_indicator.m_doPaint && (m_indicator.m_yAxe != null)) {
+                if (cursorPoint != null) {
+                    int x = (int) cursorPoint.getX();
+                    long timeRight = (long) xTimeAxe.getValueFromPoint(x);
+
+                    long timeMid = timeRight - m_barSizeMillis;
+                    long timeLeft = timeMid - m_barSizeMillis;
+
+                    int xRight = xTimeAxe.getPoint(timeRight);
+                    int xMid = xTimeAxe.getPoint(timeMid);
+                    int xLeft = xTimeAxe.getPoint(timeLeft);
+
+                    double yMin = yPriceAxe.m_offset;
+                    double yMax = yMin + yPriceAxe.m_size;
+                    double yMid = (yMax - yMin) / 2;
+
+                    int yTop = (int) (yMid - 100);
+                    int yBottom = (int) (yMid + 100);
+
+                    g.drawLine(xRight, yTop, xRight, yBottom);
+                    g.drawLine(xMid, yTop, xMid, yBottom);
+                    g.drawLine(xLeft, yTop, xLeft, yBottom);
+
+                    ChartPoint right = findClosest(timeRight);
+                    ChartPoint mid = findClosest(timeMid);
+                    ChartPoint left = findClosest(timeLeft);
+
+                    drawX(g, xTimeAxe, right);
+                    drawX(g, xTimeAxe, mid);
+                    drawX(g, xTimeAxe, left);
+                }
+            }
+
+        }
+
+        protected void drawX(Graphics g, ChartAxe xTimeAxe, ChartPoint cp) {
+            long time = cp.m_millis;
+            int xx = xTimeAxe.getPoint(time);
+            double value = cp.m_value;
+            int yy = m_indicator.m_yAxe.getPointReverse(value);
+            BaseChartPaint.drawX(g, xx, yy, 5);
+        }
+
+        protected ChartPoint findClosest(long time) {
+            long minDiff = Long.MAX_VALUE;
+            ChartPoint closest = null;
+            for (ChartPoint cp : m_indicator.m_avgPaintPoints) {
+                long millis = cp.m_millis;
+                long diffAbs = Math.abs(millis - time);
+                if(diffAbs < minDiff) {
+                    minDiff = diffAbs;
+                    closest = cp;
+                }
+            }
+            return closest;
+        }
+
+    }
 
     public static class VelocityIndicator extends TresIndicator {
         private final long m_frameSizeMillis;
@@ -68,34 +154,6 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             double velocity = m_velocityTracker.getValue();
             ChartPoint smoochPoint = new ChartPoint(millis, velocity);
             super.addBar(smoochPoint);
-        }
-
-        @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
-            super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
-            if (m_doPaint && (m_yAxe != null)) {
-                if (cursorPoint != null) {
-                    int x = (int) cursorPoint.getX();
-                    long timeRight = (long) xTimeAxe.getValueFromPoint(x);
-                    long timeMid = timeRight - m_frameSizeMillis;
-                    long timeLeft = timeMid - m_frameSizeMillis;
-
-                    int xRight = xTimeAxe.getPoint(timeRight);
-                    int xMid = xTimeAxe.getPoint(timeMid);
-                    int xLeft = xTimeAxe.getPoint(timeLeft);
-
-                    double yMin = yPriceAxe.m_offset;
-                    double yMax = yMin + yPriceAxe.m_size;
-                    double yMid = (yMax - yMin) / 2;
-
-                    int yTop = (int) (yMid - 100);
-                    int yBottom = (int) (yMid + 100);
-
-                    g.setColor(Color.RED);
-                    g.drawLine(xRight, yTop, xRight, yBottom);
-                    g.drawLine(xMid, yTop, xMid, yBottom);
-                    g.drawLine(xLeft, yTop, xLeft, yBottom);
-                }
-            }
         }
 
         @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {

@@ -1,5 +1,6 @@
 package bthdg.tres.ind;
 
+import bthdg.BaseChartPaint;
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.osc.TrendWatcher;
@@ -23,13 +24,13 @@ public abstract class TresIndicator {
     public static final int AXE_MARKER_WIDTH = 10;
 
     private final String m_name;
-    final TresAlgo m_algo;
+    public final TresAlgo m_algo;
     public final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
     final LinkedList<ChartPoint> m_avgPoints = new LinkedList<ChartPoint>();
-    final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
-    protected boolean m_doPaint = false;
+    public final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
+    public boolean m_doPaint = false;
     private boolean m_doPaintPhased = false;
-    protected ChartAxe m_yAxe;
+    public ChartAxe m_yAxe;
     private ChartPoint m_lastPoint;
     private long m_lastTickTime;
     private double m_lastTickPrice;
@@ -281,9 +282,8 @@ public abstract class TresIndicator {
             int x = xTimeAxe.getPoint(endTime);
             double coppock = peak.m_value;
             int y = yAxe.getPointReverse(coppock);
-            if(cross) {
-                g.drawLine(x - size, y - size, x + size, y + size);
-                g.drawLine(x + size, y - size, x - size, y + size);
+            if (cross) {
+                BaseChartPaint.drawX(g, x, y, size);
             } else {
                 int side = size + size;
                 g.drawRect(x - size, y - size, side, side);

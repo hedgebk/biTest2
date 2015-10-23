@@ -177,7 +177,7 @@ public class BaseChartPaint extends DbReady {
         g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
     }
 
-    public static void drawX(Graphics2D g, int x, int y, int d) {
+    public static void drawX(Graphics g, int x, int y, int d) {
         g.drawLine(x - d, y - d, x + d, y + d);
         g.drawLine(x - d, y + d, x + d, y - d);
     }
