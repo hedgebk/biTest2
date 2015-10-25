@@ -6,6 +6,7 @@ import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.TresIndicator;
+import bthdg.util.Colors;
 import bthdg.util.Utils;
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
@@ -16,10 +17,13 @@ import java.awt.*;
 import java.util.Map;
 
 public class CoppockVelocityAlgo extends CoppockAlgo {
-    private static final long RATIO = 2;
+    private static final long RATIO = 3;
 
-    private final SmoochedIndicator m_smoochedIndicator;
     private final VelocityIndicator m_velocityIndicator;
+    private final SmoochedIndicator m_velocitySmoochedIndicator;
+    private final VelocityIndicator m_velocityIndicatorShort;
+    private final SmoochedIndicator m_smoochedIndicator;
+    private final VelocityIndicator m_smoochedVelocityIndicator;
     private final CursorPainter m_cursorPainter;
 
     public CoppockVelocityAlgo(TresExchData tresExchData) {
@@ -28,38 +32,58 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
-        m_smoochedIndicator = new SmoochedIndicator(this, RATIO * barSizeMillis) {
+        m_velocityIndicator = new VelocityIndicator(this, "vel", barSizeMillis) {
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                m_velocitySmoochedIndicator.addBar(lastPoint);
+            }
+        };
+        m_indicators.add(m_velocityIndicator);
+
+        m_velocitySmoochedIndicator = new SmoochedIndicator(this, "velSm", RATIO * barSizeMillis) {
+            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
+                g.setColor(Color.orange);
+                int y = yAxe.getPointReverse(0);
+                g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
+            }
+        };
+        m_indicators.add(m_velocitySmoochedIndicator);
+
+        m_velocityIndicatorShort = new VelocityIndicator(this, "velSh", barSizeMillis/2);
+        m_indicators.add(m_velocityIndicatorShort);
+
+        m_smoochedIndicator = new SmoochedIndicator(this, "sm", RATIO * barSizeMillis) {
             private CursorPainter m_cursorPainter = new CursorPainter(this);
 
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
-                ChartPoint lastPoint = getLastPoint();
-                if (lastPoint != null) {
-                    m_velocityIndicator.addBar(lastPoint);
-                }
+                m_smoochedVelocityIndicator.addBar(getLastPoint());
             }
 
             @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
                 super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
-                g.setColor(Color.RED);
+                g.setColor(Colors.LIGHT_MAGNETA);
                 m_cursorPainter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
             }
         };
         m_indicators.add(m_smoochedIndicator);
 
-        m_velocityIndicator = new VelocityIndicator(this, barSizeMillis);
-        m_indicators.add(m_velocityIndicator);
+        m_smoochedVelocityIndicator = new VelocityIndicator(this, "smVel", barSizeMillis);
+        m_indicators.add(m_smoochedVelocityIndicator);
     }
 
     @Override public void paintAlgo(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
         super.paintAlgo(g, xTimeAxe, yPriceAxe, cursorPoint);
-        g.setColor(Color.BLUE);
+        g.setColor(Color.WHITE);
         m_cursorPainter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
     }
 
     @Override protected void onCoppockBar() {
         ChartPoint lastPoint = m_coppockIndicator.getLastPoint();
         if (lastPoint != null) {
+            m_velocityIndicator.addBar(lastPoint);
+            m_velocityIndicatorShort.addBar(lastPoint);
             m_smoochedIndicator.addBar(lastPoint);
         }
     }
@@ -89,6 +113,9 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                         int xRight = xTimeAxe.getPoint(timeRight);
                         int xMid = xTimeAxe.getPoint(timeMid);
                         int xLeft = xTimeAxe.getPoint(timeLeft);
+
+                        int xRightRight = xRight + (xRight - xMid);
+                        int xLeftLeft = xLeft - (xMid - xLeft);
 
                         double yMin = yPriceAxe.m_offset;
                         double yMax = yMin + yPriceAxe.m_size;
@@ -120,23 +147,44 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                                 e.printStackTrace();
                             }
 
-//                    PolynomialFunction[] polynomials = polynomialFunc.getPolynomials();
-//                    PolynomialFunction polynomial = polynomials[1];
-//                    UnivariateFunction derivative = polynomial.derivative();
+                            PolynomialFunction[] polynomials = polynomialFunc.getPolynomials();
 
                             int lastX = Integer.MAX_VALUE;
                             int lastY = Integer.MAX_VALUE;
-                            for (int x = xLeft; x <= xRight; x++) {
+                            for (int x = xLeftLeft; x <= xRightRight; x++) {
                                 long time = (long) xTimeAxe.getValueFromPoint(x);
-                                if ((time >= minMillis) && (time <= maxMillis)) {
-                                    double value = polynomialFunc.value(time);
-                                    int xx = xTimeAxe.getPoint(time);
-                                    int yy = m_indicator.m_yAxe.getPointReverse(value);
-                                    if (lastX != Integer.MAX_VALUE) {
-                                        g.drawLine(lastX, lastY, xx, yy);
+                                if (true/*(time >= minMillis) && (time <= maxMillis)*/) {
+//                                    double value = polynomialFunc.value(time);
+////                                    int xx = xTimeAxe.getPoint(time);
+//                                    int yy = m_indicator.m_yAxe.getPointReverse(value);
+//                                    if (lastX != Integer.MAX_VALUE) {
+//                                        g.drawLine(lastX, lastY, x, yy);
+//                                    }
+//                                    lastX = x;
+//                                    lastY = yy;
+
+                                    if(x < xMid) {
+                                        PolynomialFunction polynomial = polynomials[0];
+//                    UnivariateFunction derivative = polynomial.derivative();
+                                        long offset = time - minMillis;
+                                        double value = polynomial.value(offset);
+                                        int yy = m_indicator.m_yAxe.getPointReverse(value);
+                                        if (lastX != Integer.MAX_VALUE) {
+                                            g.drawLine(lastX, lastY, x, yy);
+                                        }
+                                        lastX = x;
+                                        lastY = yy;
+                                    } else {
+                                        PolynomialFunction polynomial = polynomials[1];
+                                        long offset = time - midMillis;
+                                        double value = polynomial.value(offset);
+                                        int yy = m_indicator.m_yAxe.getPointReverse(value);
+                                        if (lastX != Integer.MAX_VALUE) {
+                                            g.drawLine(lastX, lastY, x, yy);
+                                        }
+                                        lastX = x;
+                                        lastY = yy;
                                     }
-                                    lastX = xx;
-                                    lastY = yy;
                                 }
                             }
                         }
@@ -173,8 +221,8 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         private final long m_frameSizeMillis;
         private final VelocityTracker m_velocityTracker;
 
-        public VelocityIndicator(TresAlgo algo, long frameSizeMillis) {
-            super("v", 0.1, algo);
+        public VelocityIndicator(TresAlgo algo, String name, long frameSizeMillis) {
+            super(name, 0.1, algo);
             m_velocityTracker = new VelocityTracker(frameSizeMillis);
             m_frameSizeMillis = frameSizeMillis;
         }
@@ -184,12 +232,14 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         @Override public Color getPeakColor() { return Color.orange; }
 
         @Override public void addBar(ChartPoint chartPoint) {
-            long millis = chartPoint.m_millis;
-            double value = chartPoint.m_value;
-            m_velocityTracker.add(millis, value);
-            double velocity = m_velocityTracker.getValue();
-            ChartPoint smoochPoint = new ChartPoint(millis, velocity);
-            super.addBar(smoochPoint);
+            if (chartPoint != null) {
+                long millis = chartPoint.m_millis;
+                double value = chartPoint.m_value;
+                m_velocityTracker.add(millis, value);
+                double velocity = m_velocityTracker.getValue();
+                ChartPoint smoochPoint = new ChartPoint(millis, velocity);
+                super.addBar(smoochPoint);
+            }
         }
 
         @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
@@ -204,8 +254,8 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
         private final Utils.FadingAverageCounter m_avgCounter;
 
-        public SmoochedIndicator(TresAlgo algo, long frameSizeMillis) {
-            super("s", PEAK_TOLERANCE, algo);
+        public SmoochedIndicator(TresAlgo algo, String name, long frameSizeMillis) {
+            super(name, PEAK_TOLERANCE, algo);
             m_avgCounter = new Utils.FadingAverageCounter(frameSizeMillis);
         }
 
@@ -214,14 +264,16 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         @Override public Color getPeakColor() { return Color.green; }
 
         @Override public void addBar(ChartPoint chartPoint) {
-            long millis = chartPoint.m_millis;
-            double avg = m_avgCounter.add(millis, chartPoint.m_value);
-            ChartPoint smoochPoint = new ChartPoint(millis, avg);
-            super.addBar(smoochPoint);
+            if (chartPoint != null) {
+                long millis = chartPoint.m_millis;
+                double avg = m_avgCounter.add(millis, chartPoint.m_value);
+                ChartPoint smoochPoint = new ChartPoint(millis, avg);
+                super.addBar(smoochPoint);
+            }
         }
 
         @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-            double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
+            double max =Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
             minMaxCalculator.m_minValue = -max;
             minMaxCalculator.m_maxValue = max;
         }
@@ -252,12 +304,13 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                 Long x3 = newest.getKey();
                 Double y3 = newest.getValue();
 
-                PolynomialSplineFunction polynomialFunc = m_interpolator.interpolate(x1, y1, x2, y2, x3, y3);
-                PolynomialFunction[] polynomials = polynomialFunc.getPolynomials();
-                PolynomialFunction polynomial = polynomials[1];
+                if ((x1 < x2) && (x2 < x3)) {
+                    PolynomialSplineFunction polynomialFunc = m_interpolator.interpolate(x1, y1, x2, y2, x3, y3);
+                    PolynomialFunction[] polynomials = polynomialFunc.getPolynomials();
+                    PolynomialFunction polynomial = polynomials[1];
 
 //                System.out.println(" polynomial=" + polynomial);
-                UnivariateFunction derivative = polynomial.derivative();
+                    UnivariateFunction derivative = polynomial.derivative();
 //                System.out.println("  derivative=" + derivative);
 
 //                double polynomialValue = polynomial.value(x3);
@@ -267,11 +320,12 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
 //                double derivativeValue = derivative.value(x3);
 //                System.out.println("   derivativeValue=" + derivativeValue);
-                double derivativeValue2 = derivative.value(x3 - x2);
+                    double derivativeValue2 = derivative.value(x3 - x2);
 //                System.out.println("    derivativeValue2=" + derivativeValue2);
 //                System.out.println("    done");
 
-                return derivativeValue2;
+                    return derivativeValue2;
+                }
             }
 
 //            if (m_small.m_map.size() > 1) {

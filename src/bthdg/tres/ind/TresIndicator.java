@@ -310,6 +310,9 @@ public abstract class TresIndicator {
             }
         });
         panel.add(checkBox2);
+        if (m_phasedIndicators.isEmpty()) {
+            checkBox2.setVisible(false);
+        }
         return panel;
     }
 
