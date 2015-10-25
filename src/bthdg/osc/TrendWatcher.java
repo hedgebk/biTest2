@@ -4,7 +4,7 @@ import bthdg.exch.Direction;
 
 public abstract class TrendWatcher<O> {
     public double m_tolerance;
-    O m_peak;
+    public O m_peak;
     private O m_peakCandidate;
     public Direction m_direction;
     private O m_lastValue;

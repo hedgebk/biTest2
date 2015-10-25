@@ -15,4 +15,11 @@ public class ChartPoint {
         }
         m_value = value;
     }
+
+    @Override public String toString() {
+        return "ChartPoint{" +
+                "millis=" + m_millis +
+                ", value=" + m_value +
+                '}';
+    }
 }

@@ -2,11 +2,12 @@ package bthdg.tres.alg;
 
 import bthdg.BaseChartPaint;
 import bthdg.ChartAxe;
+import bthdg.Log;
+import bthdg.exch.Direction;
+import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
-import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.TresIndicator;
-import bthdg.util.Colors;
 import bthdg.util.Utils;
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
@@ -17,14 +18,17 @@ import java.awt.*;
 import java.util.Map;
 
 public class CoppockVelocityAlgo extends CoppockAlgo {
-    private static final long RATIO = 3;
+    private static final long RATIO = 4;
 
     private final VelocityIndicator m_velocityIndicator;
-    private final SmoochedIndicator m_velocitySmoochedIndicator;
-    private final VelocityIndicator m_velocityIndicatorShort;
-    private final SmoochedIndicator m_smoochedIndicator;
-    private final VelocityIndicator m_smoochedVelocityIndicator;
+    private final VelocitySmoochedIndicator m_velocitySmoochedIndicator;
+//    private final VelocityIndicator m_velocityIndicatorShort;
+//    private final SmoochedIndicator m_smoochedIndicator;
+//    private final VelocityIndicator m_smoochedVelocityIndicator;
     private final CursorPainter m_cursorPainter;
+    private final AndIndicator m_andIndicator;
+
+    private static void log(String s) { Log.log(s); }
 
     public CoppockVelocityAlgo(TresExchData tresExchData) {
         super(tresExchData);
@@ -32,45 +36,52 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
-        m_velocityIndicator = new VelocityIndicator(this, "vel", barSizeMillis) {
+        m_velocityIndicator = new VelocityIndicator(this, "vel", barSizeMillis, 0.00000003) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
-                ChartPoint lastPoint = getLastPoint();
-                m_velocitySmoochedIndicator.addBar(lastPoint);
+                m_velocitySmoochedIndicator.addBar(getLastPoint());
             }
         };
         m_indicators.add(m_velocityIndicator);
 
-        m_velocitySmoochedIndicator = new SmoochedIndicator(this, "velSm", RATIO * barSizeMillis) {
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
-                g.setColor(Color.orange);
-                int y = yAxe.getPointReverse(0);
-                g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
+        m_velocitySmoochedIndicator = new VelocitySmoochedIndicator(this, barSizeMillis) {
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                if (lastPoint != null) {
+                    double value = calcDirectionAdjusted();
+                    long millis = lastPoint.m_millis;
+                    ChartPoint andPoint = new ChartPoint(millis, value);
+                    m_andIndicator.addBar(andPoint);
+                }
             }
         };
         m_indicators.add(m_velocitySmoochedIndicator);
 
-        m_velocityIndicatorShort = new VelocityIndicator(this, "velSh", barSizeMillis/2);
-        m_indicators.add(m_velocityIndicatorShort);
+//        m_velocityIndicatorShort = new VelocityIndicator(this, "velSh", barSizeMillis/2);
+//        m_indicators.add(m_velocityIndicatorShort);
+//
+//        m_smoochedIndicator = new SmoochedIndicator(this, "sm", RATIO * barSizeMillis, CoppockIndicator.PEAK_TOLERANCE) {
+//            private CursorPainter m_cursorPainter = new CursorPainter(this);
+//
+//            @Override public void addBar(ChartPoint chartPoint) {
+//                super.addBar(chartPoint);
+//                m_smoochedVelocityIndicator.addBar(getLastPoint());
+//            }
+//
+//            @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
+//                super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
+//                g.setColor(Colors.LIGHT_MAGNETA);
+//                m_cursorPainter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
+//            }
+//        };
+//        m_indicators.add(m_smoochedIndicator);
+//
+//        m_smoochedVelocityIndicator = new VelocityIndicator(this, "smVel", barSizeMillis);
+//        m_indicators.add(m_smoochedVelocityIndicator);
 
-        m_smoochedIndicator = new SmoochedIndicator(this, "sm", RATIO * barSizeMillis) {
-            private CursorPainter m_cursorPainter = new CursorPainter(this);
-
-            @Override public void addBar(ChartPoint chartPoint) {
-                super.addBar(chartPoint);
-                m_smoochedVelocityIndicator.addBar(getLastPoint());
-            }
-
-            @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
-                super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
-                g.setColor(Colors.LIGHT_MAGNETA);
-                m_cursorPainter.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
-            }
-        };
-        m_indicators.add(m_smoochedIndicator);
-
-        m_smoochedVelocityIndicator = new VelocityIndicator(this, "smVel", barSizeMillis);
-        m_indicators.add(m_smoochedVelocityIndicator);
+        m_andIndicator = new AndIndicator(this);
+        m_indicators.add(m_andIndicator);
     }
 
     @Override public void paintAlgo(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
@@ -83,9 +94,18 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         ChartPoint lastPoint = m_coppockIndicator.getLastPoint();
         if (lastPoint != null) {
             m_velocityIndicator.addBar(lastPoint);
-            m_velocityIndicatorShort.addBar(lastPoint);
-            m_smoochedIndicator.addBar(lastPoint);
+//            m_velocityIndicatorShort.addBar(lastPoint);
+//            m_smoochedIndicator.addBar(lastPoint);
         }
+    }
+
+
+    @Override public double getDirectionAdjusted() {
+        return m_velocitySmoochedIndicator.getDirectionAdjusted();
+    }
+
+    @Override public Direction getDirection() {
+        return m_velocitySmoochedIndicator.getDirection();
     }
 
     public static class CursorPainter {
@@ -221,8 +241,8 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         private final long m_frameSizeMillis;
         private final VelocityTracker m_velocityTracker;
 
-        public VelocityIndicator(TresAlgo algo, String name, long frameSizeMillis) {
-            super(name, 0.1, algo);
+        public VelocityIndicator(TresAlgo algo, String name, long frameSizeMillis, double peakTolerance) {
+            super(name, peakTolerance, algo);
             m_velocityTracker = new VelocityTracker(frameSizeMillis);
             m_frameSizeMillis = frameSizeMillis;
         }
@@ -243,19 +263,17 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         }
 
         @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
-            g.setColor(Color.orange);
+            g.setColor(getColor());
             int y = yAxe.getPointReverse(0);
             g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
         }
     }
 
     public static class SmoochedIndicator extends TresIndicator {
-        public static double PEAK_TOLERANCE = CoppockIndicator.PEAK_TOLERANCE;
-
         private final Utils.FadingAverageCounter m_avgCounter;
 
-        public SmoochedIndicator(TresAlgo algo, String name, long frameSizeMillis) {
-            super(name, PEAK_TOLERANCE, algo);
+        public SmoochedIndicator(TresAlgo algo, String name, long frameSizeMillis, double peakTolerance) {
+            super(name, peakTolerance, algo);
             m_avgCounter = new Utils.FadingAverageCounter(frameSizeMillis);
         }
 
@@ -273,7 +291,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         }
 
         @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-            double max =Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
+            double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
             minMaxCalculator.m_minValue = -max;
             minMaxCalculator.m_maxValue = max;
         }
@@ -368,5 +386,125 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             PolynomialSplineFunction f = m_spline.interpolate(m_x, m_y);
             return f;
         }
+    }
+
+    private static class VelocitySmoochedIndicator extends SmoochedIndicator {
+        public static double DEF_K = 0.5;
+
+        private final double m_k;
+        public State m_state = State.NONE;
+        private double m_lastPeak;
+
+        public VelocitySmoochedIndicator(TresAlgo algo, long barSizeMillis) {
+            super(algo, "velSm", CoppockVelocityAlgo.RATIO * barSizeMillis, 0.0000001);
+            m_k = DEF_K;
+        }
+
+        @Override protected boolean countHalfPeaks() { return false; }
+
+        @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
+            g.setColor(Color.orange);
+            int y = yAxe.getPointReverse(0);
+            g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
+        }
+
+        public double calcDirectionAdjusted() {
+            if (m_state != null) {
+                return m_state.calcDirectionAdjusted(this);
+            }
+            return 0;
+        }
+
+        public Direction getDirection() {
+            if (m_state != null) {
+                return m_state.getDirection(this);
+            }
+            return null;
+        }
+
+        @Override protected void onAvgPeak(TrendWatcher<ChartPoint> trendWatcher) {
+            super.onAvgPeak(trendWatcher);
+            Direction direction = trendWatcher.m_direction;
+            ChartPoint peak = trendWatcher.m_peak;
+            ChartPoint last = getLastPoint();
+//            log("velocitySmoochedIndicator.onAvgPeak() " +
+//                    "peak[t=" + peak.m_millis + ", v=" + Utils.format8(peak.m_value) + "]; " +
+//                    "last[t=" + last.m_millis + ", v=" + Utils.format8(last.m_value) + "]; " +
+//                    "direction=" + direction);
+            double value = peak.m_value;
+            State state = m_state.onAvgPeak(value, direction);
+            if ((state != null) && (m_state != state)) {
+                m_lastPeak = value;
+//                log(" state " + m_state + " -> " + state + "; lastPeak=" + m_lastPeak);
+                m_state = state;
+            }
+        }
+    }
+
+    public enum State {
+        NONE {
+        }, DOWN {
+            @Override public double calcDirectionAdjusted(VelocitySmoochedIndicator indicator) {
+                return calcDirection(indicator, 1.0);
+            }
+            @Override public Direction getDirection(VelocitySmoochedIndicator indicator) {
+                double k = indicator.m_k;
+                double lastPeak = indicator.m_lastPeak;
+                double range = lastPeak * k;
+                double lastValue = indicator.getLastPoint().m_value;
+                return (lastValue < range) ? Direction.BACKWARD : Direction.FORWARD;
+            }
+        }, UP {
+            @Override public double calcDirectionAdjusted(VelocitySmoochedIndicator indicator) {
+                return calcDirection(indicator, -1.0);
+            }
+            @Override public Direction getDirection(VelocitySmoochedIndicator indicator) {
+                double k = indicator.m_k;
+                double lastPeak = indicator.m_lastPeak;
+                double range = lastPeak * k;
+                double lastValue = indicator.getLastPoint().m_value;
+                return (lastValue > range) ? Direction.FORWARD: Direction.BACKWARD;
+            }
+        };
+
+        protected static double calcDirection(VelocitySmoochedIndicator indicator, double mul) {
+            double lastPeak = indicator.m_lastPeak;
+            double lastValue = indicator.getLastPoint().m_value;
+            double k = indicator.m_k;
+            double val = mul * (1.0 - 2 * (lastPeak - lastValue) / (k * lastPeak));
+            return Math.min(Math.max(val, -1), 1);
+        }
+
+        public State onAvgPeak(double value, Direction direction) {
+            if ((value > 0) && direction.isBackward()) {
+                return DOWN;
+            }
+            if ((value < 0) && direction.isForward()) {
+                return UP;
+            }
+            return null;
+        }
+
+        public double calcDirectionAdjusted(VelocitySmoochedIndicator indicator) {
+            return 0;
+        }
+
+        public Direction getDirection(VelocitySmoochedIndicator indicator) {
+            return null;
+        }
+    }
+
+    public static class AndIndicator extends TresIndicator {
+        public static double PEAK_TOLERANCE = 0.06470;
+
+        public AndIndicator(TresAlgo algo) {
+            super("+", PEAK_TOLERANCE, algo);
+            m_doPaint = true;
+        }
+
+        @Override protected boolean countPeaks() { return false; }
+        @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+        @Override public Color getColor() { return Color.red; }
+        @Override public Color getPeakColor() { return Color.red; }
     }
 }

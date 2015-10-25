@@ -31,7 +31,7 @@ public class PeakWatcher {
                         m_avgPeakTime.add(last);
                     }
                 }
-                indicator.onAvgPeak();
+                indicator.onAvgPeak(this);
             }
         };
     }

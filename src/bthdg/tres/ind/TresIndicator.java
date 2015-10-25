@@ -34,18 +34,24 @@ public abstract class TresIndicator {
     private ChartPoint m_lastPoint;
     private long m_lastTickTime;
     private double m_lastTickPrice;
-    public final PeakWatcher m_peakWatcher;
-    public final PeakWatcher m_halfPeakWatcher;
+    public PeakWatcher m_peakWatcher;
+    public PeakWatcher m_halfPeakWatcher;
 
     public ChartPoint getLastPoint() { return m_lastPoint; }
 
     public TresIndicator(String name, double peakTolerance, TresAlgo algo) {
         m_name = name;
         m_algo = algo;
-        m_peakWatcher = new PeakWatcher(this, peakTolerance);
-        m_halfPeakWatcher = new PeakWatcher(this, peakTolerance / 2.0);
+        if (countPeaks()) {
+            m_peakWatcher = new PeakWatcher(this, peakTolerance);
+            if (countHalfPeaks()) {
+                m_halfPeakWatcher = new PeakWatcher(this, peakTolerance / 2.0);
+            }
+        }
     }
 
+    protected boolean countPeaks() { return true; }
+    protected boolean countHalfPeaks() { return true; }
     public abstract TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex);
     public abstract Color getColor();
     public abstract Color getPeakColor();
@@ -70,8 +76,12 @@ public abstract class TresIndicator {
                     m_avgPoints.add(chartPoint);
                 }
             }
-            m_peakWatcher.m_avgPeakCalculator.update(chartPoint);
-            m_halfPeakWatcher.m_avgPeakCalculator.update(chartPoint);
+            if (countPeaks()) {
+                m_peakWatcher.m_avgPeakCalculator.update(chartPoint);
+                if (m_halfPeakWatcher != null) {
+                    m_halfPeakWatcher.m_avgPeakCalculator.update(chartPoint);
+                }
+            }
         }
         m_lastPoint = chartPoint;
     }
@@ -102,8 +112,12 @@ public abstract class TresIndicator {
                 }
             }
             cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
-            m_peakWatcher.cloneChartPoints(xTimeAxe, minMaxCalculator);
-            m_halfPeakWatcher.cloneChartPoints(xTimeAxe, minMaxCalculator);
+            if (countPeaks()) {
+                m_peakWatcher.cloneChartPoints(xTimeAxe, minMaxCalculator);
+                if (m_halfPeakWatcher != null) {
+                    m_halfPeakWatcher.cloneChartPoints(xTimeAxe, minMaxCalculator);
+                }
+            }
             if (minMaxCalculator.hasValue()) {
                 adjustMinMaxCalculator(minMaxCalculator);
                 Double valMin = minMaxCalculator.m_minValue;
@@ -205,9 +219,13 @@ public abstract class TresIndicator {
                 }
             }
             paintPoints(g, xTimeAxe, m_yAxe, getColor(), m_avgPaintPoints);
-            Color peakColor = getPeakColor();
-            m_peakWatcher.paintPeaks(g, xTimeAxe, m_yAxe, peakColor);
-            m_halfPeakWatcher.paintPeaks(g, xTimeAxe, m_yAxe, peakColor);
+            if (countPeaks()) {
+                Color peakColor = getPeakColor();
+                m_peakWatcher.paintPeaks(g, xTimeAxe, m_yAxe, peakColor);
+                if (m_halfPeakWatcher != null) {
+                    m_halfPeakWatcher.paintPeaks(g, xTimeAxe, m_yAxe, peakColor);
+                }
+            }
         }
     }
 
@@ -242,32 +260,18 @@ public abstract class TresIndicator {
 
     protected static void paintPoints(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe, Color color, List<ChartPoint> paintPoints) {
         g.setColor(color);
-//int count = 0;
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
-//int repeatedX = 0;
         for (ChartPoint tick : paintPoints) {
             long endTime = tick.m_millis;
             int x = xTimeAxe.getPoint(endTime);
             double val = tick.m_value;
             int y = yAxe.getPointReverse(val);
-//g.setColor(((count++) % 2 == 0) ? color : Color.white);
             if (lastX != Integer.MAX_VALUE) {
                 g.drawLine(lastX, lastY, x, y);
-//g.drawLine(lastX, lastY, x, lastY);
-//g.drawLine(x, lastY, x, y);
             } else {
                 g.drawRect(x - 1, y - 1, 2, 2);
             }
-//g.setColor(Color.red);
-//g.drawLine(x, y, x, y+1);
-//if(lastX == x) {
-//    repeatedX++;
-//    g.drawLine(x, y+5+repeatedX*3, x, y+6+repeatedX*3);
-//} else {
-//    repeatedX = 0;
-//}
-
             lastX = x;
             lastY = y;
         }
@@ -358,7 +362,7 @@ public abstract class TresIndicator {
         return lastTickPrice;
     }
 
-    void onAvgPeak() {
+    protected void onAvgPeak(TrendWatcher<ChartPoint> trendWatcher) {
         m_algo.onAvgPeak(TresIndicator.this);
     }
 
