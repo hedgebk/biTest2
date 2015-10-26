@@ -91,7 +91,6 @@ public class CnoAlgo extends TresAlgo {
     public static class AndIndicator extends TresIndicator {
         public AndIndicator(TresAlgo algo) {
             super("+", AND_PEAK_TOLERANCE, algo);
-            m_doPaint = true;
         }
 
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }

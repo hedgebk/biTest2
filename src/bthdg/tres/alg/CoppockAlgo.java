@@ -8,7 +8,11 @@ public class CoppockAlgo extends TresAlgo {
     final CoppockIndicator m_coppockIndicator;
 
     public CoppockAlgo(TresExchData tresExchData) {
-        super("COPPOCK", tresExchData);
+        this("COPPOCK", tresExchData);
+    }
+
+    public CoppockAlgo(String name, TresExchData tresExchData) {
+        super(name, tresExchData);
         m_coppockIndicator = new CoppockIndicator(this) {
             @Override protected void onBar() {
                 super.onBar();

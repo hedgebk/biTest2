@@ -81,9 +81,19 @@ public class TresFrame extends JFrame implements Runnable {
                         m_canvas.repaint();
                     }
                 });
-                tres.addControllers(topPanel, m_canvas);
             }
-            panel1.add(topPanel, BorderLayout.NORTH);
+            JPanel controllersPanel = new JPanel(new FlowLayout());
+            {
+                controllersPanel.setBackground(Color.DARK_GRAY);
+                tres.addControllers(controllersPanel, m_canvas);
+            }
+            JPanel panel2 = new JPanel(new BorderLayout());
+            {
+                panel2.setBackground(Color.BLACK);
+                panel2.add(topPanel, BorderLayout.NORTH);
+                panel2.add(controllersPanel, BorderLayout.CENTER);
+            }
+            panel1.add(panel2, BorderLayout.NORTH);
             panel1.add(m_canvas, BorderLayout.CENTER);
         }
         add(panel1);

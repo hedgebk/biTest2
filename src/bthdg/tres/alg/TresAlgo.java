@@ -61,10 +61,10 @@ public abstract class TresAlgo {
     }
 
     public void onAvgPeak(TresIndicator indicator) {
-        notifyValueChange();
+        notifyListener();
     }
 
-    public void notifyValueChange() {
+    public void notifyListener() {
         if (m_listener != null) {
             m_listener.onValueChange();
         }

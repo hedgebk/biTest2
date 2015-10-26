@@ -4,6 +4,7 @@ import bthdg.Log;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.CncAlgo;
+import bthdg.tres.alg.CoppockVelocityAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
@@ -47,6 +48,8 @@ class TresLogProcessor extends Thread {
     private String m_varyLroc;
     private String m_varySroc;
     private String m_varySma;
+    private String m_varyCovK;
+    private String m_varyCovRat;
     private AtomicInteger cloneCounter = new AtomicInteger(0);
 
     private static void log(String s) { Log.log(s); }
@@ -86,6 +89,10 @@ class TresLogProcessor extends Thread {
         log("varySroc=" + m_varySroc);
         m_varySma = keys.getProperty("tre.vary.sma");
         log("varySma=" + m_varySma);
+        m_varyCovK = keys.getProperty("tre.vary.cov_k");
+        log("varyCovK=" + m_varyCovK);
+        m_varyCovRat = keys.getProperty("tre.vary.cov_rat");
+        log("varyCovRat=" + m_varyCovRat);
 
         BaseExecutor.DO_TRADE = false;
         log("DO_TRADE set to false");
@@ -170,6 +177,14 @@ class TresLogProcessor extends Thread {
         }
         if (m_varySma != null) {
             varySma(allTicks, tres, m_varySma);
+            return;
+        }
+        if (m_varyCovK != null) {
+            varyCovK(allTicks, tres, m_varyCovK);
+            return;
+        }
+        if (m_varyCovRat != null) {
+            varyCovRat(allTicks, tres, m_varyCovRat);
             return;
         }
 
@@ -358,6 +373,34 @@ class TresLogProcessor extends Thread {
             iterate(allTicks, i, "%.0f", "CciCorr", maxMap);
         }
         logMax(maxMap, "CciCorr");
+    }
+
+    private void varyCovK(List<List<TradeDataLight>> allTicks, Tres tres, String varyCovK) throws Exception {
+        log("varyCovK: " + varyCovK);
+        String[] split = varyCovK.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (double i = min; i <= max; i += step) {
+            CoppockVelocityAlgo.DIRECTION_CUT_LEVEL = i;
+            iterate(allTicks, i, "%.3f", "CovK", maxMap);
+        }
+        logMax(maxMap, "CovK");
+    }
+
+    private void varyCovRat(List<List<TradeDataLight>> allTicks, Tres tres, String varyCovRat) throws Exception {
+        log("varyCovRat: " + varyCovRat);
+        String[] split = varyCovRat.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (double i = min; i <= max; i += step) {
+            CoppockVelocityAlgo.RATIO = i;
+            iterate(allTicks, i, "%.3f", "CovRat", maxMap);
+        }
+        logMax(maxMap, "CovRat");
     }
 
     private void varyWma(List<List<TradeDataLight>> allTicks, Tres tres, String varyWma) throws Exception {

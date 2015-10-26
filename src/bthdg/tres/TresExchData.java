@@ -99,7 +99,7 @@ public class TresExchData {
                         }
                     }
 //                    if(m_oscAlgo != null) {
-//                        m_oscAlgo.notifyValueChange();
+//                        m_oscAlgo.notifyListener();
 //                    }
                 }
 

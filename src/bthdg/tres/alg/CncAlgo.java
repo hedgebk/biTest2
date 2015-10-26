@@ -106,7 +106,6 @@ public class CncAlgo extends TresAlgo {
 
         public AndIndicator(TresAlgo algo) {
             super("+", PEAK_TOLERANCE, algo);
-            m_doPaint = true;
         }
 
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
