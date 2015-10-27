@@ -18,10 +18,9 @@ import java.awt.*;
 import java.util.Map;
 
 public class CoppockVelocityAlgo extends CoppockAlgo {
-    public static double RATIO = 0.9; // smoother frame ratio
-    public static double RANGE_START = 0.6;
-    public static double RANGE_SIZE = 0.6;
-    public static double DIRECTION_CUT_LEVEL = 0.65;
+    public static double FRAME_RATIO = 0.88; // smoother frame ratio
+    public static double RANGE_SIZE = 0.06;
+    public static double DIRECTION_CUT_LEVEL = 0.96;
 
     private final VelocityIndicator m_velocityIndicator;
     private final VelocitySmoochedIndicator m_velocitySmoochedIndicator;
@@ -72,7 +71,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 //        m_velocityIndicatorShort = new VelocityIndicator(this, "velSh", barSizeMillis/2);
 //        m_indicators.add(m_velocityIndicatorShort);
 //
-//        m_smoochedIndicator = new SmoochedIndicator(this, "sm", RATIO * barSizeMillis, CoppockIndicator.PEAK_TOLERANCE) {
+//        m_smoochedIndicator = new SmoochedIndicator(this, "sm", FRAME_RATIO * barSizeMillis, CoppockIndicator.PEAK_TOLERANCE) {
 //            private CursorPainter m_cursorPainter = new CursorPainter(this);
 //
 //            @Override public void addBar(ChartPoint chartPoint) {
@@ -399,13 +398,11 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     }
 
     private static class VelocitySmoochedIndicator extends SmoochedIndicator {
-//        private final double m_k;
         public State m_state = State.NONE;
         private double m_lastPeak;
 
         public VelocitySmoochedIndicator(TresAlgo algo, long barSizeMillis) {
-            super(algo, "velSm", (long) (CoppockVelocityAlgo.RATIO * barSizeMillis), 0.00000005);
-//            m_k = RANGE_SIZE;
+            super(algo, "velSm", (long) (CoppockVelocityAlgo.FRAME_RATIO * barSizeMillis), 0.00000005);
         }
 
         @Override protected boolean countHalfPeaks() { return false; }
@@ -466,26 +463,28 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                 return calcDirection(indicator, 1.0);
             }
             @Override public Direction getDirection(VelocitySmoochedIndicator indicator) {
-                double lastPeak = indicator.m_lastPeak;
-                double range = lastPeak * DIRECTION_CUT_LEVEL;
-                double lastValue = indicator.getLastPoint().m_value;
-                return (lastValue < range) ? Direction.BACKWARD : Direction.FORWARD;
+                return getDirectionInt(indicator);
             }
+
         }, UP {
             @Override public double calcDirectionAdjusted(VelocitySmoochedIndicator indicator) {
                 return calcDirection(indicator, -1.0);
             }
             @Override public Direction getDirection(VelocitySmoochedIndicator indicator) {
-                double lastPeak = indicator.m_lastPeak;
-                double range = lastPeak * DIRECTION_CUT_LEVEL;
-                double lastValue = indicator.getLastPoint().m_value;
-                return (lastValue > range) ? Direction.FORWARD: Direction.BACKWARD;
+                return getDirectionInt(indicator);
             }
         };
 
+        protected Direction getDirectionInt(VelocitySmoochedIndicator indicator) {
+            double lastPeak = indicator.m_lastPeak;
+            double range = lastPeak * DIRECTION_CUT_LEVEL;
+            double lastValue = indicator.getLastPoint().m_value;
+            return (lastValue >= range) ? Direction.FORWARD : Direction.BACKWARD;
+        }
+
         protected static double calcDirection(VelocitySmoochedIndicator indicator, double mul) {
             double lastPeak = indicator.m_lastPeak;
-            double rangeStart = lastPeak * RANGE_START;
+            double rangeStart = lastPeak * (DIRECTION_CUT_LEVEL - RANGE_SIZE / 2);
             double lastValue = indicator.getLastPoint().m_value;
             double rangeSize = RANGE_SIZE * lastPeak;
             double val = mul * (1.0 - 2 * (rangeStart - lastValue) / rangeSize);
@@ -510,6 +509,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             return null;
         }
     }
+
 
     public static class AndIndicator extends TresIndicator {
         public static double PEAK_TOLERANCE = 0.06470;

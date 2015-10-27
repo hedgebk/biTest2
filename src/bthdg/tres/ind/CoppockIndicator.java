@@ -25,7 +25,7 @@ public class CoppockIndicator extends TresIndicator {
     }
 
     public CoppockIndicator(TresAlgo algo) {
-        super("Coppock", PEAK_TOLERANCE, algo);
+        super("Cop", PEAK_TOLERANCE, algo);
     }
 
     @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {

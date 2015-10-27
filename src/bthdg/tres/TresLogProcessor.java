@@ -397,7 +397,7 @@ class TresLogProcessor extends Thread {
         double step = Double.parseDouble(split[2]);
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
-            CoppockVelocityAlgo.RATIO = i;
+            CoppockVelocityAlgo.FRAME_RATIO = i;
             iterate(allTicks, i, "%.3f", "CovRat", maxMap);
         }
         logMax(maxMap, "CovRat");
