@@ -92,6 +92,7 @@ public class Huobi extends BaseExch {
         add(45, "Price is too high");
         add(46, "The small number of transaction, the minimum number 0.001");
         add(47, "Exceed the limit amount");
+        add(48, "Buy the amount can not be less than 1 yuan");
         add(55, "105% higher than current price, not allowed");
         add(56, "95% lower than current price, not allowed");
         add(64, "Invalid request");
@@ -258,7 +259,6 @@ public class Huobi extends BaseExch {
     // https://github.com/peatio/bitbot-huobi/blob/master/spec/fixtures/vcr_cassettes/authorized/success/account.yml
     @Override public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
         String method = getMethod(command, options);
-        Pair pair = options.getPair();
 
         long time = System.currentTimeMillis() / 1000;
         String created = Long.toString(time);
@@ -266,7 +266,6 @@ public class Huobi extends BaseExch {
         Map<String,String> sArray = new HashMap<String, String>();
         sArray.put("method", method);
         sArray.put("access_key", KEY);
-        sArray.put("coin_type", getCoinType(pair));
         addCommandParams(sArray, command, options);
         sArray.put("created", created);
         sArray.put("secret_key", SECRET);
@@ -277,7 +276,6 @@ public class Huobi extends BaseExch {
         List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
         postParams.add(new Post.NameValue("method", method));
         postParams.add(new Post.NameValue("access_key", KEY));
-        postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
         addCommandParams(postParams, command, options);
         postParams.add(new Post.NameValue("created", created));
         postParams.add(new Post.NameValue("sign", sign));
@@ -290,10 +288,15 @@ public class Huobi extends BaseExch {
     }
 
     private void addCommandParams(List<Post.NameValue> postParams, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
-        if (command == Fetcher.FetchCommand.ORDERS) {
+        if (command == Fetcher.FetchCommand.ACCOUNT) {
+        } if (command == Fetcher.FetchCommand.ORDERS) {
+            OrderData od = options.getOrderData();
+            Pair pair = od.m_pair;
+            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
         } else if (command == Fetcher.FetchCommand.ORDER) {
             OrderData od = options.getOrderData();
             Pair pair = od.m_pair;
+            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
             if (od.m_type == OrderType.LIMIT) { // skip for MARKET orders
                 String priceStr = roundPriceStr(od.m_price, pair);
                 postParams.add(new Post.NameValue("price", priceStr));
@@ -301,9 +304,13 @@ public class Huobi extends BaseExch {
             String amountStr = roundAmountStr(od.m_amount, pair);
             postParams.add(new Post.NameValue("amount", amountStr));
         } else if (command == Fetcher.FetchCommand.CANCEL) {
+            Pair pair = options.getPair();
+            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
             String orderId = options.getOrderId();
             postParams.add(new Post.NameValue("id", orderId));
         } else if (command == Fetcher.FetchCommand.ORDER_STATUS) {
+            Pair pair = options.getPair();
+            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
             String orderId = options.getOrderId();
             postParams.add(new Post.NameValue("id", orderId));
         } else {
@@ -312,8 +319,10 @@ public class Huobi extends BaseExch {
     }
 
     private void addCommandParams(Map<String, String> sArray, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
-        if (command == Fetcher.FetchCommand.ORDERS) {
-            Pair pair = options.getPair();
+        if (command == Fetcher.FetchCommand.ACCOUNT) {
+        } if (command == Fetcher.FetchCommand.ORDERS) {
+            OrderData od = options.getOrderData();
+            Pair pair = od.m_pair;
             sArray.put("coin_type", getCoinType(pair));
         } else if (command == Fetcher.FetchCommand.ORDER) {
             OrderData od = options.getOrderData();
@@ -326,6 +335,11 @@ public class Huobi extends BaseExch {
             String amountStr = roundAmountStr(od.m_amount, pair);
             sArray.put("amount", amountStr);
         } else if (command == Fetcher.FetchCommand.CANCEL) {
+            Pair pair = options.getPair();
+            sArray.put("coin_type", getCoinType(pair));
+            String orderId = options.getOrderId();
+            sArray.put("id", orderId);
+        } else if (command == Fetcher.FetchCommand.ORDER_STATUS) {
             Pair pair = options.getPair();
             sArray.put("coin_type", getCoinType(pair));
             String orderId = options.getOrderId();
@@ -497,6 +511,21 @@ public class Huobi extends BaseExch {
             return "errorCode: " + code + ": " + error;
         }
         return "Unable to parse error. msg: " + jObj;
+    }
+
+    public static OrderStatusData parseOrderStatus(Object jObj) {
+        // jObj={   "total":"19.99",
+        //          "processed_price":"1999.13",
+        //          "processed_amount":"19.99",
+        //          "order_amount":"20.00",
+        //          "fee":"0.00",
+        //          "order_price":"0.00",
+        //          "vot":"19.99",
+        //          "id":351554291,
+        //          "type":3,
+        //          "status":2}
+
+        return null;
     }
 
     // order_info:

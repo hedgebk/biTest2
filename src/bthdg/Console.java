@@ -324,12 +324,17 @@ public class Console {
                 if(s_exchange.requirePairForCancel()) {
                     if (tokensNum == 3) {
                         String pairName = tok.nextToken();
-                        Pair pair = Pair.resolvePair(pairName, s_exchange);
-                        if (pair == null) {
+                        List<Pair> pairs = Pair.guessPair(pairName, s_exchange);
+                        if (pairs.isEmpty()) {
                             System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
                         } else {
-                            CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, pair);
-                            System.out.println("cancel order '" + orderId + "' result: " + coData);
+                            if(pairs.size()==1) {
+                                Pair pair = pairs.get(0);
+                                CancelOrderData coData = Fetcher.cancelOrder(s_exchange, orderId, pair);
+                                System.out.println("cancel order '" + orderId + "' result: " + coData);
+                            } else {
+                                System.out.println("ambiguous pair name: pair '" + pairs + "'. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                            }
                         }
                     } else {
                         System.err.println("invalid 'cancel' command: use followed format: cancel orderId pair. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));

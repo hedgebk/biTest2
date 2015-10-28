@@ -162,6 +162,7 @@ public enum Exchange {
         @Override public OrdersData parseOrders(Object jObj, Pair pair) { return Huobi.parseOrders(jObj, pair); }
         @Override public PlaceOrderData parseOrder(Object jObj) { return Huobi.parseOrder(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Huobi.parseCancelOrders(jObj); }
+        @Override public OrderStatusData parseOrderStatus(Object jObj) { return Huobi.parseOrderStatus(jObj); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
         @Override public boolean requirePairForOrders() { return true; }
         @Override public boolean requirePairForCancel() { return true; }
