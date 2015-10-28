@@ -217,10 +217,7 @@ public class Fetcher {
         Object jObj;
         try {
             jObj = fetchOnce(exchange, FetchCommand.ORDER, new FetchOptions() {
-                @Override
-                public OrderData getOrderData() {
-                    return order;
-                }
+                @Override public OrderData getOrderData() { return order; }
             });
         } catch (IOException e) {
             String error = "place order error: " + e;
@@ -238,21 +235,30 @@ public class Fetcher {
 
     public static CancelOrderData cancelOrder(Exchange exchange, final String orderId, final Pair pair) throws Exception {
         Object jObj = fetch(exchange, FetchCommand.CANCEL, new FetchOptions() {
-            @Override
-            public String getOrderId() {
-                return orderId;
-            }
-
-            @Override
-            public Pair getPair() {
-                return pair;
-            }
+            @Override public String getOrderId() { return orderId; }
+            @Override public Pair getPair() { return pair; }
         });
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
         }
         CancelOrderData coData = exchange.parseCancelOrder(jObj);
         return coData;
+    }
+
+    public static OrderStatusData orderStatus(Exchange exchange, final String orderId, final Pair pair) throws Exception {
+        Object jObj = fetch(exchange, FetchCommand.ORDER_STATUS, new FetchOptions() {
+            @Override public String getOrderId() {
+                return orderId;
+            }
+            @Override public Pair getPair() {
+                return pair;
+            }
+        });
+        if (LOG_JOBJ) {
+            log("jObj=" + jObj);
+        }
+        OrderStatusData osData = exchange.parseOrderStatus(jObj);
+        return osData;
     }
 
 
@@ -550,146 +556,95 @@ public class Fetcher {
 
     public enum FetchCommand {
         TOP {
-            @Override
-            public String getTestStr(Exchange exchange) {
+            @Override public String getTestStr(Exchange exchange) {
                 return exchange.m_topTestStr;
             }
-
-            @Override
-            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
                 return exchange.apiTopEndpoint(options);
             }
-
-            @Override
-            public boolean useTestStr() {
+            @Override public boolean useTestStr() {
                 return USE_TOP_TEST_STR;
             }
         },
         DEEP {
-            @Override
-            public String getTestStr(Exchange exchange) {
+            @Override public String getTestStr(Exchange exchange) {
                 return exchange.deepTestStr();
             }
-
-            @Override
-            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
                 return exchange.apiDeepEndpoint(options);
             }
-
-            @Override
-            public boolean useTestStr() {
+            @Override public boolean useTestStr() {
                 return USE_DEEP_TEST_STR;
             }
         },
         TRADES {
-            @Override
-            public String getTestStr(Exchange exchange) {
+            @Override public String getTestStr(Exchange exchange) {
                 return exchange.m_tradesTestStr;
             }
-
-            @Override
-            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
                 return exchange.apiTradesEndpoint(options);
             }
-
-            @Override
-            public boolean useTestStr() {
+            @Override public boolean useTestStr() {
                 return USE_TRADES_TEST_STR;
             }
         },
         ACCOUNT {
-            @Override
-            public String getTestStr(Exchange exchange) {
+            @Override public String getTestStr(Exchange exchange) {
                 return exchange.m_accountTestStr;
             }
-
-            @Override
-            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
                 return exchange.m_accountEndpoint;
             }
-
-            @Override
-            public boolean useTestStr() {
+            @Override public boolean useTestStr() {
                 return USE_ACCOUNT_TEST_STR;
             }
-
-            @Override
-            public boolean doPost() {
+            @Override public boolean doPost() {
                 return true;
             }
-
-            @Override
-            public boolean needSsl() {
+            @Override public boolean needSsl() {
                 return true;
             }
-
-            @Override
-            public boolean singleRequest() {
+            @Override public boolean singleRequest() {
                 return true;
             }
         },
         ORDER {
-            @Override
-            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
                 return exchange.apiOrderEndpoint(options);
             }
-
-            @Override
-            public boolean doPost() {
+            @Override public boolean doPost() {
                 return true;
             }
-
-            @Override
-            public boolean needSsl() {
+            @Override public boolean needSsl() {
                 return true;
             }
-
-            @Override
-            public boolean singleRequest() {
+            @Override public boolean singleRequest() {
                 return true;
             }
+        },
+        ORDER_STATUS {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+                return exchange.m_orderStatusEndpoint;
+            }
+            @Override public boolean doPost() { return true; }
+            @Override public boolean needSsl() { return true; }
+            @Override public boolean singleRequest() { return true; }
         },
         ORDERS {
-            @Override
-            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
                 return exchange.m_ordersEndpoint;
             }
-
-            @Override
-            public boolean doPost() {
-                return true;
-            }
-
-            @Override
-            public boolean needSsl() {
-                return true;
-            }
-
-            @Override
-            public boolean singleRequest() {
-                return true;
-            }
+            @Override public boolean doPost() { return true; }
+            @Override public boolean needSsl() { return true; }
+            @Override public boolean singleRequest() { return true; }
         },
         CANCEL {
-            @Override
-            public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
+            @Override public Exchange.UrlDef getApiEndpoint(Exchange exchange, FetchOptions options) {
                 return exchange.m_cancelEndpoint;
             }
-
-            @Override
-            public boolean doPost() {
-                return true;
-            }
-
-            @Override
-            public boolean needSsl() {
-                return true;
-            }
-
-            @Override
-            public boolean singleRequest() {
-                return true;
-            }
+            @Override public boolean doPost() { return true; }
+            @Override public boolean needSsl() { return true; }
+            @Override public boolean singleRequest() { return true; }
         };
 
         public String getTestStr(Exchange exchange) {

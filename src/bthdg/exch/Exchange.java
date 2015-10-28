@@ -36,7 +36,8 @@ public enum Exchange {
              Bitstamp.accountTestStr(), new UrlDef("https://www.bitstamp.net/api/balance/"),
             new UrlDef("https://www.bitstamp.net/api/XXXX/"), // xxx - buy | sell
             new UrlDef("https://www.bitstamp.net/api/open_orders/"),
-            new UrlDef("https://www.bitstamp.net/api/cancel_order/")
+            new UrlDef("https://www.bitstamp.net/api/cancel_order/"),
+            null
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Bitstamp.parseTop(jObj); }
         @Override public DeepData parseDeep(Object jObj, Pair pair) { return Bitstamp.parseDeep(jObj); }
@@ -55,7 +56,8 @@ public enum Exchange {
           Btce.accountTestStr(), new UrlDef("https://btc-e.com/tapi", "method", "getInfo"),
           new UrlDef("https://btc-e.com/tapi", "method", "Trade"),
           new UrlDef("https://btc-e.com/tapi", "method", "ActiveOrders"),
-          new UrlDef("https://btc-e.com/tapi", "method", "CancelOrder")
+          new UrlDef("https://btc-e.com/tapi", "method", "CancelOrder"),
+          null
     ) {
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btce.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btce.parseTops(jObj, pairs); }
@@ -76,25 +78,25 @@ public enum Exchange {
         @Override public Currency baseCurrency() { return Currency.BTC; }
         @Override public double getFee(Pair pair, double commonFee) { return Btce.getFee(pair, commonFee); }
     },
-    @Deprecated MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null, null, null, null), // DEAD
+    @Deprecated MTGOX("mtgox", null, "mtgoxUSD", 3, 0.0025, false, null, null, null, null, null, null, null, null, null, null, null, null), // DEAD
     CAMPBX("CampBX", null, "cbxUSD", 4, 0.0055, true,
            campBxTopTestStr(), "http://CampBX.com/api/xticker.php",
-           null, null, "", "", null, null, null, null, null),
+           null, null, "", "", null, null, null, null, null, null),
 // read some spec: https://github.com/timmolter/XChange/blob/develop/xchange-bitfinex/api-specification.txt
 //  sign https://github.com/timmolter/XChange/blob/develop/xchange-bitfinex/src/main/java/com/xeiam/xchange/bitfinex/v1/service/BitfinexHmacPostBodyDigest.java
 // http://docs.bitfinex.com/#websocket
     BITFINEX("Bitfinex", null, "bitfinexUSD", 5, 0.0015, true, // https://www.bitfinex.com/pages/api
            null, null,
-           null, null, "", "", null, null, null, null, null),
+           null, null, "", "", null, null, null, null, null, null),
     HITBTC("HitBtc", null, "hitbtcUSD", 6, 0.00085, true,
            null, null,
-           null, null, "", "", null, null, null, null, null),
+           null, null, "", "", null, null, null, null, null, null),
     LAKEBTC("LakeBtc", null, "lakeUSD", 7, 0.00175, true, // https://www.LakeBTC.com/api_v1/
            null, null,
-           null, null, "", "", null, null, null, null, null),
+           null, null, "", "", null, null, null, null, null, null),
     ITBIT("ItBit", null, "itbitUSD", 8, 0.0017, true,
            null, null,
-           null, null, "", "", null, null, null, null, null),
+           null, null, "", "", null, null, null, null, null, null),
     BTCN("BtcChina", new Btcn(), "btcnCNY", 9, 0.0001, true,
          null, "https://data.btcchina.com/data/ticker?market=XXXX", // XXXX like "btccny"
          null, "https://data.btcchina.com/data/orderbook?market=XXXX",
@@ -102,7 +104,8 @@ public enum Exchange {
          null, new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
          new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
          new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
-         new UrlDef("https://api.btcchina.com/api_trade_v1.php")) {
+         new UrlDef("https://api.btcchina.com/api_trade_v1.php"),
+         null) {
         @Override public void init(Properties keys) { Btcn.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Btcn.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Btcn.parseTops(jObj, pairs); }
@@ -123,7 +126,8 @@ public enum Exchange {
            null, new UrlDef("https://www.okcoin.cn/api/userinfo.do"),
            new UrlDef("https://www.okcoin.cn/api/trade.do"),
            new UrlDef("https://www.okcoin.cn/api/getorder.do"),
-           new UrlDef("https://www.okcoin.cn/api/cancelorder.do")) {
+           new UrlDef("https://www.okcoin.cn/api/cancelorder.do"),
+           new UrlDef("https://www.okcoin.cn/api/getorder.do")) {
         @Override public void init(Properties keys) { OkCoin.init(keys); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return OkCoin.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return OkCoin.parseTops(jObj, pairs); }
@@ -134,6 +138,7 @@ public enum Exchange {
         @Override public PlaceOrderData parseOrder(Object jObj) { return OkCoin.parseOrder(jObj); }
         @Override public OrdersData parseOrders(Object jObj, Pair pair) { return OkCoin.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return OkCoin.parseCancelOrders(jObj); }
+        @Override public OrderStatusData parseOrderStatus(Object jObj) { return OkCoin.parseOrderStatus(jObj); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
         @Override public boolean requirePairForOrders() { return true; }
         @Override public boolean requirePairForCancel() { return true; }
@@ -143,6 +148,7 @@ public enum Exchange {
            null, "http://api.huobi.com/staticmarket/depth_XXXX_json.js", // XXXX like "btc"
            "", "",
            null, new UrlDef("https://api.huobi.com/apiv3.php"),
+           new UrlDef("https://api.huobi.com/apiv3.php"),
            new UrlDef("https://api.huobi.com/apiv3.php"),
            new UrlDef("https://api.huobi.com/apiv3.php"),
            new UrlDef("https://api.huobi.com/apiv3.php")) {
@@ -164,8 +170,7 @@ public enum Exchange {
            null, null, // XXXX like "btc"
            null, null, // XXXX like "btc"
            "", "",
-           null, null,
-           null, null, null) {
+           null, null, null, null, null, null) {
     },
     ;
 
@@ -198,6 +203,7 @@ public enum Exchange {
     public UrlDef m_orderEndpoint;
     public UrlDef m_ordersEndpoint;
     public UrlDef m_cancelEndpoint;
+    public UrlDef m_orderStatusEndpoint;
 
     public final boolean m_doWebUpdate;
 
@@ -211,7 +217,8 @@ public enum Exchange {
              String accountTestStr, UrlDef accountEndpoint,
              UrlDef orderEndpoint,
              UrlDef ordersEndpoint,
-             UrlDef cancelEndpoint
+             UrlDef cancelEndpoint,
+             UrlDef orderStatusEndpoint
     ) {
         m_name = name;
         m_baseExch = baseExch;
@@ -235,6 +242,7 @@ public enum Exchange {
         m_orderEndpoint = orderEndpoint;
         m_ordersEndpoint = ordersEndpoint;
         m_cancelEndpoint = cancelEndpoint;
+        m_orderStatusEndpoint = orderStatusEndpoint;
     }
 
     public TopData parseTop(Object jObj, Pair pair) { throw new RuntimeException("parseTop not implemented on " + this + "; jObj=" + jObj ); }
@@ -247,6 +255,7 @@ public enum Exchange {
     public PlaceOrderData parseOrder(Object jObj) { throw new RuntimeException("parseOrder not implemented on " + this + "; jObj=" + jObj ); }
     public OrdersData parseOrders(Object jObj, Pair pair) { throw new RuntimeException("parseOrders not implemented on " + this + "; jObj=" + jObj); }
     public CancelOrderData parseCancelOrder(Object jObj) { throw new RuntimeException("parseCancelOrder not implemented on " + this + "; jObj=" + jObj ); }
+    public OrderStatusData parseOrderStatus(Object jObj) { throw new RuntimeException("parseOrderStatus not implemented on " + this + "; jObj=" + jObj ); }
     public boolean retryFetch(Object obj) { return false; }
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
     public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return m_apiDeepEndpoint; }

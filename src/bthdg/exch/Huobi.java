@@ -38,8 +38,8 @@ public class Huobi extends BaseExch {
     private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
-        put(Pair.BTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         0.01);
-        put(Pair.LTC_CNH, "0.##",     0.01,             0.02,            "0.0###",      0.0001,         1);
+        put(Pair.BTC_CNH, "0.##",     0.01,             0.01,            "0.0###",      0.0001,         0.01);
+        put(Pair.LTC_CNH, "0.##",     0.01,             0.01,            "0.0###",      0.0001,         1);
     }
 
     protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,
@@ -258,6 +258,7 @@ public class Huobi extends BaseExch {
     // https://github.com/peatio/bitbot-huobi/blob/master/spec/fixtures/vcr_cassettes/authorized/success/account.yml
     @Override public IPostData getPostData(Exchange.UrlDef apiEndpoint, Fetcher.FetchCommand command, Fetcher.FetchOptions options) throws Exception {
         String method = getMethod(command, options);
+        Pair pair = options.getPair();
 
         long time = System.currentTimeMillis() / 1000;
         String created = Long.toString(time);
@@ -265,6 +266,7 @@ public class Huobi extends BaseExch {
         Map<String,String> sArray = new HashMap<String, String>();
         sArray.put("method", method);
         sArray.put("access_key", KEY);
+        sArray.put("coin_type", getCoinType(pair));
         addCommandParams(sArray, command, options);
         sArray.put("created", created);
         sArray.put("secret_key", SECRET);
@@ -272,9 +274,10 @@ public class Huobi extends BaseExch {
         String sign = Md5.getMD5String(str);
         sign = sign.toLowerCase();
 
-        List<Post.NameValue>    postParams = new ArrayList<Post.NameValue>();
+        List<Post.NameValue> postParams = new ArrayList<Post.NameValue>();
         postParams.add(new Post.NameValue("method", method));
         postParams.add(new Post.NameValue("access_key", KEY));
+        postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
         addCommandParams(postParams, command, options);
         postParams.add(new Post.NameValue("created", created));
         postParams.add(new Post.NameValue("sign", sign));
@@ -288,21 +291,23 @@ public class Huobi extends BaseExch {
 
     private void addCommandParams(List<Post.NameValue> postParams, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
         if (command == Fetcher.FetchCommand.ORDERS) {
-            Pair pair = options.getPair();
-            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
         } else if (command == Fetcher.FetchCommand.ORDER) {
             OrderData od = options.getOrderData();
             Pair pair = od.m_pair;
-            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
-            String priceStr = roundPriceStr(od.m_price, pair);
-            postParams.add(new Post.NameValue("price", priceStr));
+            if (od.m_type == OrderType.LIMIT) { // skip for MARKET orders
+                String priceStr = roundPriceStr(od.m_price, pair);
+                postParams.add(new Post.NameValue("price", priceStr));
+            }
             String amountStr = roundAmountStr(od.m_amount, pair);
             postParams.add(new Post.NameValue("amount", amountStr));
         } else if (command == Fetcher.FetchCommand.CANCEL) {
-            Pair pair = options.getPair();
-            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
             String orderId = options.getOrderId();
             postParams.add(new Post.NameValue("id", orderId));
+        } else if (command == Fetcher.FetchCommand.ORDER_STATUS) {
+            String orderId = options.getOrderId();
+            postParams.add(new Post.NameValue("id", orderId));
+        } else {
+            throw new RuntimeException("not supported command=" + command);
         }
     }
 
@@ -314,8 +319,10 @@ public class Huobi extends BaseExch {
             OrderData od = options.getOrderData();
             Pair pair = od.m_pair;
             sArray.put("coin_type", getCoinType(pair));
-            String priceStr = roundPriceStr(od.m_price, pair);
-            sArray.put("price", priceStr);
+            if (od.m_type == OrderType.LIMIT) { // skip for MARKET orders
+                String priceStr = roundPriceStr(od.m_price, pair);
+                sArray.put("price", priceStr);
+            }
             String amountStr = roundAmountStr(od.m_amount, pair);
             sArray.put("amount", amountStr);
         } else if (command == Fetcher.FetchCommand.CANCEL) {
@@ -323,6 +330,8 @@ public class Huobi extends BaseExch {
             sArray.put("coin_type", getCoinType(pair));
             String orderId = options.getOrderId();
             sArray.put("id", orderId);
+        } else {
+            throw new RuntimeException("Huobi: not supported command=" + command);
         }
     }
 
@@ -330,7 +339,7 @@ public class Huobi extends BaseExch {
         switch (pair) {
             case BTC_CNH: return "1";
             case LTC_CNH: return "2";
-            default: throw new RuntimeException("not supported pair: " + pair);
+            default: throw new RuntimeException("Huobi: not supported pair: " + pair);
         }
     }
 
@@ -344,10 +353,15 @@ public class Huobi extends BaseExch {
         if(command == Fetcher.FetchCommand.ORDER) {
             OrderData od = options.getOrderData();
             OrderSide side = od.m_side;
-            return (side == OrderSide.BUY) ? "buy" : "sell";
+            return od.m_type == OrderType.LIMIT
+                    ? (side == OrderSide.BUY) ? "buy" : "sell" // LIMIT
+                    :  (side == OrderSide.BUY) ? "buy_market" : "sell_market"; // MARKET
         }
         if(command == Fetcher.FetchCommand.CANCEL) {
             return "cancel_order";
+        }
+        if(command == Fetcher.FetchCommand.ORDER_STATUS) {
+            return "order_info";
         }
         throw new RuntimeException("Huobi: not supported yet command: " + command.name());
     }

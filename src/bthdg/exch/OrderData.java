@@ -17,6 +17,7 @@ public class OrderData {
     public OrderStatus m_status = OrderStatus.NEW;
     public OrderState m_state = OrderState.NONE;
     public final OrderSide m_side;
+    public final OrderType m_type;
     public double m_price;
     public double m_amount;
     public double m_filled;
@@ -27,11 +28,20 @@ public class OrderData {
     public final Pair m_pair;
     public String m_orderId;
 
+    public OrderData(Pair pair, OrderSide side, double amount) {
+        this(pair, OrderType.MARKET, side, amount);
+    }
+
     public OrderData(Pair pair, OrderSide side, double price, double amount) {
+        this(pair, OrderType.LIMIT, side, amount);
+        m_price = price;
+    }
+
+    private OrderData(Pair pair, OrderType orderType, OrderSide side, double amount) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
+        m_type = orderType;
         m_pair = pair; // like Pair.BTC_USD
         m_side = side; // like OrderSide.BUY
-        m_price = price;
         m_amount = amount;
     }
 
@@ -171,6 +181,7 @@ public class OrderData {
                 "status=" + m_status +
                 ", pair=" + m_pair +
                 ", side=" + m_side +
+                ", type=" + m_type+
                 ", amount=" + Utils.format5(m_amount) +
                 ", price=" + Utils.format5(m_price) +
                 ", state=" + m_state +
@@ -195,6 +206,7 @@ public class OrderData {
         sb.append("Order[status=").append(m_status.toString());
         sb.append("; state=").append(m_state.toString());
         sb.append("; side=").append(m_side.toString());
+        sb.append("; type=").append(m_type);
         sb.append("; price=").append(m_price);
         sb.append("; amount=").append(m_amount);
         sb.append("; filled=").append(m_filled);

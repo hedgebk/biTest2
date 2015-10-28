@@ -21,7 +21,7 @@ public class Post {
             }
             buff.append(key);
             buff.append("=");
-            buff.append(value);
+            buff.append(value.replace(" ", "+"));
         }
         return buff.toString();
     }

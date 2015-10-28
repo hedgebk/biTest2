@@ -15,7 +15,7 @@ import java.util.List;
 
 public abstract class BaseExecutor implements Runnable {
     public static final int TIMER_SLEEP_TIME = 2000;
-    public static final int DEEP_MKT_PIP_RATIO = 1;
+    public static final int DEEP_MKT_PIP_RATIO = 2;
     public static boolean DO_TRADE = true;
     public static final int STATE_NO_CHANGE = 0;
     public static final int STATE_NONE = 1;
@@ -923,7 +923,7 @@ public abstract class BaseExecutor implements Runnable {
                 int sideDirection = isBuy ? 1 : -1;
                 double offset = rate * avgDiff / 2;
                 int orderPlaceAttempt = baseExecutor.m_orderPlaceAttemptCounter;
-                double pip = exchange.minAmountStep(pair);
+                double pip = exchange.minExchPriceStep(pair);
                 double adjustedPrice = midPrice + offset * sideDirection + DEEP_MKT_PIP_RATIO * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
                 log("    sideDirection=" + sideDirection + " offset=" + offset +
                         "; orderPlaceAttempt=" + orderPlaceAttempt + "; pip=" + pip +
@@ -966,7 +966,7 @@ public abstract class BaseExecutor implements Runnable {
                 boolean isBuy = needOrderSide.isBuy();
                 double mktPrice = isBuy ? sell : buy;
                 log("  buy=" + buy + "; sell=" + sell + "; mktPrice=" + mktPrice + "; needOrderSide=" + needOrderSide);
-                double pip = exchange.minAmountStep(baseExecutor.m_pair);
+                double pip = exchange.minExchPriceStep(baseExecutor.m_pair);
                 int orderPlaceAttempt = baseExecutor.m_orderPlaceAttemptCounter;
                 double adjustedPrice = mktPrice + DEEP_MKT_PIP_RATIO * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
                 log("    orderPlaceAttempt=" + orderPlaceAttempt +

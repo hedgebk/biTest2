@@ -60,8 +60,10 @@ public class Console {
             doTop(line);
         } else if (line.startsWith("order ")) {
             doOrder(line);
-        } else if (line.startsWith("cancel ")) {
+        } else if (line.startsWith("cancel ") || line.startsWith("c ")) {
             doCancel(line);
+        } else if (line.startsWith("status") || line.startsWith("s ")) {
+            doOrderStatus(line);
         } else if (line.equals("am")) {
             AccountData account = Fetcher.fetchAccount(s_exchange);
             if (account != null) {
@@ -342,6 +344,39 @@ public class Console {
         }
     }
 
+    private static void doOrderStatus(String line) throws Exception {
+        // status 12345 LTC_CNH
+        StringTokenizer tok = new StringTokenizer(line.toLowerCase());
+        int tokensNum = tok.countTokens();
+        if (tokensNum >= 2) {
+            tok.nextToken();
+            String orderId = tok.nextToken();
+            if (tokensNum == 3) {
+                String pairName = tok.nextToken();
+                List<Pair> pairs = Pair.guessPair(pairName, s_exchange);
+                if (pairs.isEmpty()) {
+                    System.out.println("pair '" + pairName + "' not supported by " + s_exchange + ". supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                } else {
+                    if(pairs.size()==1) {
+                        Pair pair = pairs.get(0);
+                        String name = pair.name();
+                        if (!name.equalsIgnoreCase(pairName)) {
+                            System.err.println(" pair is guessed to " + name);
+                        }
+                        OrderStatusData osData = Fetcher.orderStatus(s_exchange, orderId, pair);
+                        System.out.println("orderStatus '" + orderId + "' result: " + osData);
+                    } else {
+                        System.out.println("ambiguous pair name: pair '" + pairs + "'. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+                    }
+                }
+            } else {
+                System.err.println("invalid 'status' command: use followed format: status orderId pair. supported pairs: " + Arrays.asList(s_exchange.supportedPairs()));
+            }
+        } else {
+            System.err.println("invalid 'status' command: use followed format: status orderId pair");
+        }
+    }
+
     private static void cancelBtc() throws Exception {
         System.out.println("cancel BTC requested - query orders...");
         OrdersData od = fetchOrders(Currency.BTC);
@@ -484,6 +519,7 @@ System.out.println("all orders done...");
 
         TopData top = null;
         double limitPrice;
+        boolean isMarket = false;
         if (priceStr.equals("mkt")) { // place mkt
             top = Fetcher.fetchTop(exchange, pair);
             limitPrice = side.mktPrice(top);
@@ -508,32 +544,54 @@ System.out.println("all orders done...");
             top = Fetcher.fetchTop(exchange, pair);
             limitPrice = top.getMid();
             limitPrice = exchange.roundPrice(limitPrice, pair);
+        } else if (priceStr.equals("market")) { // place real market order
+            isMarket = true;
+            limitPrice = 0;
         } else {
             limitPrice = Double.parseDouble(priceStr);
         }
 
         if (!forward) {
-            amount = amount / limitPrice;
-        }
-
-        OrderData orderData = new OrderData(pair, side, limitPrice, amount);
-        if (noPriceConfirm) {
-            System.out.println("auto-confirmed order=" + orderData);
-        } else {
-            System.out.println("confirm orderData=" + orderData);
-        }
-        if (noPriceConfirm || confirm()) {
-            if ((top == null) || !noPriceConfirm) {
+            if (isMarket) {
                 top = Fetcher.fetchTop(exchange, pair);
             }
-            if (noPriceConfirm || confirmLmtPrice(limitPrice, top)) {
-                PlaceOrderData poData = Fetcher.placeOrder(orderData, exchange);
-                System.out.println("order place result: " + poData);
-            } else {
-                System.out.println(" limit price not confirmed");
+            double divider = isMarket ? top.getMid() : limitPrice;
+            amount = amount / divider;
+        }
+
+        OrderData orderData = isMarket
+                ? new OrderData(pair, side, amount)
+                : new OrderData(pair, side, limitPrice, amount);
+        if (isMarket) {
+            System.out.println("auto-confirmed MKT order=" + orderData);
+            PlaceOrderData poData = Fetcher.placeOrder(orderData, exchange);
+            System.out.println("MKT order place result: " + poData);
+
+            if (poData.m_error == null) {
+                long orderId = poData.m_orderId;
+                System.out.println(" query order status (orderId=" + orderId + ")...");
+                OrderStatusData osData = Fetcher.orderStatus(s_exchange, Long.toString(orderId), pair);
+                System.out.println("orderStatus '" + orderId + "' result: " + osData);
             }
         } else {
-            System.out.println(" orderData not confirmed");
+            if (noPriceConfirm) {
+                System.out.println("auto-confirmed order=" + orderData);
+            } else {
+                System.out.println("confirm orderData=" + orderData);
+            }
+            if (noPriceConfirm || confirm()) {
+                if ((top == null) || !noPriceConfirm) {
+                    top = Fetcher.fetchTop(exchange, pair);
+                }
+                if (noPriceConfirm || confirmLmtPrice(limitPrice, top)) {
+                    PlaceOrderData poData = Fetcher.placeOrder(orderData, exchange);
+                    System.out.println("order place result: " + poData);
+                } else {
+                    System.out.println(" limit price not confirmed");
+                }
+            } else {
+                System.out.println(" orderData not confirmed");
+            }
         }
     }
 

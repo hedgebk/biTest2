@@ -13,7 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
-    public static final OrderPriceMode ORDER_PRICE_MODE = OrderPriceMode.DEEP_MKT_AVG; // OrderPriceMode.MKT_AVG; // OrderPriceMode.MID_TO_MKT; // OrderPriceMode.MID; // OrderPriceMode.DEEP_MKT;
+    public static final OrderPriceMode ORDER_PRICE_MODE = OrderPriceMode.DEEP_MKT; // OrderPriceMode.DEEP_MKT_AVG; // OrderPriceMode.MKT_AVG; // OrderPriceMode.MID_TO_MKT; // OrderPriceMode.MID;
     private static final long MIN_ORDER_LIVE_TIME = 7000;
     private static final double OUT_OF_MARKET_THRESHOLD = 0.6;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 12000;

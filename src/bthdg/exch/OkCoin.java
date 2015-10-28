@@ -20,8 +20,8 @@ public class OkCoin extends BaseExch {
     private static String PARTNER;
     public static boolean LOG_PARSE = false;
     public static boolean JOIN_SMALL_QUOTES = false;
-    public static final int CONNECT_TIMEOUT = 10000;
-    public static final int READ_TIMEOUT = 20000;
+    public static final int CONNECT_TIMEOUT = 4000;
+    public static final int READ_TIMEOUT = 8000;
 
     // supported pairs
     static final Pair[] PAIRS = {Pair.BTC_CNH, Pair.LTC_CNH };
@@ -37,8 +37,8 @@ public class OkCoin extends BaseExch {
     private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
-        put(Pair.BTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.01);
-        put(Pair.LTC_CNH, "0.00",     0.01,             0.02,            "0.0##",       0.001,          0.1);
+        put(Pair.BTC_CNH, "0.00",     0.01,             0.01,            "0.0##",       0.001,          0.01);
+        put(Pair.LTC_CNH, "0.00",     0.01,             0.01,            "0.0##",       0.001,          0.1);
     }
 
     protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,
@@ -310,15 +310,24 @@ public class OkCoin extends BaseExch {
             case ORDER: {
                 OrderData order = options.getOrderData();
                 Pair pair = order.m_pair;
-                String priceStr = roundPriceStr(order.m_price, pair);
                 String amountStr = roundAmountStr(order.m_amount, pair);
 
                 Map<String, String> sArray = new HashMap<String, String>();
                 sArray.put("partner", PARTNER);
                 sArray.put("symbol", getPairParam(pair));
-                sArray.put("type", getOrderSideStr(order));
-                sArray.put("rate", priceStr);
-                sArray.put("amount", amountStr);
+                sArray.put("type", getOrderSideString(order));
+                if (order.m_type == OrderType.LIMIT) { // LIMIT
+                    String priceStr = roundPriceStr(order.m_price, pair);
+                    sArray.put("rate", priceStr);
+                    sArray.put("amount", amountStr);
+                } else { // MARKET
+                    if (order.m_side.isBuy()) {
+                        sArray.put("rate", amountStr);
+                    } else {
+                        sArray.put("amount", amountStr);
+                    }
+                }
+log("sArray="+sArray);
                 String sign = buildMysign(sArray, SECRET);
                 return getPostData(sArray, sign);
             }
@@ -340,8 +349,23 @@ public class OkCoin extends BaseExch {
                 String sign = buildMysign(sArray, SECRET);
                 return getPostData(sArray, sign);
             }
+            case ORDER_STATUS: {
+                Pair pair = options.getPair();
+                Map<String, String> sArray = new HashMap<String, String>();
+                sArray.put("partner", PARTNER);
+                sArray.put("order_id", options.getOrderId());
+                sArray.put("symbol", getPairParam(pair));
+                String sign = buildMysign(sArray, SECRET);
+                return getPostData(sArray, sign);
+            }
         }
-        throw new RuntimeException("not supported");
+        throw new RuntimeException("not supported command=" + command);
+    }
+
+    private String getOrderSideString(OrderData order) {
+        return (order.m_type == OrderType.MARKET)
+                ? order.m_side.isBuy() ? "buy_market" : "sell_market" // MARKET
+                : getOrderSideStr(order); // LIMIT
     }
 
     private IPostData getPostData(Map<String, String> sArray, String sign) {
@@ -365,16 +389,8 @@ public class OkCoin extends BaseExch {
             Map<String,OrdersData.OrdData> ords = new HashMap<String,OrdersData.OrdData>();
             for(int i = 0; i < size; i++) {
                 JSONObject order = (JSONObject) orders.get(i);
-                String orderId = ((Long) order.get("orders_id")).toString();
-                double orderAmount = Utils.getDouble(order.get("amount"));
-                double executedAmount = Utils.getDouble(order.get("deal_amount")); // Has been traded quantity
-                double remainedAmount = orderAmount - executedAmount;
-                double rate = Utils.getDouble(order.get("rate"));
-                String status = Utils.getString(order.get("status")); // 0-pending?
-                String pair = (String) order.get("symbol");
-                String type = (String) order.get("type");
-                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, status, getPair(pair), getOrderSide(type));
-                ords.put(orderId, ord);
+                OrdersData.OrdData ord = parseOrdData(order);
+                ords.put(ord.m_orderId, ord);
             }
             return new OrdersData(ords);
         } else {
@@ -407,6 +423,60 @@ public class OkCoin extends BaseExch {
             log(" jObj=" + jObj);
             return new CancelOrderData(msg);
         }
+    }
+
+    public static OrderStatusData parseOrderStatus(Object obj) {
+//  {"result":false,"errorCode":10012}
+//  {"result":true,"orders":[
+//      {   "symbol":"btc_cny",
+//          "amount":0,
+//          "orders_id":1201806353,
+//          "rate":20,
+//          "avg_rate":1930.01,
+//          "type":"buy_market",
+//          "deal_amount":0.01,
+//          "createDate":1445991766000,
+//          "status":2}]}
+
+        JSONObject jObj = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("OkCoin.parseOrderStatus() " + jObj);
+        }
+        try {
+            Boolean result = (Boolean) jObj.get("result");
+            if( result ) {
+log("OkCoin.parseOrderStatus() " + jObj);
+
+                JSONArray orders = (JSONArray) jObj.get("orders");
+
+                JSONObject order = (JSONObject) orders.get(0);
+                OrdersData.OrdData ord = parseOrdData(order);
+
+                return new OrderStatusData(ord);
+            } else { // we may try to cancel already filled order
+                String msg = parseError(jObj);
+                log(msg);
+                return new OrderStatusData(msg);
+            }
+        } catch (Exception e) {
+            String msg = "OkCoin.parseOrderStatus error: " + e;
+            err(msg, e);
+            log(" jObj=" + jObj);
+            return new OrderStatusData(msg);
+        }
+    }
+
+    protected static OrdersData.OrdData parseOrdData(JSONObject order) {
+        String orderId = order.get("orders_id").toString();
+        long createDate = Utils.getLong(order.get("createDate"));
+        double orderAmount = Utils.getDouble(order.get("amount"));
+        double executedAmount = Utils.getDouble(order.get("deal_amount")); // Has been traded quantity
+        double remainedAmount = orderAmount - executedAmount;
+        double rate = Utils.getDouble(order.get("rate"));
+        String status = Utils.getString(order.get("status")); // 0-pending?
+        String pair = (String) order.get("symbol");
+        String type = (String) order.get("type");
+        return new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, createDate, status, getPair(pair), getOrderSide(type));
     }
 
     private static String parseError(JSONObject jObj) {

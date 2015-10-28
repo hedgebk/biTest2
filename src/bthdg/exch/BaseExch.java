@@ -272,9 +272,9 @@ public abstract class BaseExch {
     }
 
     protected static OrderSide getOrderSide(String side) {
-        return side.equals("buy") || side.equals("bid")
+        return side.equals("buy") || side.equals("bid")|| side.equals("buy_market")
                 ? OrderSide.BUY
-                : side.equals("sell") || side.equals("ask")
+                : side.equals("sell") || side.equals("ask") || side.equals("sell_market")
                     ? OrderSide.SELL
                     : null;
     }
