@@ -409,7 +409,7 @@ public class Console {
     }
 
     private static void doOrder(String line) throws Exception {
-        // order [on btcn|okcoin] [buy|sell] [0.1|100%] eur for btc [@|at] [11.5|mkt|mkt-5|mkt|peg]{!}
+        // order [on btcn|okcoin] [buy|sell] [0.1|100%] eur for btc [@|at] [11.5|mkt|mkt-5|mkt|peg|market]{!}
         StringTokenizer tok = new StringTokenizer(line.toLowerCase());
         int tokensNum = tok.countTokens();
         if(tokensNum >= 8) {
@@ -552,21 +552,25 @@ System.out.println("all orders done...");
         } else if (priceStr.equals("market")) { // place real market order
             isMarket = true;
             limitPrice = 0;
+            if (exchange.requireConversionPrice(OrderType.MARKET, side)) {
+                top = Fetcher.fetchTop(exchange, pair);
+                System.out.println(" top loaded for ConversionPrice: " + top);
+                limitPrice = side.mktPrice(top);
+            }
         } else {
             limitPrice = Double.parseDouble(priceStr);
         }
 
         if (!forward) {
-            if (isMarket) {
+            if (isMarket && (top == null)) {
                 top = Fetcher.fetchTop(exchange, pair);
             }
             double divider = isMarket ? top.getMid() : limitPrice;
             amount = amount / divider;
         }
+        OrderType orderType = isMarket ? OrderType.MARKET : OrderType.LIMIT;
 
-        OrderData orderData = isMarket
-                ? new OrderData(pair, side, amount)
-                : new OrderData(pair, side, limitPrice, amount);
+        OrderData orderData = new OrderData(pair, orderType, side, limitPrice, amount);
         if (isMarket) {
             System.out.println("auto-confirmed MKT order=" + orderData);
             PlaceOrderData poData = Fetcher.placeOrder(orderData, exchange);

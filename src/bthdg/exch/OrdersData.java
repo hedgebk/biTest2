@@ -39,8 +39,18 @@ public class OrdersData {
         public String m_status;
         public Pair m_pair;
         public OrderSide m_orderSide;
+        public OrderType m_orderType;
 
-        public OrdData(String orderId, double orderAmount, double remainedAmount, double rate, long createTime, String status, Pair pair, OrderSide orderSide) {
+        public OrderStatus m_orderStatus;
+        public double m_avgPrice;
+
+        public OrdData(String orderId, double orderAmount, double remainedAmount, double rate, long createTime,
+                       String status, Pair pair, OrderSide orderSide) {
+            this(orderId, orderAmount, remainedAmount, rate, createTime, status, pair, orderSide, OrderType.LIMIT);
+        }
+
+        public OrdData(String orderId, double orderAmount, double remainedAmount, double rate, long createTime,
+                       String status, Pair pair, OrderSide orderSide, OrderType orderType) {
             m_orderId = orderId;
             m_orderAmount = orderAmount;
             m_remainedAmount = remainedAmount;
@@ -49,23 +59,27 @@ public class OrdersData {
             m_status = status;
             m_pair = pair;
             m_orderSide = orderSide;
+            m_orderType = orderType;
         }
 
         @Override public String toString() {
             return "OrdData{" +
                     "orderId='" + m_orderId + '\'' +
                     ", orderSide=" + m_orderSide +
+                    ", orderType=" + m_orderType +
                     ", orderAmount=" + m_orderAmount +
                     ", remainedAmount=" + m_remainedAmount +
                     ", rate=" + m_rate +
                     ", pair=" + m_pair +
                     ", createTime=" + m_createTime +
                     ", status=" + m_status +
+                    ((m_orderStatus == null) ? "" : " " + m_orderStatus) +
+                    ", avgPrice=" + m_avgPrice +
                     '}';
         }
 
         public OrderData toOrderData() {
-            OrderData orderData = new OrderData(m_pair, m_orderSide, m_rate, m_orderAmount);
+            OrderData orderData = new OrderData(m_pair, m_orderType, m_orderSide, m_rate, m_orderAmount);
             orderData.m_orderId = m_orderId;
             return orderData;
         }

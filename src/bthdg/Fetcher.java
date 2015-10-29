@@ -257,7 +257,7 @@ public class Fetcher {
         if (LOG_JOBJ) {
             log("jObj=" + jObj);
         }
-        OrderStatusData osData = exchange.parseOrderStatus(jObj);
+        OrderStatusData osData = exchange.parseOrderStatus(jObj, pair);
         return osData;
     }
 

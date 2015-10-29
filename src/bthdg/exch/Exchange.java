@@ -138,7 +138,7 @@ public enum Exchange {
         @Override public PlaceOrderData parseOrder(Object jObj) { return OkCoin.parseOrder(jObj); }
         @Override public OrdersData parseOrders(Object jObj, Pair pair) { return OkCoin.parseOrders(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return OkCoin.parseCancelOrders(jObj); }
-        @Override public OrderStatusData parseOrderStatus(Object jObj) { return OkCoin.parseOrderStatus(jObj); }
+        @Override public OrderStatusData parseOrderStatus(Object jObj, Pair pair) { return OkCoin.parseOrderStatus(jObj); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
         @Override public boolean requirePairForOrders() { return true; }
         @Override public boolean requirePairForCancel() { return true; }
@@ -162,7 +162,7 @@ public enum Exchange {
         @Override public OrdersData parseOrders(Object jObj, Pair pair) { return Huobi.parseOrders(jObj, pair); }
         @Override public PlaceOrderData parseOrder(Object jObj) { return Huobi.parseOrder(jObj); }
         @Override public CancelOrderData parseCancelOrder(Object jObj) { return Huobi.parseCancelOrders(jObj); }
-        @Override public OrderStatusData parseOrderStatus(Object jObj) { return Huobi.parseOrderStatus(jObj); }
+        @Override public OrderStatusData parseOrderStatus(Object jObj, Pair pair) { return Huobi.parseOrderStatus(jObj, pair); }
         @Override public Currency baseCurrency() { return Currency.CNH; }
         @Override public boolean requirePairForOrders() { return true; }
         @Override public boolean requirePairForCancel() { return true; }
@@ -256,7 +256,7 @@ public enum Exchange {
     public PlaceOrderData parseOrder(Object jObj) { throw new RuntimeException("parseOrder not implemented on " + this + "; jObj=" + jObj ); }
     public OrdersData parseOrders(Object jObj, Pair pair) { throw new RuntimeException("parseOrders not implemented on " + this + "; jObj=" + jObj); }
     public CancelOrderData parseCancelOrder(Object jObj) { throw new RuntimeException("parseCancelOrder not implemented on " + this + "; jObj=" + jObj ); }
-    public OrderStatusData parseOrderStatus(Object jObj) { throw new RuntimeException("parseOrderStatus not implemented on " + this + "; jObj=" + jObj ); }
+    public OrderStatusData parseOrderStatus(Object jObj, Pair pair) { throw new RuntimeException("parseOrderStatus not implemented on " + this + "; jObj=" + jObj ); }
     public boolean retryFetch(Object obj) { return false; }
     public UrlDef apiTopEndpoint(Fetcher.FetchOptions options) { return m_apiTopEndpoint; }
     public UrlDef apiDeepEndpoint(Fetcher.FetchOptions options) { return m_apiDeepEndpoint; }
@@ -282,6 +282,7 @@ public enum Exchange {
     public boolean supportsQueryOrdersBySymbol() { return true; }
     public boolean requirePairForOrders() { return false; }
     public boolean requirePairForCancel() { return false; }
+    public boolean requireConversionPrice(OrderType type, OrderSide side) { return m_baseExch.requireConversionPrice(type, side); }
     public Currency[] supportedCurrencies() { return m_baseExch.supportedCurrencies(); }
     public Currency baseCurrency() { throw new RuntimeException("baseCurrency not implemented on " + this ); }
     public double getFee(Pair pair, double commonFee) { return commonFee; }
@@ -332,6 +333,7 @@ public enum Exchange {
     }
 
     public void init(Properties keys) {}
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     public static class UrlDef {

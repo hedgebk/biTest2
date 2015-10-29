@@ -29,19 +29,19 @@ public class OrderData {
     public String m_orderId;
 
     public OrderData(Pair pair, OrderSide side, double amount) {
-        this(pair, OrderType.MARKET, side, amount);
+        this(pair, OrderType.MARKET, side, 0, amount);
     }
 
     public OrderData(Pair pair, OrderSide side, double price, double amount) {
-        this(pair, OrderType.LIMIT, side, amount);
-        m_price = price;
+        this(pair, OrderType.LIMIT, side, price, amount);
     }
 
-    private OrderData(Pair pair, OrderType orderType, OrderSide side, double amount) {
+    public OrderData(Pair pair, OrderType orderType, OrderSide side, double price, double amount) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
-        m_type = orderType;
+        m_type = orderType; // like OrderType.LIMIT
         m_pair = pair; // like Pair.BTC_USD
         m_side = side; // like OrderSide.BUY
+        m_price = price;
         m_amount = amount;
     }
 

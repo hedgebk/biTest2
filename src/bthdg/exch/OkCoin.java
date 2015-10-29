@@ -99,6 +99,9 @@ public class OkCoin extends BaseExch {
     @Override protected String getApiEndpoint() { return null; }
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; };
+    @Override public boolean requireConversionPrice(OrderType type, OrderSide side) {
+        return (type == OrderType.MARKET) && (side == OrderSide.BUY);
+    }
 
     public static void main(String[] args) {
         try {
@@ -309,8 +312,8 @@ public class OkCoin extends BaseExch {
             }
             case ORDER: {
                 OrderData order = options.getOrderData();
+                String amountStr = getAmount(order);
                 Pair pair = order.m_pair;
-                String amountStr = roundAmountStr(order.m_amount, pair);
 
                 Map<String, String> sArray = new HashMap<String, String>();
                 sArray.put("partner", PARTNER);
@@ -321,13 +324,8 @@ public class OkCoin extends BaseExch {
                     sArray.put("rate", priceStr);
                     sArray.put("amount", amountStr);
                 } else { // MARKET
-                    if (order.m_side.isBuy()) {
-                        sArray.put("rate", amountStr);
-                    } else {
-                        sArray.put("amount", amountStr);
-                    }
+                    sArray.put(order.m_side.isBuy() ? "rate" : "amount", amountStr);
                 }
-log("sArray="+sArray);
                 String sign = buildMysign(sArray, SECRET);
                 return getPostData(sArray, sign);
             }
@@ -360,6 +358,18 @@ log("sArray="+sArray);
             }
         }
         throw new RuntimeException("not supported command=" + command);
+    }
+
+    private String getAmount(OrderData od) {
+        double amount = od.m_amount;
+        if ((od.m_type == OrderType.MARKET) && (od.m_side == OrderSide.BUY)) {
+            double price = od.m_price;
+            if (price == 0) {
+                throw new RuntimeException("conversion price required for SELL@MARKET orders");
+            }
+            amount *= price;
+        }
+        return roundAmountStr(amount, od.m_pair);
     }
 
     private String getOrderSideString(OrderData order) {
@@ -451,6 +461,7 @@ log("OkCoin.parseOrderStatus() " + jObj);
 
                 JSONObject order = (JSONObject) orders.get(0);
                 OrdersData.OrdData ord = parseOrdData(order);
+                ord.m_orderStatus = getOrderStatus(ord.m_status);
 
                 return new OrderStatusData(ord);
             } else { // we may try to cancel already filled order
@@ -466,6 +477,23 @@ log("OkCoin.parseOrderStatus() " + jObj);
         }
     }
 
+    private static OrderStatus getOrderStatus(String status) {
+        // -1: cancelled, 0: unfilled, 1: partially filled, 2: fully filled
+        if (status.equals("0")) {
+            return OrderStatus.SUBMITTED;
+        }
+        if (status.equals("1")) {
+            return OrderStatus.PARTIALLY_FILLED;
+        }
+        if (status.equals("2")) {
+            return OrderStatus.FILLED;
+        }
+        if (status.equals("-1")) {
+            return OrderStatus.CANCELLED;
+        }
+        return null;
+    }
+
     protected static OrdersData.OrdData parseOrdData(JSONObject order) {
         String orderId = order.get("orders_id").toString();
         long createDate = Utils.getLong(order.get("createDate"));
@@ -476,7 +504,7 @@ log("OkCoin.parseOrderStatus() " + jObj);
         String status = Utils.getString(order.get("status")); // 0-pending?
         String pair = (String) order.get("symbol");
         String type = (String) order.get("type");
-        return new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, createDate, status, getPair(pair), getOrderSide(type));
+        return new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, createDate, status, getPair(pair), getOrderSide(type), getOrderType(type));
     }
 
     private static String parseError(JSONObject jObj) {

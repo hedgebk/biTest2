@@ -37,6 +37,8 @@ public class Huobi extends BaseExch {
     private static final Map<Pair, Double> s_minOurPriceStepMap = new HashMap<Pair, Double>();
     private static final Map<Pair, Double> s_minOrderToCreateMap = new HashMap<Pair, Double>();
 
+    private static final DecimalFormat MKT_AMOUNT_FORMAT = mkFormat("0.##");
+
     static {           // priceFormat minExchPriceStep  minOurPriceStep  amountFormat   minAmountStep   minOrderToCreate
         put(Pair.BTC_CNH, "0.##",     0.01,             0.01,            "0.0###",      0.0001,         0.01);
         put(Pair.LTC_CNH, "0.##",     0.01,             0.01,            "0.0###",      0.0001,         1);
@@ -59,7 +61,9 @@ public class Huobi extends BaseExch {
     @Override protected String getApiEndpoint() { return "https://api.huobi.com/apiv3"; }
     @Override public Pair[] supportedPairs() { return PAIRS; }
     @Override public Currency[] supportedCurrencies() { return CURRENCIES; }
-
+    @Override public boolean requireConversionPrice(OrderType type, OrderSide side) {
+            return (type == OrderType.MARKET) && (side == OrderSide.BUY);
+    }
     @Override protected DecimalFormat priceFormat(Pair pair) { return s_priceFormatMap.get(pair); }
     @Override protected DecimalFormat amountFormat(Pair pair) { return s_amountFormatMap.get(pair); }
     @Override public double minOurPriceStep(Pair pair) { return s_minOurPriceStepMap.get(pair); }
@@ -95,6 +99,7 @@ public class Huobi extends BaseExch {
         add(48, "Buy the amount can not be less than 1 yuan");
         add(55, "105% higher than current price, not allowed");
         add(56, "95% lower than current price, not allowed");
+        add(63, "Request parameter is incorrect");
         add(64, "Invalid request");
         add(65, "Invalid method");
         add(66, "Invalid access key");
@@ -112,6 +117,7 @@ public class Huobi extends BaseExch {
         add(93, "selling price can not be less than 90% of the price of");
         add(97, "trading capital you have opened your password, please submit funding password parameters - Please enter payment password.");
         add(107, "Order is exist.");
+        add(112, "Purchase amount of market order is rounded to 2 decimal places");
     }
 
     private static void add(long code, String str) {
@@ -289,30 +295,21 @@ public class Huobi extends BaseExch {
 
     private void addCommandParams(List<Post.NameValue> postParams, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
         if (command == Fetcher.FetchCommand.ACCOUNT) {
-        } if (command == Fetcher.FetchCommand.ORDERS) {
-            OrderData od = options.getOrderData();
-            Pair pair = od.m_pair;
-            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
+        } else if (command == Fetcher.FetchCommand.ORDERS) {
+            postParams.add(new Post.NameValue("coin_type", getCoinType(options.getPair())));
         } else if (command == Fetcher.FetchCommand.ORDER) {
             OrderData od = options.getOrderData();
-            Pair pair = od.m_pair;
-            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
+            postParams.add(new Post.NameValue("coin_type", getCoinType(od.m_pair)));
             if (od.m_type == OrderType.LIMIT) { // skip for MARKET orders
-                String priceStr = roundPriceStr(od.m_price, pair);
-                postParams.add(new Post.NameValue("price", priceStr));
+                postParams.add(new Post.NameValue("price", getPrice(od)));
             }
-            String amountStr = roundAmountStr(od.m_amount, pair);
-            postParams.add(new Post.NameValue("amount", amountStr));
+            postParams.add(new Post.NameValue("amount", getAmount(od)));
         } else if (command == Fetcher.FetchCommand.CANCEL) {
-            Pair pair = options.getPair();
-            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
-            String orderId = options.getOrderId();
-            postParams.add(new Post.NameValue("id", orderId));
+            postParams.add(new Post.NameValue("coin_type", getCoinType(options.getPair())));
+            postParams.add(new Post.NameValue("id", options.getOrderId()));
         } else if (command == Fetcher.FetchCommand.ORDER_STATUS) {
-            Pair pair = options.getPair();
-            postParams.add(new Post.NameValue("coin_type", getCoinType(pair)));
-            String orderId = options.getOrderId();
-            postParams.add(new Post.NameValue("id", orderId));
+            postParams.add(new Post.NameValue("coin_type", getCoinType(options.getPair())));
+            postParams.add(new Post.NameValue("id", options.getOrderId()));
         } else {
             throw new RuntimeException("not supported command=" + command);
         }
@@ -320,33 +317,44 @@ public class Huobi extends BaseExch {
 
     private void addCommandParams(Map<String, String> sArray, Fetcher.FetchCommand command, Fetcher.FetchOptions options) {
         if (command == Fetcher.FetchCommand.ACCOUNT) {
-        } if (command == Fetcher.FetchCommand.ORDERS) {
-            OrderData od = options.getOrderData();
-            Pair pair = od.m_pair;
-            sArray.put("coin_type", getCoinType(pair));
+        } else if (command == Fetcher.FetchCommand.ORDERS) {
+            sArray.put("coin_type", getCoinType(options.getPair()));
         } else if (command == Fetcher.FetchCommand.ORDER) {
             OrderData od = options.getOrderData();
-            Pair pair = od.m_pair;
-            sArray.put("coin_type", getCoinType(pair));
+            sArray.put("coin_type", getCoinType(od.m_pair));
             if (od.m_type == OrderType.LIMIT) { // skip for MARKET orders
-                String priceStr = roundPriceStr(od.m_price, pair);
-                sArray.put("price", priceStr);
+                sArray.put("price", getPrice(od));
             }
-            String amountStr = roundAmountStr(od.m_amount, pair);
-            sArray.put("amount", amountStr);
+            sArray.put("amount", getAmount(od));
         } else if (command == Fetcher.FetchCommand.CANCEL) {
-            Pair pair = options.getPair();
-            sArray.put("coin_type", getCoinType(pair));
-            String orderId = options.getOrderId();
-            sArray.put("id", orderId);
+            sArray.put("coin_type", getCoinType(options.getPair()));
+            sArray.put("id", options.getOrderId());
         } else if (command == Fetcher.FetchCommand.ORDER_STATUS) {
-            Pair pair = options.getPair();
-            sArray.put("coin_type", getCoinType(pair));
-            String orderId = options.getOrderId();
-            sArray.put("id", orderId);
+            sArray.put("coin_type", getCoinType(options.getPair()));
+            sArray.put("id", options.getOrderId());
         } else {
             throw new RuntimeException("Huobi: not supported command=" + command);
         }
+    }
+
+    private String getPrice(OrderData od) {
+        return roundPriceStr(od.m_price, od.m_pair);
+    }
+
+    private String getAmount(OrderData od) {
+        double amount = od.m_amount;
+        String roundAmountStr;
+        if ((od.m_type == OrderType.MARKET) && (od.m_side == OrderSide.BUY)) {
+            double price = od.m_price;
+            if (price == 0) {
+                throw new RuntimeException("conversion price required for SELL@MARKET orders");
+            }
+            amount *= price;
+            roundAmountStr = MKT_AMOUNT_FORMAT.format(amount);
+        } else {
+            roundAmountStr = roundAmountStr(amount, od.m_pair);
+        }
+        return roundAmountStr;
     }
 
     private String getCoinType(Pair pair) {
@@ -437,15 +445,10 @@ public class Huobi extends BaseExch {
             Map<String, OrdersData.OrdData> ords = new HashMap<String, OrdersData.OrdData>();
             for (int i = 0; i < size; i++) {
                 JSONObject order = (JSONObject) orders.get(i);
-                String orderId = ((Long) order.get("id")).toString();
-                double orderAmount = Utils.getDouble(order.get("order_amount"));
-                double filled = Utils.getDouble(order.get("processed_amount"));
-                double remainedAmount = orderAmount - filled;
-                double rate = Utils.getDouble(order.get("order_price"));
-                Long type = (Long) order.get("type");
-                // "order_time" - Order Time
-                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, null, pair, getOrderSide(type));
-                ords.put(orderId, ord);
+                OrdersData.OrdData ord = parseOrdData(pair, order);
+                long orderTime = Utils.getLong(order.get("order_time"));
+                ord.m_createTime = orderTime;
+                ords.put(ord.m_orderId, ord);
             }
             return new OrdersData(ords);
         } else if (obj instanceof JSONObject) {
@@ -458,11 +461,30 @@ public class Huobi extends BaseExch {
         }
     }
 
+    protected static OrdersData.OrdData parseOrdData(Pair pair, JSONObject order) {
+        String orderId = order.get("id").toString();
+        double orderAmount = Utils.getDouble(order.get("order_amount"));
+        double filled = Utils.getDouble(order.get("processed_amount"));
+        double remainedAmount = orderAmount - filled;
+        double rate = Utils.getDouble(order.get("order_price"));
+        Long type = (Long) order.get("type");
+        return new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, 0, null, pair,
+                                      getOrderSide(type), getOrderType(type));
+    }
+
     private static OrderSide getOrderSide(Long type) {
-        return type.equals(1)
+        return (type.equals(1L) || type.equals(3L))
                 ? OrderSide.BUY
-                : type.equals(2)
+                : (type.equals(2L) || type.equals(4L))
                     ? OrderSide.SELL
+                    : null;
+    }
+
+    private static OrderType getOrderType(Long type) {
+        return (type.equals(1L) || type.equals(2L))
+                ? OrderType.LIMIT
+                : (type.equals(3L) || type.equals(4L))
+                    ? OrderType.MARKET
                     : null;
     }
 
@@ -493,7 +515,7 @@ public class Huobi extends BaseExch {
         // {"result":"success"} | "result":"fail"
         Object result = jObj.get("result");
         if (result != null) {
-            Long code = (Long) jObj.get("code");
+//            Long code = (Long) jObj.get("code");
             if (result.equals("success")) {
                 return new CancelOrderData(null, null);
             }
@@ -513,41 +535,57 @@ public class Huobi extends BaseExch {
         return "Unable to parse error. msg: " + jObj;
     }
 
-    public static OrderStatusData parseOrderStatus(Object jObj) {
-        // jObj={   "total":"19.99",
-        //          "processed_price":"1999.13",
-        //          "processed_amount":"19.99",
-        //          "order_amount":"20.00",
-        //          "fee":"0.00",
-        //          "order_price":"0.00",
-        //          "vot":"19.99",
-        //          "id":351554291,
-        //          "type":3,
-        //          "status":2}
+    public static OrderStatusData parseOrderStatus(Object obj, Pair pair) {
+        // {"msg":"YTYTIIUTY","code":63,"message":"YTYTIIUTY"}
+        // {"total":"11.64","processed_price":"1974.50","processed_amount":"11.64","order_amount":"11.75","fee":"0.00","order_price":"0.00","vot":"11.64","id":352020770,"type":3,"status":2}
+log("  parseOrderStatus: " + obj);
+        JSONObject order = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("Huobi.parseOrderStatus() " + order);
+        }
 
-        return null;
+        Object errorCode = order.get("code");
+        if (errorCode == null) {
+            OrdersData.OrdData ord = parseOrdData(pair, order);
+            String status = order.get("status").toString();
+            ord.m_status = status;
+            ord.m_orderStatus = getOrderStatus(status);
+            ord.m_avgPrice = Utils.getDouble(order.get("processed_price"));
+
+            // jObj={
+            //          "id":351554291,
+            //          "order_amount":"20.00",
+            //          "processed_amount":"19.99", // Filled Amount
+            //          "type":3,
+            //          "order_price":"0.00",
+            //
+            //          "total":"19.99", // Total Transaction Amount
+            //          "processed_price":"1999.13", // Average Filled Price
+            //          "fee":"0.00",  // Trading Fee
+            //          "vot":"19.99",  // Volume
+            //          "status":2
+            // }
+            return new OrderStatusData(ord);
+        }
+        String errMsg = parseError(order);
+        log(" error: " + errMsg);
+        return new OrderStatusData(errMsg);
     }
 
-    // order_info:
-    // Field name	Req'd	    Description
-    // method	    Required	Request method: order_info
-    // access_key	Required	Access Key
-    // coin_type	Required	Type: 1 -Bitcoin 2 -Litecoin
-    // id	        Required	Order ID
-    // created	    Required	Submit 10 digits timestamp
-    // sign	        Required	MD5 Signature
-    // Encryption Instance	sign = md5(access_key=xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx&coin_type=1&created=1386844119&id=2&method=order_info&secret_key=xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx)
-    //
-    // Results
-    // Field name	    Description
-    // id	            Order ID
-    // type	            Type: 1 -buy　2 -sell
-    // order_price	    Order Price
-    // order_amount	    Order Amount
-    // processed_price	Average Filled Price
-    // processed_amount	Filled Amount
-    // vot	            Volume
-    // fee	            Trading Fee
-    // total	        Total Transaction Amount
-    // status	        Status　0 -Waiting　1 -Partially filled　2 -Filled　3 -Cancelled
+    private static OrderStatus getOrderStatus(String status) {
+        // Status　0 -Waiting　1 -Partially filled　2 -Filled　3 -Cancelled
+        if (status.equals("0")) {
+            return OrderStatus.SUBMITTED;
+        }
+        if (status.equals("1")) {
+            return OrderStatus.PARTIALLY_FILLED;
+        }
+        if (status.equals("2")) {
+            return OrderStatus.FILLED;
+        }
+        if (status.equals("3")) {
+            return OrderStatus.CANCELLED;
+        }
+        return null;
+    }
 }
