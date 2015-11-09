@@ -15,13 +15,16 @@ public class OscAlgo extends TresAlgo {
     }
 
     @Override public String getRunAlgoParams() {
-        return "COPPOCK.tolerance=" + m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
+        return "OSC: tolerance=" + m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
                 + " oskLock=" + TresOscCalculator.LOCK_OSC_LEVEL;
     }
 
     @Override public double lastTickPrice() { return m_oscIndicator.lastTickPrice(); }
     @Override public long lastTickTime() { return m_oscIndicator.lastTickTime(); }
 
-    @Override public double getDirectionAdjusted() { return m_oscIndicator.getDirectionAdjusted(); } // [-1 ... 1]
+
+    @Override public double getDirectionAdjusted() { // [-1 ... 1]
+        return getDirectionAdjustedByPeakWatchers(m_oscIndicator);
+    }
     @Override public Direction getDirection() { return m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 }

@@ -30,11 +30,6 @@ public class PhaseData {
             registerPhasedIndicators(exchData, phaseIndex, algo);
         }
 
-        TresAlgo runAlgo = exchData.m_runAlgo;
-        if (runAlgo != null) {
-            registerPhasedIndicators(exchData, phaseIndex, runAlgo);
-        }
-
         m_oscCalculator = tres.m_calcOsc ? new TresOscCalculator(exchData, phaseIndex) {
             @Override public void bar(long barStart, double stoch1, double stoch2) {
                 super.bar(barStart, stoch1, stoch2);

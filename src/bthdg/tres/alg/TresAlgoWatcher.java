@@ -24,6 +24,9 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     public double m_totalPriceRatio = 1.0;
     private boolean m_doPaint = false;
     private List<AlgoWatcherPoint> m_paintPoints = new ArrayList<AlgoWatcherPoint>();
+    private TresAlgo.TresAlgoListener m_listener;
+
+    public void setListener(TresAlgo.TresAlgoListener listener) { m_listener = listener; }
 
     private static void log(String s) { Log.log(s); }
 
@@ -105,6 +108,10 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
 
     // significant value change - in most cases: peak detected
     @Override public void onValueChange() {
+        if (m_listener != null) { // notify runAlgoFirst
+            m_listener.onValueChange();
+        }
+
         Direction direction = m_algo.getDirection(); // UP/DOWN
         if (direction == null) { // undefined direction
             return; // no trade
@@ -155,6 +162,15 @@ direction = m_algo.getDirection(); // UP/DOWN
         panel.add(m_algo.getController(canvas));
         return panel;
     }
+
+    public double getDirectionAdjusted() {
+        return m_algo.getDirectionAdjusted();
+    }
+
+    public String getRunAlgoParams() {
+        return m_algo.getRunAlgoParams();
+    }
+
 
     public static class AlgoWatcherPoint {
         public final long m_millis;

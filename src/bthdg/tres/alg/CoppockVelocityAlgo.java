@@ -128,7 +128,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     }
 
     @Override public String getRunAlgoParams() {
-        return "COPPOCK.tolerance=" + m_coppockIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
+        return "CopVel: tolerance=" + m_coppockIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
                 + " RANGE_SIZE=" + RANGE_SIZE
                 + " DIRECTION_CUT_LEVEL=" + DIRECTION_CUT_LEVEL
                 + " FRAME_RATIO=" + FRAME_RATIO
@@ -537,7 +537,6 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
         public AndIndicator(TresAlgo algo) {
             super("+", PEAK_TOLERANCE, algo);
-            m_doPaint = true;
         }
 
         @Override protected boolean countPeaks() { return false; }

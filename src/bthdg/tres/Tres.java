@@ -6,14 +6,9 @@ import bthdg.exch.BaseExch;
 import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
-import bthdg.osc.TrendWatcher;
 import bthdg.tres.alg.CncAlgo;
-import bthdg.tres.alg.CoppockAlgo;
-import bthdg.tres.alg.TresAlgo;
-import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
-import bthdg.tres.ind.TresIndicator;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Sync;
 import bthdg.util.Utils;
@@ -55,7 +50,6 @@ public class Tres {
     public boolean m_calcCoppock;
     public boolean m_calcCci;
     String[] m_algosArr;
-    String m_runAlgoName;
     public boolean m_collectPoints = true;
 
     private static void log(String s) { Log.log(s); }
@@ -94,9 +88,6 @@ public class Tres {
         if (line.equals("ui") || line.equals("u")) {
             showUI();
         }
-        if (line.startsWith("copp_peak=")) {
-            s_inst.updateCoppPeak(line.substring(10));
-        }
         if (line.equals("reset")) {
             s_inst.reset();
         }
@@ -110,38 +101,6 @@ public class Tres {
     private void reset() {
         for (TresExchData exchData : m_exchDatas) {
             exchData.reset();
-        }
-    }
-
-    private void updateCoppPeak(String coppPeakStr) {
-        log("updateCoppPeak() coppPeakStr=" + coppPeakStr);
-        double coppPeak = Double.parseDouble(coppPeakStr);
-        CoppockIndicator.PEAK_TOLERANCE = coppPeak;
-        for (TresExchData exchData : m_exchDatas) {
-            for (TresAlgoWatcher playAlgo : exchData.m_playAlgos) {
-                TresAlgo algo = playAlgo.m_algo;
-                updateCoppPeak(coppPeak, algo);
-            }
-            TresAlgo algo = exchData.m_runAlgo;
-            updateCoppPeak(coppPeak, algo);
-        }
-        String runAlgoParams = m_exchDatas.get(0).getRunAlgoParams();
-        log(" updated runAlgoParams=" + runAlgoParams);
-    }
-
-    private void updateCoppPeak(double coppPeak, TresAlgo algo) {
-        if (algo instanceof CoppockAlgo) {
-            CoppockAlgo coppAlgo = (CoppockAlgo) algo;
-            for (TresIndicator indicator : coppAlgo.m_indicators) {
-                TrendWatcher<ChartPoint> avgPeakCalculator = indicator.m_peakWatcher.m_avgPeakCalculator;
-                avgPeakCalculator.m_tolerance = coppPeak;
-                log(" avgPeakCalculator.m_tolerance set to " + coppPeak);
-                for (TresIndicator.TresPhasedIndicator phasedIndicator : indicator.m_phasedIndicators) {
-                    TrendWatcher<ChartPoint> peakCalculator = phasedIndicator.m_peakCalculator;
-                    peakCalculator.m_tolerance = coppPeak;
-                    log("  peakCalculator.m_tolerance set to " + coppPeak);
-                }
-            }
         }
     }
 
@@ -229,16 +188,13 @@ public class Tres {
 
         String algosStr = getProperty("tre.play.algos");
         log("PLAY.ALGOS=" + algosStr);
-        if(algosStr.length() == 0) {
+        if (algosStr.length() == 0) {
             m_algosArr = null;
         } else {
             m_algosArr = algosStr.split(",");
             int indicatorsLen = m_algosArr.length;
             log(" .len=" + indicatorsLen);
         }
-
-        m_runAlgoName = getProperty("tre.run.algo");
-        log("run.algo=" + m_runAlgoName);
 
         String cciPeakStr = getProperty("tre.cci_peak");
         log("cci_peak=" + cciPeakStr);

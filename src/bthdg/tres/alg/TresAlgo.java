@@ -2,6 +2,8 @@ package bthdg.tres.alg;
 
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
+import bthdg.osc.TrendWatcher;
+import bthdg.tres.ChartPoint;
 import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.TresIndicator;
@@ -86,6 +88,40 @@ public abstract class TresAlgo {
         return "";
     }
 
+    protected double getDirectionAdjustedByPeakWatchers(TresIndicator indicator) {
+        Direction direction = indicator.m_peakWatcher.m_avgPeakCalculator.m_direction;
+        TrendWatcher<ChartPoint> halfPeakWatcher = indicator.m_halfPeakWatcher.m_avgPeakCalculator;
+        Direction halfDirection = halfPeakWatcher.m_direction;
+        if (direction == null) {
+            return 0;
+        } else if (direction == Direction.FORWARD) {
+            if (halfDirection == null) {
+                return 1.0;
+            } else if (halfDirection == Direction.FORWARD) {
+                return 1.0;
+            } else { // Direction.BACKWARD
+                double force = halfPeakWatcher.getDirectionForce();
+                double dirAdjusted = -2 * force + 3;
+                dirAdjusted = Math.max(dirAdjusted, -1);
+                dirAdjusted = Math.min(dirAdjusted, 1);
+                return dirAdjusted;
+            }
+        } else { // Direction.BACKWARD
+            if (halfDirection == null) {
+                return -1.0;
+            } else if (halfDirection == Direction.BACKWARD) {
+                return -1.0;
+            } else { // Direction.FORWARD
+                double force = halfPeakWatcher.getDirectionForce();
+                double dirAdjusted = 2 * force - 3;
+                dirAdjusted = Math.max(dirAdjusted, -1);
+                dirAdjusted = Math.min(dirAdjusted, 1);
+                return dirAdjusted;
+            }
+        }
+    }
+
+    // ========================================================================================
     public interface TresAlgoListener {
         void onValueChange();
     }

@@ -16,6 +16,7 @@ import bthdg.ws.IWs;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ItemEvent;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -45,8 +46,8 @@ public class TresExchData {
     public long m_lastTickMillis = 0;
     long m_tickCount;
     final List<TresAlgoWatcher> m_playAlgos = new ArrayList<TresAlgoWatcher>();
-    TresAlgo m_runAlgo;
-//    public OscAlgo m_oscAlgo;
+    private TresAlgoWatcher m_runAlgoWatcher;
+    TresAlgo.TresAlgoListener m_algoListener;
 
     public void setUpdated() { m_updated = true; }
     public void setFeeding() { m_executor.m_feeding = true; }
@@ -64,13 +65,20 @@ public class TresExchData {
         if (tres.m_algosArr != null) {
             for (String algoName : tres.m_algosArr) {
                 TresAlgo algo = TresAlgo.get(algoName, this);
-                m_playAlgos.add(new TresAlgoWatcher(this, algo));
+                TresAlgoWatcher algoWatcher = new TresAlgoWatcher(this, algo);
+                m_playAlgos.add(algoWatcher);
             }
         }
 
-        m_runAlgo = TresAlgo.get(tres.m_runAlgoName, this);
+        if (m_playAlgos.isEmpty()) {
+            throw new RuntimeException("playAlgos not specified");
+        }
+
+        TresAlgoWatcher algoWatcher = m_playAlgos.get(0);
+        m_runAlgoWatcher = algoWatcher;
+
         if (BaseExecutor.DO_TRADE) {
-            m_runAlgo.setListener(new TresAlgo.TresAlgoListener() {
+            m_algoListener = new TresAlgo.TresAlgoListener() {
                 @Override public void onValueChange() {
                     if (m_executor.m_initialized) {
                         m_executor.postRecheckDirection();
@@ -81,7 +89,8 @@ public class TresExchData {
                         setFeeding();
                     }
                 }
-            });
+            };
+            m_runAlgoWatcher.setListener(m_algoListener);
         }
 
         int phasesNum = tres.m_phases;
@@ -219,7 +228,7 @@ public class TresExchData {
     }
 
     public double getDirectionAdjusted() { // [-1 ... 1]
-        return m_runAlgo.getDirectionAdjusted();
+        return m_runAlgoWatcher.getDirectionAdjusted();
     }
 
     public ChartPoint calcAvgOsc() {
@@ -285,6 +294,9 @@ public class TresExchData {
     public JComponent getController(TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
         panel.setBorder(BorderFactory.createLineBorder(Color.black));
+
+        AlgoComboBox combo = new AlgoComboBox(m_playAlgos);
+        panel.add(combo);
         for (TresAlgoWatcher algoWatcher : m_playAlgos) {
             panel.add(algoWatcher.getController(canvas));
         }
@@ -292,7 +304,7 @@ public class TresExchData {
     }
 
     public String getRunAlgoParams() {
-        return m_runAlgo.getRunAlgoParams();
+        return m_runAlgoWatcher.getRunAlgoParams();
     }
 
     public void sendStopTask() {
@@ -302,6 +314,34 @@ public class TresExchData {
     public void reset() {
         m_executor.postResetTask();
     }
+
+    private static String[] getComboItems(List<TresAlgoWatcher> playAlgos) {
+        String[] comboItems = new String[playAlgos.size()];
+        int index= 0;
+        for (TresAlgoWatcher algoWatcher : playAlgos) {
+            String name = algoWatcher.m_algo.m_name;
+            comboItems[index++] = name;
+        }
+        return comboItems;
+    }
+
+    private void selectAlgo(String algoName) {
+        for (TresAlgoWatcher algoWatcher : m_playAlgos) {
+            String name = algoWatcher.m_algo.m_name;
+            if (name.equals(algoName)) {
+                if (BaseExecutor.DO_TRADE) {
+                    m_runAlgoWatcher.setListener(null);
+                    algoWatcher.setListener(m_algoListener);
+                }
+                m_runAlgoWatcher = algoWatcher;
+                log("runAlgo changed to  " + algoName);
+
+                break;
+            }
+        }
+        log("ERROR: no algo with name " + algoName);
+    }
+
 
     public static class OrderPoint {
         public final OrderData m_order;
@@ -321,6 +361,25 @@ public class TresExchData {
         }
     }
 
+
+    //=============================================================================================
+    private class AlgoComboBox extends JComboBox<String> {
+        public AlgoComboBox(List<TresAlgoWatcher> playAlgos) {
+            super(getComboItems(playAlgos));
+            String runAlgoName = m_runAlgoWatcher.m_algo.m_name;
+            setSelectedItem(runAlgoName);
+        }
+
+        @Override protected void fireItemStateChanged(ItemEvent e) {
+            super.fireItemStateChanged(e);
+            int selectedIndex = getSelectedIndex();
+            String selectedAlgo = getItemAt(selectedIndex);
+            selectAlgo(selectedAlgo);
+        }
+    }
+
+
+    //=============================================================================================
     public class AvgCoppockPeakCalculator extends TrendWatcher<ChartPoint> {
         public final LinkedList<ChartPoint> m_avgCoppockPeaks = new LinkedList<ChartPoint>();
         Double m_lastPeakPrice = null;
