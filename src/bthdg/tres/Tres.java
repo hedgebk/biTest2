@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Tres {
     public static final Pair PAIR = Pair.BTC_CNH;
     public static final boolean PAINT_TICK_TIMES_ONLY = false;
+    public static boolean LOG_PARAMS = true;
     private static Tres s_inst;
 
     private Properties m_keys;
@@ -96,11 +97,20 @@ public class Tres {
         if (line.startsWith("copp_peak=")) {
             s_inst.updateCoppPeak(line.substring(10));
         }
+        if (line.equals("reset")) {
+            s_inst.reset();
+        }
         if (line.equals("h") || line.equals("help")) {
-            log("copp_peak=0.1234");
+            log("copp_peak=0.1234; reset");
         }
 
         return false;
+    }
+
+    private void reset() {
+        for (TresExchData exchData : m_exchDatas) {
+            exchData.reset();
+        }
     }
 
     private void updateCoppPeak(String coppPeakStr) {

@@ -504,7 +504,11 @@ log("OkCoin.parseOrderStatus() " + jObj);
         String status = Utils.getString(order.get("status")); // 0-pending?
         String pair = (String) order.get("symbol");
         String type = (String) order.get("type");
-        return new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, createDate, status, getPair(pair), getOrderSide(type), getOrderType(type));
+        double avgRate = Utils.getDouble(order.get("avg_rate"));
+
+        OrdersData.OrdData ordData = new OrdersData.OrdData(orderId, orderAmount, executedAmount, remainedAmount, rate, createDate, status, getPair(pair), getOrderSide(type), getOrderType(type));
+        ordData.m_avgPrice = avgRate;
+        return ordData;
     }
 
     private static String parseError(JSONObject jObj) {

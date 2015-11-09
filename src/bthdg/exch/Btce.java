@@ -479,7 +479,7 @@ public class Btce extends BaseExch {
                 String status = Utils.getString(order.get("status"));
                 String pair = (String) order.get("pair");
                 String type = (String) order.get("type");
-                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, 0, amount, rate, createTime, status, getPair(pair), getOrderSide(type));
+                OrdersData.OrdData ord = new OrdersData.OrdData(orderId, 0, 0, amount, rate, createTime, status, getPair(pair), getOrderSide(type));
                 ords.put(orderId, ord);
             }
             return new OrdersData(ords);

@@ -386,7 +386,7 @@ public class ExchangeData {
             if (Math.max(mktPrice, avgPrice) / Math.min(mktPrice, avgPrice) < MKT_ORDER_THRESHOLD) {
                 double amount = calcAmountToOpen();
                 OrderData order = new OrderData(Pair.BTC_USD, side, price, amount);
-                boolean success = placeOrder(order, OrderState.MARKET_PLACED);
+                boolean success = placeOrder(order, OrderState.MKT_PLACED);
                 if (success) {
                     placed = true;
                     if (side == OrderSide.BUY) {
@@ -413,9 +413,9 @@ public class ExchangeData {
     public boolean moveMarketOrderIfNeeded() {
         if ((m_state == ExchangeState.OPEN_AT_MKT_PLACED) || (m_state == ExchangeState.CLOSE_AT_MKT_PLACED)) {
             OrderData order;
-            if ((m_buyOrder != null) && (m_buyOrder.m_state == OrderState.MARKET_PLACED)) {
+            if ((m_buyOrder != null) && (m_buyOrder.m_state == OrderState.MKT_PLACED)) {
                 order = m_buyOrder;
-            } else if ((m_sellOrder != null) && (m_sellOrder.m_state == OrderState.MARKET_PLACED)) {
+            } else if ((m_sellOrder != null) && (m_sellOrder.m_state == OrderState.MKT_PLACED)) {
                 order = m_sellOrder;
             } else {
                 log("ERROR no mkt order found on " + exchName());
@@ -451,7 +451,7 @@ public class ExchangeData {
             double mktPrice = side.mktPrice(m_shExchData.m_lastTop);
             OrderData newOrder = new OrderData(Pair.BTC_USD, side, mktPrice, amount);
             log(" moving MKT order price: " + order.priceStr() + " -> " + format(mktPrice));
-            boolean success = placeOrder(newOrder, OrderState.MARKET_PLACED);
+            boolean success = placeOrder(newOrder, OrderState.MKT_PLACED);
             if (success) {
                 if (side == OrderSide.BUY) {
                     m_buyOrder = newOrder;

@@ -22,8 +22,10 @@ import java.util.*;
 
 /**
  * https://github.com/agent462/chinashop/tree/master/lib/chinashop
- * ## Private API   http://btcchina.org/api-trade-documentation-en
- * ## Public API    http://btcchina.org/api-market-data-documentation-en
+ * https://www.btcc.com/apidocs/api-trade-documentation
+ * OLD:
+ *   ## Private API   http://btcchina.org/api-trade-documentation-en
+ *   ## Public API    http://btcchina.org/api-market-data-documentation-en
  * websocket  http://btcchina.org/websocket-api-market-data-documentation-en   */
 public class Btcn extends BaseExch {
     private static String KEY;
@@ -459,6 +461,16 @@ public class Btcn extends BaseExch {
     }
 
     public static OrdersData parseOrders(Object obj) {
+//            "order":{
+//                "id":2,
+//                        "type":"ask",
+//                        "price":"46.84",
+//                        "currency":"CNY",
+//                        "amount":"0.00000000",
+//                        "amount_original":"3.18400000",
+//                        "date":1406860694,
+//                        "status":"closed",
+//            }},
         JSONObject jObj = (JSONObject) obj;
         if (LOG_PARSE) {
             log("Btcn.parseOrders() " + jObj);
@@ -481,7 +493,9 @@ public class Btcn extends BaseExch {
                     double remainedAmount = Utils.getDouble(order.get("amount"));
                     double orderAmount = Utils.getDouble(order.get("amount_original"));
                     String status = Utils.getString(order.get("status"));
-                    OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, -1l, status, pair, getOrderSide(type));
+                    double filled = orderAmount - remainedAmount;
+                    OrdersData.OrdData ord = new OrdersData.OrdData(orderId, orderAmount, filled, remainedAmount, rate, -1l, status, pair, getOrderSide(type));
+                    ord.m_orderStatus = getOrderStatus(status, orderAmount, remainedAmount);
                     ords.put(orderId, ord);
                 }
             }
@@ -491,6 +505,27 @@ public class Btcn extends BaseExch {
             log(" error: " + errMsg);
             return new OrdersData(errMsg);
         }
+    }
+
+    private static OrderStatus getOrderStatus(String status, double orderAmount, double remainedAmount) {
+        if (status != null) {
+            if (status.equals("open")) {
+                if (orderAmount > remainedAmount) {
+                    return OrderStatus.PARTIALLY_FILLED;
+                }
+                return OrderStatus.SUBMITTED;
+            }
+            if (status.equals("closed")) {
+                return OrderStatus.FILLED;
+            }
+            if (status.equals("cancelled")) {
+                return OrderStatus.CANCELLED;
+            }
+            if (status.equals("error")) {
+                return OrderStatus.ERROR;
+            }
+        }
+        return null;
     }
 
     public static CancelOrderData parseCancelOrders(Object obj) {

@@ -1,5 +1,6 @@
 package bthdg.tres.ind;
 
+import bthdg.Log;
 import bthdg.calc.OscTick;
 import bthdg.tres.*;
 import bthdg.tres.alg.TresAlgo;
@@ -8,10 +9,12 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class OscIndicator extends TresIndicator {
-    private static final double PEAK_TOLERANCE = 0.2;
+    public static double PEAK_TOLERANCE = 0.04;
 
     public static final Color OSC_AVG_COLOR = Color.yellow;
     public static final Color OSC_COLOR = Colors.setAlpha(Color.yellow, 35);
+
+    protected static void log(String s) { Log.log(s); }
 
     public OscIndicator(TresAlgo oscAlgo) {
         this(oscAlgo, PEAK_TOLERANCE);
@@ -19,6 +22,10 @@ public class OscIndicator extends TresIndicator {
 
     public OscIndicator(TresAlgo oscAlgo, double tolerance) {
         super("osc", tolerance, oscAlgo);
+        if (Tres.LOG_PARAMS) {
+            log("OscIndicator");
+            log(" PEAK_TOLERANCE=" + tolerance);
+        }
     }
 
     @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) {

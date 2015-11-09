@@ -468,7 +468,7 @@ public class Huobi extends BaseExch {
         double remainedAmount = orderAmount - filled;
         double rate = Utils.getDouble(order.get("order_price"));
         Long type = (Long) order.get("type");
-        return new OrdersData.OrdData(orderId, orderAmount, remainedAmount, rate, 0, null, pair,
+        return new OrdersData.OrdData(orderId, orderAmount, filled, remainedAmount, rate, 0, null, pair,
                                       getOrderSide(type), getOrderType(type));
     }
 
@@ -573,7 +573,7 @@ log("  parseOrderStatus: " + obj);
     }
 
     private static OrderStatus getOrderStatus(String status) {
-        // Status　0 -Waiting　1 -Partially filled　2 -Filled　3 -Cancelled
+        // Status　0 -Waiting　1 -Partially filled　2 -Filled　3 -Cancelled   7?
         if (status.equals("0")) {
             return OrderStatus.SUBMITTED;
         }

@@ -85,7 +85,7 @@ public class TriTradeData {
 
             // todo: check for physical min order size like 0.01
             OrderData order = new OrderData(pair, side, tryPrice, orderAmount);
-            OrderState ordState = (m_doMktOffset || (limitPrice != null)) ? OrderState.LIMIT_PLACED : OrderState.MARKET_PLACED;
+            OrderState ordState = (m_doMktOffset || (limitPrice != null)) ? OrderState.LIMIT_PLACED : OrderState.MKT_PLACED;
             OrderData.OrderPlaceStatus ok = Triplet.placeOrder(account, order, ordState, iData);
             log("   place order = " + ok);
             if (ok == OrderData.OrderPlaceStatus.OK) {

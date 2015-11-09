@@ -4,6 +4,7 @@ import bthdg.Fetcher;
 import bthdg.IIterationContext;
 import bthdg.Log;
 import bthdg.exch.*;
+import bthdg.tres.Tres;
 import bthdg.util.Utils;
 import bthdg.ws.ITopListener;
 import bthdg.ws.IWs;
@@ -14,6 +15,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public abstract class BaseExecutor implements Runnable {
+    public static final int MID_TO_MKT_STEPS = 2;
     public static final int TIMER_SLEEP_TIME = 2000;
     public static final int DEEP_MKT_PIP_RATIO = 2;
     public static boolean DO_TRADE = true;
@@ -100,6 +102,10 @@ public abstract class BaseExecutor implements Runnable {
         m_startMillis = System.currentTimeMillis();
         m_buyAvgCounter = new Utils.FadingAverageCounter(barSizeMillis);
         m_sellAvgCounter = new Utils.FadingAverageCounter(barSizeMillis);
+        if (Tres.LOG_PARAMS) {
+            log("BaseExecutor");
+            log(" MID_TO_MKT_STEPS=" + MID_TO_MKT_STEPS);
+        }
     }
 
     @Override public void run() {
@@ -266,8 +272,7 @@ public abstract class BaseExecutor implements Runnable {
         m_liveOrdersTakesCalc.addValue((double) takes);
         log(" liveOrders loaded in " + Utils.millisToDHMSStr(takes) + " :" + ordersData);
         return new IIterationContext.BaseIterationContext() {
-            @Override
-            public OrdersData getLiveOrders(Exchange exchange) throws Exception {
+            @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception {
                 return ordersData;
             }
         };
@@ -533,16 +538,24 @@ public abstract class BaseExecutor implements Runnable {
                     m_tickAgeCalc.addValue((double) tickAge);
                     double averageTickAge = m_tickAgeCalc.getAverage();
                     log("   tickAge=" + tickAge + "; averageTickAge=" + averageTickAge);
-                    if (tickAge > MAX_TICK_AGE_FOR_ORDER) {
-                        boolean freshTopLoaded = onTooOldTick(tickAge);
-                        if (freshTopLoaded) {
-                            return STATE_NO_CHANGE;
+
+                    OrderType orderType = OrderType.LIMIT;
+                    double orderPrice;
+                    if (m_orderPriceMode.isMarketPrice()) {
+                        orderType = OrderType.MARKET;
+                        orderPrice = needOrderSide.isBuy() ? m_sell : m_buy;
+                    } else {
+                        if (tickAge > MAX_TICK_AGE_FOR_ORDER) {
+                            boolean freshTopLoaded = onTooOldTick(tickAge);
+                            if (freshTopLoaded) {
+                                return STATE_NO_CHANGE;
+                            }
+                            log("unable to load fresh top - using OLD");
                         }
-                        log("unable to load fresh top - using OLD");
+                        orderPrice = calcOrderPrice(m_exchange, directionAdjusted, needOrderSide);
                     }
 
-                    double orderPrice = calcOrderPrice(m_exchange, directionAdjusted, needOrderSide);
-                    OrderData placeOrder = new OrderData(m_pair, needOrderSide, orderPrice, placeOrderSize);
+                    OrderData placeOrder = new OrderData(m_pair, orderType, needOrderSide, orderPrice, placeOrderSize);
                     log("   place orderData=" + placeOrder);
 
                     double buy = m_buy;
@@ -551,6 +564,15 @@ public abstract class BaseExecutor implements Runnable {
                     int rett = placeOrderToExchange(placeOrder);
                     if (rett == STATE_ORDER) {
                         onOrderPlace(placeOrder, tickAge, buy, sell, topSource); // notify on order place
+
+                        if (orderType == OrderType.MARKET) {
+                            Thread.sleep(500); // small delay - allow order to execute
+
+                            int ret2 = checkMarketOrder(placeOrder);
+                            if (ret2 != STATE_NO_CHANGE) {
+                                rett = ret2;
+                            }
+                        }
                     }
                     return rett;
                 } else {
@@ -570,6 +592,24 @@ public abstract class BaseExecutor implements Runnable {
             postRecheckDirection();
         }
         return ret;
+    }
+
+    private int checkMarketOrder(OrderData order) throws Exception {
+        String orderId = order.m_orderId;
+        System.out.println(" checkMarketOrder() query order status (orderId=" + orderId + ")...");
+        OrderStatusData osData = Fetcher.orderStatus(m_exchange, orderId, order.m_pair);
+        System.out.println("  orderStatus '" + orderId + "' result: " + osData);
+
+        final OrdersData ordersData = osData.toOrdersData();
+//        final OrdersData ordersData = Fetcher.fetchOrders(m_exchange, m_pair);
+
+        IIterationContext.BaseIterationContext iContext = new IIterationContext.BaseIterationContext() {
+            @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception {
+                return ordersData;
+            }
+        };
+        int state = checkOrdersState(iContext);
+        return state;
     }
 
     protected int placeOrderToExchange(OrderData placeOrder) throws Exception {
@@ -635,7 +675,8 @@ public abstract class BaseExecutor implements Runnable {
 
     protected boolean placeOrderToExchange(Exchange exchange, OrderData order) throws Exception {
         if (m_account.allocateOrder(order)) {
-            OrderData.OrderPlaceStatus ops = placeOrderToExchange(exchange, order, OrderState.LIMIT_PLACED);
+            OrderState newState = (order.m_type == OrderType.MARKET) ? OrderState.MARKET_PLACED : OrderState.LIMIT_PLACED;
+            OrderData.OrderPlaceStatus ops = placeOrderToExchange(exchange, order, newState);
             if (ops == OrderData.OrderPlaceStatus.OK) {
                 log(" placeOrderToExchange successful: " + exchange + ", " + order + ", account: " + m_account);
                 return true;
@@ -901,6 +942,9 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     protected enum OrderPriceMode {
+        MARKET {
+            @Override public boolean isMarketPrice() { return true; }
+        },
         DEEP_MKT_AVG {
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
                 double buy = baseExecutor.m_buy;
@@ -1046,7 +1090,7 @@ public abstract class BaseExecutor implements Runnable {
                 double bidAskDiff = sell - buy;
                 log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff);
                 int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
-                double orderPriceCounterCorrection = bidAskDiff / 5 * orderPlaceAttemptCounter;
+                double orderPriceCounterCorrection = bidAskDiff / MID_TO_MKT_STEPS * orderPlaceAttemptCounter;
                 double adjustedPrice = midPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
                 log("   orderPlaceAttemptCounter=" + orderPlaceAttemptCounter + "; orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
                 RoundingMode roundMode = needOrderSide.getPegRoundMode();
@@ -1100,9 +1144,8 @@ public abstract class BaseExecutor implements Runnable {
             }
         };
 
-        public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-            return 0;
-        }
+        public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) { return 0; }
+        public boolean isMarketPrice() { return false; }
     }
 
     public enum TimeFrameType {

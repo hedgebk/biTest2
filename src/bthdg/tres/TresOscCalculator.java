@@ -10,9 +10,7 @@ import java.util.LinkedList;
 public class TresOscCalculator extends OscCalculator {
     public static final double PEAK_TOLERANCE = 0.001;
     public static final int INIT_BARS_BEFORE = 6;
-
     public static double LOCK_OSC_LEVEL = 0.09;
-
 
     protected TresExchData m_exchData;
     private final int m_phaseIndex;

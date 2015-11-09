@@ -277,11 +277,11 @@ public class Bitstamp extends BaseExch {
         int size = orders.size();
         for(int i = 0; i < size; i++) {
             JSONObject order = (JSONObject) orders.get(i);
-            String orderId = ((Long) order.get("id")).toString();
+            String orderId = order.get("id").toString();
             String type = order.get("type").toString();
             double rate = Utils.getDouble(order.get("price"));
             double remainedAmount = Utils.getDouble(order.get("amount"));
-            OrdersData.OrdData ord = new OrdersData.OrdData(orderId, 0, remainedAmount, rate, -1l, null, pair, getOrderSide(type));
+            OrdersData.OrdData ord = new OrdersData.OrdData(orderId, 0, 0, remainedAmount, rate, -1l, null, pair, getOrderSide(type));
             ords.put(orderId, ord);
         }
         return new OrdersData(ords);

@@ -33,6 +33,7 @@ public class OrdersData {
     public static class OrdData {
         public String m_orderId;
         public double m_orderAmount; // not all exchanges supports
+        public double m_filledAmount;
         public double m_remainedAmount;
         public double m_rate;
         public long m_createTime; // not all exchanges supports
@@ -44,15 +45,16 @@ public class OrdersData {
         public OrderStatus m_orderStatus;
         public double m_avgPrice;
 
-        public OrdData(String orderId, double orderAmount, double remainedAmount, double rate, long createTime,
-                       String status, Pair pair, OrderSide orderSide) {
-            this(orderId, orderAmount, remainedAmount, rate, createTime, status, pair, orderSide, OrderType.LIMIT);
+        public OrdData(String orderId, double orderAmount, double filledAmount, double remainedAmount, double rate,
+                       long createTime, String status, Pair pair, OrderSide orderSide) {
+            this(orderId, orderAmount, filledAmount, remainedAmount, rate, createTime, status, pair, orderSide, OrderType.LIMIT);
         }
 
-        public OrdData(String orderId, double orderAmount, double remainedAmount, double rate, long createTime,
-                       String status, Pair pair, OrderSide orderSide, OrderType orderType) {
+        public OrdData(String orderId, double orderAmount, double filledAmount, double remainedAmount, double rate,
+                       long createTime, String status, Pair pair, OrderSide orderSide, OrderType orderType) {
             m_orderId = orderId;
             m_orderAmount = orderAmount;
+            m_filledAmount = filledAmount;
             m_remainedAmount = remainedAmount;
             m_rate = rate;
             m_createTime = createTime;
@@ -68,6 +70,7 @@ public class OrdersData {
                     ", orderSide=" + m_orderSide +
                     ", orderType=" + m_orderType +
                     ", orderAmount=" + m_orderAmount +
+                    ", filledAmount=" + m_filledAmount +
                     ", remainedAmount=" + m_remainedAmount +
                     ", rate=" + m_rate +
                     ", pair=" + m_pair +

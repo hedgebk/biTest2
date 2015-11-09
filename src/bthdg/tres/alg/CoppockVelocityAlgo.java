@@ -6,6 +6,7 @@ import bthdg.Log;
 import bthdg.exch.Direction;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
+import bthdg.tres.Tres;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.TresIndicator;
 import bthdg.util.Utils;
@@ -18,9 +19,10 @@ import java.awt.*;
 import java.util.Map;
 
 public class CoppockVelocityAlgo extends CoppockAlgo {
-    public static double FRAME_RATIO = 0.88; // smoother frame ratio
-    public static double RANGE_SIZE = 0.06;
-    public static double DIRECTION_CUT_LEVEL = 0.96;
+    public static double PEAK_TOLERANCE  = 0.000000005; // cov_vel:
+    public static double FRAME_RATIO = 0.4;             // CovRat: smoother frame ratio
+    public static double DIRECTION_CUT_LEVEL = 0.99;     // cov_k: 0.998;
+    public static double RANGE_SIZE = 0.002;
 
     private final VelocityIndicator m_velocityIndicator;
     private final VelocitySmoochedIndicator m_velocitySmoochedIndicator;
@@ -38,7 +40,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
-        m_velocityIndicator = new VelocityIndicator(this, "vel", barSizeMillis, 0.00000003) {
+        m_velocityIndicator = new VelocityIndicator(this, "vel", barSizeMillis, PEAK_TOLERANCE) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 m_velocitySmoochedIndicator.addBar(getLastPoint());
@@ -92,6 +94,14 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
         m_andIndicator = new AndIndicator(this);
         m_indicators.add(m_andIndicator);
+
+        if (Tres.LOG_PARAMS) {
+            log("CoppockVelocityAlgo");
+            log(" PEAK_TOLERANCE=" + PEAK_TOLERANCE);
+            log(" FRAME_RATIO=" + FRAME_RATIO);
+            log(" RANGE_SIZE=" + RANGE_SIZE);
+            log(" DIRECTION_CUT_LEVEL=" + DIRECTION_CUT_LEVEL);
+        }
     }
 
     @Override public void paintAlgo(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
@@ -116,6 +126,15 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     @Override public Direction getDirection() {
         return m_velocitySmoochedIndicator.getDirection();
     }
+
+    @Override public String getRunAlgoParams() {
+        return "COPPOCK.tolerance=" + m_coppockIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
+                + " RANGE_SIZE=" + RANGE_SIZE
+                + " DIRECTION_CUT_LEVEL=" + DIRECTION_CUT_LEVEL
+                + " FRAME_RATIO=" + FRAME_RATIO
+                + " PEAK_TOLERANCE=" + PEAK_TOLERANCE;
+    }
+
 
     public static class CursorPainter {
         private final TresIndicator m_indicator;
@@ -402,7 +421,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         private double m_lastPeak;
 
         public VelocitySmoochedIndicator(TresAlgo algo, long barSizeMillis) {
-            super(algo, "velSm", (long) (CoppockVelocityAlgo.FRAME_RATIO * barSizeMillis), 0.00000005);
+            super(algo, "velSm", (long) (CoppockVelocityAlgo.FRAME_RATIO * barSizeMillis), PEAK_TOLERANCE);
         }
 
         @Override protected boolean countHalfPeaks() { return false; }
@@ -452,6 +471,8 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                         m_lastPeak = (m_lastPeak + peakValue) / 2; // update with nearest
                     }
                 }
+            } else {
+                m_lastPeak = (m_lastPeak + peakValue*2) / 3; // update with nearest
             }
         }
     }
@@ -484,7 +505,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
         protected static double calcDirection(VelocitySmoochedIndicator indicator, double mul) {
             double lastPeak = indicator.m_lastPeak;
-            double rangeStart = lastPeak * (DIRECTION_CUT_LEVEL - RANGE_SIZE / 2);
+            double rangeStart = lastPeak * (DIRECTION_CUT_LEVEL + RANGE_SIZE / 2);
             double lastValue = indicator.getLastPoint().m_value;
             double rangeSize = RANGE_SIZE * lastPeak;
             double val = mul * (1.0 - 2 * (rangeStart - lastValue) / rangeSize);

@@ -8,6 +8,7 @@ import bthdg.tres.alg.CoppockVelocityAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
+import bthdg.tres.ind.OscIndicator;
 import bthdg.util.BufferedLineReader;
 import bthdg.util.LineReader;
 import bthdg.util.Utils;
@@ -40,6 +41,7 @@ class TresLogProcessor extends Thread {
     private String m_varyLen1;
     private String m_varyLen2;
     private String m_varyOscLock;
+    private String m_varyOscPeak;
     private String m_varyCoppPeak;
     private String m_varyAndPeak;
     private String m_varyCciPeak;
@@ -50,7 +52,9 @@ class TresLogProcessor extends Thread {
     private String m_varySma;
     private String m_varyCovK;
     private String m_varyCovRat;
+    private String m_varyCovVel;
     private AtomicInteger cloneCounter = new AtomicInteger(0);
+    private long m_linesParsed;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -61,6 +65,8 @@ class TresLogProcessor extends Thread {
     }
 
     private void init(Properties keys) {
+        Tres.LOG_PARAMS = false;
+
         m_logFilePattern = getProperty(keys, "tre.log.file");
         log("logFilePattern=" + m_logFilePattern);
         m_varyMa = keys.getProperty("tre.vary.ma");
@@ -73,6 +79,8 @@ class TresLogProcessor extends Thread {
         log("varyLen2=" + m_varyLen2);
         m_varyOscLock = keys.getProperty("tre.vary.osc_lock");
         log("varyOscLock=" + m_varyOscLock);
+        m_varyOscPeak = keys.getProperty("tre.vary.osc_peak");
+        log("varyOscPeak=" + m_varyOscPeak);
         m_varyCoppPeak = keys.getProperty("tre.vary.copp_peak");
         log("varyCoppPeak=" + m_varyCoppPeak);
         m_varyAndPeak = keys.getProperty("tre.vary.and_peak");
@@ -93,6 +101,8 @@ class TresLogProcessor extends Thread {
         log("varyCovK=" + m_varyCovK);
         m_varyCovRat = keys.getProperty("tre.vary.cov_rat");
         log("varyCovRat=" + m_varyCovRat);
+        m_varyCovVel = keys.getProperty("tre.vary.cov_vel");
+        log("varyCovVel=" + m_varyCovVel);
 
         BaseExecutor.DO_TRADE = false;
         log("DO_TRADE set to false");
@@ -146,6 +156,10 @@ class TresLogProcessor extends Thread {
             varyOscLock(allTicks, tres, m_varyOscLock);
             return;
         }
+        if (m_varyOscPeak != null) {
+            varyOscPeakTolerance(allTicks, tres, m_varyOscPeak);
+            return;
+        }
         if (m_varyCoppPeak != null) {
             varyCoppockPeakTolerance(allTicks, tres, m_varyCoppPeak);
             return;
@@ -185,6 +199,10 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyCovRat != null) {
             varyCovRat(allTicks, tres, m_varyCovRat);
+            return;
+        }
+        if (m_varyCovVel != null) {
+            varyCovVel(allTicks, tres, m_varyCovVel);
             return;
         }
 
@@ -333,6 +351,21 @@ class TresLogProcessor extends Thread {
         logMax(maxMap, "CoppPeak");
     }
 
+    private void varyOscPeakTolerance(List<List<TradeDataLight>> allTicks, Tres tres, String varyOscPeak) throws Exception {
+        log("varyOscPeak: " + varyOscPeak);
+        String[] split = varyOscPeak.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (double i = min; i <= max; i += step) {
+            OscIndicator.PEAK_TOLERANCE = i;
+            iterate(allTicks, i, "%.6f", "OscPeak", maxMap);
+        }
+        logMax(maxMap, "OskPeak");
+    }
+
+
     private void varyAndPeakTolerance(List<List<TradeDataLight>> allTicks, Tres tres, String varyAndPeak) throws Exception {
         log("varyAndPeak: " + varyAndPeak);
         String[] split = varyAndPeak.split(";"); // 0.09;0.11;0.001
@@ -401,6 +434,20 @@ class TresLogProcessor extends Thread {
             iterate(allTicks, i, "%.3f", "CovRat", maxMap);
         }
         logMax(maxMap, "CovRat");
+    }
+
+    private void varyCovVel(List<List<TradeDataLight>> allTicks, Tres tres, String varyCovVel) throws Exception {
+        log("varyCovVel: " + varyCovVel);
+        String[] split = varyCovVel.split(";"); // 0.00000003
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (double i = min; i <= max; i += step) {
+            CoppockVelocityAlgo.PEAK_TOLERANCE = i;
+            iterate(allTicks, i, "%.9f", "CovVel", maxMap);
+        }
+        logMax(maxMap, "CovVel");
     }
 
     private void varyWma(List<List<TradeDataLight>> allTicks, Tres tres, String varyWma) throws Exception {
@@ -607,7 +654,7 @@ class TresLogProcessor extends Thread {
         long endTime = System.currentTimeMillis();
         long timeTakes = endTime - startTime;
         String takesStr = Utils.millisToDHMSStr(timeTakes);
-        log("parsing done in " + takesStr);
+        log("parsing done in " + takesStr + "; totally parsed " + m_linesParsed + " lines");
 
         executorService.shutdown();
         return ticks;
@@ -640,6 +687,7 @@ class TresLogProcessor extends Thread {
             long endTime = System.currentTimeMillis();
             long timeTakes = endTime - startTime;
             log(" parsed " + file.getName() + ". " + linesProcessed + " lines in " + timeTakes + " ms (" + (linesProcessed * 1000 / timeTakes) + " lines/s)");
+            m_linesParsed += linesProcessed;
             return ret;
         } finally {
             blr.close();

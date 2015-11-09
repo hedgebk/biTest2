@@ -263,7 +263,7 @@ public class CrossData implements OrderState.IOrderExecListener {
         boolean cancelled = shExch.cancelOrder(ord);
         if (cancelled) {
             OrderData mktOrder = new OrderData(Pair.BTC_USD, side, price, ord.m_amount);
-            boolean success = shExch.placeOrder(mktOrder, OrderState.MARKET_PLACED);
+            boolean success = shExch.placeOrder(mktOrder, OrderState.MKT_PLACED);
             if (success) {
                 setState(CrossState.MKT_BRACKET_PLACED);
                 return mktOrder;
@@ -371,9 +371,9 @@ public class CrossData implements OrderState.IOrderExecListener {
             log(" BUY on: " + m_buyExch.m_exchange + " " + m_buyOrder);
             log(" SELL on: " + m_sellExch.m_exchange + " " + m_sellOrder);
             setState(CrossState.BOTH_BRACKETS_EXECUTED);
-        } else if (m_buyOrder.m_state == OrderState.MARKET_PLACED) {
+        } else if (m_buyOrder.m_state == OrderState.MKT_PLACED) {
             moveMktBracketIfNeeded(iContext, forkData, m_buyOrder, m_buyExch.m_exchange);
-        } else if (m_sellOrder.m_state == OrderState.MARKET_PLACED) {
+        } else if (m_sellOrder.m_state == OrderState.MKT_PLACED) {
             moveMktBracketIfNeeded(iContext, forkData, m_sellOrder, m_sellExch.m_exchange);
         } else {
             log("Error: no mkt order: buyOrder=" + m_buyOrder + ", sellOrder=" + m_sellOrder);
@@ -428,7 +428,7 @@ public class CrossData implements OrderState.IOrderExecListener {
             double orderPrice = ord.m_price;
 
             OrderData mktOrder = new OrderData(Pair.BTC_USD, side, orderPrice, ord.m_amount);
-            boolean success = exch.placeOrder(mktOrder, OrderState.MARKET_PLACED);
+            boolean success = exch.placeOrder(mktOrder, OrderState.MKT_PLACED);
             if (success) {
                 setState(CrossState.MKT_BRACKET_PLACED);
                 return mktOrder;

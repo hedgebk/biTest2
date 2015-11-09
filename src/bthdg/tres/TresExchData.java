@@ -299,6 +299,10 @@ public class TresExchData {
         m_executor.postStopTask();
     }
 
+    public void reset() {
+        m_executor.postResetTask();
+    }
+
     public static class OrderPoint {
         public final OrderData m_order;
         public final long m_tickAge;

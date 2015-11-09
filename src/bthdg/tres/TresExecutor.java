@@ -13,7 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
-    public static final OrderPriceMode ORDER_PRICE_MODE = OrderPriceMode.DEEP_MKT; // OrderPriceMode.DEEP_MKT_AVG; // OrderPriceMode.MKT_AVG; // OrderPriceMode.MID_TO_MKT; // OrderPriceMode.MID;
+    public static final OrderPriceMode ORDER_PRICE_MODE = OrderPriceMode.MARKET; // OrderPriceMode.MID_TO_MKT; // OrderPriceMode.DEEP_MKT; // OrderPriceMode.DEEP_MKT_AVG; // OrderPriceMode.MKT_AVG; ; // OrderPriceMode.MID;
     private static final long MIN_ORDER_LIVE_TIME = 7000;
     private static final double OUT_OF_MARKET_THRESHOLD = 0.6;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 12000;
@@ -49,6 +49,18 @@ public class TresExecutor extends BaseExecutor {
             Thread thread = new Thread(this);
             thread.setName("TresExecutor");
             thread.start();
+        }
+        if (Tres.LOG_PARAMS) {
+            log("TresExecutor");
+            log(" ORDER_PRICE_MODE=" + ORDER_PRICE_MODE);
+            log(" MIN_ORDER_LIVE_TIME=" + MIN_ORDER_LIVE_TIME);
+            log(" OUT_OF_MARKET_THRESHOLD=" + OUT_OF_MARKET_THRESHOLD);
+            log(" MIN_REPROCESS_DIRECTION_TIME=" + MIN_REPROCESS_DIRECTION_TIME);
+            log(" ORDER_SIZE_TOLERANCE=" + ORDER_SIZE_TOLERANCE);
+            log(" MAX_STOP_ORDER_AGE=" + MAX_STOP_ORDER_AGE);
+            log(" MIN_ORDER_SIZE=" + MIN_ORDER_SIZE);
+            log(" MAX_ORDER_SIZE=" + MAX_ORDER_SIZE);
+            log(" USE_FUNDS_FROM_AVAILABLE=" + USE_FUNDS_FROM_AVAILABLE);
         }
     }
 
@@ -259,6 +271,9 @@ public class TresExecutor extends BaseExecutor {
             logValuate();
             m_order = null;
             return TresState.NONE;
+        } else if( m_order.m_status == OrderStatus.ERROR ) {
+            log(" order status ERROR. switch to error state: " + m_order);
+            return TresState.ERROR;
         } else {
             log("   have order. not yet FILLED: " + m_order);
             return null; // no change
@@ -319,9 +334,19 @@ public class TresExecutor extends BaseExecutor {
         addTask(new StopTask());
     }
 
+    public void postResetTask() {
+        log(" posting ResetTask");
+        addTask(new ResetTask());
+    }
+
     private void onStopRequested() throws Exception {
         log("TresExecutor.onStopRequested()");
         setState(m_state.onStopRequested(this));
+    }
+
+    private void onResetRequested() throws Exception {
+        log("TresExecutor.onResetRequested()");
+        setState(TresState.ERROR);
     }
 
     public TresState parkAccount() throws Exception {
@@ -385,6 +410,14 @@ public class TresExecutor extends BaseExecutor {
 
         @Override public void process() throws Exception {
             onStopRequested();
+        }
+    }
+
+    //-------------------------------------------------------------------------------
+    public class ResetTask extends TaskQueueProcessor.SinglePresenceTask {
+        public ResetTask() {}
+        @Override public void process() throws Exception {
+            onResetRequested();
         }
     }
 }

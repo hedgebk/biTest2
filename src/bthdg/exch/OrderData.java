@@ -27,6 +27,7 @@ public class OrderData {
     public long m_placeTime;
     public final Pair m_pair;
     public String m_orderId;
+    private double m_filledVolume;
 
     public OrderData(Pair pair, OrderSide side, double amount) {
         this(pair, OrderType.MARKET, side, 0, amount);
@@ -50,6 +51,7 @@ public class OrderData {
     public long lastFillTime() { return m_lastFillTime; }
     public String priceStr() { return Fetcher.format(m_price); }
     public double remained() { return m_amount - m_filled; }
+    public double getFilledVolume() { return m_filledVolume; }
 
     public boolean acceptPrice(double mktPrice) {
         return m_side.acceptPrice(m_price, mktPrice);
@@ -59,6 +61,7 @@ public class OrderData {
         List<Execution> executions = getExecutions();
         executions.add(new Execution(price, amount));
         m_filled += amount;
+        m_filledVolume += price * amount;
         double minAmountStep = exchange.minAmountStep(m_pair);
         String filledStr = roundAmountStr(exchange, m_filled);
         // check for extra fill
@@ -437,8 +440,7 @@ public class OrderData {
     }
 
     public double roundPrice(Exchange exchange) {
-        double price = m_price;
-        return roundPrice(exchange, price);
+        return roundPrice(exchange, m_price);
     }
 
     public double roundPrice(Exchange exchange, double price) {
@@ -446,8 +448,7 @@ public class OrderData {
     }
 
     public double roundAmount(Exchange exchange) {
-        double amount = m_amount;
-        return roundAmount(exchange, amount);
+        return roundAmount(exchange, m_amount);
     }
 
     public double roundAmount(Exchange exchange, double amount) {
@@ -469,6 +470,7 @@ public class OrderData {
     public OrderData split(double splitAmount) {
         return new OrderData(m_pair, m_side, m_price, splitAmount);
     }
+
 
     public enum OrderPlaceStatus {
         OK,

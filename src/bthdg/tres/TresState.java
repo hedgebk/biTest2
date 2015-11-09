@@ -94,7 +94,7 @@ public enum TresState {
 
     public int toCode() { return 0; }
 
-    private static TresState codeToState(int stateCode) {
+    public static TresState codeToState(int stateCode) {
         switch (stateCode) {
             case BaseExecutor.STATE_NO_CHANGE: return null;
             case BaseExecutor.STATE_NONE: return NONE;
