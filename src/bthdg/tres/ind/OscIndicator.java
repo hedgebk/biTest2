@@ -9,7 +9,7 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class OscIndicator extends TresIndicator {
-    public static double PEAK_TOLERANCE = 0.04;
+    public static double PEAK_TOLERANCE = 0.004;
 
     public static final Color OSC_AVG_COLOR = Color.yellow;
     public static final Color OSC_COLOR = Colors.setAlpha(Color.yellow, 35);

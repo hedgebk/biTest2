@@ -9,6 +9,7 @@ import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.CncAlgo;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
+import bthdg.tres.ind.OscIndicator;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Sync;
 import bthdg.util.Utils;
@@ -215,6 +216,13 @@ public class Tres {
         if (andPeakStr != null) {
             double andPeak = Double.parseDouble(andPeakStr);
             CncAlgo.AndIndicator.PEAK_TOLERANCE = andPeak;
+        }
+
+        String oscPeakStr = getProperty("tre.osc_peak");
+        log("osc_peak=" + oscPeakStr);
+        if (oscPeakStr != null) {
+            double oscPeak = Double.parseDouble(oscPeakStr);
+            OscIndicator.PEAK_TOLERANCE = oscPeak;
         }
 
         String cciCorrStr = getProperty("tre.cci_corr");
