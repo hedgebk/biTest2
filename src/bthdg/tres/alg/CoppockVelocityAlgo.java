@@ -450,29 +450,25 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             super.onAvgPeak(trendWatcher);
             Direction direction = trendWatcher.m_direction;
             ChartPoint peak = trendWatcher.m_peak;
-            ChartPoint last = getLastPoint();
+//            ChartPoint last = getLastPoint();
 //            log("velocitySmoochedIndicator.onAvgPeak() " +
 //                    "peak[t=" + peak.m_millis + ", v=" + Utils.format8(peak.m_value) + "]; " +
 //                    "last[t=" + last.m_millis + ", v=" + Utils.format8(last.m_value) + "]; " +
 //                    "direction=" + direction);
             double peakValue = peak.m_value;
-            State state = m_state.onAvgPeak(peakValue, direction);
-            if (state != null) {
-                if (m_state != state) {
-                    m_lastPeak = peakValue;
+            State state = direction.isForward() ? State.UP : State.DOWN;
+            if (m_state != state) {
+                m_lastPeak = peakValue;
 //                log(" state " + m_state + " -> " + state + "; lastPeak=" + m_lastPeak);
-                    m_state = state;
-                } else { // same direction peak again - update if bigger
-                    double newPeakAbs = Math.abs(peakValue);
-                    double lastPeakAbs = Math.abs(m_lastPeak);
-                    if (newPeakAbs > lastPeakAbs) {
-                        m_lastPeak = peakValue; // update with farthest
-                    } else {
-                        m_lastPeak = (m_lastPeak + peakValue) / 2; // update with nearest
-                    }
+                m_state = state;
+            } else { // same direction peak again - update if bigger
+                double newPeakAbs = Math.abs(peakValue);
+                double lastPeakAbs = Math.abs(m_lastPeak);
+                if (newPeakAbs > lastPeakAbs) {
+                    m_lastPeak = peakValue; // update with farthest
+                } else {
+                    m_lastPeak = (m_lastPeak + peakValue) / 2; // update with nearest
                 }
-            } else {
-                m_lastPeak = (m_lastPeak + peakValue*2) / 3; // update with nearest
             }
         }
     }
@@ -510,16 +506,6 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             double rangeSize = RANGE_SIZE * lastPeak;
             double val = mul * (1.0 - 2 * (rangeStart - lastValue) / rangeSize);
             return Math.min(Math.max(val, -1), 1);
-        }
-
-        public State onAvgPeak(double peakValue, Direction direction) {
-            if ((peakValue > 0) && direction.isBackward()) {
-                return DOWN;
-            }
-            if ((peakValue < 0) && direction.isForward()) {
-                return UP;
-            }
-            return null;
         }
 
         public double calcDirectionAdjusted(VelocitySmoochedIndicator indicator) {
