@@ -28,7 +28,7 @@ public class CnoAlgo extends TresAlgo {
         };
         m_indicators.add(m_cciIndicator);
 
-        m_oscIndicator = new OscIndicator(this, OSC_TOLERANCE) {
+        m_oscIndicator = new OscIndicator(this/*, OSC_TOLERANCE*/) {
             @Override protected void onBar() {
                 super.onBar();
                 recalcAnd();
@@ -65,10 +65,14 @@ public class CnoAlgo extends TresAlgo {
         ChartPoint osc = m_oscIndicator.getLastPoint();
         ChartPoint cci = m_cciIndicator.getLastPoint();
         if ((osc != null) && (cci != null)) {
-            double oscDirectionAdjusted = m_oscIndicator.getDirectionAdjusted();
-            double cciDirectionAdjusted = m_cciIndicator.getDirectionAdjusted();
-            double mid = (oscDirectionAdjusted + cciDirectionAdjusted) / 2;
-            return Math.signum(mid) * Math.sqrt(Math.abs(mid));
+//            double oscDirectionAdjusted = m_oscIndicator.getDirectionAdjusted();
+//            double cciDirectionAdjusted = m_cciIndicator.getDirectionAdjusted();
+//            double mid = (oscDirectionAdjusted + cciDirectionAdjusted) / 2;
+//            return Math.signum(mid) * Math.sqrt(Math.abs(mid));
+
+            double oscDirectionAdjusted = getDirectionAdjustedByPeakWatchers(m_oscIndicator);
+            double cciDirectionAdjusted = getDirectionAdjustedByPeakWatchers(m_cciIndicator);
+            return (oscDirectionAdjusted + cciDirectionAdjusted) / 2;
         }
         return 0;
     }
@@ -84,7 +88,10 @@ public class CnoAlgo extends TresAlgo {
     } // UP/DOWN
 
     @Override public String getRunAlgoParams() {
-        return "Cno.And.tolerance=" + m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
+        return "Cno "
+                + "And.tlrnc=" + m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
+                + "osc.tlrnc=" + m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
+                + "cci.tlrnc=" + m_cciIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
     }
 
 
