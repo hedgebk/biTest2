@@ -17,7 +17,8 @@ import java.util.*;
 // HUOBI allows only 1 request in 1 second.
 // websocket: https://www.huobi.com/help/index.php?a=socket_help
 public class Huobi extends BaseExch {
-    private static final int READ_TIMEOUT = 10000;
+    private static final int READ_TIMEOUT = 10000; // todo: mk big for market; smaller for other orders
+    private static final int CONNECT_TIMEOUT = 10000;
 
     private static String SECRET;
     private static String KEY;
@@ -54,6 +55,7 @@ public class Huobi extends BaseExch {
         s_minOrderToCreateMap.put(pair, minOrderToCreate);
     }
 
+    @Override public int connectTimeout() { return CONNECT_TIMEOUT; }
     @Override public int readTimeout() { return READ_TIMEOUT; }
     @Override public String getNextNonce() { return null; }
     @Override protected String getCryproAlgo() { return null; }

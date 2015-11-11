@@ -203,6 +203,7 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected void initialize() throws Exception {
+        log("initialize() ... ");
         m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
         log(" topsData=" + m_topsData);
 
@@ -239,6 +240,7 @@ public abstract class BaseExecutor implements Runnable {
         AccountData oldAccount = m_account;
         long start = System.currentTimeMillis();
         TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.account, start);
+        log(" fetchAccount...");
         AccountData newAccount = Fetcher.fetchAccount(m_exchange);
         long end = System.currentTimeMillis();
         timeFramePoint.m_end = end;
