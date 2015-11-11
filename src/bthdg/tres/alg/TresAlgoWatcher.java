@@ -120,13 +120,12 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
 //log("onValueChange: direction=" + direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + lastPrice);
 
         if (m_lastDirection != direction) { // direction changed
-direction = m_algo.getDirection(); // UP/DOWN
             if (m_lastDirection != null) {
-                double priceRatio;
+                double priceRatio; // actually 2 trades need to get ratio
                 if (direction == Direction.FORWARD) { // up
-                    priceRatio = m_lastPeakPrice / lastPrice;
-                } else {
-                    priceRatio = lastPrice / m_lastPeakPrice;
+                    priceRatio = (lastPrice + (m_lastPeakPrice - lastPrice) / 2) / lastPrice;
+                } else { // down
+                    priceRatio = (m_lastPeakPrice + (lastPrice - m_lastPeakPrice) / 2) / m_lastPeakPrice;
                 }
                 m_totalPriceRatio *= priceRatio;
 //log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
