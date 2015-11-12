@@ -23,6 +23,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     public static double FRAME_RATIO = 0.4;             // CovRat: smoother frame ratio
     public static double DIRECTION_CUT_LEVEL = 0.99;     // cov_k: 0.998;
     public static double RANGE_SIZE = 0.002;
+    public static final double RANGE_MAX = DIRECTION_CUT_LEVEL + RANGE_SIZE / 2;
 
     private final VelocityIndicator m_velocityIndicator;
     private final VelocitySmoochedIndicator m_velocitySmoochedIndicator;
@@ -43,8 +44,10 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         m_velocityIndicator = new VelocityIndicator(this, "vel", barSizeMillis, PEAK_TOLERANCE) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
-                m_velocitySmoochedIndicator.addBar(getLastPoint());
+                ChartPoint lastPoint = getLastPoint();
+                m_velocitySmoochedIndicator.addBar(lastPoint);
             }
+            @Override public String toString() { return "CoppockVelocityAlgo.VelocityIndicator"; }
         };
         m_indicators.add(m_velocityIndicator);
 
@@ -67,6 +70,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                     m_lastDirection = direction;
                 }
             }
+            @Override public String toString() { return "CoppockVelocityAlgo.VelocitySmoochedIndicator"; }
         };
         m_indicators.add(m_velocitySmoochedIndicator);
 
@@ -450,17 +454,19 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             super.onAvgPeak(trendWatcher);
             Direction direction = trendWatcher.m_direction;
             ChartPoint peak = trendWatcher.m_peak;
-//            ChartPoint last = getLastPoint();
-//            log("velocitySmoochedIndicator.onAvgPeak() " +
-//                    "peak[t=" + peak.m_millis + ", v=" + Utils.format8(peak.m_value) + "]; " +
-//                    "last[t=" + last.m_millis + ", v=" + Utils.format8(last.m_value) + "]; " +
-//                    "direction=" + direction);
+//ChartPoint last = getLastPoint();
+//log("velocitySmoochedIndicator.onAvgPeak(trendWatcher="+trendWatcher+") " +
+//        "peak[t=" + peak.m_millis + ", v=" + Utils.format8(peak.m_value) + "]; " +
+//        "last[t=" + last.m_millis + ", v=" + Utils.format8(last.m_value) + "]; " +
+//        "direction=" + direction);
             double peakValue = peak.m_value;
             State state = direction.isForward() ? State.UP : State.DOWN;
             if (m_state != state) {
                 m_lastPeak = peakValue;
-//                log(" state " + m_state + " -> " + state + "; lastPeak=" + m_lastPeak);
+                State oldState = m_state;
                 m_state = state;
+//double directionAdjusted = calcDirectionAdjusted();
+//log(" state " + oldState + " -> " + state + "; lastPeak=" + m_lastPeak + "; directionAdjusted="+directionAdjusted);
             } else { // same direction peak again - update if bigger
                 double newPeakAbs = Math.abs(peakValue);
                 double lastPeakAbs = Math.abs(m_lastPeak);
@@ -477,34 +483,52 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         NONE {
         }, DOWN {
             @Override public double calcDirectionAdjusted(VelocitySmoochedIndicator indicator) {
-                return calcDirection(indicator, 1.0);
+                return calcDirectionAdjusted(indicator, 1.0);
             }
             @Override public Direction getDirection(VelocitySmoochedIndicator indicator) {
-                return getDirectionInt(indicator);
+                return getDirectionInt(indicator, 1.0);
             }
 
         }, UP {
             @Override public double calcDirectionAdjusted(VelocitySmoochedIndicator indicator) {
-                return calcDirection(indicator, -1.0);
+                return calcDirectionAdjusted(indicator, -1.0);
             }
             @Override public Direction getDirection(VelocitySmoochedIndicator indicator) {
-                return getDirectionInt(indicator);
+                return getDirectionInt(indicator, -1.0);
             }
         };
 
-        protected Direction getDirectionInt(VelocitySmoochedIndicator indicator) {
+        protected Direction getDirectionInt(VelocitySmoochedIndicator indicator, double mul) {
+//            double adjusted = calcDirectionAdjusted(indicator, mul);
+//            return (adjusted >= 0) ? Direction.FORWARD : Direction.BACKWARD;
+
             double lastPeak = indicator.m_lastPeak;
-            double range = lastPeak * DIRECTION_CUT_LEVEL;
             double lastValue = indicator.getLastPoint().m_value;
-            return (lastValue >= range) ? Direction.FORWARD : Direction.BACKWARD;
+            double signum = Math.signum(lastPeak);
+            if (((mul < 0) && (signum < 0)) || ((mul > 0) && (signum > 0))) {
+                double range = lastPeak * DIRECTION_CUT_LEVEL;
+                return (lastValue >= range) ? Direction.FORWARD : Direction.BACKWARD;
+            } else {
+                double range = lastPeak * (2 - DIRECTION_CUT_LEVEL);
+                return (lastValue <= range) ? Direction.BACKWARD : Direction.FORWARD;
+            }
         }
 
-        protected static double calcDirection(VelocitySmoochedIndicator indicator, double mul) {
+        protected static double calcDirectionAdjusted(VelocitySmoochedIndicator indicator, double mul) {
             double lastPeak = indicator.m_lastPeak;
-            double rangeStart = lastPeak * (DIRECTION_CUT_LEVEL + RANGE_SIZE / 2);
-            double lastValue = indicator.getLastPoint().m_value;
             double rangeSize = RANGE_SIZE * lastPeak;
-            double val = mul * (1.0 - 2 * (rangeStart - lastValue) / rangeSize);
+            double lastValue = indicator.getLastPoint().m_value;
+            double signum = Math.signum(lastPeak);
+
+            double val;
+            if (((mul < 0) && (signum < 0)) || ((mul > 0) && (signum > 0))) {
+                double rangeStart = lastPeak * RANGE_MAX;
+                val = mul * (1.0 - 2 * (rangeStart - lastValue) / rangeSize);
+            } else {
+                double rangeStart = lastPeak * (2 - RANGE_MAX);
+                val = -mul * (1 - 2 * (rangeStart - lastValue) / rangeSize);
+            }
+
             return Math.min(Math.max(val, -1), 1);
         }
 
@@ -518,6 +542,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     }
 
 
+    // =============================================================================================
     public static class AndIndicator extends TresIndicator {
         public static double PEAK_TOLERANCE = 0.06470;
 
