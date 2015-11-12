@@ -21,6 +21,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,6 +72,8 @@ public class Tres {
 
     public static void main(String[] args) {
         try {
+            log("============================= started on : " + new Date());
+
             s_inst = new Tres(args);
             s_inst.start();
 
