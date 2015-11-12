@@ -62,6 +62,8 @@ public class CncAlgo extends TresAlgo {
         return Math.max(m_coppockIndicator.lastTickTime(), m_cciIndicator.lastTickTime());
     }
 
+    @Override public Color getColor() { return Color.red; }
+
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
         return getDirectionAdjustedByPeakWatchers(m_andIndicator);
     }

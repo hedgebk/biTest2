@@ -61,6 +61,8 @@ public class CnoAlgo extends TresAlgo {
         return Math.max(m_oscIndicator.lastTickTime(), m_cciIndicator.lastTickTime());
     }
 
+    @Override public Color getColor() { return Color.red; }
+
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
         ChartPoint osc = m_oscIndicator.getLastPoint();
         ChartPoint cci = m_cciIndicator.getLastPoint();

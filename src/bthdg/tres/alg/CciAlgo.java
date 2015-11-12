@@ -51,7 +51,8 @@ public class CciAlgo extends TresAlgo {
 
     @Override public double lastTickPrice() { return m_cciIndicator.lastTickPrice(); }
     @Override public long lastTickTime() { return m_cciIndicator.lastTickTime(); }
-//    @Override public double getDirectionAdjusted() { return m_cciIndicator.getDirectionAdjusted(); } // [-1 ... 1]
+    @Override public Color getColor() { return Color.red; }
+
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
         return getDirectionAdjustedByPeakWatchers(m_cciIndicator);
     }
