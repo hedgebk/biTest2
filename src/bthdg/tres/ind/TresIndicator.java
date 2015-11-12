@@ -25,6 +25,7 @@ public abstract class TresIndicator {
 
     private final String m_name;
     public final TresAlgo m_algo;
+    private final boolean m_collectPoints;
     public final List<TresPhasedIndicator> m_phasedIndicators = new ArrayList<TresPhasedIndicator>();
     final LinkedList<ChartPoint> m_avgPoints = new LinkedList<ChartPoint>();
     public final List<ChartPoint> m_avgPaintPoints = new ArrayList<ChartPoint>();
@@ -42,6 +43,7 @@ public abstract class TresIndicator {
     public TresIndicator(String name, double peakTolerance, TresAlgo algo) {
         m_name = name;
         m_algo = algo;
+        m_collectPoints = m_algo.m_tresExchData.m_tres.m_collectPoints;
         if (countPeaks()) {
             m_peakWatcher = new PeakWatcher(this, peakTolerance);
             if (countHalfPeaks()) {
@@ -71,12 +73,12 @@ public abstract class TresIndicator {
 
     public void addBar(ChartPoint chartPoint) {
         if (chartPoint != null) {
-            if (m_algo.m_tresExchData.m_tres.m_collectPoints) {
+            if (m_collectPoints) {
                 synchronized (m_avgPoints) {
                     m_avgPoints.add(chartPoint);
                 }
             }
-            if (countPeaks()) {
+            if (m_peakWatcher != null) {
                 m_peakWatcher.m_avgPeakCalculator.update(chartPoint);
                 if (m_halfPeakWatcher != null) {
                     m_halfPeakWatcher.m_avgPeakCalculator.update(chartPoint);
@@ -296,8 +298,9 @@ public abstract class TresIndicator {
     }
 
     public JComponent getController(final TresCanvas canvas) {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
-        panel.setBorder(BorderFactory.createLineBorder(getColor()));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        panel.setBackground(getColor());
+//        panel.setBorder(BorderFactory.createMatteBorder(2, 2, 2, 2, getColor()));
         final JCheckBox checkBox2 = new JCheckBox("f", m_doPaintPhased) {
             @Override protected void fireItemStateChanged(ItemEvent event) {
                 super.fireItemStateChanged(event);
@@ -305,14 +308,17 @@ public abstract class TresIndicator {
                 canvas.repaint();
             }
         };
-        panel.add(new JCheckBox(m_name, m_doPaint) {
+        checkBox2.setOpaque(false);
+        JCheckBox checkBox1 = new JCheckBox(m_name, m_doPaint) {
             @Override protected void fireItemStateChanged(ItemEvent event) {
                 super.fireItemStateChanged(event);
                 m_doPaint = (event.getStateChange() == ItemEvent.SELECTED);
                 checkBox2.setEnabled(m_doPaint);
                 canvas.repaint();
             }
-        });
+        };
+        checkBox1.setOpaque(false);
+        panel.add(checkBox1);
         panel.add(checkBox2);
         if (m_phasedIndicators.isEmpty()) {
             checkBox2.setVisible(false);

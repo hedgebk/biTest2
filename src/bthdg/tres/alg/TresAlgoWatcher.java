@@ -150,14 +150,18 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
 
     public JComponent getController(final TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
-        panel.setBorder(BorderFactory.createLineBorder(Color.black));
-        panel.add(new JCheckBox(m_algo.m_name, m_doPaint) {
+        Color color = m_algo.getColor();
+        panel.setBorder(BorderFactory.createMatteBorder(2, 2, 2, 2, color));
+        panel.setBackground(color);
+        JCheckBox checkBox = new JCheckBox(m_algo.m_name, m_doPaint) {
             @Override protected void fireItemStateChanged(ItemEvent event) {
                 super.fireItemStateChanged(event);
                 m_doPaint = (event.getStateChange() == ItemEvent.SELECTED);
                 canvas.repaint();
             }
-        });
+        };
+        checkBox.setOpaque(false);
+        panel.add(checkBox);
         panel.add(m_algo.getController(canvas));
         return panel;
     }
