@@ -19,6 +19,7 @@ import java.util.*;
 public class Huobi extends BaseExch {
     private static final int READ_TIMEOUT = 10000; // todo: mk big for market; smaller for other orders
     private static final int CONNECT_TIMEOUT = 10000;
+    private static final int BETWEEN_REQUESTS_PERIOD = 1500;
 
     private static String SECRET;
     private static String KEY;
@@ -44,6 +45,8 @@ public class Huobi extends BaseExch {
         put(Pair.BTC_CNH, "0.##",     0.01,             0.01,            "0.0###",      0.0001,         0.01);
         put(Pair.LTC_CNH, "0.##",     0.01,             0.01,            "0.0###",      0.0001,         1);
     }
+
+    private static long s_lastRequestTime = 0; // todo: probably maintain counter for each command type separately
 
     protected static void put(Pair pair, String priceFormat, double minExchPriceStep, double minOurPriceStep,
                               String amountFormat, double minAmountStep, double minOrderToCreate) {
@@ -589,5 +592,22 @@ log("  parseOrderStatus: " + obj);
             return OrderStatus.CANCELLED;
         }
         return null;
+    }
+
+    public static void waitIfNeeded() {
+        long now = System.currentTimeMillis();
+        long diff = now - s_lastRequestTime;
+        long wait = BETWEEN_REQUESTS_PERIOD - diff;
+log("~~~~~~ diff=" + diff + "; wait="+wait);
+        if( wait > 0 ) {
+            wait = Math.min(wait, BETWEEN_REQUESTS_PERIOD); // just in case
+            log("wait " + wait + " ms before request");
+            try {
+                Thread.sleep(wait);
+            } catch (InterruptedException e) { /*noop*/ }
+            s_lastRequestTime = System.currentTimeMillis();
+        } else {
+            s_lastRequestTime = now;
+        }
     }
 }

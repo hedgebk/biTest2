@@ -367,7 +367,7 @@ public class OkCoin extends BaseExch {
             if (price == 0) {
                 throw new RuntimeException("conversion price required for SELL@MARKET orders");
             }
-            amount *= price;
+            amount = amount * price;
         }
         return roundAmountStr(amount, od.m_pair);
     }

@@ -439,6 +439,9 @@ public class Fetcher {
             log("loading from " + location + "...  ");
         }
         URL url = new URL(location);
+
+        exchange.waitIfNeeded(); // maintain time gaps between requests. do not query too often
+
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
         boolean isHttps = con instanceof HttpsURLConnection;

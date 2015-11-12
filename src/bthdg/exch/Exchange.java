@@ -153,6 +153,7 @@ public enum Exchange {
            new UrlDef("https://api.huobi.com/apiv3.php"),
            new UrlDef("https://api.huobi.com/apiv3.php")) {
         @Override public void init(Properties keys) { Huobi.init(keys); }
+        @Override public void waitIfNeeded() { Huobi.waitIfNeeded(); }
         @Override public TopData parseTop(Object jObj, Pair pair) { return Huobi.parseTop(jObj, pair); }
         @Override public TopsData parseTops(Object jObj, Pair[] pairs) { return Huobi.parseTops(jObj, pairs); }
         @Override public DeepData parseDeep(Object jObj, Pair pair) { return Huobi.parseDeep(jObj, pair); }
@@ -333,6 +334,8 @@ public enum Exchange {
     }
 
     public void init(Properties keys) {}
+
+    public void waitIfNeeded() { /*do nothing by def*/ }
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
