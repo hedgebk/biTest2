@@ -21,6 +21,7 @@ public abstract class TresAlgo {
 
     public abstract double lastTickPrice();
     public abstract long lastTickTime();
+    public abstract Color getColor();
 
     public TresAlgo(String name, TresExchData tresExchData) {
         m_name = name;
@@ -42,6 +43,8 @@ public abstract class TresAlgo {
             return new CnoAlgo(tresExchData);
         } else if (algoName.equals("osc")) {
             return new OscAlgo(tresExchData);
+        } else if (algoName.equals("tre")) {
+            return new TreAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -76,10 +79,12 @@ public abstract class TresAlgo {
     public Direction getDirection() { return null; } // UP/DOWN
 
     public JComponent getController(TresCanvas canvas) {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
-        panel.setBorder(BorderFactory.createLineBorder(Color.black));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+//        panel.setBorder(BorderFactory.createLineBorder(Color.black));
         for (TresIndicator indicator : m_indicators) {
-            panel.add(indicator.getController(canvas));
+            JComponent controller = indicator.getController(canvas);
+//            controller.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 1, Color.black));
+            panel.add(controller);
         }
         return panel;
     }
