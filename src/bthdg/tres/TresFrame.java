@@ -53,34 +53,43 @@ public class TresFrame extends JFrame implements Runnable {
                         m_canvas.repaint();
                     }
                 });
-                topPanel.add(new JCheckBox("sym", TresCanvas.m_paintSym) {
-                    @Override protected void fireItemStateChanged(ItemEvent event) {
-                        super.fireItemStateChanged(event);
-                        TresCanvas.m_paintSym = (event.getStateChange() == ItemEvent.SELECTED);
-                        m_canvas.repaint();
-                    }
-                });
-                topPanel.add(new JCheckBox("osc", TresCanvas.m_paintOsc) {
-                    @Override protected void fireItemStateChanged(ItemEvent event) {
-                        super.fireItemStateChanged(event);
-                        TresCanvas.m_paintOsc = (event.getStateChange() == ItemEvent.SELECTED);
-                        m_canvas.repaint();
-                    }
-                });
-                topPanel.add(new JCheckBox("coppock", TresCanvas.m_paintCoppock) {
-                    @Override protected void fireItemStateChanged(ItemEvent event) {
-                        super.fireItemStateChanged(event);
-                        TresCanvas.m_paintCoppock = (event.getStateChange() == ItemEvent.SELECTED);
-                        m_canvas.repaint();
-                    }
-                });
-                topPanel.add(new JCheckBox("cci", TresCanvas.m_paintCci) {
-                    @Override protected void fireItemStateChanged(ItemEvent event) {
-                        super.fireItemStateChanged(event);
-                        TresCanvas.m_paintCci = (event.getStateChange() == ItemEvent.SELECTED);
-                        m_canvas.repaint();
-                    }
-                });
+//                topPanel.add(new JCheckBox("sym", TresCanvas.m_paintSym) {
+//                    @Override protected void fireItemStateChanged(ItemEvent event) {
+//                        super.fireItemStateChanged(event);
+//                        TresCanvas.m_paintSym = (event.getStateChange() == ItemEvent.SELECTED);
+//                        m_canvas.repaint();
+//                    }
+//                });
+                {
+                    JRadioButton auto = new JRadioButton("A") {
+                        @Override protected void fireStateChanged() {
+                            super.fireStateChanged();
+                            TresExecutor.s_auto = isSelected();
+                        }
+                    };
+                    JRadioButton manual = new JRadioButton("M");
+
+                    ButtonGroup grp = new ButtonGroup();
+                    grp.add(auto);
+                    grp.add(manual);
+                    auto.setSelected(true);
+
+                    topPanel.add(auto);
+                    topPanel.add(manual);
+                }
+                {
+                    final JLabel level = new JLabel();
+                    topPanel.add(new JSlider(-100, 100, 0) {
+                        @Override protected void fireStateChanged() {
+                            super.fireStateChanged();
+                            int valueInt = getValue();
+                            double value = valueInt / 100.0;
+                            TresExecutor.s_manualDirection = value;
+                            level.setText(Double.toString(value));
+                        }
+                    });
+                    topPanel.add(level);
+                }
             }
             JPanel controllersPanel = new JPanel(new FlowLayout());
             {

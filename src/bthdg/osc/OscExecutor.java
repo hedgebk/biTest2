@@ -76,7 +76,7 @@ class OscExecutor extends BaseExecutor {
         }
     }
 
-    @Override protected void initImpl() throws Exception {
+    @Override public void initImpl() throws Exception {
         log("OscExecutor.initImpl()................");
         super.initImpl();
     }

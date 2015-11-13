@@ -84,7 +84,7 @@ public abstract class BaseTresMaCalculator extends MaCalculator {
         }
     }
 
-
+    //==========================================================================================
     public static class MaCrossData {
         public final long m_timestamp;
         final boolean m_oscUp;
@@ -97,6 +97,7 @@ public abstract class BaseTresMaCalculator extends MaCalculator {
         }
     }
 
+    //==========================================================================================
     public static class MaTick {
         protected final long m_barEnd;
         protected double m_ma;

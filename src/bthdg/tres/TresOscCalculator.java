@@ -9,7 +9,7 @@ import java.util.LinkedList;
 
 public class TresOscCalculator extends OscCalculator {
     public static final double PEAK_TOLERANCE = 0.001;
-    public static final int INIT_BARS_BEFORE = 6;
+//    public static final int INIT_BARS_BEFORE = 6;
     public static double LOCK_OSC_LEVEL = 0.09;
 
     protected TresExchData m_exchData;
@@ -31,7 +31,7 @@ public class TresOscCalculator extends OscCalculator {
             }
         }
     };
-    private boolean m_updated;
+//    private boolean m_updated;
 
     private static void log(String s) { Log.log(s); }
 
@@ -43,7 +43,7 @@ public class TresOscCalculator extends OscCalculator {
     }
 
     @Override protected void updateCurrentBar(long stamp, boolean finishBar) {
-        m_updated = false;
+//        m_updated = false;
         super.updateCurrentBar(stamp, finishBar);
         if (finishBar) {
             Tres tres = m_exchData.m_tres;
@@ -52,15 +52,15 @@ public class TresOscCalculator extends OscCalculator {
                 if (!tres.m_silentConsole) {
                     log("update[" + m_exchData.m_ws.exchange() + "][" + m_phaseIndex + "]: PREHEATING step=" + m_barNum + " from " + preheatBarsNum);
                 }
-                m_updated = true;
+//                m_updated = true;
             } else {
                 m_exchData.setFeeding();
             }
         }
-        if( m_updated ) {
-            m_exchData.setUpdated();
-            m_updated = false;
-        }
+//        if( m_updated ) {
+//            m_exchData.setUpdated();
+//            m_updated = false;
+//        }
     }
 
     @Override public void fine(long stamp, double stoch1, double stoch2) {
@@ -85,7 +85,7 @@ public class TresOscCalculator extends OscCalculator {
             double val2 = stoch2old * oldRate + stoch2 * newRate;
             m_blendedLastFineTick = new OscTick(stamp, val1, val2);
         }
-        m_updated = true;
+//        m_updated = true;
     }
 
     @Override public void bar(long barStart, double stoch1, double stoch2) {
@@ -96,7 +96,7 @@ public class TresOscCalculator extends OscCalculator {
         if (m_exchData.m_tres.m_collectPoints) {
             m_oscBars.add(osc); // add to the end
         }
-        m_updated = true;
+//        m_updated = true;
         m_peakCalculator.update(osc);
     }
 

@@ -20,8 +20,8 @@ import java.util.Map;
 
 public class CoppockVelocityAlgo extends CoppockAlgo {
     public static double PEAK_TOLERANCE  = 0.000000005; // cov_vel:
-    public static double FRAME_RATIO = 0.4;             // CovRat: smoother frame ratio
-    public static double DIRECTION_CUT_LEVEL = 0.99;     // cov_k: 0.998;
+    public static double FRAME_RATIO = 0.5;             // CovRat: smoother frame ratio
+    public static double DIRECTION_CUT_LEVEL = 0.48;     // cov_k: 0.998;
     public static double RANGE_SIZE = 0.002;
     public static final double RANGE_MAX = DIRECTION_CUT_LEVEL + RANGE_SIZE / 2;
 
@@ -399,6 +399,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
     }
 
 
+    // ================================================================================
     private static class Interpolator {
         private final SplineInterpolator m_spline = new SplineInterpolator();
         private final double m_x[] = new double[3];
@@ -420,6 +421,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         }
     }
 
+    // ================================================================================
     private static class VelocitySmoochedIndicator extends SmoochedIndicator {
         public State m_state = State.NONE;
         private double m_lastPeak;
@@ -479,6 +481,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         }
     }
 
+    // ================================================================================
     public enum State {
         NONE {
         }, DOWN {

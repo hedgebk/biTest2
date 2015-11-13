@@ -581,18 +581,18 @@ class TresLogProcessor extends Thread {
 
         long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
         double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
+        double exponent = 1 / runningTimeDays;
 //        log("   running " + Utils.millisToDHMSStr(runningTimeMillis) + "; runningTimeDays="+runningTimeDays);
 
-        Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
-        for (PhaseData phaseData : exchData.m_phaseDatas) {
-            TresMaCalculator maCalculator = phaseData.m_maCalculator;
-            double total = maCalculator.calcToTal();
-            calc.addValue(total);
-        }
-        double averageTotal = calc.getAverage();
-        double exponent = 1 / runningTimeDays;
-        double projected = Math.pow(averageTotal, exponent);
-        ret.put("osc", projected);
+//        Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
+//        for (PhaseData phaseData : exchData.m_phaseDatas) {
+//            TresMaCalculator maCalculator = phaseData.m_maCalculator;
+//            double total = maCalculator.calcToTal();
+//            calc.addValue(total);
+//        }
+//        double averageTotal = calc.getAverage();
+//        double projected = Math.pow(averageTotal, exponent);
+//        ret.put("osc", projected);
 
         for(TresAlgoWatcher algo : exchData.m_playAlgos) {
             String name = algo.m_algo.m_name;

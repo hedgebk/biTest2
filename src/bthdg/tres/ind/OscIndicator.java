@@ -90,7 +90,7 @@ public class OscIndicator extends TresIndicator {
 
         protected Boolean calcOscDirection(boolean useLastFineTick, long timestamp) {
             if (useLastFineTick) {
-                TresMaCalculator.MaCrossData lastMaCrossData = m_maCalculator.lastMaCrossData();
+                BaseTresMaCalculator.MaCrossData lastMaCrossData = m_maCalculator.lastMaCrossData();
                 if (lastMaCrossData != null) {
                     long lastMaCrossTime = lastMaCrossData.m_timestamp;
                     long passed = timestamp - lastMaCrossTime;

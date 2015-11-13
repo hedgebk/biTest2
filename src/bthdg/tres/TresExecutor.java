@@ -22,6 +22,8 @@ public class TresExecutor extends BaseExecutor {
     static double MIN_ORDER_SIZE = 0.05; // in btc
     static double MAX_ORDER_SIZE = 1.00; // in btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
+    public static boolean s_auto;
+    public static double s_manualDirection;
 
     private final TresExchData m_exchData;
     private TresState m_state = TresState.NONE;
@@ -38,8 +40,6 @@ public class TresExecutor extends BaseExecutor {
     @Override protected double useFundsFromAvailable() { return USE_FUNDS_FROM_AVAILABLE; }
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
     @Override protected TaskQueueProcessor createTaskQueueProcessor() { return new TresTaskQueueProcessor(); }
-
-    @Override protected double getAvgOsc() { return m_exchData.calcAvgOsc().m_value; }
 
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
         super(ws, pair, exchData.m_tres.m_barSizeMillis);
@@ -129,7 +129,9 @@ public class TresExecutor extends BaseExecutor {
     }
 
     @Override protected double getDirectionAdjusted() {
-        return m_exchData.getDirectionAdjusted();
+        return s_auto
+                ? m_exchData.getDirectionAdjusted()
+                : s_manualDirection;
     }
 
     @Override protected void gotTop() throws Exception {

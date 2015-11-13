@@ -16,6 +16,8 @@ public class OscAlgo extends TresAlgo {
     public OscAlgo(TresExchData exchData) {
         super("OSC", exchData);
         m_oscIndicator = new OscIndicator(this) {
+            public Direction m_lastDirection;
+
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 ChartPoint lastPoint = getLastPoint();
@@ -25,11 +27,11 @@ public class OscAlgo extends TresAlgo {
                     ChartPoint andPoint = new ChartPoint(millis, value);
                     m_directionIndicator.addBar(andPoint);
 
-//                    Direction direction = getDirection();
-//                    if (direction != m_lastDirection) {
-//                        notifyListener();
-//                    }
-//                    m_lastDirection = direction;
+                    Direction direction = getDirection();
+                    if (direction != m_lastDirection) {
+                        notifyListener();
+                    }
+                    m_lastDirection = direction;
                 }
             }
 

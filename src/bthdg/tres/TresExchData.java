@@ -1,13 +1,10 @@
 package bthdg.tres;
 
 import bthdg.Log;
-import bthdg.calc.OscTick;
-import bthdg.exch.Direction;
 import bthdg.exch.OrderData;
 import bthdg.exch.TradeData;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
-import bthdg.osc.TrendWatcher;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.util.Queue;
@@ -22,9 +19,9 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class TresExchData {
-    public static final double AVG_OSC_PEAK_TOLERANCE = 0.05;
-    public static final double AVG_COPPOCK_PEAK_TOLERANCE = 0.005;
-    public static final double AVG_CCI_PEAK_TOLERANCE = 0.05;
+//    public static final double AVG_OSC_PEAK_TOLERANCE = 0.05;
+//    public static final double AVG_COPPOCK_PEAK_TOLERANCE = 0.005;
+//    public static final double AVG_CCI_PEAK_TOLERANCE = 0.05;
 
     public final Tres m_tres;
     final IWs m_ws;
@@ -33,15 +30,9 @@ public class TresExchData {
     final TresExecutor m_executor;
     Queue<TradeData> m_tradesQueue;
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
-    final LinkedList<ChartPoint> m_avgOscs = new LinkedList<ChartPoint>();
-    final LinkedList<ChartPoint> m_avgCoppock = new LinkedList<ChartPoint>();
-    final LinkedList<ChartPoint> m_avgCci = new LinkedList<ChartPoint>();
-    final public LinkedList<SymData> m_сoppockSym = new LinkedList<SymData>();
-    final AvgOscsPeakCalculator m_avgOscsPeakCalculator = new AvgOscsPeakCalculator();
-    final AvgCoppockPeakCalculator m_avgCoppockPeakCalculator = new AvgCoppockPeakCalculator();
-    final TrendWatcher<ChartPoint> m_avgCciPeakCalculator = new AvgCciPeakCalculator();
+//    final public LinkedList<SymData> m_сoppockSym = new LinkedList<SymData>();
     public double m_lastPrice;
-    private boolean m_updated;
+//    private boolean m_updated;
     long m_startTickMillis = Long.MAX_VALUE;
     public long m_lastTickMillis = 0;
     long m_tickCount;
@@ -49,7 +40,7 @@ public class TresExchData {
     private TresAlgoWatcher m_runAlgoWatcher;
     TresAlgo.TresAlgoListener m_algoListener;
 
-    public void setUpdated() { m_updated = true; }
+//    public void setUpdated() { m_updated = true; }
     public void setFeeding() { m_executor.m_feeding = true; }
     public void stop() { m_ws.stop(); }
     public TresExchData cloneClean() { return new TresExchData(m_tres, m_ws); }
@@ -96,46 +87,7 @@ public class TresExchData {
         int phasesNum = tres.m_phases;
         m_phaseDatas = new PhaseData[phasesNum];
         for (int i = 0; i < phasesNum; i++) {
-            m_phaseDatas[i] = new PhaseData(this, i) {
-                @Override protected void onOscBar() {
-                    ChartPoint chartPoint = calcAvgOsc();
-                    if (chartPoint != null) {
-                        synchronized (m_avgOscs) {
-                            if (m_tres.m_collectPoints) {
-                                m_avgOscs.add(chartPoint);
-                            }
-                            m_avgOscsPeakCalculator.update(chartPoint);
-                        }
-                    }
-//                    if(m_oscAlgo != null) {
-//                        m_oscAlgo.notifyListener();
-//                    }
-                }
-
-                @Override protected void onCoppockBar() {
-                    ChartPoint chartPoint = calcAvgCoppock();
-                    if (chartPoint != null) {
-                        synchronized (m_avgCoppock) {
-                            if (m_tres.m_collectPoints) {
-                                m_avgCoppock.add(chartPoint);
-                            }
-                            m_avgCoppockPeakCalculator.update(chartPoint);
-                        }
-                    }
-                }
-
-                @Override protected void onCciBar() {
-                    ChartPoint chartPoint = calcAvgCci();
-                    if (chartPoint != null) {
-                        synchronized (m_avgCci) {
-                            if (m_tres.m_collectPoints) {
-                                m_avgCci.add(chartPoint);
-                            }
-                            m_avgCciPeakCalculator.update(chartPoint);
-                        }
-                    }
-                }
-            };
+            m_phaseDatas[i] = new PhaseData(this, i);
         }
         if (BaseExecutor.DO_TRADE) {
             m_tradesQueue = new Queue<TradeData>("tradesQueue") {
@@ -149,11 +101,13 @@ public class TresExchData {
         try {
             m_ws.subscribeTrades(Tres.PAIR, new ITradesListener() {
                 @Override public void onTrade(TradeData tdata) {
-                    // do not hold connected thread - done quickly - just put trade into queue
+                    // do not hold connected thread - finish quickly - just put trade into queue
                     // will be processed later as possible
                     m_tradesQueue.addItem(tdata);
                 }
             });
+
+            m_executor.initImpl();
 
 //            m_ws.subscribeTop(Tres.PAIR, new ITopListener() {
 //                @Override public void onTop(long timestamp, double buy, double sell) {
@@ -185,12 +139,13 @@ public class TresExchData {
         m_lastPrice = tdata.m_price;
         long timestamp = tdata.m_timestamp;
 
-        m_updated = false;
+//        m_updated = false;
         for (PhaseData phaseData : m_phaseDatas) {
-            boolean updated = phaseData.update(tdata);
-            if (updated) {
-                m_updated = true;
-            }
+//            boolean updated =
+            phaseData.update(tdata);
+//            if (updated) {
+//                m_updated = true;
+//            }
         }
 
         if (!m_tres.m_logProcessing) {
@@ -229,59 +184,6 @@ public class TresExchData {
 
     public double getDirectionAdjusted() { // [-1 ... 1]
         return m_runAlgoWatcher.getDirectionAdjusted();
-    }
-
-    public ChartPoint calcAvgOsc() {
-        double ret = 0;
-        long time = 0;
-        for (PhaseData phaseData : m_phaseDatas) {
-            OscTick lastBar = phaseData.m_oscCalculator.m_lastBar;
-            if (lastBar == null) {
-                return null;  // not fully ready
-            }
-            long startTime = lastBar.m_startTime;
-            time = Math.max(time, startTime);
-
-            double avgOsc = lastBar.getMid();
-            ret += avgOsc;
-        }
-        long endTime = time + m_tres.m_barSizeMillis;
-        double avgValue = ret / m_phaseDatas.length;
-        return new ChartPoint(endTime, avgValue);
-    }
-
-    public ChartPoint calcAvgCoppock() {
-        double ret = 0;
-        long maxBarStart = 0;
-        for (PhaseData phaseData : m_phaseDatas) {
-            ChartPoint lastCoppock = phaseData.getLastCoppock();
-            if (lastCoppock == null) {
-                return null; // not fully ready
-            }
-            double lastValue = lastCoppock.m_value;
-            long barStart = lastCoppock.m_millis;
-            maxBarStart = Math.max(maxBarStart, barStart);
-            ret += lastValue;
-        }
-        double avgValue = ret / m_phaseDatas.length;
-        return new ChartPoint(maxBarStart, avgValue);
-    }
-
-    private ChartPoint calcAvgCci() {
-        double ret = 0;
-        long maxBarEnd = 0;
-        for (PhaseData phaseData : m_phaseDatas) {
-            ChartPoint lastCci = phaseData.getLastCci();
-            if (lastCci == null) {
-                return null; // not fully ready
-            }
-            double lastValue = lastCci.m_value;
-            long barEnd = lastCci.m_millis;
-            maxBarEnd = Math.max(maxBarEnd, barEnd);
-            ret += lastValue;
-        }
-        double avgValue = ret / m_phaseDatas.length;
-        return new ChartPoint(maxBarEnd, avgValue);
     }
 
     public void addOrder(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource, double gainAvg) {
@@ -379,93 +281,17 @@ public class TresExchData {
     }
 
 
-    //=============================================================================================
-    public class AvgCoppockPeakCalculator extends TrendWatcher<ChartPoint> {
-        public final LinkedList<ChartPoint> m_avgCoppockPeaks = new LinkedList<ChartPoint>();
-        Double m_lastPeakPrice = null;
-        double m_totalPriceRatio = 1;
-
-        public AvgCoppockPeakCalculator() {
-            super(TresExchData.AVG_COPPOCK_PEAK_TOLERANCE);
-        }
-
-        @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
-
-        @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
-            synchronized (m_avgCoppockPeaks) {
-                m_avgCoppockPeaks.add(peak);
-                m_executor.postRecheckDirection();
-                checkSimulate();
-            }
-        }
-
-        private void checkSimulate() {
-            //log("new peak: " + peak.m_value + "; direction=" + m_direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + m_lastPrice);
-            if (m_lastPeakPrice != null) {
-                double priceRatio;
-                if (m_direction == Direction.FORWARD) { // up
-                    priceRatio = m_lastPeakPrice / m_lastPrice;
-                } else {
-                    priceRatio = m_lastPrice / m_lastPeakPrice;
-                }
-                m_totalPriceRatio *= priceRatio;
-
-                if (m_tres.m_collectPoints) {
-                    SymData data = new SymData(m_lastTickMillis, m_lastPrice, priceRatio, m_totalPriceRatio);
-                    synchronized (m_сoppockSym) {
-                        m_сoppockSym.add(data);
-                    }
-                }
-            }
-            m_lastPeakPrice = m_lastPrice;
-        }
-    }
-
-    public class AvgOscsPeakCalculator extends TrendWatcher<ChartPoint> {
-        public final LinkedList<ChartPoint> m_avgOscsPeaks = new LinkedList<ChartPoint>();
-
-        public AvgOscsPeakCalculator() {
-            super(TresExchData.AVG_OSC_PEAK_TOLERANCE);
-        }
-
-        @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
-
-        @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
-            synchronized (m_avgOscsPeaks) {
-                m_avgOscsPeaks.add(peak);
-                m_executor.postRecheckDirection();
-            }
-        }
-    }
-
-    private class AvgCciPeakCalculator extends TrendWatcher<ChartPoint> {
-        final public LinkedList<ChartPoint> m_avgCciPeaks = new LinkedList<ChartPoint>();
-
-        public AvgCciPeakCalculator() {
-            super(TresExchData.AVG_CCI_PEAK_TOLERANCE);
-        }
-
-        @Override protected double toDouble(ChartPoint chartPoint) { return chartPoint.m_value; }
-
-        @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
-            synchronized (m_avgCciPeaks) {
-                m_avgCciPeaks.add(peak);
-                m_executor.postRecheckDirection();
-            }
-        }
-    }
-
-    public static class SymData {
-        public final long m_millis;
-        public final double m_price;
-        public final double m_priceRatio;
-        public final double m_totalPriceRatio;
-
-        public SymData(long millis, double price, double priceRatio, double totalPriceRatio) {
-            m_millis = millis;
-            m_price = price;
-            m_priceRatio = priceRatio;
-            m_totalPriceRatio = totalPriceRatio;
-        }
-    }
+//    public static class SymData {
+//        public final long m_millis;
+//        public final double m_price;
+//        public final double m_priceRatio;
+//        public final double m_totalPriceRatio;
+//
+//        public SymData(long millis, double price, double priceRatio, double totalPriceRatio) {
+//            m_millis = millis;
+//            m_price = price;
+//            m_priceRatio = priceRatio;
+//            m_totalPriceRatio = totalPriceRatio;
+//        }
+//    }
 }
