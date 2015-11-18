@@ -20,7 +20,7 @@ public class CoppockAlgo extends TresAlgo {
                 super.onBar();
                 onCoppockBar();
             }
-            @Override protected boolean countHalfPeaks() { return false; }
+//            @Override protected boolean countHalfPeaks() { return false; }
         };
         m_indicators.add(m_coppockIndicator);
     }

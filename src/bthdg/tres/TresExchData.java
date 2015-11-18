@@ -19,20 +19,14 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class TresExchData {
-//    public static final double AVG_OSC_PEAK_TOLERANCE = 0.05;
-//    public static final double AVG_COPPOCK_PEAK_TOLERANCE = 0.005;
-//    public static final double AVG_CCI_PEAK_TOLERANCE = 0.05;
-
     public final Tres m_tres;
     final IWs m_ws;
     final LinkedList<TradeDataLight> m_trades = new LinkedList<TradeDataLight>();
     public final PhaseData[] m_phaseDatas;
     final TresExecutor m_executor;
-    Queue<TradeData> m_tradesQueue;
+    Queue<Runnable> m_tradesQueue;
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
-//    final public LinkedList<SymData> m_сoppockSym = new LinkedList<SymData>();
     public double m_lastPrice;
-//    private boolean m_updated;
     long m_startTickMillis = Long.MAX_VALUE;
     public long m_lastTickMillis = 0;
     long m_tickCount;
@@ -40,7 +34,6 @@ public class TresExchData {
     private TresAlgoWatcher m_runAlgoWatcher;
     TresAlgo.TresAlgoListener m_algoListener;
 
-//    public void setUpdated() { m_updated = true; }
     public void setFeeding() { m_executor.m_feeding = true; }
     public void stop() { m_ws.stop(); }
     public TresExchData cloneClean() { return new TresExchData(m_tres, m_ws); }
@@ -90,24 +83,40 @@ public class TresExchData {
             m_phaseDatas[i] = new PhaseData(this, i);
         }
         if (BaseExecutor.DO_TRADE) {
-            m_tradesQueue = new Queue<TradeData>("tradesQueue") {
-                @Override protected void processItem(TradeData tData) { processTrade(tData); }
+            m_tradesQueue = new Queue<Runnable>("tradesQueue") {
+                @Override protected void processItem(Runnable task) {
+                    task.run();
+                }
             };
             m_tradesQueue.start();
         }
     }
 
     public void start() {
-        try {
-            m_ws.subscribeTrades(Tres.PAIR, new ITradesListener() {
-                @Override public void onTrade(TradeData tdata) {
-                    // do not hold connected thread - finish quickly - just put trade into queue
-                    // will be processed later as possible
-                    m_tradesQueue.addItem(tdata);
-                }
-            });
+        log("start() on " + this);
+        m_ws.connect(new Runnable() {
+            @Override public void run() {
+                log(" connected on " + this);
 
-            m_executor.initImpl();
+                try {
+                    m_ws.subscribeTrades(Tres.PAIR, new ITradesListener() {
+                        @Override public void onTrade(final TradeData tdata) {
+                            // do not hold connected thread - finish quickly - just put trade into queue
+                            // will be processed later as possible
+                            m_tradesQueue.addItem(new Runnable() {
+                                @Override public void run() {
+                                    processTrade(tdata);
+                                }
+                            });
+                        }
+                    });
+
+                    m_executor.initImpl();
+                } catch (Exception e) {
+                    err("error subscribeTrades[" + m_ws.exchange() + "]: " + e, e);
+                }
+            }
+        });
 
 //            m_ws.subscribeTop(Tres.PAIR, new ITopListener() {
 //                @Override public void onTop(long timestamp, double buy, double sell) {
@@ -120,10 +129,6 @@ public class TresExchData {
 //                    onTrade(tradeData);
 //                }
 //            });
-
-        } catch (Exception e) {
-            err("error subscribeTrades[" + m_ws.exchange() + "]: " + e, e);
-        }
     }
 
     public void processTrade(TradeDataLight tdata) {
@@ -139,13 +144,8 @@ public class TresExchData {
         m_lastPrice = tdata.m_price;
         long timestamp = tdata.m_timestamp;
 
-//        m_updated = false;
         for (PhaseData phaseData : m_phaseDatas) {
-//            boolean updated =
             phaseData.update(tdata);
-//            if (updated) {
-//                m_updated = true;
-//            }
         }
 
         if (!m_tres.m_logProcessing) {
@@ -168,6 +168,18 @@ public class TresExchData {
         m_lastTickMillis = Math.max(m_lastTickMillis, timestamp);
 
         m_tres.onTrade(tdata);
+    }
+
+    public void onTop(final BaseExecutor.TopDataPoint topDataPoint) {
+//        m_tradesQueue.addItem(new Runnable() {
+//            @Override public void run() {
+//                processTop(topDataPoint);
+//            }
+//        });
+    }
+
+    private void processTop(BaseExecutor.TopDataPoint topDataPoint) {
+//        x
     }
 
     public void getState(StringBuilder sb) {
@@ -195,11 +207,12 @@ public class TresExchData {
 
     public JComponent getController(TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
-        panel.setBorder(BorderFactory.createLineBorder(Color.black));
+//        panel.setBorder(BorderFactory.createLineBorder(Color.black));
 
         AlgoComboBox combo = new AlgoComboBox(m_playAlgos);
         panel.add(combo);
         for (TresAlgoWatcher algoWatcher : m_playAlgos) {
+            panel.add(Box.createHorizontalStrut(2));
             panel.add(algoWatcher.getController(canvas));
         }
         return panel;
@@ -245,6 +258,7 @@ public class TresExchData {
     }
 
 
+    //=============================================================================================
     public static class OrderPoint {
         public final OrderData m_order;
         public final long m_tickAge;
@@ -279,19 +293,4 @@ public class TresExchData {
             selectAlgo(selectedAlgo);
         }
     }
-
-
-//    public static class SymData {
-//        public final long m_millis;
-//        public final double m_price;
-//        public final double m_priceRatio;
-//        public final double m_totalPriceRatio;
-//
-//        public SymData(long millis, double price, double priceRatio, double totalPriceRatio) {
-//            m_millis = millis;
-//            m_price = price;
-//            m_priceRatio = priceRatio;
-//            m_totalPriceRatio = totalPriceRatio;
-//        }
-//    }
 }

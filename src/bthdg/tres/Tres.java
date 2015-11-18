@@ -38,7 +38,7 @@ public class Tres {
     int m_len2;
     int m_k;
     int m_d;
-    int m_phases;
+    public int m_phases;
     int m_ma;
     ArrayList<TresExchData> m_exchDatas;
     private TresFrame m_frame;
@@ -328,9 +328,10 @@ public class Tres {
         }
     }
 
+
+    // ============================================================================================
     private static class IntConsoleReader extends ConsoleReader {
         @Override protected void beforeLine() { System.out.print(">"); }
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
     }
-
 }

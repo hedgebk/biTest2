@@ -6,6 +6,7 @@ import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
+import bthdg.tres.ind.PeakWatcher;
 import bthdg.tres.ind.TresIndicator;
 
 import javax.swing.*;
@@ -44,7 +45,11 @@ public abstract class TresAlgo {
         } else if (algoName.equals("osc")) {
             return new OscAlgo(tresExchData);
         } else if (algoName.equals("tre")) {
-            return new TreAlgo(tresExchData);
+            return new TreAlgo.TreAlgoBlended(tresExchData);
+        } else if (algoName.equals("tre!")) {
+            return new TreAlgo.TreAlgoSharp(tresExchData);
+        } else if (algoName.equals("cop+")) {
+            return new CoppockPlusAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -93,10 +98,13 @@ public abstract class TresAlgo {
         return "";
     }
 
-    protected double getDirectionAdjustedByPeakWatchers(TresIndicator indicator) {
-        Direction direction = indicator.m_peakWatcher.m_avgPeakCalculator.m_direction;
-        TrendWatcher<ChartPoint> halfPeakWatcher = indicator.m_halfPeakWatcher.m_avgPeakCalculator;
-        Direction halfDirection = halfPeakWatcher.m_direction;
+    protected static double getDirectionAdjustedByPeakWatchers(TresIndicator indicator) {
+        PeakWatcher peakWatcher = indicator.m_peakWatcher;
+        TrendWatcher<ChartPoint> peakCalculator = peakWatcher.m_avgPeakCalculator;
+        Direction direction = peakCalculator.m_direction;
+        PeakWatcher halfPeakWatcher = indicator.m_halfPeakWatcher;
+        TrendWatcher<ChartPoint> halfPeakTrendWatcher = halfPeakWatcher.m_avgPeakCalculator;
+        Direction halfDirection = halfPeakTrendWatcher.m_direction;
         if (direction == null) {
             return 0;
         } else if (direction == Direction.FORWARD) {
@@ -105,7 +113,7 @@ public abstract class TresAlgo {
             } else if (halfDirection == Direction.FORWARD) {
                 return 1.0;
             } else { // Direction.BACKWARD
-                double force = halfPeakWatcher.getDirectionForce();
+                double force = halfPeakTrendWatcher.getDirectionForce();
                 double dirAdjusted = -2 * force + 3;
                 dirAdjusted = Math.max(dirAdjusted, -1);
                 dirAdjusted = Math.min(dirAdjusted, 1);
@@ -117,7 +125,7 @@ public abstract class TresAlgo {
             } else if (halfDirection == Direction.BACKWARD) {
                 return -1.0;
             } else { // Direction.FORWARD
-                double force = halfPeakWatcher.getDirectionForce();
+                double force = halfPeakTrendWatcher.getDirectionForce();
                 double dirAdjusted = 2 * force - 3;
                 dirAdjusted = Math.max(dirAdjusted, -1);
                 dirAdjusted = Math.min(dirAdjusted, 1);

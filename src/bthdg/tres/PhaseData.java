@@ -39,20 +39,17 @@ public class PhaseData {
         }
     }
 
-    public boolean update(TradeDataLight tdata) {
+    public void update(TradeDataLight tdata) {
         long timestamp = tdata.m_timestamp;
         double price = tdata.m_price;
-        Tres tres = m_exchData.m_tres;
-        boolean updated = false;
         for (TresIndicator.TresPhasedIndicator phasedIndicator : m_phasedIndicators) {
             if (phasedIndicator != null) {
-                updated |= phasedIndicator.update(timestamp, price);
+                phasedIndicator.update(timestamp, price);
             }
         }
 
-        updated |=  m_ohlcCalculator.update(timestamp, price);
+        m_ohlcCalculator.update(timestamp, price);
 //        updated |=  m_maCalculator.update(timestamp, price);
-        return updated;
     }
 
     public void getState(StringBuilder sb) {

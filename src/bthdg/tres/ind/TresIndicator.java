@@ -56,7 +56,8 @@ public abstract class TresIndicator {
     protected boolean countHalfPeaks() { return true; }
     public abstract TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex);
     public abstract Color getColor();
-    public abstract Color getPeakColor();
+
+    public Color getPeakColor() { return getColor(); } // the same as main color by def
 
     public TresPhasedIndicator createPhased(TresExchData exchData, int phaseIndex) {
         TresPhasedIndicator phased = createPhasedInt(exchData, phaseIndex);
@@ -372,7 +373,14 @@ public abstract class TresIndicator {
         m_algo.onAvgPeak(TresIndicator.this);
     }
 
+    protected void drawZeroHLine(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
+        g.setColor(getColor());
+        int y = yAxe.getPointReverse(0);
+        g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
+    }
 
+
+    // =================================================================================
     public static abstract class TresPhasedIndicator {
         final TresIndicator m_indicator;
         protected final TresExchData m_exchData;

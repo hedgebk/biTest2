@@ -40,6 +40,7 @@ class TresLogProcessor extends Thread {
     private String m_logFilePattern;
     private String m_varyMa;
     private String m_varyBarSize;
+    private String m_varyPhases;
     private String m_varyLen1;
     private String m_varyLen2;
     private String m_varyOscLock;
@@ -71,41 +72,81 @@ class TresLogProcessor extends Thread {
         Tres.LOG_PARAMS = false;
 
         m_logFilePattern = getProperty(keys, "tre.log.file");
-        log("logFilePattern=" + m_logFilePattern);
+        if (m_logFilePattern != null) {
+            log("logFilePattern=" + m_logFilePattern);
+        }
         m_varyMa = keys.getProperty("tre.vary.ma");
-        log("varyMa=" + m_varyMa);
+        if (m_varyMa != null) {
+            log("varyMa=" + m_varyMa);
+        }
         m_varyBarSize = keys.getProperty("tre.vary.bar_size");
-        log("varyBarSize=" + m_varyBarSize);
+        if (m_varyBarSize != null) {
+            log("varyBarSize=" + m_varyBarSize);
+        }
+        m_varyPhases = keys.getProperty("tre.vary.phases");
+        if (m_varyPhases != null) {
+            log("varyPhases=" + m_varyPhases);
+        }
         m_varyLen1 = keys.getProperty("tre.vary.len1");
-        log("varyLen1=" + m_varyLen1);
+        if (m_varyLen1 != null) {
+            log("varyLen1=" + m_varyLen1);
+        }
         m_varyLen2 = keys.getProperty("tre.vary.len2");
-        log("varyLen2=" + m_varyLen2);
+        if (m_varyLen2 != null) {
+            log("varyLen2=" + m_varyLen2);
+        }
         m_varyOscLock = keys.getProperty("tre.vary.osc_lock");
-        log("varyOscLock=" + m_varyOscLock);
+        if (m_varyOscLock != null) {
+            log("varyOscLock=" + m_varyOscLock);
+        }
         m_varyOscPeak = keys.getProperty("tre.vary.osc_peak");
-        log("varyOscPeak=" + m_varyOscPeak);
+        if (m_varyOscPeak != null) {
+            log("varyOscPeak=" + m_varyOscPeak);
+        }
         m_varyCoppPeak = keys.getProperty("tre.vary.copp_peak");
-        log("varyCoppPeak=" + m_varyCoppPeak);
+        if (m_varyCoppPeak != null) {
+            log("varyCoppPeak=" + m_varyCoppPeak);
+        }
         m_varyAndPeak = keys.getProperty("tre.vary.and_peak");
-        log("varyAndPeak=" + m_varyAndPeak);
+        if (m_varyAndPeak != null) {
+            log("varyAndPeak=" + m_varyAndPeak);
+        }
         m_varyCciPeak = keys.getProperty("tre.vary.cci_peak");
-        log("varyCciPeak=" + m_varyCciPeak);
+        if (m_varyCciPeak != null) {
+            log("varyCciPeak=" + m_varyCciPeak);
+        }
         m_varyCciCorr = keys.getProperty("tre.vary.cci_corr");
-        log("varyCciCorr=" + m_varyCciCorr);
+        if (m_varyCciCorr != null) {
+            log("varyCciCorr=" + m_varyCciCorr);
+        }
         m_varyWma = keys.getProperty("tre.vary.wma");
-        log("varyWma=" + m_varyWma);
+        if (m_varyWma != null) {
+            log("varyWma=" + m_varyWma);
+        }
         m_varyLroc = keys.getProperty("tre.vary.lroc");
-        log("varyLroc=" + m_varyLroc);
+        if (m_varyLroc != null) {
+            log("varyLroc=" + m_varyLroc);
+        }
         m_varySroc = keys.getProperty("tre.vary.sroc");
-        log("varySroc=" + m_varySroc);
+        if (m_varySroc != null) {
+            log("varySroc=" + m_varySroc);
+        }
         m_varySma = keys.getProperty("tre.vary.sma");
-        log("varySma=" + m_varySma);
+        if (m_varySma != null) {
+            log("varySma=" + m_varySma);
+        }
         m_varyCovK = keys.getProperty("tre.vary.cov_k");
-        log("varyCovK=" + m_varyCovK);
+        if (m_varyCovK != null) {
+            log("varyCovK=" + m_varyCovK);
+        }
         m_varyCovRat = keys.getProperty("tre.vary.cov_rat");
-        log("varyCovRat=" + m_varyCovRat);
+        if (m_varyCovRat != null) {
+            log("varyCovRat=" + m_varyCovRat);
+        }
         m_varyCovVel = keys.getProperty("tre.vary.cov_vel");
-        log("varyCovVel=" + m_varyCovVel);
+        if (m_varyCovVel != null) {
+            log("varyCovVel=" + m_varyCovVel);
+        }
 
         BaseExecutor.DO_TRADE = false;
         log("DO_TRADE set to false");
@@ -146,6 +187,10 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyBarSize != null) {
             varyBarSize(datas, tres, m_varyBarSize);
+            return;
+        }
+        if (m_varyPhases != null) {
+            varyPhases(datas, tres, m_varyPhases);
             return;
         }
         if (m_varyLen1 != null) {
@@ -228,6 +273,21 @@ class TresLogProcessor extends Thread {
             iterate(datas, i, "%d", "barSizeMillis", maxMap);
         }
         logMax(maxMap, "barSizeMillis");
+    }
+
+    private void varyPhases(List<TradesTopsData> datas, Tres tres, String varyPhases) throws Exception {
+        log("varyPhases: " + varyPhases);
+
+        String[] split = varyPhases.split(";"); // 10;30;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (int i = min; i <= max; i += step) {
+            tres.m_phases = i;
+            iterate(datas, i, "%d", "phases", maxMap);
+        }
+        logMax(maxMap, "phases");
     }
 
     private void logMax(Map<String, Map.Entry<Number, Double>> maxMap, String key) {
@@ -839,5 +899,4 @@ class TresLogProcessor extends Thread {
         }
         return ret;
     }
-
 }

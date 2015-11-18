@@ -80,6 +80,34 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
+    @Override protected void onTop(TopDataPoint topDataPoint) {
+        m_exchData.onTop(topDataPoint);
+    }
+
+    public TresState onAfterError() throws Exception {
+        log("onAfterError() reset check ...  -------------------------- ");
+        if (m_order != null) {
+            log(" ERROR m_order != null after reset: " + m_order);
+            return TresState.ERROR;
+        }
+        TresState tresState = checkAllocated(m_pair.m_from);
+        if (tresState == TresState.NONE) {
+            tresState = checkAllocated(m_pair.m_to);
+        }
+        return tresState;
+    }
+
+    protected TresState checkAllocated(Currency currency) {
+        double evalAll = m_account.evaluateAll(m_topsData, currency, m_exchange);
+        double allocated = m_account.allocated(currency);
+        // sometimes funds on account reflect with delay
+        if (allocated > evalAll / 10) {
+            log(" ERROR to much allocated " + currency + " after reset: " + m_account);
+            return TresState.ERROR;
+        }
+        return TresState.NONE;
+    }
+
     @Override public void onTrade(TradeDataLight tData) {
         if (DO_TRADE) {
             TradeTask task = new TradeTask(tData);
