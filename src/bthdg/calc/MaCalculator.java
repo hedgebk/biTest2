@@ -58,6 +58,7 @@ public class MaCalculator extends BarCalculator {
         startMaBar(barEnd);
     }
 
+    // ======================================================================================
     public enum MaType {
         CLOSE {
             @Override public BaseMaBarData newBarData() {
@@ -74,6 +75,7 @@ public class MaCalculator extends BarCalculator {
         public boolean updateBarData(BaseMaBarData barData, double price) { return false; }
     }
 
+    // ======================================================================================
     public static class BaseMaBarData {
         protected double m_value;
 

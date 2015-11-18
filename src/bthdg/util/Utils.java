@@ -439,7 +439,8 @@ public class Utils {
         return (x < y) ? -1 : ((x == y) ? 0 : 1);
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ======================================================================================================
     public static abstract class DoubleAverageCalculator<O> {
         private double m_sum;
         private double m_weightSum;
@@ -498,11 +499,14 @@ public class Utils {
         }
     }
 
+
+    // ======================================================================================================
     public static class DoubleDoubleAverageCalculator extends DoubleAverageCalculator<Double> {
         @Override public double getDoubleValue(Double value) { return value; }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ======================================================================================================
     public static abstract class DoubleMinMaxCalculator<O> {
         public Double m_minValue;
         public Double m_maxValue;
@@ -547,7 +551,8 @@ public class Utils {
         public boolean hasValue() { return (m_minValue != null); }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ======================================================================================================
     public static class DoubleDoubleMinMaxCalculator extends DoubleMinMaxCalculator<Double> {
         public DoubleDoubleMinMaxCalculator() {}
 
@@ -558,7 +563,8 @@ public class Utils {
         @Override public Double getValue(Double value) { return value; }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ======================================================================================================
     public static abstract class LongMinMaxCalculator<O> {
         public Long m_minValue;
         public Long m_maxValue;
@@ -590,7 +596,8 @@ public class Utils {
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // ======================================================================================================
     public static class SlidingValuesFrame {
         public final TreeMap<Long,Double> m_map; // sorted by time
         public final long m_frameSizeMillis;
@@ -629,6 +636,8 @@ public class Utils {
         }
     }
 
+
+    // ======================================================================================================
     public static class ArrayAverageCounter {
         private final int m_maxNum;
         private final LinkedList<Double> m_array = new LinkedList<Double>();
@@ -641,12 +650,10 @@ public class Utils {
         public void justAdd(double value) {
             synchronized (m_array) {
                 m_array.add(value);
-            }
-            int size = m_array.size();
-            if (size == m_maxNum) {
-                m_full = true;
-            } else if (size > m_maxNum) {
-                synchronized (m_array) {
+                int size = m_array.size();
+                if (size == m_maxNum) {
+                    m_full = true;
+                } else if (size > m_maxNum) {
                     m_array.removeFirst();
                 }
             }
@@ -655,10 +662,12 @@ public class Utils {
         public double get() {
             double summ = 0.0;
             synchronized (m_array) {
-                for (double value : m_array) {
+                int size = m_array.size();
+                for (int i = 0; i < size; i++) {
+                    double value = m_array.get(i);
                     summ += value;
                 }
-                return summ / m_array.size();
+                return summ / size;
             }
         }
 
@@ -669,7 +678,7 @@ public class Utils {
     }
 
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // ======================================================================================================
     public static class AverageCounter extends SlidingValuesFrame {
         public AverageCounter(long frameSizeMillis) {
             this(frameSizeMillis, new TreeMap<Long, Double>());
@@ -784,6 +793,8 @@ public class Utils {
         }
     } // AverageCounter
 
+
+    // ======================================================================================================
     public static class FadingAverageCounter extends AverageCounter {
         public FadingAverageCounter(long frameSizeMillis) {
             super(frameSizeMillis);

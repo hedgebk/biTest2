@@ -244,10 +244,12 @@ public abstract class BaseExecutor implements Runnable {
         TopDataPoint topDataPoint = new TopDataPoint(topData, timestamp, avgBuy, avgSell);
         addTopDataPoint(topDataPoint);
         m_topsData.put(m_pair, topData);
-        log(" topsData'=" + m_topsData);
-
+//        log(" topsData'=" + m_topsData);
+        onTop(topDataPoint);
         addTask(new TopTask());
     }
+
+    protected void onTop(TopDataPoint topDataPoint) { }
 
     protected void initAccount() throws Exception {
         AccountData oldAccount = m_account;

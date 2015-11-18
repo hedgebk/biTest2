@@ -19,7 +19,7 @@ import java.util.*;
 public class Huobi extends BaseExch {
     private static final int READ_TIMEOUT = 10000; // todo: mk big for market; smaller for other orders
     private static final int CONNECT_TIMEOUT = 10000;
-    private static final int BETWEEN_REQUESTS_PERIOD = 1500;
+    private static final int BETWEEN_REQUESTS_PERIOD = 2000;
 
     private static String SECRET;
     private static String KEY;
