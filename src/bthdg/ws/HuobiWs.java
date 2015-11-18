@@ -28,7 +28,7 @@ public class HuobiWs extends BaseWs {
 
     public static void main(String[] args) {
         try {
-            new HuobiWs().subscribe();
+            new HuobiWs().subscribe(null);
 
             Thread thread = Thread.currentThread();
             synchronized (thread) {
@@ -39,7 +39,7 @@ public class HuobiWs extends BaseWs {
         }
     }
 
-    public void subscribe() {
+    public void subscribe(final Runnable connectCallback) {
         try {
             m_socket = new SocketIO(ADDRESS);
         } catch (MalformedURLException e) {}
@@ -80,7 +80,7 @@ public class HuobiWs extends BaseWs {
                                     synchronized (m_reconnectThread) {
                                         System.out.println("reconnecting, attempt " + attempt + "...");
 
-                                        subscribe();
+                                        subscribe(connectCallback);
 
                                         System.out.println("reconnect invoked, waiting");
                                         m_reconnectThread.wait();
@@ -114,6 +114,9 @@ public class HuobiWs extends BaseWs {
                     }
                 }
                 sendSubscribe();
+                if(connectCallback != null) {
+                    connectCallback.run();
+                }
             }
 
             @Override public void on(String event, IOAcknowledge ack, Object... args) {
@@ -678,9 +681,13 @@ public class HuobiWs extends BaseWs {
         m_socket.emit("request", str);
     }
 
-    private void subscribeIfNeeded() {
-        if(m_socket == null) {
-            subscribe();
+    private void subscribeIfNeeded(Runnable runnable) {
+        if (m_socket == null) {
+            subscribe(runnable);
+        } else {
+            if (runnable != null) {
+                runnable.run();
+            }
         }
     }
 
@@ -690,12 +697,16 @@ public class HuobiWs extends BaseWs {
     }
     @Override public Exchange exchange() { return Exchange.HUOBI; }
 
+    @Override public void connect(Runnable runnable) {
+        subscribeIfNeeded(runnable);
+    }
+
     @Override public void subscribeTrades(Pair pair, ITradesListener listener) {
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
         m_tradesListener = listener;
-        subscribeIfNeeded();
+        subscribeIfNeeded(null);
     }
 
     @Override public void subscribeTop(Pair pair, ITopListener listener) {
@@ -703,7 +714,7 @@ public class HuobiWs extends BaseWs {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
         m_topListener = listener;
-        subscribeIfNeeded();
+        subscribeIfNeeded(null);
     }
 
     @Override public void stop() {

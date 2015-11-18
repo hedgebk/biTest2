@@ -324,7 +324,7 @@ public class OkCoinWs extends BaseWs {
         return null;
     }
 
-    private void connect(final Runnable callback) throws Exception {
+    @Override public void connect(final Runnable callback) /*throws Exception*/ {
         try {
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
             ClientManager client = ClientManager.createClient();
@@ -358,7 +358,6 @@ public class OkCoinWs extends BaseWs {
             } else {
                 new ReconnectThread().start();
             }
-//            throw e;
         }
     }
 
@@ -403,6 +402,7 @@ public class OkCoinWs extends BaseWs {
         return 0;
     }
 
+    // ===================================================================================================
     private class ReconnectThread extends Thread {
         @Override public void run() {
             System.out.println("reconnect thread started");
