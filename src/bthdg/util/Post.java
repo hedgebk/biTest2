@@ -21,6 +21,9 @@ public class Post {
             }
             buff.append(key);
             buff.append("=");
+            if (value == null) {
+                throw new RuntimeException("null value for key '" + key + "'");
+            }
             buff.append(value.replace(" ", "+"));
         }
         return buff.toString();
