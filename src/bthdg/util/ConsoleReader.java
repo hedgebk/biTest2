@@ -1,6 +1,8 @@
 package bthdg.util;
 
 import java.io.BufferedReader;
+import java.io.Console;
+import java.io.IOException;
 import java.io.InputStreamReader;
 
 public abstract class ConsoleReader extends Thread {
@@ -36,5 +38,17 @@ public abstract class ConsoleReader extends Thread {
             System.err.println("error: " + e);
             e.printStackTrace();
         }
+    }
+
+    public static String readConsolePwd(String prefix) throws IOException {
+        System.out.print(prefix);
+        Console console = System.console();
+        if (console == null) {
+            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+            String pwd = br.readLine();
+            return pwd;
+        }
+        String pwd = new String(console.readPassword());
+        return pwd;
     }
 }
