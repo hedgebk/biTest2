@@ -19,7 +19,6 @@ import bthdg.ws.WsFactory;
 import javax.swing.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -91,8 +90,15 @@ public class Tres {
         if (line.equals("reset")) {
             s_inst.reset();
         }
+        if (line.equals("start")) {
+            try {
+                s_inst.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         if (line.equals("h") || line.equals("help")) {
-            log("copp_peak=0.1234; reset");
+            log("reset");
         }
 
         return false;
@@ -126,7 +132,7 @@ public class Tres {
         stopFrame();
     }
 
-    private void start() throws IOException {
+    private void start() throws Exception {
         m_keys = BaseExch.loadKeys();
         init();
 
@@ -176,90 +182,97 @@ public class Tres {
         BaseExecutor.DO_TRADE = doTrade;
 
         String algosStr = getProperty("tre.play.algos");
-        log("PLAY.ALGOS=" + algosStr);
         if (algosStr.length() == 0) {
             m_algosArr = null;
         } else {
+            log("PLAY.ALGOS=" + algosStr);
             m_algosArr = algosStr.split(",");
             int indicatorsLen = m_algosArr.length;
             log(" .len=" + indicatorsLen);
         }
 
         String cciPeakStr = getProperty("tre.cci_peak");
-        log("cci_peak=" + cciPeakStr);
         if (cciPeakStr != null) {
+            log("cci_peak=" + cciPeakStr);
             double cciPeak = Double.parseDouble(cciPeakStr);
             CciIndicator.PEAK_TOLERANCE = cciPeak;
         }
 
         String coppPeakStr = getProperty("tre.copp_peak");
-        log("copp_peak=" + coppPeakStr);
         if (coppPeakStr != null) {
+            log("copp_peak=" + coppPeakStr);
             double coppPeak = Double.parseDouble(coppPeakStr);
             CoppockIndicator.PEAK_TOLERANCE = coppPeak;
         }
 
         String andPeakStr = getProperty("tre.and_peak");
-        log("and_peak=" + andPeakStr);
         if (andPeakStr != null) {
+            log("and_peak=" + andPeakStr);
             double andPeak = Double.parseDouble(andPeakStr);
             CncAlgo.AndIndicator.PEAK_TOLERANCE = andPeak;
         }
 
         String oscPeakStr = getProperty("tre.osc_peak");
-        log("osc_peak=" + oscPeakStr);
         if (oscPeakStr != null) {
+            log("osc_peak=" + oscPeakStr);
             double oscPeak = Double.parseDouble(oscPeakStr);
             OscIndicator.PEAK_TOLERANCE = oscPeak;
         }
 
         String cciCorrStr = getProperty("tre.cci_corr");
-        log("cci_corr=" + cciCorrStr);
         if (cciCorrStr != null) {
+            log("cci_corr=" + cciCorrStr);
             double cciCorr = Double.parseDouble(cciCorrStr);
             CncAlgo.CCI_CORRECTION_RATIO = cciCorr;
         }
 
         String wmaStr = getProperty("tre.wma");
-        log("wma=" + wmaStr);
         if (wmaStr != null) {
+            log("wma=" + wmaStr);
             int wma = Integer.parseInt(wmaStr);
             CoppockIndicator.PhasedCoppockIndicator.WMA_LENGTH = wma;
         }
 
         String lrocStr = getProperty("tre.lroc");
-        log("lroc=" + lrocStr);
         if (lrocStr != null) {
+            log("lroc=" + lrocStr);
             int lroc = Integer.parseInt(lrocStr);
             CoppockIndicator.PhasedCoppockIndicator.LONG_ROC_LENGTH = lroc;
         }
 
         String srocStr = getProperty("tre.sroc");
-        log("sroc=" + srocStr);
         if (srocStr != null) {
+            log("sroc=" + srocStr);
             int sroc = Integer.parseInt(srocStr);
             CoppockIndicator.PhasedCoppockIndicator.SHORT_ROС_LENGTH = sroc;
         }
 
         String smaStr = getProperty("tre.sma");
-        log("sma=" + smaStr);
         if (smaStr != null) {
+            log("sma=" + smaStr);
             int sma = Integer.parseInt(smaStr);
             CciIndicator.PhasedCciIndicator.SMA_LENGTH = sma;
         }
 
         String minOrderStr = getProperty("tre.min_order");
-        log("min_order=" + minOrderStr);
         if (minOrderStr != null) {
+            log("min_order=" + minOrderStr);
             double minOrder = Double.parseDouble(minOrderStr);
             TresExecutor.MIN_ORDER_SIZE = minOrder;
         }
 
         String maxOrderStr = getProperty("tre.max_order");
-        log("max_order=" + maxOrderStr);
         if (maxOrderStr != null) {
+            log("max_order=" + maxOrderStr);
             double maxOrder = Double.parseDouble(maxOrderStr);
             TresExecutor.MAX_ORDER_SIZE = maxOrder;
+        }
+
+        String orderAlgoStr = getProperty("tre.order_algo");
+        if (orderAlgoStr != null) {
+            log("orderAlgoStr=" + orderAlgoStr);
+            BaseExecutor.OrderPriceMode opm = BaseExecutor.OrderPriceMode.get(orderAlgoStr);
+            TresExecutor.ORDER_PRICE_MODE = opm;
         }
 
         m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
