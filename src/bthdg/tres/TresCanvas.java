@@ -42,6 +42,8 @@ public class TresCanvas extends JComponent {
     public static final double[] STEPS = new double[]{0.1, 0.2, 0.5};
 
     protected static boolean m_paintOrders = true;
+    protected static boolean m_paintOrderData = true;
+    protected static boolean m_paintOrderIds = false;
 
     private Tres m_tres;
     private Point m_point;
@@ -596,26 +598,31 @@ public class TresCanvas extends JComponent {
                 g.drawPolygon(p);
             }
 
-            int yy = isBuy ? y + 2 + fontHeight : y - 5;
-            int yStep = isBuy ? fontHeight : -fontHeight;
-            g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
+            if (m_paintOrderData) {
+                int yy = isBuy ? y + 2 + fontHeight : y - 5;
+                int yStep = isBuy ? fontHeight : -fontHeight;
+                g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
 
-            String amount = ((order.m_filled == 0) || (order.m_filled == order.m_amount))
-                    ? Utils.X_YYY.format(order.m_amount)
-                    : Utils.X_YYY.format(order.m_filled) + "/" + Utils.X_YYY.format(order.m_amount);
-            g.drawString(amount, x, yy);
-            yy += yStep;
+                String amount = ((order.m_filled == 0) || (order.m_filled == order.m_amount))
+                        ? Utils.X_YYY.format(order.m_amount)
+                        : Utils.X_YYY.format(order.m_filled) + "/" + Utils.X_YYY.format(order.m_amount);
+                g.drawString(amount, x, yy);
+                yy += yStep;
 
-            String tickAgeStr = Utils.millisToDHMSStr(orderPoint.m_tickAge);
-            g.drawString(tickAgeStr, x, yy);
-            yy += yStep;
+                String tickAgeStr = Utils.millisToDHMSStr(orderPoint.m_tickAge);
+                g.drawString(tickAgeStr, x, yy);
+                yy += yStep;
 
-            String gainStr = Utils.X_YYYYYYYY.format(orderPoint.m_gainAvg);
-            g.drawString(gainStr, x, yy);
-            yy += yStep;
+                String gainStr = Utils.X_YYYYYYYY.format(orderPoint.m_gainAvg);
+                g.drawString(gainStr, x, yy);
+                yy += yStep;
 
-            String ordId = order.m_orderId.substring(order.m_orderId.length() - 6);
-            g.drawString(ordId, x, yy);
+                if (m_paintOrderIds) {
+                    String ordId = order.m_orderId.substring(order.m_orderId.length() - 6);
+                    g.drawString(ordId, x, yy);
+                    yy += yStep;
+                }
+            }
         }
 
         paintTimeFramePoints(g, executor);

@@ -53,6 +53,20 @@ public class TresFrame extends JFrame implements Runnable {
                         m_canvas.repaint();
                     }
                 });
+                topPanel.add(new JCheckBox("od", TresCanvas.m_paintOrderData) {
+                    @Override protected void fireItemStateChanged(ItemEvent event) {
+                        super.fireItemStateChanged(event);
+                        TresCanvas.m_paintOrderData = (event.getStateChange() == ItemEvent.SELECTED);
+                        m_canvas.repaint();
+                    }
+                });
+                topPanel.add(new JCheckBox("id", TresCanvas.m_paintOrderIds) {
+                    @Override protected void fireItemStateChanged(ItemEvent event) {
+                        super.fireItemStateChanged(event);
+                        TresCanvas.m_paintOrderIds = (event.getStateChange() == ItemEvent.SELECTED);
+                        m_canvas.repaint();
+                    }
+                });
 //                topPanel.add(new JCheckBox("sym", TresCanvas.m_paintSym) {
 //                    @Override protected void fireItemStateChanged(ItemEvent event) {
 //                        super.fireItemStateChanged(event);
