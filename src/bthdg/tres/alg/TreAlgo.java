@@ -84,7 +84,11 @@ public class TreAlgo extends TresAlgo {
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
         ChartPoint lastPoint = m_andIndicator.getLastPoint();
         if (lastPoint != null) {
-            return (lastPoint.m_value > 0) ? 1 : -1;
+            return (lastPoint.m_value > 0)
+                    ? 1
+                    : (lastPoint.m_value > 0)
+                        ? -1
+                        : 0;
         }
         return 0;
     }
@@ -124,11 +128,11 @@ public class TreAlgo extends TresAlgo {
 
             final Tres tres = tresExchData.m_tres;
             long barSizeMillis = tres.m_barSizeMillis;
-            long velocitySize = barSizeMillis / 6;
+            long velocitySize = barSizeMillis / 8;
 
             m_indicators.remove(m_andIndicator);
 
-            m_averageCciIndicator = new AverageIndicator("ca", this, tres.m_phases / 2) {
+            m_averageCciIndicator = new AverageIndicator("ca", this, tres.m_phases / 4) {
                 @Override public Color getColor() { return Color.green; }
 
                 @Override public void addBar(ChartPoint chartPoint) {

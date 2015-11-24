@@ -82,14 +82,12 @@ public class TresExchData {
         for (int i = 0; i < phasesNum; i++) {
             m_phaseDatas[i] = new PhaseData(this, i);
         }
-        if (BaseExecutor.DO_TRADE) {
-            m_tradesQueue = new Queue<Runnable>("tradesQueue") {
-                @Override protected void processItem(Runnable task) {
-                    task.run();
-                }
-            };
-            m_tradesQueue.start();
-        }
+        m_tradesQueue = new Queue<Runnable>("tradesQueue") {
+            @Override protected void processItem(Runnable task) {
+                task.run();
+            }
+        };
+        m_tradesQueue.start();
     }
 
     public void start() {
