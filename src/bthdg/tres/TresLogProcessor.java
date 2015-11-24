@@ -40,6 +40,7 @@ class TresLogProcessor extends Thread {
     private String m_logFilePattern;
     private String m_varyMa;
     private String m_varyBarSize;
+    private String m_varyBarSizeMul;
     private String m_varyPhases;
     private String m_varyLen1;
     private String m_varyLen2;
@@ -82,6 +83,10 @@ class TresLogProcessor extends Thread {
         m_varyBarSize = keys.getProperty("tre.vary.bar_size");
         if (m_varyBarSize != null) {
             log("varyBarSize=" + m_varyBarSize);
+        }
+        m_varyBarSizeMul = keys.getProperty("tre.vary.bar_size_mul");
+        if (m_varyBarSizeMul != null) {
+            log("varyBarSizeMul=" + m_varyBarSizeMul);
         }
         m_varyPhases = keys.getProperty("tre.vary.phases");
         if (m_varyPhases != null) {
@@ -189,6 +194,10 @@ class TresLogProcessor extends Thread {
             varyBarSize(datas, tres, m_varyBarSize);
             return;
         }
+        if (m_varyBarSizeMul != null) {
+            varyBarSizeMul(datas, tres, m_varyBarSizeMul);
+            return;
+        }
         if (m_varyPhases != null) {
             varyPhases(datas, tres, m_varyPhases);
             return;
@@ -273,6 +282,21 @@ class TresLogProcessor extends Thread {
             iterate(datas, i, "%d", "barSizeMillis", maxMap);
         }
         logMax(maxMap, "barSizeMillis");
+    }
+
+    private void varyBarSizeMul(List<TradesTopsData> datas, Tres tres, String varyBarSizeMul) throws Exception {
+        log("varyBarSizeMul: " + varyBarSizeMul);
+
+        String[] split = varyBarSizeMul.split(";"); // 2000ms;10000ms;1.1
+        long min = Utils.parseDHMSMtoMillis(split[0]);
+        long max = Utils.parseDHMSMtoMillis(split[1]);
+        double mul = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (long i = min; i <= max; i = (long) (i * mul)) {
+            tres.m_barSizeMillis = i;
+            iterate(datas, i, "%d", "varyBarSizeMul", maxMap);
+        }
+        logMax(maxMap, "varyBarSizeMul");
     }
 
     private void varyPhases(List<TradesTopsData> datas, Tres tres, String varyPhases) throws Exception {
