@@ -7,7 +7,6 @@ import bthdg.util.Utils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.*;
 
@@ -120,7 +119,7 @@ public class OkCoin extends BaseExch {
     private void init() {
         try {
             init(loadKeys());
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("error reading properties");
         }

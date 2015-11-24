@@ -12,7 +12,6 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.xml.bind.DatatypeConverter;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -106,7 +105,7 @@ public class Btcn extends BaseExch {
     private void init() {
         try {
             init(loadKeys());
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("error reading properties");
         }

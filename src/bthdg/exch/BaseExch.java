@@ -1,8 +1,10 @@
 package bthdg.exch;
 
 import bthdg.Config;
+import bthdg.Encryptor;
 import bthdg.Fetcher;
 import bthdg.Log;
+import bthdg.util.ConsoleReader;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 
@@ -141,9 +143,14 @@ public abstract class BaseExch {
         return new SecretKeySpec(getSecret().getBytes("UTF-8"), getCryproAlgo());
     }
 
-    public static Properties loadKeys() throws IOException {
+    public static Properties loadKeys() throws Exception {
         Properties properties = new Properties();
-        properties.load(new FileReader("keys.txt"));
+        FileReader reader = new FileReader("keys.txt");
+        try {
+            properties.load(reader);
+        } finally {
+            reader.close();
+        }
 
         Properties ret = new Properties();
         for (Map.Entry<Object, Object> entry : properties.entrySet()) {
@@ -155,6 +162,32 @@ public abstract class BaseExch {
             Object key = entry.getKey();
             ret.put(key, value);
         }
+
+        File eFile = new File("keys.e.txt");
+        if (eFile.exists()) {
+            Properties eProperties = new Properties();
+            FileReader eReader = new FileReader(eFile);
+            try {
+                eProperties.load(eReader);
+            } finally {
+                eReader.close();
+            }
+            String pwd = ConsoleReader.readConsolePwd("pwd>");
+            if (pwd == null) {
+                throw new RuntimeException("no console - use real console, not inside IDE");
+            }
+
+            Properties eRet = new Properties();
+            for (Map.Entry<Object, Object> entry : eProperties.entrySet()) {
+                String encrypted = (String) entry.getValue();
+                String decrypted = Encryptor.decrypt(encrypted, pwd);
+                Object key = entry.getKey();
+log("decrypted: " + key + "=" + decrypted);
+                eRet.put(key, decrypted);
+            }
+            ret.putAll(eRet);
+        }
+
         return ret;
     }
 

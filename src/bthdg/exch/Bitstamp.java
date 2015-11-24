@@ -8,7 +8,6 @@ import org.json.simple.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.IOException;
 import java.io.Reader;
 import java.net.URLEncoder;
 import java.text.DecimalFormat;
@@ -241,7 +240,7 @@ public class Bitstamp extends BaseExch {
     public void init() {
         try {
             init(loadKeys());
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("error reading properties");
         }
