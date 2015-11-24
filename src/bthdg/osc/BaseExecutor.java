@@ -558,7 +558,7 @@ public abstract class BaseExecutor implements Runnable {
 
                     OrderType orderType = OrderType.LIMIT;
                     double orderPrice;
-                    if (m_orderPriceMode.isMarketPrice()) {
+                    if (m_orderPriceMode.isMarketPrice(this)) {
                         orderType = OrderType.MARKET;
                         orderPrice = needOrderSide.isBuy() ? m_sell : m_buy;
                     } else {
@@ -962,9 +962,28 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     //-------------------------------------------------------------------------------
-    protected enum OrderPriceMode {
+    public enum OrderPriceMode {
+        MID_THEN_MARKET {
+            @Override public boolean isMarketPrice(BaseExecutor baseExecutor) {
+                int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
+                return (orderPlaceAttemptCounter != 0);
+            }
+            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
+                // directionAdjusted [-1 ... 1]
+                double buy = baseExecutor.m_buy;
+                double sell = baseExecutor.m_sell;
+                log("  buy=" + buy + "; sell=" + sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
+                double midPrice = (buy + sell) / 2;
+                double bidAskDiff = sell - buy;
+                log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff);
+                RoundingMode roundMode = needOrderSide.getPegRoundMode();
+                double orderPrice = exchange.roundPrice(midPrice, baseExecutor.m_pair, roundMode);
+                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
+                return orderPrice;
+            }
+        },
         MARKET {
-            @Override public boolean isMarketPrice() { return true; }
+            @Override public boolean isMarketPrice(BaseExecutor baseExecutor) { return true; }
         },
         DEEP_MKT_AVG {
             @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
@@ -1108,7 +1127,19 @@ public abstract class BaseExecutor implements Runnable {
         };
 
         public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) { return 0; }
-        public boolean isMarketPrice() { return false; }
+        public boolean isMarketPrice(BaseExecutor baseExecutor) { return false; }
+
+        public static OrderPriceMode get(String orderAlgoStr) {
+            if(orderAlgoStr.equals("market")) { return MARKET; }
+            if(orderAlgoStr.equals("mid_then_market")) { return MID_THEN_MARKET; }
+            if(orderAlgoStr.equals("mid_to_mkt")) { return MID_TO_MKT; }
+            if(orderAlgoStr.equals("peg_to_mkt")) { return PEG_TO_MKT; }
+            if(orderAlgoStr.equals("deep_mkt")) { return DEEP_MKT; }
+            if(orderAlgoStr.equals("deep_mkt_avg")) { return DEEP_MKT_AVG; }
+            if(orderAlgoStr.equals("mkt_avg")) { return MKT_AVG; }
+            if(orderAlgoStr.equals("mid")) { return MID; }
+            throw new RuntimeException("OrderPriceMode '"+orderAlgoStr+"' not supported");
+        }
     }
 
     public enum TimeFrameType {
