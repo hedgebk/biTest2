@@ -341,7 +341,7 @@ public class OkCoinWs extends BaseWs {
                     if (m_stopped) {
                         System.out.println("session stopped - no reconnect");
                     } else {
-                        new ReconnectThread().start();
+                        new ReconnectThread(callback).start();
                     }
                 }
 
@@ -356,7 +356,7 @@ public class OkCoinWs extends BaseWs {
             if (m_stopped) {
                 System.out.println("session stopped - no reconnect");
             } else {
-                new ReconnectThread().start();
+                new ReconnectThread(callback).start();
             }
         }
     }
@@ -404,6 +404,12 @@ public class OkCoinWs extends BaseWs {
 
     // ===================================================================================================
     private class ReconnectThread extends Thread {
+        private final Runnable m_callback;
+
+        public ReconnectThread(Runnable callback) {
+            m_callback = callback;
+        }
+
         @Override public void run() {
             System.out.println("reconnect thread started");
             try {
@@ -418,6 +424,7 @@ public class OkCoinWs extends BaseWs {
                             @Override public void run() {
                                 System.out.println("reconnected. resubscribing...");
                                 resubscribe();
+                                m_callback.run();
                             }
                         });
                         iterate = false;
@@ -439,9 +446,13 @@ public class OkCoinWs extends BaseWs {
         try {
             if (m_tradesListener != null) {
                 subscribe(BTCCNY_TRADES_CHANNEL);
+            } else {
+                System.out.println("no tradesListener");
             }
             if (m_topListener != null) {
                 subscribe(BTCCNY_TICKER_CHANNEL);
+            } else {
+                System.out.println("no topListener");
             }
         } catch (Exception e) {
             System.out.println("resubscribe error: " + e);

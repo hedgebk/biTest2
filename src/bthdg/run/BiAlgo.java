@@ -101,7 +101,7 @@ class BiAlgo implements Runner.IAlgo {
     }
 
     private void runInit() throws Exception {
-        final Properties keys = BaseExch.loadKeys();
+        final Properties keys = Config.loadKeys();
         START_LEVEL = Double.parseDouble(keys.getProperty("bialgo.start_level"));
         CANCEL_DEEP_PRICE_INDEX = Integer.parseInt(keys.getProperty("bialgo.cancel_deep_price_index"));
         MIN_ORDER_CAP_RATIO = Integer.parseInt(keys.getProperty("bialgo.cap_ratio"));

@@ -144,7 +144,7 @@ public class Huobi extends BaseExch {
 
     private void init() {
         try {
-            init(loadKeys());
+            init(Config.loadKeys());
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("error reading properties");

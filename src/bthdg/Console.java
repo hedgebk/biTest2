@@ -26,7 +26,7 @@ public class Console {
         System.out.println("Default exchange is " + s_exchange);
 
         try {
-            Properties keys = BaseExch.loadKeys();
+            Properties keys = Config.loadKeys();
             Btce.init(keys);
             Bitstamp.init(keys);
             OkCoin.init(keys);

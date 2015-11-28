@@ -200,7 +200,7 @@ public class Triplet {
         Btce.BTCE_DEEP_ORDERS_IN_REQUEST = LOAD_ORDERS_NUM;
 
         try {
-            Properties keys = BaseExch.loadKeys();
+            Properties keys = Config.loadKeys();
             applyPresets(args, keys);
 
             if (TRY_WITH_MKT_OFFSET && (WAIT_MKT_ORDER_STEPS < 1)) {

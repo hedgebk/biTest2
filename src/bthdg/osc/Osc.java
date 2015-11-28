@@ -2,7 +2,7 @@ package bthdg.osc;
 
 import bthdg.Fetcher;
 import bthdg.Log;
-import bthdg.exch.BaseExch;
+import bthdg.exch.Config;
 import bthdg.exch.Pair;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Utils;
@@ -93,7 +93,7 @@ public class Osc {
     }
 
     private void run() throws Exception {
-        m_keys = BaseExch.loadKeys();
+        m_keys = Config.loadKeys();
 //        Btcn.init(m_keys);
 
         IWs ws = WsFactory.get(m_e, m_keys);

@@ -1,10 +1,7 @@
 package bthdg.exch;
 
-import bthdg.Config;
-import bthdg.Encryptor;
 import bthdg.Fetcher;
 import bthdg.Log;
-import bthdg.util.ConsoleReader;
 import bthdg.util.Post;
 import bthdg.util.Utils;
 
@@ -21,7 +18,10 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public abstract class BaseExch {
     private static boolean s_sslInitialized;
@@ -29,6 +29,10 @@ public abstract class BaseExch {
     static final String USER_AGENT = "Mozilla/5.0 (compatible; bitcoin-API/1.0; MSIE 6.0 compatible)";
     public static final int DEF_CONNECT_TIMEOUT = 6000;
     public static final int DEF_READ_TIMEOUT = 7000;
+
+    protected BaseExch() {
+        m_config = new Config();
+    }
 
     protected DecimalFormat priceFormat(Pair pair) { throw new RuntimeException("priceFormat() not implemented on " + this); }
     protected DecimalFormat amountFormat(Pair pair) { throw new RuntimeException("amountFormat() not implemented on " + this); }
@@ -94,7 +98,7 @@ public abstract class BaseExch {
     protected static void log(String s) { Log.log(s); }
     protected static void err(String s, Exception e) { Log.err(s, e); }
     public static void initSsl() throws NoSuchAlgorithmException, KeyManagementException {
-        if(!Config.s_runOnServer && !s_sslInitialized) {
+        if(/*!Config.s_runOnServer && */!s_sslInitialized) {
             // btce ssl certificate fix
             X509TrustManager tm = new X509TrustManager() {
                 @Override public void checkClientTrusted(java.security.cert.X509Certificate[] x509Certificates, String s) throws java.security.cert.CertificateException {}
@@ -143,53 +147,8 @@ public abstract class BaseExch {
         return new SecretKeySpec(getSecret().getBytes("UTF-8"), getCryproAlgo());
     }
 
-    public static Properties loadKeys() throws Exception {
-        Properties properties = new Properties();
-        FileReader reader = new FileReader("keys.txt");
-        try {
-            properties.load(reader);
-        } finally {
-            reader.close();
-        }
 
-        Properties ret = new Properties();
-        for (Map.Entry<Object, Object> entry : properties.entrySet()) {
-            String value = (String) entry.getValue();
-            int index = value.indexOf('#');
-            if (index != -1) { // cut comments
-                value = value.substring(0, index).trim();
-            }
-            Object key = entry.getKey();
-            ret.put(key, value);
-        }
-
-        File eFile = new File("keys.e.txt");
-        if (eFile.exists()) {
-            Properties eProperties = new Properties();
-            FileReader eReader = new FileReader(eFile);
-            try {
-                eProperties.load(eReader);
-            } finally {
-                eReader.close();
-            }
-            String pwd = ConsoleReader.readConsolePwd("pwd>");
-            if (pwd == null) {
-                throw new RuntimeException("no console - use real console, not inside IDE");
-            }
-
-            Properties eRet = new Properties();
-            for (Map.Entry<Object, Object> entry : eProperties.entrySet()) {
-                String encrypted = (String) entry.getValue();
-                String decrypted = Encryptor.decrypt(encrypted, pwd);
-                Object key = entry.getKey();
-log("decrypted: " + key + "=" + decrypted);
-                eRet.put(key, decrypted);
-            }
-            ret.putAll(eRet);
-        }
-
-        return ret;
-    }
+    Config m_config;
 
     protected static String readJson(HttpURLConnection con) throws IOException {
         StringBuilder json = new StringBuilder();

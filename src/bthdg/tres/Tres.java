@@ -2,7 +2,8 @@ package bthdg.tres;
 
 import bthdg.Fetcher;
 import bthdg.Log;
-import bthdg.exch.BaseExch;
+import bthdg.ehs.EmbeddedHttpServer;
+import bthdg.exch.Config;
 import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
@@ -16,22 +17,24 @@ import bthdg.util.Utils;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.swing.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Tres {
     public static final Pair PAIR = Pair.BTC_CNH;
     public static final boolean PAINT_TICK_TIMES_ONLY = false;
+    public static final String ENCRYPT_FILE_KEY = "tre.e_file";
     public static boolean LOG_PARAMS = true;
     private static Tres s_inst;
 
-    private Properties m_keys;
     public long m_barSizeMillis;
     int m_len1;
     int m_len2;
@@ -48,6 +51,10 @@ public class Tres {
     private String m_e;
     String[] m_algosArr;
     public boolean m_collectPoints = true;
+    private Server m_embeddedServer;
+    private Config m_config;
+    private boolean m_followRemote;
+    private int m_serverPort;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -59,6 +66,8 @@ public class Tres {
             String first = args[0];
             if (first.equals("logs")) {
                 m_processLogs = true;
+            } else if (first.equals("remote")) {
+                m_followRemote = true;
             } else {
                 m_e = first;
             }
@@ -67,6 +76,8 @@ public class Tres {
 
     public static void main(String[] args) {
         try {
+            Log.s_impl = new Log.TimestampLog();
+
             log("============================= started on : " + new Date());
 
             s_inst = new Tres(args);
@@ -133,22 +144,57 @@ public class Tres {
     }
 
     private void start() throws Exception {
-        m_keys = BaseExch.loadKeys();
+        m_config = new Config() {
+            @Override protected String getEncryptedFile() {
+                return getProperty(ENCRYPT_FILE_KEY);
+            }
+        };
+
+//        if (m_config.getProperty(ENCRYPT_FILE_KEY) != null) {
+//            String pwd = ConsoleReader.readConsolePwd("pwd>");
+//            if (pwd == null) {
+//                throw new RuntimeException("no console - use real console, not inside IDE");
+//            }
+//            m_config.loadEncrypted(pwd);
+//        }
+
         init();
 
         if (m_processLogs) {
             m_silentConsole = true;
             m_logProcessing = true;
-            TresLogProcessor logProcessor = new TresLogProcessor(m_keys, m_exchDatas);
+            TresLogProcessor logProcessor = new TresLogProcessor(m_config, m_exchDatas);
             logProcessor.start();
         } else {
             for (TresExchData exchData : m_exchDatas) {
                 exchData.start();
             }
         }
+        startServer();
+    }
+
+    private void startServer() throws Exception {
+        m_embeddedServer = new Server(m_serverPort);
+        m_embeddedServer.startServer();
+
+        log("embeddedServer Started on port " + m_embeddedServer.getPort());
+    }
+
+    // ======================================================
+    private static class Server extends EmbeddedHttpServer {
+        public Server(int port) {
+            super(port);
+        }
+
+        @Override protected void handleRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
+            super.handleRequest(request, response);
+        }
     }
 
     private void init() {
+        m_serverPort = Integer.parseInt(getProperty("tre.server_port"));
+        log("server_port=" + m_serverPort);
+
         String exchangesStr = (m_e == null) ? getProperty("tre.exchanges") : m_e;
         log("EXCHANGES=" + exchangesStr);
         String[] exchangesArr = exchangesStr.split(",");
@@ -277,7 +323,7 @@ public class Tres {
 
         m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
         for (String exch : exchangesArr) {
-            IWs ws = WsFactory.get(exch, m_keys);
+            IWs ws = WsFactory.get(exch, m_config.m_keys);
             m_exchDatas.add(new TresExchData(this, ws));
         }
 
@@ -285,7 +331,7 @@ public class Tres {
     }
 
     private String getProperty(String key) {
-        String ret = m_keys.getProperty(key);
+        String ret = m_config.getProperty(key);
         if (ret == null) {
             throw new RuntimeException("no property found for key '" + key + "'");
         }

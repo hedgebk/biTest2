@@ -1,6 +1,7 @@
 package bthdg.tres;
 
 import bthdg.Log;
+import bthdg.exch.Config;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.CncAlgo;
@@ -64,91 +65,91 @@ class TresLogProcessor extends Thread {
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
-    public TresLogProcessor(Properties keys, ArrayList<TresExchData> exchDatas) {
-        init(keys);
+    public TresLogProcessor(Config config, ArrayList<TresExchData> exchDatas) {
+        init(config);
         m_exchData = exchDatas.get(0);
     }
 
-    private void init(Properties keys) {
+    private void init(Config config) {
         Tres.LOG_PARAMS = false;
 
-        m_logFilePattern = getProperty(keys, "tre.log.file");
+        m_logFilePattern = getProperty(config, "tre.log.file");
         if (m_logFilePattern != null) {
             log("logFilePattern=" + m_logFilePattern);
         }
-        m_varyMa = keys.getProperty("tre.vary.ma");
+        m_varyMa = getProperty(config, "tre.vary.ma");
         if (m_varyMa != null) {
             log("varyMa=" + m_varyMa);
         }
-        m_varyBarSize = keys.getProperty("tre.vary.bar_size");
+        m_varyBarSize = getProperty(config, "tre.vary.bar_size");
         if (m_varyBarSize != null) {
             log("varyBarSize=" + m_varyBarSize);
         }
-        m_varyBarSizeMul = keys.getProperty("tre.vary.bar_size_mul");
+        m_varyBarSizeMul = getProperty(config, "tre.vary.bar_size_mul");
         if (m_varyBarSizeMul != null) {
             log("varyBarSizeMul=" + m_varyBarSizeMul);
         }
-        m_varyPhases = keys.getProperty("tre.vary.phases");
+        m_varyPhases = getProperty(config, "tre.vary.phases");
         if (m_varyPhases != null) {
             log("varyPhases=" + m_varyPhases);
         }
-        m_varyLen1 = keys.getProperty("tre.vary.len1");
+        m_varyLen1 = getProperty(config, "tre.vary.len1");
         if (m_varyLen1 != null) {
             log("varyLen1=" + m_varyLen1);
         }
-        m_varyLen2 = keys.getProperty("tre.vary.len2");
+        m_varyLen2 = getProperty(config, "tre.vary.len2");
         if (m_varyLen2 != null) {
             log("varyLen2=" + m_varyLen2);
         }
-        m_varyOscLock = keys.getProperty("tre.vary.osc_lock");
+        m_varyOscLock = getProperty(config, "tre.vary.osc_lock");
         if (m_varyOscLock != null) {
             log("varyOscLock=" + m_varyOscLock);
         }
-        m_varyOscPeak = keys.getProperty("tre.vary.osc_peak");
+        m_varyOscPeak = getProperty(config, "tre.vary.osc_peak");
         if (m_varyOscPeak != null) {
             log("varyOscPeak=" + m_varyOscPeak);
         }
-        m_varyCoppPeak = keys.getProperty("tre.vary.copp_peak");
+        m_varyCoppPeak = getProperty(config, "tre.vary.copp_peak");
         if (m_varyCoppPeak != null) {
             log("varyCoppPeak=" + m_varyCoppPeak);
         }
-        m_varyAndPeak = keys.getProperty("tre.vary.and_peak");
+        m_varyAndPeak = getProperty(config, "tre.vary.and_peak");
         if (m_varyAndPeak != null) {
             log("varyAndPeak=" + m_varyAndPeak);
         }
-        m_varyCciPeak = keys.getProperty("tre.vary.cci_peak");
+        m_varyCciPeak = getProperty(config, "tre.vary.cci_peak");
         if (m_varyCciPeak != null) {
             log("varyCciPeak=" + m_varyCciPeak);
         }
-        m_varyCciCorr = keys.getProperty("tre.vary.cci_corr");
+        m_varyCciCorr = getProperty(config, "tre.vary.cci_corr");
         if (m_varyCciCorr != null) {
             log("varyCciCorr=" + m_varyCciCorr);
         }
-        m_varyWma = keys.getProperty("tre.vary.wma");
+        m_varyWma = getProperty(config, "tre.vary.wma");
         if (m_varyWma != null) {
             log("varyWma=" + m_varyWma);
         }
-        m_varyLroc = keys.getProperty("tre.vary.lroc");
+        m_varyLroc = getProperty(config, "tre.vary.lroc");
         if (m_varyLroc != null) {
             log("varyLroc=" + m_varyLroc);
         }
-        m_varySroc = keys.getProperty("tre.vary.sroc");
+        m_varySroc = getProperty(config, "tre.vary.sroc");
         if (m_varySroc != null) {
             log("varySroc=" + m_varySroc);
         }
-        m_varySma = keys.getProperty("tre.vary.sma");
+        m_varySma = getProperty(config, "tre.vary.sma");
         if (m_varySma != null) {
             log("varySma=" + m_varySma);
         }
-        m_varyCovK = keys.getProperty("tre.vary.cov_k");
+        m_varyCovK = getProperty(config, "tre.vary.cov_k");
         if (m_varyCovK != null) {
             log("varyCovK=" + m_varyCovK);
         }
-        m_varyCovRat = keys.getProperty("tre.vary.cov_rat");
+        m_varyCovRat = getProperty(config, "tre.vary.cov_rat");
         if (m_varyCovRat != null) {
             log("varyCovRat=" + m_varyCovRat);
         }
-        m_varyCovVel = keys.getProperty("tre.vary.cov_vel");
+        m_varyCovVel = getProperty(config, "tre.vary.cov_vel");
         if (m_varyCovVel != null) {
             log("varyCovVel=" + m_varyCovVel);
         }
@@ -916,8 +917,8 @@ class TresLogProcessor extends Thread {
         return new TradeDataLight(millis, price);
     }
 
-    private String getProperty(Properties keys, String key) {
-        String ret = keys.getProperty(key);
+    private String getProperty(Config config, String key) {
+        String ret = config.getProperty(key);
         if (ret == null) {
             throw new RuntimeException("no property found for key '" + key + "'");
         }

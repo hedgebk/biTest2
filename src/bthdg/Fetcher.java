@@ -61,7 +61,7 @@ public class Fetcher {
     public static void main(String[] args) {
         log("Started.  millis=" + System.currentTimeMillis());
         try {
-            Properties keys = BaseExch.loadKeys();
+            Properties keys = Config.loadKeys();
             Bitstamp.init(keys);
             Btce.init(keys);
 

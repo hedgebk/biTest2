@@ -99,7 +99,7 @@ public class OscLogProcessor extends BaseChartPaint {
 
     public static void main(String[] args) {
         try {
-            Properties keys = BaseExch.loadKeys();
+            Properties keys = Config.loadKeys();
 
             String logFile = init(keys);
             LineReader reader = new LineReader(logFile);
