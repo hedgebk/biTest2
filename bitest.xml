@@ -1,212 +1,243 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="bitest" default="all">
-  
-  
-  <property file="bitest.properties"/>
-  <!-- Uncomment the following property if no tests compilation is needed -->
-  <!-- 
-  <property name="skip.tests" value="true"/>
-   -->
-  
-  <!-- Compiler options -->
-  
-  <property name="compiler.debug" value="on"/>
-  <property name="compiler.generate.no.warnings" value="off"/>
-  <property name="compiler.args" value=""/>
-  <property name="compiler.max.memory" value="700m"/>
-  <patternset id="ignored.files">
-    <exclude name="**/CVS/**"/>
-    <exclude name="**/SCCS/**"/>
-    <exclude name="**/RCS/**"/>
-    <exclude name="**/rcs/**"/>
-    <exclude name="**/.DS_Store/**"/>
-    <exclude name="**/.svn/**"/>
-    <exclude name="**/.pyc/**"/>
-    <exclude name="**/.pyo/**"/>
-    <exclude name="**/*.pyc/**"/>
-    <exclude name="**/*.pyo/**"/>
-    <exclude name="**/.git/**"/>
-    <exclude name="**/*.hprof/**"/>
-    <exclude name="**/_svn/**"/>
-    <exclude name="**/.hg/**"/>
-    <exclude name="**/*.lib/**"/>
-    <exclude name="**/*~/**"/>
-    <exclude name="**/__pycache__/**"/>
-    <exclude name="**/.bundle/**"/>
-    <exclude name="**/*.rbc/**"/>
-  </patternset>
-  <patternset id="library.patterns">
-    <include name="*.zip"/>
-    <include name="*.apk"/>
-    <include name="*.war"/>
-    <include name="*.egg"/>
-    <include name="*.ear"/>
-    <include name="*.ane"/>
-    <include name="*.swc"/>
-    <include name="*.jar"/>
-  </patternset>
-  <patternset id="compiler.resources">
-    <include name="**/?*.properties"/>
-    <include name="**/?*.xml"/>
-    <include name="**/?*.gif"/>
-    <include name="**/?*.png"/>
-    <include name="**/?*.jpeg"/>
-    <include name="**/?*.jpg"/>
-    <include name="**/?*.html"/>
-    <include name="**/?*.dtd"/>
-    <include name="**/?*.tld"/>
-    <include name="**/?*.ftl"/>
-  </patternset>
-  
-  
-  <!-- Project Libraries -->
-  
-  <path id="library.lib.classpath">
-    <fileset dir="${basedir}/lib">
-      <patternset refid="library.patterns"/>
-    </fileset>
-  </path>
-  
-  <!-- Modules -->
-  
-  
-  <!-- Module biTest -->
-  
-  <dirname property="module.bitest.basedir" file="${ant.file}"/>
-  
-  
-  
-  <property name="compiler.args.bitest" value="-encoding UTF-8 -source 1.6 ${compiler.args}"/>
-  
-  <property name="bitest.output.dir" value="${module.bitest.basedir}/out/production/biTest"/>
-  <property name="bitest.testoutput.dir" value="${module.bitest.basedir}/out/test/biTest"/>
-  
-  <path id="bitest.module.bootclasspath">
-    <!-- Paths to be included in compilation bootclasspath -->
-  </path>
-  
-  <path id="bitest.module.production.classpath">
-    <path refid="library.lib.classpath"/>
-  </path>
-  
-  <path id="bitest.runtime.production.module.classpath">
-    <pathelement location="${bitest.output.dir}"/>
-    <path refid="library.lib.classpath"/>
-  </path>
-  
-  <path id="bitest.module.classpath">
-    <pathelement location="${bitest.output.dir}"/>
-    <path refid="library.lib.classpath"/>
-  </path>
-  
-  <path id="bitest.runtime.module.classpath">
-    <pathelement location="${bitest.testoutput.dir}"/>
-    <pathelement location="${bitest.output.dir}"/>
-    <path refid="library.lib.classpath"/>
-  </path>
-  
-  
-  <patternset id="excluded.from.module.bitest">
-    <patternset refid="ignored.files"/>
-    <exclude name="bthdg/servlet/**"/>
-  </patternset>
-  
-  <patternset id="excluded.from.compilation.bitest">
-    <patternset refid="excluded.from.module.bitest"/>
-  </patternset>
-  
-  <path id="bitest.module.sourcepath">
-    <dirset dir="${module.bitest.basedir}">
-      <include name="src"/>
-    </dirset>
-  </path>
-  
-  
-  <target name="compile.module.bitest" depends="compile.module.bitest.production,compile.module.bitest.tests" description="Compile module biTest"/>
-  
-  <target name="compile.module.bitest.production" description="Compile module biTest; production classes">
-    <mkdir dir="${bitest.output.dir}"/>
-    <javac target="1.7" destdir="${bitest.output.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true">
-        <compilerarg line="${compiler.args.bitest}"/>
-      <bootclasspath refid="bitest.module.bootclasspath"/>
-      <classpath refid="bitest.module.production.classpath"/>
-      <src refid="bitest.module.sourcepath"/>
-      <patternset refid="excluded.from.compilation.bitest"/>
-    </javac>
-    
-    <copy todir="${bitest.output.dir}">
-      <fileset dir="${module.bitest.basedir}/src">
-        <patternset refid="compiler.resources"/>
-        <type type="file"/>
-      </fileset>
-    </copy>
-  </target>
-  
-  <target name="compile.module.bitest.tests" depends="compile.module.bitest.production" description="compile module biTest; test classes" unless="skip.tests"/>
-  
-  <target name="clean.module.bitest" description="cleanup module">
-    <delete dir="${bitest.output.dir}"/>
-    <delete dir="${bitest.testoutput.dir}"/>
-  </target>
-  
-  <target name="init" description="Build initialization">
-    <!-- Perform any build initialization in this target -->
-  </target>
-  
-  <target name="clean" depends="clean.module.bitest, clean.artifact.bitest:web_exploded" description="cleanup all"/>
-  
-  <target name="build.modules" depends="init, clean, compile.module.bitest" description="build all modules"/>
-  
-  <target name="init.artifacts">
-    <property name="artifacts.temp.dir" value="${basedir}/__artifacts_temp"/>
-    <property name="artifact.output.bitest:web_exploded" value="${basedir}/out/artifacts/biTest_Web_exploded"/>
-    <mkdir dir="${artifacts.temp.dir}"/>
-  </target>
-  
-  <target name="clean.artifact.bitest:web_exploded" description="clean biTest:Web exploded artifact output">
-    <delete dir="${artifact.output.bitest:web_exploded}"/>
-  </target>
-  
-  <target name="artifact.bitest:web_exploded" depends="init.artifacts, compile.module.bitest" description="Build &#39;biTest:Web exploded&#39; artifact">
-    <mkdir dir="${artifact.output.bitest:web_exploded}"/>
-    <copy todir="${artifact.output.bitest:web_exploded}">
-      <fileset dir="${basedir}/web"/>
-    </copy>
-    <mkdir dir="${artifact.output.bitest:web_exploded}/WEB-INF"/>
-    <copy file="${basedir}/web/WEB-INF/web.xml" tofile="${artifact.output.bitest:web_exploded}/WEB-INF/web.xml"/>
-    <mkdir dir="${artifact.output.bitest:web_exploded}/WEB-INF"/>
-    <mkdir dir="${artifact.output.bitest:web_exploded}/WEB-INF/classes"/>
-    <copy todir="${artifact.output.bitest:web_exploded}/WEB-INF/classes">
-      <fileset dir="${bitest.output.dir}"/>
-    </copy>
-  </target>
-  
-  <target name="build.all.artifacts" depends="artifact.bitest:web_exploded" description="Build all artifacts">
-    
-    <!-- Delete temporary files -->
-    <delete dir="${artifacts.temp.dir}"/>
-  </target>
-  
-  <target name="all" depends="build.modules, build.all.artifacts" description="build all"/>
 
-    <target name="jar" depends="build.modules" >
-        <jar basedir="${bitest.output.dir}" jarfile="${module.bitest.basedir}/stage/jar.jar"  >
-            <zipfileset includes="**/*.class" src="${module.bitest.basedir}/lib/commons-math3-3.5.jar"/>
-            <zipfileset includes="**/*.class" src="${module.bitest.basedir}/lib/json-org.jar"/>
-            <zipfileset includes="**/*.class" src="${module.bitest.basedir}/lib/java-websocket-1.3.0.jar"/>
-            <zipfileset includes="**/*.class" src="${module.bitest.basedir}/lib/json-simple-1.1.1.jar"/>
+    <property file="bitest.properties"/>
+    <!-- Uncomment the following property if no tests compilation is needed -->
+    <!-- <property name="skip.tests" value="true"/> -->
+
+    <!-- Compiler options -->
+    <property name="compiler.debug" value="on"/>
+    <property name="compiler.generate.no.warnings" value="off"/>
+    <property name="compiler.args" value=""/>
+    <property name="compiler.max.memory" value="700m"/>
+    <patternset id="ignored.files">
+        <exclude name="**/CVS/**"/>
+        <exclude name="**/SCCS/**"/>
+        <exclude name="**/RCS/**"/>
+        <exclude name="**/rcs/**"/>
+        <exclude name="**/.DS_Store/**"/>
+        <exclude name="**/.svn/**"/>
+        <exclude name="**/.pyc/**"/>
+        <exclude name="**/.pyo/**"/>
+        <exclude name="**/*.pyc/**"/>
+        <exclude name="**/*.pyo/**"/>
+        <exclude name="**/.git/**"/>
+        <exclude name="**/*.hprof/**"/>
+        <exclude name="**/_svn/**"/>
+        <exclude name="**/.hg/**"/>
+        <exclude name="**/*.lib/**"/>
+        <exclude name="**/*~/**"/>
+        <exclude name="**/__pycache__/**"/>
+        <exclude name="**/.bundle/**"/>
+        <exclude name="**/*.rbc/**"/>
+    </patternset>
+    <patternset id="library.patterns">
+        <include name="*.zip"/>
+        <include name="*.apk"/>
+        <include name="*.war"/>
+        <include name="*.egg"/>
+        <include name="*.ear"/>
+        <include name="*.ane"/>
+        <include name="*.swc"/>
+        <include name="*.jar"/>
+    </patternset>
+    <patternset id="compiler.resources">
+        <include name="**/?*.properties"/>
+        <include name="**/?*.xml"/>
+        <include name="**/?*.gif"/>
+        <include name="**/?*.png"/>
+        <include name="**/?*.jpeg"/>
+        <include name="**/?*.jpg"/>
+        <include name="**/?*.html"/>
+        <include name="**/?*.dtd"/>
+        <include name="**/?*.tld"/>
+        <include name="**/?*.ftl"/>
+    </patternset>
+
+
+    <!-- Project Libraries -->
+
+    <path id="library.lib.classpath">
+        <fileset dir="${basedir}/lib">
+            <patternset refid="library.patterns"/>
+        </fileset>
+    </path>
+
+    <!-- Modules -->
+
+    <!-- Module biTest -->
+    <dirname property="module.bitest.basedir" file="${ant.file}"/>
+
+    <property name="compiler.args.bitest" value="-encoding UTF-8 -source 1.6 ${compiler.args}"/>
+
+    <property name="bitest.output.dir" value="${module.bitest.basedir}/out/production/biTest"/>
+    <property name="bitest.testoutput.dir" value="${module.bitest.basedir}/out/test/biTest"/>
+
+    <path id="bitest.module.bootclasspath">
+        <!-- Paths to be included in compilation bootclasspath -->
+    </path>
+
+    <path id="bitest.module.production.classpath">
+        <path refid="library.lib.classpath"/>
+    </path>
+
+    <path id="bitest.runtime.production.module.classpath">
+        <pathelement location="${bitest.output.dir}"/>
+        <path refid="library.lib.classpath"/>
+    </path>
+
+    <path id="bitest.module.classpath">
+        <pathelement location="${bitest.output.dir}"/>
+        <path refid="library.lib.classpath"/>
+    </path>
+
+    <path id="bitest.runtime.module.classpath">
+        <pathelement location="${bitest.testoutput.dir}"/>
+        <pathelement location="${bitest.output.dir}"/>
+        <path refid="library.lib.classpath"/>
+    </path>
+
+
+    <patternset id="excluded.from.module.bitest">
+        <patternset refid="ignored.files"/>
+        <exclude name="bthdg/servlet/**"/>
+    </patternset>
+
+    <patternset id="excluded.from.compilation.bitest">
+        <patternset refid="excluded.from.module.bitest"/>
+    </patternset>
+
+    <path id="bitest.module.sourcepath">
+        <dirset dir="${module.bitest.basedir}">
+            <include name="src"/>
+        </dirset>
+    </path>
+
+
+    <target name="compile.module.bitest" depends="compile.module.bitest.production,compile.module.bitest.tests"
+            description="Compile module biTest"/>
+
+    <target name="compile.module.bitest.production" description="Compile module biTest; production classes">
+        <mkdir dir="${bitest.output.dir}"/>
+        <javac target="1.7" destdir="${bitest.output.dir}" debug="${compiler.debug}"
+               nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true">
+            <compilerarg line="${compiler.args.bitest}"/>
+            <bootclasspath refid="bitest.module.bootclasspath"/>
+            <classpath refid="bitest.module.production.classpath"/>
+            <src refid="bitest.module.sourcepath"/>
+            <patternset refid="excluded.from.compilation.bitest"/>
+        </javac>
+
+        <copy todir="${bitest.output.dir}">
+            <fileset dir="${module.bitest.basedir}/src">
+                <patternset refid="compiler.resources"/>
+                <type type="file"/>
+            </fileset>
+        </copy>
+    </target>
+
+    <target name="compile.module.bitest.tests" depends="compile.module.bitest.production"
+            description="compile module biTest; test classes" unless="skip.tests"/>
+
+    <target name="clean.module.bitest" description="cleanup module">
+        <delete dir="${bitest.output.dir}"/>
+        <delete dir="${bitest.testoutput.dir}"/>
+    </target>
+
+    <target name="init" description="Build initialization">
+        <!-- Perform any build initialization in this target -->
+    </target>
+
+    <target name="clean" depends="clean.module.bitest, clean.artifact.bitest:web_exploded" description="cleanup all"/>
+
+    <target name="build.modules" depends="init, clean, compile.module.bitest" description="build all modules"/>
+
+    <target name="init.artifacts">
+        <property name="artifacts.temp.dir" value="${basedir}/__artifacts_temp"/>
+        <property name="artifact.output.bitest:web_exploded" value="${basedir}/out/artifacts/biTest_Web_exploded"/>
+        <mkdir dir="${artifacts.temp.dir}"/>
+    </target>
+
+    <target name="clean.artifact.bitest:web_exploded" description="clean biTest:Web exploded artifact output">
+        <delete dir="${artifact.output.bitest:web_exploded}"/>
+    </target>
+
+    <target name="artifact.bitest:web_exploded" depends="init.artifacts, compile.module.bitest"
+            description="Build &#39;biTest:Web exploded&#39; artifact">
+        <mkdir dir="${artifact.output.bitest:web_exploded}"/>
+        <copy todir="${artifact.output.bitest:web_exploded}">
+            <fileset dir="${basedir}/web"/>
+        </copy>
+        <mkdir dir="${artifact.output.bitest:web_exploded}/WEB-INF"/>
+        <copy file="${basedir}/web/WEB-INF/web.xml" tofile="${artifact.output.bitest:web_exploded}/WEB-INF/web.xml"/>
+        <mkdir dir="${artifact.output.bitest:web_exploded}/WEB-INF"/>
+        <mkdir dir="${artifact.output.bitest:web_exploded}/WEB-INF/classes"/>
+        <copy todir="${artifact.output.bitest:web_exploded}/WEB-INF/classes">
+            <fileset dir="${bitest.output.dir}"/>
+        </copy>
+    </target>
+
+    <target name="build.all.artifacts" depends="artifact.bitest:web_exploded" description="Build all artifacts">
+
+        <!-- Delete temporary files -->
+        <delete dir="${artifacts.temp.dir}"/>
+    </target>
+
+    <target name="all" depends="build.modules, build.all.artifacts" description="build all"/>
+
+    <target name="jar" depends="build.modules">
+        <jar basedir="${bitest.output.dir}" jarfile="${module.bitest.basedir}/stage/jar.jar">
             <manifest>
                 <attribute name="Main-Class" value="bthdg.tres.Tres"/>
+                <attribute name="Class-path"
+                           value="commons-math3-3.5.jar json-org.jar java-websocket-1.3.0.jar json-simple-1.1.1.jar javax.servlet-3.0.0.v201112011016.jar jetty-server-8.1.10.v20130312.jar jetty-util-8.1.10.v20130312.jar jetty-http-8.1.10.v20130312.jar jetty-io-8.1.10.v20130312.jar jetty-continuation-8.1.10.v20130312.jar javax.websocket-api-1.0.jar tyrus-standalone-client-1.7.jar"/>
+                <!--<attribute name="Main-Class" value="bthdg.ws.OkCoinWs-->
             </manifest>
         </jar>
     </target>
 
-    <target name="deploy" depends="jar">
+    <target name="deploy-libs">
         <scp verbose="true"
              trust="yes"
-             file="${module.bitest.basedir}/stage/jar.jar"
              todir="${export.host}:."
-             keyfile="${key.file}" />
+             keyfile="${key.file}">
+            <fileset dir="${module.bitest.basedir}/lib">
+                <include name="commons-math3-3.5.jar"/>
+                <include name="json-org.jar"/>
+                <include name="java-websocket-1.3.0.jar"/>
+                <include name="json-simple-1.1.1.jar"/>
+                <include name="javax.servlet-3.0.0.v201112011016.jar"/>
+                <include name="jetty-server-8.1.10.v20130312.jar"/>
+                <include name="jetty-util-8.1.10.v20130312.jar"/>
+                <include name="jetty-http-8.1.10.v20130312.jar"/>
+                <include name="jetty-io-8.1.10.v20130312.jar"/>
+                <include name="jetty-continuation-8.1.10.v20130312.jar"/>
+                <include name="javax.websocket-api-1.0.jar"/>
+                <include name="tyrus-standalone-client-1.7.jar"/>
+            </fileset>
+        </scp>
+    </target>
+
+    <target name="deploy-config">
+        <scp verbose="true"
+             trust="yes"
+             todir="${export.host}:."
+             keyfile="${key.file}">
+            <fileset dir="${module.bitest.basedir}/stage">
+                <include name="keys.txt"/>
+            </fileset>
+        </scp>
+    </target>
+
+    <target name="deploy-jar" depends="jar">
+        <scp verbose="true"
+             trust="yes"
+             todir="${export.host}:."
+             keyfile="${key.file}">
+            <fileset dir="${module.bitest.basedir}/stage">
+                <include name="jar.jar"/>
+            </fileset>
+        </scp>
     </target>
 
 </project>
