@@ -16,6 +16,8 @@ import bthdg.util.Sync;
 import bthdg.util.Utils;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
+import org.eclipse.jetty.server.*;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -55,6 +57,8 @@ public class Tres {
     private Config m_config;
     private boolean m_followRemote;
     private int m_serverPort;
+    private String m_keystore;
+    private String m_keystorePwd;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -181,9 +185,27 @@ public class Tres {
     }
 
     // ======================================================
-    private static class Server extends EmbeddedHttpServer {
+    private class Server extends EmbeddedHttpServer {
         public Server(int port) {
             super(port);
+        }
+
+        @Override protected org.eclipse.jetty.server.Server initServer(int port) {
+            org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server();
+
+            HttpConfiguration https = new HttpConfiguration();
+            https.addCustomizer(new SecureRequestCustomizer());
+            SslContextFactory sslContextFactory = new SslContextFactory();
+            sslContextFactory.setKeyStorePath(m_keystore);
+            sslContextFactory.setKeyStorePassword(m_keystorePwd);
+
+            ServerConnector sslConnector = new ServerConnector(server,
+                    new SslConnectionFactory(sslContextFactory, "http/1.1"),
+                    new HttpConnectionFactory(https));
+            sslConnector.setPort(port);
+            server.setConnectors(new Connector[]{sslConnector});
+
+            return server;
         }
 
         @Override protected void handleRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -194,6 +216,10 @@ public class Tres {
     private void init() {
         m_serverPort = Integer.parseInt(getProperty("tre.server_port"));
         log("server_port=" + m_serverPort);
+        m_keystore = getProperty("tre.keystore");
+        log("keystore=" + m_keystore);
+        m_keystorePwd = getProperty("tre.keystore_pwd");
+        log("keystore_pwd=" + m_keystorePwd);
 
         String exchangesStr = (m_e == null) ? getProperty("tre.exchanges") : m_e;
         log("EXCHANGES=" + exchangesStr);

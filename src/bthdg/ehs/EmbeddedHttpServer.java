@@ -62,7 +62,7 @@ log("protocols=" + protocols);
     }
 
     public EmbeddedHttpServer(int port) {
-        m_server = new Server(port);
+        m_server = initServer(port);
         m_server.setHandler(new AbstractHandler() {
             @Override public void handle(String target, Request baseRequest,
                                          HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -71,6 +71,10 @@ log("protocols=" + protocols);
                 handleRequest(request, response);
             }
         });
+    }
+
+    protected Server initServer(int port) {
+        return new Server(port);
     }
 
     protected void handleRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
