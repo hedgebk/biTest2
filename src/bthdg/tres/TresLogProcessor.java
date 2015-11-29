@@ -77,79 +77,79 @@ class TresLogProcessor extends Thread {
         if (m_logFilePattern != null) {
             log("logFilePattern=" + m_logFilePattern);
         }
-        m_varyMa = getProperty(config, "tre.vary.ma");
+        m_varyMa = config.getProperty("tre.vary.ma");
         if (m_varyMa != null) {
             log("varyMa=" + m_varyMa);
         }
-        m_varyBarSize = getProperty(config, "tre.vary.bar_size");
+        m_varyBarSize = config.getProperty("tre.vary.bar_size");
         if (m_varyBarSize != null) {
             log("varyBarSize=" + m_varyBarSize);
         }
-        m_varyBarSizeMul = getProperty(config, "tre.vary.bar_size_mul");
+        m_varyBarSizeMul = config.getProperty("tre.vary.bar_size_mul");
         if (m_varyBarSizeMul != null) {
             log("varyBarSizeMul=" + m_varyBarSizeMul);
         }
-        m_varyPhases = getProperty(config, "tre.vary.phases");
+        m_varyPhases = config.getProperty("tre.vary.phases");
         if (m_varyPhases != null) {
             log("varyPhases=" + m_varyPhases);
         }
-        m_varyLen1 = getProperty(config, "tre.vary.len1");
+        m_varyLen1 = config.getProperty("tre.vary.len1");
         if (m_varyLen1 != null) {
             log("varyLen1=" + m_varyLen1);
         }
-        m_varyLen2 = getProperty(config, "tre.vary.len2");
+        m_varyLen2 = config.getProperty("tre.vary.len2");
         if (m_varyLen2 != null) {
             log("varyLen2=" + m_varyLen2);
         }
-        m_varyOscLock = getProperty(config, "tre.vary.osc_lock");
+        m_varyOscLock = config.getProperty("tre.vary.osc_lock");
         if (m_varyOscLock != null) {
             log("varyOscLock=" + m_varyOscLock);
         }
-        m_varyOscPeak = getProperty(config, "tre.vary.osc_peak");
+        m_varyOscPeak = config.getProperty("tre.vary.osc_peak");
         if (m_varyOscPeak != null) {
             log("varyOscPeak=" + m_varyOscPeak);
         }
-        m_varyCoppPeak = getProperty(config, "tre.vary.copp_peak");
+        m_varyCoppPeak = config.getProperty("tre.vary.copp_peak");
         if (m_varyCoppPeak != null) {
             log("varyCoppPeak=" + m_varyCoppPeak);
         }
-        m_varyAndPeak = getProperty(config, "tre.vary.and_peak");
+        m_varyAndPeak = config.getProperty("tre.vary.and_peak");
         if (m_varyAndPeak != null) {
             log("varyAndPeak=" + m_varyAndPeak);
         }
-        m_varyCciPeak = getProperty(config, "tre.vary.cci_peak");
+        m_varyCciPeak = config.getProperty("tre.vary.cci_peak");
         if (m_varyCciPeak != null) {
             log("varyCciPeak=" + m_varyCciPeak);
         }
-        m_varyCciCorr = getProperty(config, "tre.vary.cci_corr");
+        m_varyCciCorr = config.getProperty("tre.vary.cci_corr");
         if (m_varyCciCorr != null) {
             log("varyCciCorr=" + m_varyCciCorr);
         }
-        m_varyWma = getProperty(config, "tre.vary.wma");
+        m_varyWma = config.getProperty("tre.vary.wma");
         if (m_varyWma != null) {
             log("varyWma=" + m_varyWma);
         }
-        m_varyLroc = getProperty(config, "tre.vary.lroc");
+        m_varyLroc = config.getProperty("tre.vary.lroc");
         if (m_varyLroc != null) {
             log("varyLroc=" + m_varyLroc);
         }
-        m_varySroc = getProperty(config, "tre.vary.sroc");
+        m_varySroc = config.getProperty("tre.vary.sroc");
         if (m_varySroc != null) {
             log("varySroc=" + m_varySroc);
         }
-        m_varySma = getProperty(config, "tre.vary.sma");
+        m_varySma = config.getProperty("tre.vary.sma");
         if (m_varySma != null) {
             log("varySma=" + m_varySma);
         }
-        m_varyCovK = getProperty(config, "tre.vary.cov_k");
+        m_varyCovK = config.getProperty("tre.vary.cov_k");
         if (m_varyCovK != null) {
             log("varyCovK=" + m_varyCovK);
         }
-        m_varyCovRat = getProperty(config, "tre.vary.cov_rat");
+        m_varyCovRat = config.getProperty("tre.vary.cov_rat");
         if (m_varyCovRat != null) {
             log("varyCovRat=" + m_varyCovRat);
         }
-        m_varyCovVel = getProperty(config, "tre.vary.cov_vel");
+        m_varyCovVel = config.getProperty("tre.vary.cov_vel");
         if (m_varyCovVel != null) {
             log("varyCovVel=" + m_varyCovVel);
         }
@@ -478,7 +478,7 @@ class TresLogProcessor extends Thread {
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
             CciIndicator.PEAK_TOLERANCE = i;
-            iterate(datas, i, "%.2f", "CciPeak", maxMap);
+            iterate(datas, i, "%.3f", "CciPeak", maxMap);
         }
         logMax(maxMap, "CciPeak");
     }
