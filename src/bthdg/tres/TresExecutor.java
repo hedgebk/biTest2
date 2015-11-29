@@ -22,7 +22,7 @@ public class TresExecutor extends BaseExecutor {
     static double MIN_ORDER_SIZE = 0.05; // in btc
     static double MAX_ORDER_SIZE = 1.00; // in btc
     public static final double USE_FUNDS_FROM_AVAILABLE = 0.95; // 95%
-    public static boolean s_auto;
+    public static boolean s_auto = true;
     public static double s_manualDirection;
 
     private final TresExchData m_exchData;

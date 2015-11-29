@@ -4,6 +4,7 @@ import bthdg.Fetcher;
 import bthdg.Log;
 import bthdg.ehs.EmbeddedHttpServer;
 import bthdg.exch.Config;
+import bthdg.exch.OrderData;
 import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
@@ -25,6 +26,7 @@ import javax.swing.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -59,6 +61,8 @@ public class Tres {
     private int m_serverPort;
     private String m_keystore;
     private String m_keystorePwd;
+    private Boolean m_isLocal;
+    private String[] m_exchangesArr;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -154,15 +158,30 @@ public class Tres {
             }
         };
 
-//        if (m_config.getProperty(ENCRYPT_FILE_KEY) != null) {
-//            String pwd = ConsoleReader.readConsolePwd("pwd>");
-//            if (pwd == null) {
-//                throw new RuntimeException("no console - use real console, not inside IDE");
-//            }
-//            m_config.loadEncrypted(pwd);
-//        }
-
         init();
+        if (!m_processLogs) {
+            startServer();
+            boolean needDecrypt = m_config.needDecrypt();
+            if (needDecrypt) {
+                if (m_isLocal) {
+                    if (m_config.getProperty(ENCRYPT_FILE_KEY) != null) {
+                        String pwd = ConsoleReader.readConsolePwd("pwd>");
+                        if (pwd == null) {
+                            throw new RuntimeException("no console - use real console, not inside IDE");
+                        }
+                        String error = m_config.loadEncrypted(pwd);
+                        err(error, new Exception("trace"));
+                    }
+                } else {
+                    return; // waiting for decrypt
+                }
+            }
+        }
+        init2();
+    }
+
+    private void init2() {
+        createExchData();
 
         if (m_processLogs) {
             m_silentConsole = true;
@@ -174,7 +193,6 @@ public class Tres {
                 exchData.start();
             }
         }
-        startServer();
     }
 
     private void startServer() throws Exception {
@@ -209,7 +227,7 @@ public class Tres {
         }
 
         @Override protected void handleRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
-            super.handleRequest(request, response);
+            processRequest(request, response);
         }
     }
 
@@ -220,11 +238,13 @@ public class Tres {
         log("keystore=" + m_keystore);
         m_keystorePwd = getProperty("tre.keystore_pwd");
         log("keystore_pwd=" + m_keystorePwd);
+        m_isLocal = Boolean.valueOf(getProperty("tre.local"));
+        log("local=" + m_isLocal);
 
         String exchangesStr = (m_e == null) ? getProperty("tre.exchanges") : m_e;
         log("EXCHANGES=" + exchangesStr);
-        String[] exchangesArr = exchangesStr.split(",");
-        int exchangesLen = exchangesArr.length;
+        m_exchangesArr = exchangesStr.split(",");
+        int exchangesLen = m_exchangesArr.length;
         log(" .len=" + exchangesLen);
 
         String barSizeStr = getProperty("tre.bar_size");
@@ -347,13 +367,15 @@ public class Tres {
             TresExecutor.ORDER_PRICE_MODE = opm;
         }
 
-        m_exchDatas = new ArrayList<TresExchData>(exchangesLen);
-        for (String exch : exchangesArr) {
+        Fetcher.MUTE_SOCKET_TIMEOUTS = true;
+    }
+
+    private void createExchData() {
+        m_exchDatas = new ArrayList<TresExchData>(m_exchangesArr.length);
+        for (String exch : m_exchangesArr) {
             IWs ws = WsFactory.get(exch, m_config.m_keys);
             m_exchDatas.add(new TresExchData(this, ws));
         }
-
-        Fetcher.MUTE_SOCKET_TIMEOUTS = true;
     }
 
     private String getProperty(String key) {
@@ -413,6 +435,76 @@ public class Tres {
         }
     }
 
+    private void processRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        boolean needDecrypt = m_config.needDecrypt();
+        if (needDecrypt && !m_isLocal) {
+            String pwd = request.getParameter("pwd");
+            if ((pwd != null) && !pwd.isEmpty()) {
+                m_config.loadEncrypted(pwd);
+                init2();
+                showState(request, response);
+            } else {
+                askPwd(response);
+            }
+        } else {
+            String requestURI = request.getRequestURI();
+            if(requestURI.equals("/park")) { // RequestURI=/park
+                park();
+            }
+            showState(request, response);
+        }
+    }
+
+    private void park() {
+        TresExecutor.s_auto = false;
+        TresExecutor.s_manualDirection = 0.0;
+    }
+
+    private void askPwd(HttpServletResponse response) throws IOException {
+        response.setContentType("text/html;charset=utf-8");
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.getWriter().println("<html><body><h1>PWD</h1>" +
+                "<FORM action=pwd method=post>" +
+                "  <INPUT name=pwd type=password>" +
+                "  <INPUT name=go value=\"Go\" type=submit>" +
+                "</FORM>" +
+                "</body></html>");
+    }
+
+    private void showState(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setContentType("text/html;charset=utf-8");
+        response.setStatus(HttpServletResponse.SC_OK);
+        PrintWriter writer = response.getWriter();
+
+        writer.print("<html><body><h1>STATE</h1><p>");
+        TresExchData exchData = m_exchDatas.get(0);
+        String[] strings = TresCanvas.getState(exchData);
+        for (String string : strings) {
+            writer.print(string);
+            writer.print("<br/>");
+        }
+
+        OrderData order = exchData.m_executor.m_order;
+        if (order != null) {
+//            g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
+            writer.print(order.toString());
+            writer.print("<br/>");
+        }
+        writer.print("<a href=/>status</a>; <a href=park>park</a><br/>");
+
+        writer.print("<br/>");
+        writer.print(" ServletPath=" + request.getServletPath());
+        writer.print("<br/>");
+        writer.print(" PathInfo=" + request.getPathInfo());
+        writer.print("<br/>");
+        writer.print(" PathTranslated=" + request.getPathTranslated());
+        writer.print("<br/>");
+        writer.print(" RequestURI=" + request.getRequestURI());
+        writer.print("<br/>");
+        writer.print(" QueryString=" + request.getQueryString());
+        writer.print("<br/>");
+        writer.print("</p></body></html>");
+    }
 
     // ============================================================================================
     private static class IntConsoleReader extends ConsoleReader {

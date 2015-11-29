@@ -10,6 +10,7 @@ import java.util.Properties;
 
 public class Config {
     public final Properties m_keys;
+    private boolean m_decrypted;
 
     private static void log(String s) { Log.log(s); }
 
@@ -26,7 +27,7 @@ public class Config {
 
     protected String getEncryptedFile() { return "keys.encrypted.txt"; }
 
-    public void loadEncrypted(String pwd) {
+    public String loadEncrypted(String pwd) {
         String eFileName = getEncryptedFile();
         if ((eFileName != null) && (eFileName.length() > 0)) {
             log("try to use encrypted file: " + eFileName);
@@ -43,7 +44,7 @@ public class Config {
                 } catch (Exception e) {
                     String msg = "error loading encr config properties: " + e;
                     log(msg);
-                    throw new RuntimeException(msg);
+                    return msg;
                 }
 
                 Properties eRet = new Properties();
@@ -57,16 +58,18 @@ public class Config {
                     } catch (Exception e) {
                         String msg = "error loading encr config properties. decrypt error : " + e;
                         log(msg);
-                        throw new RuntimeException(msg);
+                        return msg;
                     }
                 }
                 m_keys.putAll(eRet);
+                m_decrypted = true;
             } else {
-                log("encrypted file not exists: " + eFile.getAbsolutePath());
+                return "encrypted file not exists: " + eFile.getAbsolutePath();
             }
         } else {
-            log("encrypted file is not specified");
+            return "encrypted file is not specified";
         }
+        return null;
     }
 
     public static Properties loadKeys() {
@@ -99,5 +102,13 @@ public class Config {
             ret.put(key, value);
         }
         return ret;
+    }
+
+    public boolean needDecrypt() {
+        if (!m_decrypted) {
+            String eFileName = getEncryptedFile();
+            return ((eFileName != null) && (eFileName.length() > 0));
+        }
+        return false;
     }
 }

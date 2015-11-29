@@ -629,20 +629,32 @@ public class TresCanvas extends JComponent {
 
         g.setColor(Color.YELLOW);
         int height = getHeight();
-        g.drawString(executor.valuate(), 2, height - fontHeight);
-        g.drawString("acct: " + executor.m_account, 2, height - fontHeight * 2);
-        g.drawString("dir.adj=" + exchData.getDirectionAdjusted() + "; " + exchData.getRunAlgoParams(), 2, height - fontHeight * 3);
-        g.drawString("placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled +
-                     "; volume=" + Utils.format3(executor.m_tradeVolume), 2, height - fontHeight * 4);
-        g.drawString("wait=" + executor.dumpWaitTime(), 2, height - fontHeight * 5);
-        g.drawString("takes:" + executor.dumpTakesTime(), 2, height - fontHeight * 6);
-        g.drawString("avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()), 2, height - fontHeight * 7);
+
+        int y = height - fontHeight * 7;
+        String[] strings = getState(exchData);
+        for (String string : strings) {
+            g.drawString(string, 2, y);
+            y += fontHeight;
+        }
 
         OrderData order = executor.m_order;
         if (order != null) {
             g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
             g.drawString(order.toString(), 2, height - fontHeight * 8);
         }
+    }
+
+    public static String[] getState(TresExchData exchData) {
+        TresExecutor executor = exchData.m_executor;
+        return new String[]{
+                "avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()),
+                "takes:" + executor.dumpTakesTime(),
+                "wait=" + executor.dumpWaitTime(),
+                "placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled + "; volume=" + Utils.format3(executor.m_tradeVolume),
+                "dir.adj=" + exchData.getDirectionAdjusted() + "; " + exchData.getRunAlgoParams(),
+                "acct: " + executor.m_account,
+                executor.valuate()
+        };
     }
 
     private List<TresExchData.OrderPoint> getOrderClone(TresExchData exchData) {
