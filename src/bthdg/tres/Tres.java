@@ -9,6 +9,7 @@ import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.CncAlgo;
+import bthdg.tres.alg.Cno2Algo;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.OscIndicator;
@@ -302,6 +303,13 @@ public class Tres {
             log("and_peak=" + andPeakStr);
             double andPeak = Double.parseDouble(andPeakStr);
             CncAlgo.AndIndicator.PEAK_TOLERANCE = andPeak;
+        }
+
+        String cno2PeakStr = getProperty("tre.cno2_peak");
+        if (cno2PeakStr != null) {
+            log("cno2_peak=" + cno2PeakStr);
+            double cno2Peak = Double.parseDouble(cno2PeakStr);
+            Cno2Algo.AND_PEAK_TOLERANCE = cno2Peak;
         }
 
         String oscPeakStr = getProperty("tre.osc_peak");

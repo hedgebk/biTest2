@@ -5,6 +5,7 @@ import bthdg.exch.Config;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.CncAlgo;
+import bthdg.tres.alg.Cno2Algo;
 import bthdg.tres.alg.CoppockVelocityAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.tres.ind.CciIndicator;
@@ -58,6 +59,8 @@ class TresLogProcessor extends Thread {
     private String m_varyCovK;
     private String m_varyCovRat;
     private String m_varyCovVel;
+    private String m_varyCno2Peak;
+    private String m_varyCno2Frame;
     private AtomicInteger cloneCounter = new AtomicInteger(0);
     private long m_linesParsed;
     private long s_lastTradeMillis;
@@ -152,6 +155,16 @@ class TresLogProcessor extends Thread {
         m_varyCovVel = config.getProperty("tre.vary.cov_vel");
         if (m_varyCovVel != null) {
             log("varyCovVel=" + m_varyCovVel);
+        }
+
+        m_varyCno2Peak = config.getProperty("tre.vary.cno2_peak");
+        if (m_varyCno2Peak != null) {
+            log("varyCno2Peak=" + m_varyCno2Peak);
+        }
+
+        m_varyCno2Frame = config.getProperty("tre.vary.cno2_frame");
+        if (m_varyCno2Frame != null) {
+            log("varyCno2Frame=" + m_varyCno2Frame);
         }
 
         BaseExecutor.DO_TRADE = false;
@@ -262,6 +275,15 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyCovVel != null) {
             varyCovVel(datas, tres, m_varyCovVel);
+            return;
+        }
+
+        if (m_varyCno2Peak != null) {
+            varyCno2PeakTolerance(datas, tres, m_varyCno2Peak);
+            return;
+        }
+        if (m_varyCno2Frame != null) {
+            varyCno2FrameRate(datas, tres, m_varyCno2Frame);
             return;
         }
 
@@ -483,6 +505,20 @@ class TresLogProcessor extends Thread {
         logMax(maxMap, "CciPeak");
     }
 
+    private void varyCno2PeakTolerance(List<TradesTopsData> datas, Tres tres, String varyCno2Peak) throws Exception {
+        log("varyCno2Peak: " + varyCno2Peak);
+        String[] split = varyCno2Peak.split(";"); // 0.09;0.11;0.001
+        double min = Double.parseDouble(split[0]);
+        double max = Double.parseDouble(split[1]);
+        double step = Double.parseDouble(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (double i = min; i <= max; i += step) {
+            Cno2Algo.AND_PEAK_TOLERANCE = i;
+            iterate(datas, i, "%.3f", "Cno2Peak", maxMap);
+        }
+        logMax(maxMap, "Cno2Peak");
+    }
+
     private void varyCciCorrection(List<TradesTopsData> datas, Tres tres, String varyCciCorr) throws Exception {
         log("varyCciCorrection: " + varyCciCorr);
         String[] split = varyCciCorr.split(";"); // 0.09;0.11;0.001
@@ -552,6 +588,21 @@ class TresLogProcessor extends Thread {
             iterate(datas, i, "%d", "wma", maxMap);
         }
         logMax(maxMap, "wma");
+    }
+
+    private void varyCno2FrameRate(List<TradesTopsData> datas, Tres tres, String varyCno2Frame) throws Exception {
+        log("varyCno2Frame: " + varyCno2Frame);
+
+        String[] split = varyCno2Frame.split(";"); // 10;30;1
+        int min = Integer.parseInt(split[0]);
+        int max = Integer.parseInt(split[1]);
+        int step = Integer.parseInt(split[2]);
+        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        for (int i = min; i <= max; i += step) {
+            Cno2Algo.FRAME_RATIO = i;
+            iterate(datas, i, "%d", "Cno2Frame", maxMap);
+        }
+        logMax(maxMap, "Cno2Frame");
     }
 
     private void varyLroc(List<TradesTopsData> datas, Tres tres, String varyLroc) throws Exception {

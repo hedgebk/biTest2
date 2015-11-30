@@ -10,25 +10,31 @@ import bthdg.util.Utils;
 
 import java.awt.*;
 
-public class CnoAlgo extends TresAlgo {
-    public static double AND_PEAK_TOLERANCE = 0.3;
+public class Cno2Algo extends TresAlgo {
+    public static int FRAME_RATIO = 30;
+    public static double AND_PEAK_TOLERANCE = 0.1;
     private static final double OSC_TOLERANCE = 0.35;
 
-    private final OscIndicator m_oscIndicator;
-    private final CciIndicator m_cciIndicator;
-    private final AndIndicator m_andIndicator;
+    final OscIndicator m_oscIndicator;
+    final CciIndicator m_cciIndicator;
+    private final Utils.SlidingValuesFrame m_cciFrameCounter;
+    final AndIndicator m_andIndicator;
+    private long m_lastCciMillis;
+    private double m_lastCciValue;
+    private double m_lastCciAdjusted;
 
-    public CnoAlgo(TresExchData tresExchData) {
-        super("C+O", tresExchData);
+    public Cno2Algo(TresExchData tresExchData) {
+        super("C2O", tresExchData);
         m_cciIndicator = new CciIndicator(this) {
             @Override protected void onBar() {
                 super.onBar();
+                recalcCciAdjusted();
                 recalcAnd();
             }
         };
         m_indicators.add(m_cciIndicator);
 
-        m_oscIndicator = new OscIndicator(this/*, OSC_TOLERANCE*/) {
+        m_oscIndicator = new OscIndicator(this/*, OSC_TOLERANCE*/) { // use def OSC_TOLERANCE for now
             @Override protected void onBar() {
                 super.onBar();
                 recalcAnd();
@@ -38,14 +44,41 @@ public class CnoAlgo extends TresAlgo {
 
         m_andIndicator = new AndIndicator(this);
         m_indicators.add(m_andIndicator);
+
+        long millis = tresExchData.m_tres.m_barSizeMillis * FRAME_RATIO;
+        m_cciFrameCounter = new Utils.SlidingValuesFrame(millis);
+    }
+
+    private void recalcCciAdjusted() {
+        ChartPoint cci = m_cciIndicator.getLastPoint();
+        if (cci != null) {
+            double cciValue = cci.m_value;
+            long cciMillis = cci.m_millis;
+            if ((m_lastCciMillis != cciMillis) || (m_lastCciValue != cciValue)) {
+                m_cciFrameCounter.justAdd(cciMillis, cciValue);
+                if (m_cciFrameCounter.m_full) {
+                    Utils.DoubleDoubleMinMaxCalculator minMaxCalc = new Utils.DoubleDoubleMinMaxCalculator();
+                    for (Double value : m_cciFrameCounter.m_map.values()) {
+                        minMaxCalc.calculate(value);
+                    }
+                    Double minValue = minMaxCalc.m_minValue;
+                    Double maxValue = minMaxCalc.m_maxValue;
+                    double cciAdjusted = (cciValue - minValue) / (maxValue - minValue);
+                    m_lastCciAdjusted = cciAdjusted;
+
+                }
+                m_lastCciMillis = cciMillis;
+                m_lastCciValue = cciValue;
+            }
+        }
     }
 
     private void recalcAnd() {
         ChartPoint osc = m_oscIndicator.getLastPoint();
         ChartPoint cci = m_cciIndicator.getLastPoint();
-        if ((osc != null) && (cci != null)) {
-            double directionAdjusted = getDirectionAdjusted();
-            long millis = Math.max(osc.m_millis, cci.m_millis);
+        if ((osc != null) && (cci != null) && m_cciFrameCounter.m_full) {
+            double directionAdjusted = calcCno2();
+            long millis = Math.max(cci.m_millis, cci.m_millis);
             ChartPoint chartPoint = new ChartPoint(millis, directionAdjusted);
             m_andIndicator.addBar(chartPoint);
         }
@@ -61,36 +94,27 @@ public class CnoAlgo extends TresAlgo {
         return Math.max(m_oscIndicator.lastTickTime(), m_cciIndicator.lastTickTime());
     }
 
-    @Override public Color getColor() { return Color.red; }
 
-    @Override public double getDirectionAdjusted() { // [-1 ... 1]
+    private double calcCno2() { // [-1 ... 1]
         ChartPoint osc = m_oscIndicator.getLastPoint();
         ChartPoint cci = m_cciIndicator.getLastPoint();
         if ((osc != null) && (cci != null)) {
-//            double oscDirectionAdjusted = m_oscIndicator.getDirectionAdjusted();
-//            double cciDirectionAdjusted = m_cciIndicator.getDirectionAdjusted();
-//            double mid = (oscDirectionAdjusted + cciDirectionAdjusted) / 2;
-//            return Math.signum(mid) * Math.sqrt(Math.abs(mid));
-
-            double oscDirectionAdjusted = getDirectionAdjustedByPeakWatchers(m_oscIndicator);
-            double cciDirectionAdjusted = getDirectionAdjustedByPeakWatchers(m_cciIndicator);
-            return (oscDirectionAdjusted + cciDirectionAdjusted) / 2;
+            double oscValue = osc.m_value;          // [0 ... 1]
+            double cciAdjusted = m_lastCciAdjusted; // [0 ... 1]
+            return oscValue + cciAdjusted - 1;      // [-1 ... 1]
         }
         return 0;
     }
 
-    @Override public Direction getDirection() {
-        Direction oscDirection = m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction;
-        Direction cciDirection = m_cciIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction;
-        return Direction.isForward(oscDirection) && Direction.isForward(cciDirection)
-                 ? Direction.FORWARD
-                 : Direction.isBackward(oscDirection) && Direction.isBackward(cciDirection)
-                   ? Direction.BACKWARD
-                   : null;
-    } // UP/DOWN
+    @Override public Color getColor() { return Color.red; }
+
+    @Override public double getDirectionAdjusted() { // [-1 ... 1]
+        return getDirectionAdjustedByPeakWatchers(m_andIndicator);
+    }
+    @Override public Direction getDirection() { return m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
     @Override public String getRunAlgoParams() {
-        return "Cno "
+        return "Cno2 "
                 + "And.tlrnc=" + m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
                 + "osc.tlrnc=" + m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
                 + "cci.tlrnc=" + m_cciIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
