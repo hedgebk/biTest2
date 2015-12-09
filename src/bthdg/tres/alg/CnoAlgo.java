@@ -11,9 +11,6 @@ import bthdg.util.Utils;
 import java.awt.*;
 
 public class CnoAlgo extends TresAlgo {
-    public static double AND_PEAK_TOLERANCE = 0.3;
-    private static final double OSC_TOLERANCE = 0.35;
-
     private final OscIndicator m_oscIndicator;
     private final CciIndicator m_cciIndicator;
     private final AndIndicator m_andIndicator;
@@ -91,7 +88,6 @@ public class CnoAlgo extends TresAlgo {
 
     @Override public String getRunAlgoParams() {
         return "Cno "
-                + "And.tlrnc=" + m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
                 + "osc.tlrnc=" + m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance
                 + "cci.tlrnc=" + m_cciIndicator.m_peakWatcher.m_avgPeakCalculator.m_tolerance;
     }
@@ -100,12 +96,12 @@ public class CnoAlgo extends TresAlgo {
     // ======================================================================================
     public static class AndIndicator extends TresIndicator {
         public AndIndicator(TresAlgo algo) {
-            super("+", AND_PEAK_TOLERANCE, algo);
+            super("+", 0, algo);
         }
 
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
         @Override public Color getColor() { return Color.red; }
-        @Override public Color getPeakColor() { return Color.red; }
+        @Override protected boolean countPeaks() { return false; }
         @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
             double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
             minMaxCalculator.m_minValue = -max;
