@@ -41,6 +41,7 @@ public class Config {
                     } finally {
                         eReader.close();
                     }
+                    log("loaded " + eProperties.size() + " keys from config file: " + eFileName);
                 } catch (Exception e) {
                     String msg = "error loading encr config properties: " + e;
                     log(msg);
@@ -73,7 +74,7 @@ public class Config {
     }
 
     public static Properties loadKeys() {
-        return loadKeys("keys.txt");
+        return loadKeys("keys.properties");
     }
 
     protected static Properties loadKeys(String fileName) {
@@ -85,6 +86,7 @@ public class Config {
             } finally {
                 reader.close();
             }
+            log("loaded " + properties.size() + " keys from config file: " + fileName);
         } catch (Exception e) {
             String msg = "error loading config properties: " + e;
             log(msg);

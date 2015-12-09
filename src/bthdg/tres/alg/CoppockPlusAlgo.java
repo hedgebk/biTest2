@@ -117,7 +117,6 @@ public class CoppockPlusAlgo extends CoppockAlgo {
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
         @Override protected boolean countPeaks() { return false; }
         @Override public Color getColor() { return Colors.LIGHT_MAGNETA; }
-        @Override public Color getPeakColor() { return Colors.LIGHT_MAGNETA; }
         @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
             double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
             minMaxCalculator.m_minValue = -max;

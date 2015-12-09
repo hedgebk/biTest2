@@ -240,4 +240,12 @@
         </scp>
     </target>
 
+    <target name="grab-logz">
+        <scp verbose="true"
+             trust="yes"
+             keyfile="${key.file}"
+             file="${export.host}:log.7z"
+             todir="D:\Logs" />
+    </target>
+
 </project>

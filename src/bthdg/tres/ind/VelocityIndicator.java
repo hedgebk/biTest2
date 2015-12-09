@@ -15,13 +15,11 @@ import java.awt.*;
 import java.util.Map;
 
 public class VelocityIndicator extends TresIndicator {
-    private final long m_frameSizeMillis;
     private final VelocityTracker m_velocityTracker;
 
     public VelocityIndicator(TresAlgo algo, String name, long frameSizeMillis, double peakTolerance) {
         super(name, peakTolerance, algo);
         m_velocityTracker = new VelocityTracker(frameSizeMillis);
-        m_frameSizeMillis = frameSizeMillis;
     }
 
     @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
