@@ -10,6 +10,7 @@ import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.CncAlgo;
 import bthdg.tres.alg.Cno2Algo;
+import bthdg.tres.alg.TreAlgo;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.OscIndicator;
@@ -92,7 +93,10 @@ public class Tres {
             s_inst = new Tres(args);
             s_inst.start();
 
-            new IntConsoleReader().run();
+            if (s_inst.m_isLocal) {
+                new IntConsoleReader().run();
+            }
+            Thread.sleep(120000);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -284,91 +288,98 @@ public class Tres {
             log(" .len=" + indicatorsLen);
         }
 
-        String cciPeakStr = getProperty("tre.cci_peak");
+        String cciPeakStr = m_config.getProperty("tre.cci_peak");
         if (cciPeakStr != null) {
             log("cci_peak=" + cciPeakStr);
             double cciPeak = Double.parseDouble(cciPeakStr);
             CciIndicator.PEAK_TOLERANCE = cciPeak;
         }
 
-        String coppPeakStr = getProperty("tre.copp_peak");
+        String coppPeakStr = m_config.getProperty("tre.copp_peak");
         if (coppPeakStr != null) {
             log("copp_peak=" + coppPeakStr);
             double coppPeak = Double.parseDouble(coppPeakStr);
             CoppockIndicator.PEAK_TOLERANCE = coppPeak;
         }
 
-        String andPeakStr = getProperty("tre.and_peak");
+        String andPeakStr = m_config.getProperty("tre.and_peak");
         if (andPeakStr != null) {
             log("and_peak=" + andPeakStr);
             double andPeak = Double.parseDouble(andPeakStr);
             CncAlgo.AndIndicator.PEAK_TOLERANCE = andPeak;
         }
 
-        String cno2PeakStr = getProperty("tre.cno2_peak");
+        String cno2PeakStr = m_config.getProperty("tre.cno2_peak");
         if (cno2PeakStr != null) {
             log("cno2_peak=" + cno2PeakStr);
             double cno2Peak = Double.parseDouble(cno2PeakStr);
-            Cno2Algo.AND_PEAK_TOLERANCE = cno2Peak;
+            Cno2Algo.MID_PEAK_TOLERANCE = cno2Peak;
         }
 
-        String oscPeakStr = getProperty("tre.osc_peak");
+        String oscPeakStr = m_config.getProperty("tre.osc_peak");
         if (oscPeakStr != null) {
             log("osc_peak=" + oscPeakStr);
             double oscPeak = Double.parseDouble(oscPeakStr);
             OscIndicator.PEAK_TOLERANCE = oscPeak;
         }
 
-        String cciCorrStr = getProperty("tre.cci_corr");
+        String cciCorrStr = m_config.getProperty("tre.cci_corr");
         if (cciCorrStr != null) {
             log("cci_corr=" + cciCorrStr);
             double cciCorr = Double.parseDouble(cciCorrStr);
             CncAlgo.CCI_CORRECTION_RATIO = cciCorr;
         }
 
-        String wmaStr = getProperty("tre.wma");
+        String treVelSizeStr = m_config.getProperty("tre.tre_vel_size");
+        if (treVelSizeStr != null) {
+            log("tre_vel_size=" + treVelSizeStr);
+            double treVelSize = Double.parseDouble(treVelSizeStr);
+            TreAlgo.TreAlgoBlended.VELOCITY_SIZE_RATE = treVelSize;
+        }
+
+        String wmaStr = m_config.getProperty("tre.wma");
         if (wmaStr != null) {
             log("wma=" + wmaStr);
             int wma = Integer.parseInt(wmaStr);
             CoppockIndicator.PhasedCoppockIndicator.WMA_LENGTH = wma;
         }
 
-        String lrocStr = getProperty("tre.lroc");
+        String lrocStr = m_config.getProperty("tre.lroc");
         if (lrocStr != null) {
             log("lroc=" + lrocStr);
             int lroc = Integer.parseInt(lrocStr);
             CoppockIndicator.PhasedCoppockIndicator.LONG_ROC_LENGTH = lroc;
         }
 
-        String srocStr = getProperty("tre.sroc");
+        String srocStr = m_config.getProperty("tre.sroc");
         if (srocStr != null) {
             log("sroc=" + srocStr);
             int sroc = Integer.parseInt(srocStr);
             CoppockIndicator.PhasedCoppockIndicator.SHORT_ROС_LENGTH = sroc;
         }
 
-        String smaStr = getProperty("tre.sma");
+        String smaStr = m_config.getProperty("tre.sma");
         if (smaStr != null) {
             log("sma=" + smaStr);
             int sma = Integer.parseInt(smaStr);
             CciIndicator.PhasedCciIndicator.SMA_LENGTH = sma;
         }
 
-        String minOrderStr = getProperty("tre.min_order");
+        String minOrderStr = m_config.getProperty("tre.min_order");
         if (minOrderStr != null) {
             log("min_order=" + minOrderStr);
             double minOrder = Double.parseDouble(minOrderStr);
             TresExecutor.MIN_ORDER_SIZE = minOrder;
         }
 
-        String maxOrderStr = getProperty("tre.max_order");
+        String maxOrderStr = m_config.getProperty("tre.max_order");
         if (maxOrderStr != null) {
             log("max_order=" + maxOrderStr);
             double maxOrder = Double.parseDouble(maxOrderStr);
             TresExecutor.MAX_ORDER_SIZE = maxOrder;
         }
 
-        String orderAlgoStr = getProperty("tre.order_algo");
+        String orderAlgoStr = m_config.getProperty("tre.order_algo");
         if (orderAlgoStr != null) {
             log("orderAlgoStr=" + orderAlgoStr);
             BaseExecutor.OrderPriceMode opm = BaseExecutor.OrderPriceMode.get(orderAlgoStr);
@@ -444,22 +455,28 @@ public class Tres {
     }
 
     private void processRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        boolean needDecrypt = m_config.needDecrypt();
-        if (needDecrypt && !m_isLocal) {
-            String pwd = request.getParameter("pwd");
-            if ((pwd != null) && !pwd.isEmpty()) {
-                m_config.loadEncrypted(pwd);
-                init2();
-                showState(request, response);
-            } else {
-                askPwd(response);
-            }
-        } else {
+        try {
+            boolean needDecrypt = m_config.needDecrypt();
             String requestURI = request.getRequestURI();
-            if(requestURI.equals("/park")) { // RequestURI=/park
-                park();
+            log("processRequest " + requestURI);
+            if (needDecrypt && !m_isLocal) {
+                log("needDecrypt=" + needDecrypt);
+                String pwd = request.getParameter("pwd");
+                if ((pwd != null) && !pwd.isEmpty()) {
+                    m_config.loadEncrypted(pwd);
+                    init2();
+                    showState(request, response);
+                } else {
+                    askPwd(response);
+                }
+            } else {
+                if(requestURI.equals("/park")) { // RequestURI=/park
+                    park();
+                }
+                showState(request, response);
             }
-            showState(request, response);
+        } catch (IOException e) {
+            err("ERROR processRequest: " + e, e);
         }
     }
 
