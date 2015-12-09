@@ -11,8 +11,6 @@ import bthdg.util.Utils;
 import java.awt.*;
 
 public class TreAlgo extends TresAlgo {
-    public static double PEAK_TOLERANCE = 0.000000005; // cov_vel:
-
     final OscIndicator m_oscIndicator;
     final CciIndicator m_cciIndicator;
     final AndIndicator m_andIndicator;
@@ -119,6 +117,8 @@ public class TreAlgo extends TresAlgo {
 
     // ===========================================================================================
     public static class TreAlgoBlended extends TreAlgo {
+        public static double VELOCITY_SIZE_RATE = 0.250; // tre_vel_size
+
         private final AverageIndicator m_averageCciIndicator;
         private final VelocityIndicator m_velocityIndicator;
         private final VelocityRateIndicator m_velRateIndicator;
@@ -128,11 +128,11 @@ public class TreAlgo extends TresAlgo {
 
             final Tres tres = tresExchData.m_tres;
             long barSizeMillis = tres.m_barSizeMillis;
-            long velocitySize = barSizeMillis / 8;
+            long velocitySize = (long) (barSizeMillis * VELOCITY_SIZE_RATE);
 
             m_indicators.remove(m_andIndicator);
 
-            m_averageCciIndicator = new AverageIndicator("ca", this, tres.m_phases / 4) {
+            m_averageCciIndicator = new AverageIndicator("avg", this, tres.m_phases / 4) {
                 @Override public Color getColor() { return Color.green; }
 
                 @Override public void addBar(ChartPoint chartPoint) {
@@ -143,7 +143,7 @@ public class TreAlgo extends TresAlgo {
             };
             m_indicators.add(m_averageCciIndicator);
 
-            m_velocityIndicator = new VelocityIndicator(this, "cv", velocitySize, PEAK_TOLERANCE) {
+            m_velocityIndicator = new VelocityIndicator(this, "vel", velocitySize, 0) {
                 @Override public void addBar(ChartPoint chartPoint) {
                     super.addBar(chartPoint);
                     ChartPoint lastPoint = getLastPoint();
@@ -165,6 +165,7 @@ public class TreAlgo extends TresAlgo {
             m_indicators.add(m_andIndicator);
         }
 
+        @Override public String getRunAlgoParams() { return "TreBlendedAlgo"; }
         @Override protected void onCciBar(ChartPoint chartPoint) {
             m_averageCciIndicator.addBar(chartPoint);
         }
@@ -188,5 +189,6 @@ public class TreAlgo extends TresAlgo {
         public TreAlgoSharp(TresExchData tresExchData) {
             super("TreSharp", tresExchData);
         }
+        @Override public String getRunAlgoParams() { return "TreSharp"; }
     }
 }
