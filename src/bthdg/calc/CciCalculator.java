@@ -1,5 +1,6 @@
 package bthdg.calc;
 
+import bthdg.Log;
 import bthdg.util.Utils;
 
 import java.util.LinkedList;
@@ -12,6 +13,8 @@ public class CciCalculator extends OHLCCalculator {
 
     protected void fine(long time, double cci) { }
     protected void bar(long barEnd, double cci) { }
+
+    private static void log(String s) { Log.log(s); }
 
     public CciCalculator(int smaLength, long barSize, long barsMillisOffset) {
         super(barSize, barsMillisOffset);
@@ -40,7 +43,7 @@ public class CciCalculator extends OHLCCalculator {
             if (m_smaFilled) {
                 double sma = Utils.avg(m_smaPrices);
                 double medianDeviation = medianDeviation(sma);
-                double cci = (typicalPrice - sma) / (0.015 * medianDeviation);
+                double cci = (medianDeviation == 0) ? 0 : (typicalPrice - sma) / (0.015 * medianDeviation);
                 fine(time, cci);
                 m_lastCci = cci;
                 return true;
