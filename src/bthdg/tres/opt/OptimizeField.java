@@ -1,0 +1,28 @@
+package bthdg.tres.opt;
+
+import bthdg.tres.Tres;
+import bthdg.tres.ind.OscIndicator;
+
+public enum OptimizeField {
+    OSC_LEN1("osc.len1") {
+        @Override public double get(Tres tres) { return tres.m_len1; }
+        @Override public void set(Tres tres, double value) { tres.m_len1 = (int) value; }
+    },
+    OSC_LEN2("osc.len2") {
+        @Override public double get(Tres tres) { return tres.m_len2; }
+        @Override public void set(Tres tres, double value) { tres.m_len2 = (int) value; }
+    },
+    OSC_PEAK("osc.peak") {
+        @Override public double get(Tres tres) { return OscIndicator.PEAK_TOLERANCE; }
+        @Override public void set(Tres tres, double value) { OscIndicator.PEAK_TOLERANCE= value; }
+    };
+
+    public final String m_key;
+
+    OptimizeField(String key) {
+        m_key = key;
+    }
+
+    public double get(Tres tres) { throw new RuntimeException("not implemented"); }
+    public void set(Tres tres, double value) { throw new RuntimeException("not implemented"); }
+}

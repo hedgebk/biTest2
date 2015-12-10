@@ -42,8 +42,8 @@ public class Tres {
     private static Tres s_inst;
 
     public long m_barSizeMillis;
-    int m_len1;
-    int m_len2;
+    public int m_len1;
+    public int m_len2;
     int m_k;
     int m_d;
     public int m_phases;

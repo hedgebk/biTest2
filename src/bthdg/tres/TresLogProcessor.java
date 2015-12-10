@@ -7,10 +7,20 @@ import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.*;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
-import bthdg.tres.ind.OscIndicator;
+import bthdg.tres.opt.OptimizeField;
+import bthdg.tres.opt.OptimizeFieldConfig;
 import bthdg.util.BufferedLineReader;
 import bthdg.util.LineReader;
 import bthdg.util.Utils;
+import org.apache.commons.math3.analysis.MultivariateFunction;
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.PointValuePair;
+import org.apache.commons.math3.optim.SimpleBounds;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.BOBYQAOptimizer;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,6 +73,7 @@ class TresLogProcessor extends Thread {
     private long m_linesParsed;
     private long s_lastTradeMillis;
     private boolean m_iterated;
+    private HashMap<OptimizeField, String> m_optCfg;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -170,8 +181,27 @@ class TresLogProcessor extends Thread {
             log("varyCno2Frame=" + m_varyCno2Frame);
         }
 
+        getOptimizeConfig(config);
+
         BaseExecutor.DO_TRADE = false;
         log("DO_TRADE set to false");
+    }
+
+    private void getOptimizeConfig(Config config) {
+        for (OptimizeField field : OptimizeField.values()) {
+            String key = field.m_key;
+            String cfgStr = config.getProperty("tre.opt." + key);
+            if (cfgStr != null) {
+                log("opt." + key + "=" + cfgStr);
+                if (m_optCfg == null) {
+                    m_optCfg = new HashMap<OptimizeField, String>();
+                }
+                m_optCfg.put(field, cfgStr);
+            }
+        }
+        if (m_optCfg != null) {
+            log("OptimizeConfig=" + m_optCfg);
+        }
     }
 
     @Override public void run() {
@@ -225,7 +255,7 @@ class TresLogProcessor extends Thread {
             varyOscLock(datas, m_varyOscLock);
         }
         if (m_varyOscPeak != null) {
-            varyOscPeakTolerance(datas, m_varyOscPeak);
+            varyOscPeakTolerance(datas, tres, m_varyOscPeak);
         }
         if (m_varyCoppPeak != null) {
             varyCoppockPeakTolerance(datas, m_varyCoppPeak);
@@ -272,11 +302,141 @@ class TresLogProcessor extends Thread {
             varyCno2FrameRate(datas, m_varyCno2Frame);
         }
 
+        checkOptimize(tres, datas);
+
         if(!m_iterated) {
             tres.m_collectPoints = true;
             Map<String, Double> averageProjected = processAllTicks(datas);
             log("averageProjected: " + averageProjected);
         }
+    }
+
+    private void checkOptimize(Tres tres, List<TradesTopsData> datas) {
+        if (m_optCfg != null) {
+            List<OptimizeFieldConfig> fieldConfigs = new ArrayList<OptimizeFieldConfig>(m_optCfg.size());
+            for (Map.Entry<OptimizeField, String> entry : m_optCfg.entrySet()) {
+                OptimizeField field = entry.getKey();
+                String configStr = entry.getValue();
+                String[] split = configStr.split(";"); // 123;456.6;222.2
+                double min = Double.parseDouble(split[0]);
+                double max = Double.parseDouble(split[1]);
+                double start = Double.parseDouble(split[2]);
+                OptimizeFieldConfig fieldConfig = new OptimizeFieldConfig(field, min, max, start);
+                fieldConfigs.add(fieldConfig);
+            }
+            doOptimize(tres, datas, fieldConfigs);
+        }
+    }
+
+    private void doOptimize(final Tres tres, final List<TradesTopsData> datas, final List<OptimizeFieldConfig> fieldConfigs) {
+//        final String algoName = tres.m_algosArr[0];
+        final String algoName = tres.m_exchDatas.get(0).m_playAlgos.get(0).m_algo.m_name;
+        log("doOptimize(algoName=" + algoName + ")...");
+        double[] startPoint = buildStartPoint(fieldConfigs);
+        SimpleBounds bounds = buildBounds(fieldConfigs);
+
+        MultivariateFunction function = new MultivariateFunction() {
+            @Override public double value(double[] point) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("function(");
+                int length = point.length;
+                for (int i = 0; i < length; i++) {
+                    double value = point[i];
+                    OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
+                    OptimizeField field = fieldConfig.m_field;
+                    field.set(tres, value);
+                    sb.append(field.m_key).append("=").append(Utils.format5(value)).append("; ");
+                }
+                sb.append(")=");
+
+                double value;
+                try {
+                    Map<String, Double> averageProjected = processAllTicks(datas);
+                    log("averageProjected: " + averageProjected);
+                    value = averageProjected.get(algoName);
+                } catch (Exception e) {
+                    err("error in optimize.function: " + e, e);
+                    value = 0;
+                }
+                sb.append(Utils.format5(value));
+                log(sb.toString());
+                return value;
+            }
+        };
+
+        // Choices that exceed 2n+1 are not recommended.
+        int numberOfInterpolationPoints = 5; //1 * startPoint.length + 1;
+        MultivariateOptimizer optimize = new BOBYQAOptimizer(numberOfInterpolationPoints);
+        PointValuePair pair = optimize.optimize(
+                new ObjectiveFunction(function),
+                new MaxEval(200),
+                GoalType.MAXIMIZE,
+                new InitialGuess(startPoint),
+                bounds
+        );
+
+//        SimplexOptimizer optimize = new SimplexOptimizer(1e-3, 1e-6);
+//        PointValuePair pair = optimize.optimize(
+//                new ObjectiveFunction(function),
+//                new MaxEval(200),
+//                GoalType.MAXIMIZE,
+//                new InitialGuess(startPoint),
+//                bounds,
+//                new MultiDirectionalSimplex(startPoint.length));
+
+        double[] point = pair.getPoint();
+        String pointStr = Arrays.toString(point);
+
+        log("point=" + pointStr + "; value=" + pair.getValue());
+        log("optimize: Evaluations=" + optimize.getEvaluations()
+                + "; Iterations=" + optimize.getIterations());
+
+        setOptimalConfig(tres, fieldConfigs, point);
+    }
+
+    private void setOptimalConfig(Tres tres, List<OptimizeFieldConfig> fieldConfigs, double[] point) {
+        log("OptimalConfig:");
+        int dimension = fieldConfigs.size();
+        for (int i = 0; i < dimension; i++) {
+            OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
+            OptimizeField field = fieldConfig.m_field;
+            double value = point[i];
+            log(" field[" + field.m_key + "]=" + value);
+            field.set(tres, value);
+        }
+    }
+
+    private SimpleBounds buildBounds(List<OptimizeFieldConfig> fieldConfigs) {
+        int dimension = fieldConfigs.size();
+        double[] mins = new double[dimension];
+        double[] maxs = new double[dimension];
+        for (int i = 0; i < dimension; i++) {
+            OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
+            OptimizeField field = fieldConfig.m_field;
+            double min = fieldConfig.m_min;
+            double max = fieldConfig.m_max;
+            mins[i] = min;
+            maxs[i] = max;
+            log("field[" + field.m_key + "] min=" + min + "; max=" + max);
+        }
+        SimpleBounds bounds = new SimpleBounds(mins, maxs);
+        return bounds;
+    }
+
+    private double[] buildStartPoint(List<OptimizeFieldConfig> fieldConfigs) {
+        int dimension = fieldConfigs.size();
+        double[] startPoint = new double[dimension];
+        StringBuilder sb = new StringBuilder();
+        sb.append("startPoint: ");
+        for (int i = 0; i < dimension; i++) {
+            OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
+            OptimizeField field = fieldConfig.m_field;
+            double start = fieldConfig.m_start;
+            startPoint[i] = start;
+            sb.append(field.m_key).append("=").append(Utils.format5(start)).append("; ");
+        }
+        log(sb.toString());
+        return startPoint;
     }
 
     private void varyBarSize(List<TradesTopsData> datas, Tres tres, String varyBarSize) throws Exception {
@@ -401,36 +561,28 @@ class TresLogProcessor extends Thread {
 
     private void varyLen1(List<TradesTopsData> datas, Tres tres, String varyLen1) throws Exception {
         log("varyLen1: " + varyLen1);
-        int old = tres.m_len1;
-
-        String[] split = varyLen1.split(";"); // 10;30;1
-        int min = Integer.parseInt(split[0]);
-        int max = Integer.parseInt(split[1]);
-        int step = Integer.parseInt(split[2]);
-        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
-        for (int i = min; i <= max; i += step) {
-            tres.m_len1 = i;
-            iterate(datas, i, "%d", "len1", maxMap);
-        }
-        logMax(maxMap, "len1");
-        tres.m_len1 = old;
+        varyInteger(datas, tres, OptimizeField.OSC_LEN1, varyLen1);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {
         log("varyLen2: " + varyLen2);
-        int old = tres.m_len2;
+        varyInteger(datas, tres, OptimizeField.OSC_LEN2, varyLen2);
+    }
 
-        String[] split = varyLen2.split(";"); // 10;30;1
+    private void varyInteger(List<TradesTopsData> datas, Tres tres, OptimizeField optimizeField, String config) throws Exception {
+        int old = (int) optimizeField.get(tres);
+
+        String[] split = config.split(";"); // 10;30;1
         int min = Integer.parseInt(split[0]);
         int max = Integer.parseInt(split[1]);
         int step = Integer.parseInt(split[2]);
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (int i = min; i <= max; i += step) {
-            tres.m_len2 = i;
-            iterate(datas, i, "%d", "len2", maxMap);
+            optimizeField.set(tres, i);
+            iterate(datas, i, "%d", optimizeField.m_key, maxMap);
         }
-        logMax(maxMap, "len2");
-        tres.m_len2 = old;
+        logMax(maxMap, optimizeField.m_key);
+        optimizeField.set(tres, old);
     }
 
     private void varyOscLock(List<TradesTopsData> datas, String varyOscLock) throws Exception {
@@ -466,20 +618,25 @@ class TresLogProcessor extends Thread {
         CoppockIndicator.PEAK_TOLERANCE = old;
     }
 
-    private void varyOscPeakTolerance(List<TradesTopsData> datas, String varyOscPeak) throws Exception {
+    private void varyOscPeakTolerance(List<TradesTopsData> datas, Tres tres, String varyOscPeak) throws Exception {
         log("varyOscPeak: " + varyOscPeak);
-        double old = OscIndicator.PEAK_TOLERANCE;
-        String[] split = varyOscPeak.split(";"); // 0.09;0.11;0.001
+        varyDouble(datas, tres, OptimizeField.OSC_PEAK, varyOscPeak);
+    }
+
+    private void varyDouble(List<TradesTopsData> datas, Tres tres, OptimizeField optimizeField, String config) throws Exception {
+        double old = optimizeField.get(tres);
+
+        String[] split = config.split(";"); // 10.1;30.2;1.3
         double min = Double.parseDouble(split[0]);
         double max = Double.parseDouble(split[1]);
         double step = Double.parseDouble(split[2]);
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (double i = min; i <= max; i += step) {
-            OscIndicator.PEAK_TOLERANCE = i;
-            iterate(datas, i, "%.6f", "OscPeak", maxMap);
+            optimizeField.set(tres, i);
+            iterate(datas, i, "%.6f", optimizeField.m_key, maxMap);
         }
-        logMax(maxMap, "OskPeak");
-        OscIndicator.PEAK_TOLERANCE = old;
+        logMax(maxMap, optimizeField.m_key);
+        optimizeField.set(tres, old);
     }
 
 
