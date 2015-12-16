@@ -114,6 +114,9 @@ public class Tres {
         if (line.equals("reset")) {
             s_inst.reset();
         }
+        if (line.equals("reconnect")) {
+            s_inst.reconnect();
+        }
         if (line.equals("start")) {
             try {
                 s_inst.start();
@@ -131,6 +134,12 @@ public class Tres {
     private void reset() {
         for (TresExchData exchData : m_exchDatas) {
             exchData.reset();
+        }
+    }
+
+    private void reconnect() {
+        for (TresExchData exchData : m_exchDatas) {
+            exchData.reconnect();
         }
     }
 
