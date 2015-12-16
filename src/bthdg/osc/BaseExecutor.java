@@ -221,8 +221,12 @@ public abstract class BaseExecutor implements Runnable {
         log(" topsData=" + m_topsData);
 
         initAccount();
-        m_initAccount = m_account.copy();
-        m_initTops = m_topsData.copy();
+        if (m_initAccount == null) { // not for reconnect
+            m_initAccount = m_account.copy();
+        }
+        if (m_initTops == null) { // not for reconnect
+            m_initTops = m_topsData.copy();
+        }
         m_initialized = true;
     }
 
@@ -322,10 +326,14 @@ public abstract class BaseExecutor implements Runnable {
         return error;
     }
 
-    public void onError() throws Exception {
+    public final void onError() throws Exception {
         log("onError() resetting...  -------------------------- ");
-        cancelOrdersAndReset();
+        onErrorInt();
         log("onError() end");
+    }
+
+    protected void onErrorInt() throws Exception {
+        cancelOrdersAndReset();
     }
 
     public void cancelOrdersAndReset() throws Exception {
