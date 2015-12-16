@@ -228,6 +228,10 @@ public class TresExchData {
         m_executor.postResetTask();
     }
 
+    public void reconnect() {
+        m_ws.reconnect();
+    }
+
     private static String[] getComboItems(List<TresAlgoWatcher> playAlgos) {
         String[] comboItems = new String[playAlgos.size()];
         int index= 0;

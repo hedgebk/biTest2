@@ -68,6 +68,11 @@ public enum TresState {
             executor.onError();
             return executor.onAfterError();
         }
+        @Override public TresState onDirection(TresExecutor executor) throws Exception {
+            log("State.ERROR.onDirection(direction=" + executor.getDirectionAdjusted() + ") on " + this + " *********************************************");
+            executor.checkLastSeenTrade();
+            return null; // no change
+        }
         @Override public int toCode() { return BaseExecutor.STATE_ERROR; }
     };
 

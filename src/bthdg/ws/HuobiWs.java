@@ -1,5 +1,6 @@
 package bthdg.ws;
 
+import bthdg.Log;
 import bthdg.exch.Exchange;
 import bthdg.exch.Huobi;
 import bthdg.exch.Pair;
@@ -25,6 +26,9 @@ public class HuobiWs extends BaseWs {
     private SocketIO m_socket;
     private Thread m_reconnectThread;
     private ITradesListener m_historyTradesListener;
+    private boolean m_reconnectRequested;
+
+    private static void log(String s) { Log.log(s); }
 
     public static void main(String[] args) {
         try {
@@ -47,68 +51,35 @@ public class HuobiWs extends BaseWs {
         m_socket.connect(new IOCallback() {
             @Override public void onMessage(JSONObject json, IOAcknowledge ack) {
                 try {
-                    System.out.println("Server said:" + json.toString(2));
+                    log("Server said:" + json.toString(2));
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
             }
 
             @Override public void onMessage(String data, IOAcknowledge ack) {
-                System.out.println("Server said: " + data);
+                log("Server said: " + data);
             }
 
             @Override public void onError(SocketIOException socketIOException) {
-                System.out.println("onError() an Error occurred: " + socketIOException);
+                log("onError() an Error occurred: " + socketIOException);
                 socketIOException.printStackTrace();
 
-                System.out.println("will retry again. isConnected=" + m_socket.isConnected() + "; m_reconnectThread=" + m_reconnectThread);
-                if (m_reconnectThread != null && m_reconnectThread.isAlive() && !m_reconnectThread.isInterrupted()) {
-                    synchronized (m_reconnectThread) {
-                        System.out.println(" notify reconnect thread");
-                        m_reconnectThread.notify();
-                    }
-                } else {
-                    System.out.println(" starting reconnect thread");
-                    m_reconnectThread = new Thread() {
-                        @Override public void run() {
-                            try {
-                                long reconnectDelay = DEF_RECONNECT_DELAY;
-                                int attempt = 1;
-                                while (!isInterrupted()) {
-                                    System.out.println("sleep " + reconnectDelay + " ms before reconnect attempt " + attempt);
-                                    Thread.sleep(reconnectDelay);
-                                    synchronized (m_reconnectThread) {
-                                        System.out.println("reconnecting, attempt " + attempt + "...");
-
-                                        subscribe(connectCallback);
-
-                                        System.out.println("reconnect invoked, waiting");
-                                        m_reconnectThread.wait();
-                                        reconnectDelay = reconnectDelay * 3 / 2;
-                                        attempt++;
-                                    }
-                                }
-                                System.out.println("reconnect thread was interrupted - finishing after  " + (attempt - 1) + " attempts");
-                            } catch (Exception e) {
-                                System.out.println("error in reconnect thread: " + e);
-                                e.printStackTrace();
-                            }
-                            m_reconnectThread = null;
-                        }
-                    };
-                    m_reconnectThread.start();
-                }
+                doReconnect(connectCallback);
             }
 
             @Override public void onDisconnect() {
-                System.out.println("Connection terminated. onDisconnect()");
+                log("Connection terminated. onDisconnect() reconnectRequested=" + m_reconnectRequested);
+                if (m_reconnectRequested) {
+                    doReconnect(connectCallback);
+                }
             }
 
             @Override public void onConnect() {
-                System.out.println("Connection established. onConnect() isConnected="+ m_socket.isConnected());
+                log("Connection established. onConnect() isConnected=" + m_socket.isConnected());
                 if (m_reconnectThread != null && m_reconnectThread.isAlive() && !m_reconnectThread.isInterrupted()) {
                     synchronized (m_reconnectThread) {
-                        System.out.println(" notify and interrupt reconnect thread");
+                        log(" notify and interrupt reconnect thread");
                         m_reconnectThread.notify();
                         m_reconnectThread.interrupt();
                     }
@@ -120,91 +91,91 @@ public class HuobiWs extends BaseWs {
             }
 
             @Override public void on(String event, IOAcknowledge ack, Object... args) {
-//                System.out.println("Server triggered event '" + event + "'; args=" + args);
+//                log("Server triggered event '" + event + "'; args=" + args);
                 try {
                     if (event.equals("message")) {
                         List<Object> array = Arrays.asList(args);
-//                        System.out.println(" array=" + array);
+//                        log(" array=" + array);
                         for (Object obj : array) {
-//                            System.out.println("  obj=" + obj);
-//                            System.out.println("   .class=" + obj.getClass());
+//                            log("  obj=" + obj);
+//                            log("   .class=" + obj.getClass());
                             JSONObject json = (JSONObject) obj;
                             String msgType = (String) json.get("msgType");
-//                            System.out.println("   msgType=" + msgType);
+//                            log("   msgType=" + msgType);
                             if (msgType.equals("marketDetail")) {
                                 parseMarketDetail(json);
                             } else if (msgType.equals("tradeDetail")) {
                                 parseTradeDetail(json);
                             } else {
-                                System.out.println("ERROR: not supported msgType=" + msgType);
+                                log("ERROR: not supported msgType=" + msgType);
                             }
                         }
                     }
                 } catch (JSONException e) {
-                    System.out.println("error parsing json: " + e);
+                    log("error parsing json: " + e);
                     e.printStackTrace();
                 }
             }
 
             private void parseTradeDetail(JSONObject json) throws JSONException {
                 JSONObject payload = (JSONObject) json.get("payload");
-//                System.out.println("   payload=" + payload);
+//                log("   payload=" + payload);
                 {
                     JSONArray amount = (JSONArray) payload.get("amount");
-//                        System.out.println("     amount=" + amount);
+//                        log("     amount=" + amount);
                     int length = amount.length();
-//                        System.out.println("      .length=" + length);
+//                        log("      .length=" + length);
                     JSONArray price = (JSONArray) payload.get("price");
-//                        System.out.println("     price=" + price);
-//                        System.out.println("      .length=" + price.length());
+//                        log("     price=" + price);
+//                        log("      .length=" + price.length());
                     JSONArray time = (JSONArray) payload.get("time");
-//                        System.out.println("     time=" + time);
-//                        System.out.println("      .length=" + time.length());
+//                        log("     time=" + time);
+//                        log("      .length=" + time.length());
                     JSONArray topAsks = (JSONArray) payload.get("topAsks");
-//                        System.out.println("     topAsks=" + topAsks);
-//                        System.out.println("      .length=" + topAsks.length());
+//                        log("     topAsks=" + topAsks);
+//                        log("      .length=" + topAsks.length());
                     JSONArray topBids = (JSONArray) payload.get("topBids");
-//                        System.out.println("     topBids=" + topBids);
-//                        System.out.println("      .length=" + topBids.length());
+//                        log("     topBids=" + topBids);
+//                        log("      .length=" + topBids.length());
                     for (int i = 0; i < length; i++) {
                         Double amt = Utils.getDouble(amount.get(i));
                         Double prc = Utils.getDouble(price.get(i));
                         Integer tm = (Integer) time.get(i);
                         long timestamp = tm * 1000L;
-//                        System.out.println("         date=" + new Date(timestamp));
+//                        log("         date=" + new Date(timestamp));
 
                         JSONObject asks = (JSONObject) topAsks.get(i);
-//                            System.out.println("       asks[" + i + "] asks=" + asks);
+//                            log("       asks[" + i + "] asks=" + asks);
                         JSONArray askAmounts = (JSONArray) asks.get("amount");
-//                            System.out.println("        amount=" + askAmounts);
+//                            log("        amount=" + askAmounts);
                         int askAmountsNum = askAmounts.length();
-//                            System.out.println("        .length=" + askAmountsNum);
+//                            log("        .length=" + askAmountsNum);
                         JSONArray askPrices = (JSONArray) asks.get("price");
-//                            System.out.println("        price=" + askPrices);
-//                            System.out.println("        .length=" + askPrices.length());
+//                            log("        price=" + askPrices);
+//                            log("        .length=" + askPrices.length());
 //                            for (int j = 0; j < askAmountsNum; j++) {
 //                                Double askAmt = Utils.getDouble(askAmounts.get(j));
 //                                Double askPrc = Utils.getDouble(askPrices.get(j));
-//                                System.out.println("         ask[" + j + "] amount=" + askAmt + "; price=" + askPrc);
+//                                log("         ask[" + j + "] amount=" + askAmt + "; price=" + askPrc);
 //                            }
                         JSONObject bids = (JSONObject) topBids.get(i);
-//                            System.out.println("       bids[" + i + "] bids=" + asks);
+//                            log("       bids[" + i + "] bids=" + asks);
                         JSONArray bidAmounts = (JSONArray) bids.get("amount");
-//                            System.out.println("        amount=" + bidAmounts);
+//                            log("        amount=" + bidAmounts);
                         int bidAmountsNum = bidAmounts.length();
-//                            System.out.println("        .length=" + bidAmountsNum);
+//                            log("        .length=" + bidAmountsNum);
                         JSONArray bidPrices = (JSONArray) bids.get("price");
-//                            System.out.println("        price=" + bidPrices);
-//                            System.out.println("        .length=" + bidPrices.length());
+//                            log("        price=" + bidPrices);
+//                            log("        .length=" + bidPrices.length());
 //                            for (int j = 0; j < bidAmountsNum; j++) {
 //                                Double bidAmt = Utils.getDouble(bidAmounts.get(j));
 //                                Double bidPrc = Utils.getDouble(bidPrices.get(j));
-//                                System.out.println("         bid[" + j + "] amount=" + bidAmt + "; price=" + bidPrc);
+//                                log("         bid[" + j + "] amount=" + bidAmt + "; price=" + bidPrc);
 //                            }
                         Double askPrc = Utils.getDouble(askPrices.get(i < askAmountsNum ? i : 0));
                         Double bidPrc = Utils.getDouble(bidPrices.get(i < bidAmountsNum ? i : 0));
 
-//                        System.out.println("       trade[" + i + "] timestamp=" + timestamp + "; amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
+//                        log("       trade[" + i + "] timestamp=" + timestamp + "; amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
 
                         if (m_tradesListener != null) {
                             m_tradesListener.onTrade(new TradeData(amt, prc, timestamp));
@@ -218,57 +189,71 @@ public class HuobiWs extends BaseWs {
 
             private void parseMarketDetail(JSONObject json) throws JSONException {
                 String symbolId = (String) json.get("symbolId");
-                System.out.println("   symbolId=" + symbolId);
+                log("   symbolId=" + symbolId);
                 Integer idCur = (Integer) json.get("idCur");
-                System.out.println("   idCur=" + idCur);
+                log("   idCur=" + idCur);
                 JSONObject payload = (JSONObject) json.get("payload");
-                System.out.println("   payload=" + payload);
+                log("   payload=" + payload);
                 Double totalVolume = (Double) payload.get("totalVolume");
-                System.out.println("    totalVolume=" + totalVolume);
+                log("    totalVolume=" + totalVolume);
                 JSONObject trades = (JSONObject) payload.get("trades");
-                System.out.println("    trades=" + trades);
+                log("    trades=" + trades);
                 {
                     JSONArray amount = (JSONArray) trades.get("amount");
-                    System.out.println("     amount=" + amount);
-                    System.out.println("      .length=" + amount.length());
+                    log("     amount=" + amount);
+                    log("      .length=" + amount.length());
                     JSONArray price = (JSONArray) trades.get("price");
-                    System.out.println("     price=" + price);
-                    System.out.println("      .length=" + price.length());
+                    log("     price=" + price);
+                    log("      .length=" + price.length());
                     JSONArray time = (JSONArray) trades.get("time");
-                    System.out.println("     time=" + time);
-                    System.out.println("      .length=" + time.length());
+                    log("     time=" + time);
+                    log("      .length=" + time.length());
                     JSONArray direction = (JSONArray) trades.get("direction");
-                    System.out.println("     direction=" + direction);
-                    System.out.println("      .length=" + direction.length());
+                    log("     direction=" + direction);
+                    log("      .length=" + direction.length());
                 }
                 JSONObject asks = (JSONObject) payload.get("asks");
-                System.out.println("    asks=" + asks);
+                log("    asks=" + asks);
                 {
                     JSONArray amount = (JSONArray) asks.get("amount");
-                    System.out.println("     amount=" + amount);
-                    System.out.println("      .length=" + amount.length());
+                    log("     amount=" + amount);
+                    log("      .length=" + amount.length());
                     JSONArray price = (JSONArray) asks.get("price");
-                    System.out.println("     price=" + price);
-                    System.out.println("      .length=" + price.length());
+                    log("     price=" + price);
+                    log("      .length=" + price.length());
                     JSONArray accuAmount = (JSONArray) asks.get("accuAmount");
-                    System.out.println("     accuAmount=" + accuAmount);
-                    System.out.println("      .length=" + accuAmount.length());
+                    log("     accuAmount=" + accuAmount);
+                    log("      .length=" + accuAmount.length());
                 }
                 JSONObject bids = (JSONObject) payload.get("bids");
-                System.out.println("    bids=" + bids);
+                log("    bids=" + bids);
                 {
                     JSONArray amount = (JSONArray) bids.get("amount");
-                    System.out.println("     amount=" + amount);
-                    System.out.println("      .length=" + amount.length());
+                    log("     amount=" + amount);
+                    log("      .length=" + amount.length());
                     JSONArray price = (JSONArray) bids.get("price");
-                    System.out.println("     price=" + price);
-                    System.out.println("      .length=" + price.length());
+                    log("     price=" + price);
+                    log("      .length=" + price.length());
                     JSONArray accuAmount = (JSONArray) bids.get("accuAmount");
-                    System.out.println("     accuAmount=" + accuAmount);
-                    System.out.println("      .length=" + accuAmount.length());
+                    log("     accuAmount=" + accuAmount);
+                    log("      .length=" + accuAmount.length());
                 }
             }
         });
+    }
+
+    protected void doReconnect(Runnable connectCallback) {
+        log("will retry again. isConnected=" + m_socket.isConnected() + "; m_reconnectThread=" + m_reconnectThread);
+        if (m_reconnectThread != null && m_reconnectThread.isAlive() && !m_reconnectThread.isInterrupted()) {
+            synchronized (m_reconnectThread) {
+                log(" notify reconnect thread");
+                m_reconnectThread.notify();
+            }
+        } else {
+            log(" starting reconnect thread");
+            m_reconnectThread = new ReconnectThread(connectCallback);
+            m_reconnectThread.start();
+        }
     }
 
     private void sendSubscribe() {
@@ -677,7 +662,7 @@ public class HuobiWs extends BaseWs {
     }
 
     private void emit(String str) {
-        System.out.println("str to emit: " + str);
+        log("str to emit: " + str);
         m_socket.emit("request", str);
     }
 
@@ -722,15 +707,56 @@ public class HuobiWs extends BaseWs {
         String str = "[{\"version\":1,\"msgType\":\"reqMsgUnsubscribe\",\"requestIndex\":" + System.currentTimeMillis() + "," +
                 "\"symbolList\":{\"tradeDetail\":[{\"symbolId\":\"btccny\",\"pushType\":\"pushLong\"}]}}]";
         emit(str);
-        System.out.println("unsubscribe sent");
+        log("unsubscribe sent");
         try {
             Thread.sleep(500);
         } catch (InterruptedException e) {}
         m_socket.disconnect();
-        System.out.println("Huobi: disconnected");
+        log("Huobi: disconnected");
     }
 
     @Override public String getPropPrefix() {
         return "hu.";
+    }
+
+    @Override public void reconnect() {
+        log("Huobi: reconnect requested");
+        m_socket.reconnect();
+//        m_reconnectRequested = true;
+//        stop();
+    }
+
+    private class ReconnectThread extends Thread {
+        private final Runnable m_connectCallback;
+
+        public ReconnectThread(Runnable connectCallback) {
+            m_connectCallback = connectCallback;
+        }
+
+        @Override public void run() {
+            try {
+                long reconnectDelay = DEF_RECONNECT_DELAY;
+                int attempt = 1;
+                while (!isInterrupted()) {
+                    log("sleep " + reconnectDelay + " ms before reconnect attempt " + attempt);
+                    Thread.sleep(reconnectDelay);
+                    synchronized (m_reconnectThread) {
+                        log("reconnecting, attempt " + attempt + "...");
+
+                        subscribe(m_connectCallback);
+
+                        log("reconnect invoked, waiting");
+                        m_reconnectThread.wait();
+                        reconnectDelay = reconnectDelay * 3 / 2;
+                        attempt++;
+                    }
+                }
+                log("reconnect thread was interrupted - finishing after  " + (attempt - 1) + " attempts");
+            } catch (Exception e) {
+                log("error in reconnect thread: " + e);
+                e.printStackTrace();
+            }
+            m_reconnectThread = null;
+        }
     }
 }

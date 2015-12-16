@@ -10,4 +10,5 @@ public interface IWs {
     void subscribeTop(Pair pair, ITopListener listener) throws Exception;
     void stop();
     String getPropPrefix();
+    void reconnect();
 }

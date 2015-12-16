@@ -14,6 +14,8 @@ import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
     public static OrderPriceMode ORDER_PRICE_MODE = OrderPriceMode.MARKET; // OrderPriceMode.MID_TO_MKT; // OrderPriceMode.DEEP_MKT; // OrderPriceMode.DEEP_MKT_AVG; // OrderPriceMode.MKT_AVG; ; // OrderPriceMode.MID;
+    public static final int NO_TRADE_TIMEOUT = 30000;
+    public static final int RECONNECT_TIMEOUT = 90000;
     private static final long MIN_ORDER_LIVE_TIME = 7000;
     private static final double OUT_OF_MARKET_THRESHOLD = 0.6;
     private static final long MIN_REPROCESS_DIRECTION_TIME = 12000;
@@ -32,6 +34,9 @@ public class TresExecutor extends BaseExecutor {
     public int m_ordersFilled;
     public double m_tradeVolume;
     Runnable m_stopCallback;
+    private long m_lastSeenTradeTime;
+    private double m_lastTradePartRate;
+    private boolean m_oldLastTradeReconnectRequested;
 
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
@@ -119,6 +124,7 @@ public class TresExecutor extends BaseExecutor {
             }
             addTask(task);
         }
+        m_lastSeenTradeTime = System.currentTimeMillis();
     }
 
     @Override protected void gotTrade(TradeDataLight tradeData) throws Exception {
@@ -153,12 +159,37 @@ public class TresExecutor extends BaseExecutor {
         if (m_order != null) {
             log("TresExecutor.processDirection() m_order=" + m_order);
         }
+        checkLastSeenTrade();
         return super.processDirection();
+    }
+
+    protected void checkLastSeenTrade() {
+        long millis = System.currentTimeMillis();
+        long lastTradeAge = millis - m_lastSeenTradeTime;
+        if (lastTradeAge > NO_TRADE_TIMEOUT) { // no trade in 1 min - start park
+            m_lastTradePartRate = Math.max(0, 1 - ((double)lastTradeAge - NO_TRADE_TIMEOUT) / NO_TRADE_TIMEOUT);
+            log("lastTradeAge=" + lastTradeAge + " => lastTradePartRate=" + m_lastTradePartRate);
+            if (lastTradeAge > RECONNECT_TIMEOUT) { // no trade in 3 min - request reconnect
+                if(!m_oldLastTradeReconnectRequested) {
+                    log(" TOO old last trade - request reconnect...");
+                    m_oldLastTradeReconnectRequested = true;
+                    m_exchData.m_ws.reconnect();
+                }
+            }
+        } else {
+            m_lastTradePartRate = 1.0;
+            m_oldLastTradeReconnectRequested = false;
+        }
+    }
+
+    @Override protected void onErrorInt() throws Exception {
+        super.onErrorInt();
+        checkLastSeenTrade();
     }
 
     @Override protected double getDirectionAdjusted() {
         return s_auto
-                ? m_exchData.getDirectionAdjusted()
+                ? m_exchData.getDirectionAdjusted() * m_lastTradePartRate
                 : s_manualDirection;
     }
 

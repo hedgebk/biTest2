@@ -1,5 +1,6 @@
 package bthdg.ws;
 
+import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
@@ -30,6 +31,8 @@ public class OkCoinWs extends BaseWs {
     }
 
     public static final String URL = "wss://real.okcoin.cn:10440/websocket/okcoinapi";
+    public static final int DEFAULT_MAX_SESSION_IDLE_TIMEOUT = 25000;
+
     public static final String BTCCNY_TICKER_CHANNEL = "ok_btccny_ticker";
 //    public static final String SUBSCRIBE_BTCCNY_TICKER = "{'event':'addChannel','channel':'ok_btccny_ticker'}";
 // [{"channel":"ok_btccny_ticker",
@@ -110,6 +113,10 @@ public class OkCoinWs extends BaseWs {
     private final Map<String,MessageHandler.Whole<Object>> m_channelListeners = new HashMap<String,MessageHandler.Whole<Object>>();
     private MessageHandler.Whole<String> m_messageHandler;
     private boolean m_stopped;
+    private boolean m_tradesSubscribed;
+    private boolean m_topSubscribed;
+
+    private static void log(String s) { Log.log("OK: "+s); }
 
     public static void main(String[] args) {
         try {
@@ -141,9 +148,9 @@ public class OkCoinWs extends BaseWs {
                     }
                 }
             }, cec, new URI(URL));
-            System.out.println("session isOpen="+session.isOpen() + "; session="+session);
+            log("session isOpen=" + session.isOpen() + "; session=" + session);
             Thread.sleep(15000);
-            System.out.println("done");
+            log("done");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -165,33 +172,33 @@ public class OkCoinWs extends BaseWs {
         m_tradesListener = listener;
         m_channelListeners.put(BTCCNY_TRADES_CHANNEL, new MessageHandler.Whole<Object>() {
             @Override public void onMessage(Object json) { // [["2228.01","0.2","09:26:02","ask"]]
-//System.out.println("   tradesDataListener.onMessage() json=" + json);
+//log("   tradesDataListener.onMessage() json=" + json);
                 if (json instanceof JSONArray) {
                     JSONArray array = (JSONArray) json;
                     int length = array.size();
-//System.out.println("    trades array length = " + length);
+//log("    trades array length = " + length);
                     long lastMillis = 0;
                     for(int i = 0; i < length; i++) {
                         Object tradeObj = array.get(i); // ["2231.73","0.056","10:10:00","ask"]
-//System.out.println("     tradeObj["+i+"]: " + tradeObj + ";  class="+tradeObj.getClass());
+//log("     tradeObj["+i+"]: " + tradeObj + ";  class="+tradeObj.getClass());
                         if (tradeObj instanceof JSONArray) {
                             JSONArray tradeItem = (JSONArray) tradeObj;
-//System.out.println("     tradeItem[" + i + "]: " + tradeItem);
+//log("     tradeItem[" + i + "]: " + tradeItem);
                             String priceStr = (String) tradeItem.get(0);
                             String size = (String) tradeItem.get(1);
                             String time = (String) tradeItem.get(2);
                             String side = (String) tradeItem.get(3);
                             long millis = parseTimeToDate(time);
                             if (millis < lastMillis) {
-                                System.out.println("got not increasing time: millis=" + millis + ", lastMillis=" + lastMillis + "; diff=" + (millis - lastMillis));
+                                log("got not increasing time: millis=" + millis + ", lastMillis=" + lastMillis + "; diff=" + (millis - lastMillis));
                             }
-//System.out.println("     price=" + priceStr + "; size=" + size + "; time=" + time + "; side=" + side + "; millis=" + millis);
+//log("     price=" + priceStr + "; size=" + size + "; time=" + time + "; side=" + side + "; millis=" + millis);
                             if (millis != 0) {
                                 double amount = Utils.getDouble(size);
                                 double price = Utils.getDouble(priceStr);
                                 TradeType type = TradeType.get(side);
                                 TradeData tdata = new TradeData(amount, price, millis, 0, type);
-//System.out.println("      TradeData=" + tdata);
+//log("      TradeData=" + tdata);
                                 if (m_tradesListener != null) {
                                     m_tradesListener.onTrade(tdata);
                                 }
@@ -212,17 +219,17 @@ public class OkCoinWs extends BaseWs {
         m_topListener = listener;
         m_channelListeners.put(BTCCNY_TICKER_CHANNEL, new MessageHandler.Whole<Object>() {
             @Override public void onMessage(Object json) { // {"high":"1976.29","vol":"65,980.35","last":"1957.91","low":"1917.19","buy":"1957.85","sell":"1957.91","timestamp":"1419804927532"}
-//System.out.println("   topDataListener.onMessage() json=" + json + ";  class=" + json.getClass());
+//log("   topDataListener.onMessage() json=" + json + ";  class=" + json.getClass());
                 if (json instanceof JSONObject) {
                     JSONObject jsonObject = (JSONObject) json;
                     Object buyObj = jsonObject.get("buy");
                     Object sellObj = jsonObject.get("sell");
                     String timestampStr = (String) jsonObject.get("timestamp");
-//System.out.println("     buyStr=" + buyStr + "; sellStr=" + sellStr + "; timestampStr=" + timestampStr);
+//log("     buyStr=" + buyStr + "; sellStr=" + sellStr + "; timestampStr=" + timestampStr);
                     double buy = Utils.getDouble(buyObj);
                     double sell = Utils.getDouble(sellObj);
                     long timestamp = Utils.getLong(timestampStr);
-//System.out.println("      buy=" + buy + "; sell=" + sell + "; timestamp=" + timestamp);
+//log("      buy=" + buy + "; sell=" + sell + "; timestamp=" + timestamp);
                     if (m_topListener != null) {
                         m_topListener.onTop(timestamp, buy, sell);
                     }
@@ -237,10 +244,10 @@ public class OkCoinWs extends BaseWs {
             m_stopped = true;
             if (m_session != null) {
                 m_session.close();
-                System.out.println("OkCoin: session closed");
+                log("OkCoin: session closed");
             }
         } catch (IOException e) {
-            System.out.println("error close OkCoin session: " + e);
+            log("error close OkCoin session: " + e);
             e.printStackTrace();
         }
     }
@@ -249,10 +256,23 @@ public class OkCoinWs extends BaseWs {
         return "ok.";
     }
 
+    @Override public void reconnect() {
+        log("Huobi: reconnect requested");
+        try {
+            m_session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "reconnect requested"));
+        } catch (IOException e) {
+            log("reconnect error in close session: " + e);
+            e.printStackTrace();
+        }
+    }
+
     private void subscribe(final String channel) throws Exception {
+        log("subscribe() channel=" + channel + "; m_session=" + m_session);
         if( m_session == null ) {
+            log(" no session. connecting...");
             connect(new Runnable() {
                 @Override public void run() {
+                    log("subscribe().connect().connected");
                     sendSubscribe(channel);
                 }
             });
@@ -263,7 +283,7 @@ public class OkCoinWs extends BaseWs {
 
     private void sendSubscribe(String channel) {
         String subscribeCmd = "{'event':'addChannel','channel':'" + channel + "'}";
-        System.out.println("sendSubscribe() channel=" + channel + "; subscribeCmd=" + subscribeCmd + "; m_session=" + m_session);
+        log("sendSubscribe() channel=" + channel + "; subscribeCmd=" + subscribeCmd + "; m_session=" + m_session);
 
         addMessageHandlerIfNeeded();
         try {
@@ -277,7 +297,7 @@ public class OkCoinWs extends BaseWs {
         if( m_messageHandler == null ) {
             m_messageHandler = new MessageHandler.Whole<String>() {
                 @Override public void onMessage(String message) {
-//System.out.println("Received message: " + message);
+//log("Received message: " + message);
                     Object obj = parseJson(message);
                     OkCoinWs.this.onMessage(obj);
                 }
@@ -287,27 +307,27 @@ public class OkCoinWs extends BaseWs {
     }
 
     private void onMessage(Object json) {
-//System.out.println("Received json message (class="+json.getClass()+"): " + json);
+//log("Received json message (class="+json.getClass()+"): " + json);
         // [{ "channel":"ok_btccny_trades","data":[["2228.01","0.2","09:26:02","ask"]]}]
         if (json instanceof JSONArray) {
             JSONArray array = (JSONArray) json;
             int length = array.size();
-//                    System.out.println(" array length = " + length);
+//                    log(" array length = " + length);
             for(int i = 0; i < length; i++) {
                 Object channelObj = array.get(i);
-//                        System.out.println(" channelObj["+i+"]: " + channelObj + ";  class="+channelObj.getClass());
+//                        log(" channelObj["+i+"]: " + channelObj + ";  class="+channelObj.getClass());
                 if(channelObj instanceof JSONObject) {
                     JSONObject channelItem = (JSONObject)channelObj;
-//                            System.out.println(" channelItem["+i+"]: " + channelItem);
+//                            log(" channelItem["+i+"]: " + channelItem);
                     String channel = (String) channelItem.get("channel");
-//                            System.out.println("  channel: " + channelItem);
+//                            log("  channel: " + channelItem);
                     MessageHandler.Whole<Object> channelListener = m_channelListeners.get(channel);
                     if(channelListener != null) {
                         Object data = channelItem.get("data");
-//                                System.out.println("  data: " + data);
+//                                log("  data: " + data);
                         channelListener.onMessage(data);
                     } else {
-                        System.out.println("no listener for channel '" + channel + "'; keys:" + m_channelListeners.keySet());
+                        log("no listener for channel '" + channel + "'; keys:" + m_channelListeners.keySet());
                     }
                 }
             }
@@ -324,37 +344,41 @@ public class OkCoinWs extends BaseWs {
         return null;
     }
 
-    @Override public void connect(final Runnable callback) /*throws Exception*/ {
+    @Override public void connect(final Runnable callback) {
         try {
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
             ClientManager client = ClientManager.createClient();
+            client.setDefaultMaxSessionIdleTimeout(DEFAULT_MAX_SESSION_IDLE_TIMEOUT);
+            log("connect to server...");
             client.connectToServer(new Endpoint() {
                 @Override public void onOpen(final Session session, EndpointConfig config) {
-                    System.out.println("onOpen session=" + session + "; EndpointConfig=" + config);
+                    log("onOpen session=" + session + "; EndpointConfig=" + config);
                     m_session = session;
+                    long maxIdleTimeout = m_session.getMaxIdleTimeout();
+                    log(" maxIdleTimeout=" + maxIdleTimeout);
                     callback.run();
                 }
 
                 @Override public void onClose(Session session, CloseReason closeReason) {
-                    System.out.println("onClose session=" + session + "; closeReason=" + closeReason);
+                    log("onClose session=" + session + "; closeReason=" + closeReason);
                     m_messageHandler = null;
                     if (m_stopped) {
-                        System.out.println("session stopped - no reconnect");
+                        log("session stopped - no reconnect");
                     } else {
                         new ReconnectThread(callback).start();
                     }
                 }
 
                 @Override public void onError(Session session, Throwable thr) {
-                    System.out.println("onError session=" + session + "; Throwable=" + thr);
+                    log("onError session=" + session + "; Throwable=" + thr);
                     thr.printStackTrace();
                 }
             }, cec, new URI(URL));
-            System.out.println("session isOpen=" + m_session.isOpen() + "; session=" + m_session);
+            log("session isOpen=" + m_session.isOpen() + "; session=" + m_session);
         } catch (Exception e) {
-            System.out.println("connectToServer error: " + e);
+            log("connectToServer error: " + e);
             if (m_stopped) {
-                System.out.println("session stopped - no reconnect");
+                log("session stopped - no reconnect");
             } else {
                 new ReconnectThread(callback).start();
             }
@@ -397,7 +421,7 @@ public class OkCoinWs extends BaseWs {
                 return OUT_CALENDAR.getTimeInMillis();
             }
         } catch (java.text.ParseException e) {
-            System.out.println("error parsing time=" + time);
+            log("error parsing time=" + time);
         }
         return 0;
     }
@@ -408,54 +432,69 @@ public class OkCoinWs extends BaseWs {
 
         public ReconnectThread(Runnable callback) {
             m_callback = callback;
+
+            m_tradesSubscribed = false;
+            m_topSubscribed = false;
         }
 
         @Override public void run() {
-            System.out.println("reconnect thread started");
+            log("reconnect thread started");
             try {
                 long reconnectTimeout = 3000;
                 int attempt = 1;
                 boolean iterate = true;
                 while (iterate) {
-                    System.out.println("reconnect attempt " + attempt + "; waiting " + reconnectTimeout + " ms...");
+                    log("reconnect attempt " + attempt + "; waiting " + reconnectTimeout + " ms...");
                     Thread.sleep(reconnectTimeout);
                     try {
                         connect(new Runnable() {
                             @Override public void run() {
-                                System.out.println("reconnected. resubscribing...");
+                                log("reconnected. resubscribing...");
                                 resubscribe();
+                                log("resubscribed. m_callback=" + m_callback);
                                 m_callback.run();
                             }
                         });
                         iterate = false;
                     } catch (Exception e) {
-                        System.out.println("reconnect error: " + e);
+                        log("reconnect error: " + e);
                         attempt++;
                         reconnectTimeout = reconnectTimeout * 3 / 2;
                     }
                 }
-                System.out.println("reconnect thread finished");
+                log("reconnect thread finished");
             } catch (Exception e) {
-                System.out.println("reconnect error: " + e);
+                log("reconnect error: " + e);
                 e.printStackTrace();
             }
         }
     }
 
     private void resubscribe() {
+        log("resubscribe()");
         try {
             if (m_tradesListener != null) {
-                subscribe(BTCCNY_TRADES_CHANNEL);
+                if (m_tradesSubscribed) {
+                    log(" trades already Subscribed");
+                } else {
+                    subscribe(BTCCNY_TRADES_CHANNEL);
+                    m_tradesSubscribed = true;
+                }
             } else {
-                System.out.println("no tradesListener");
+                log("no tradesListener");
             }
             if (m_topListener != null) {
-                subscribe(BTCCNY_TICKER_CHANNEL);
+                if (m_topSubscribed) {
+                    log(" top already Subscribed");
+                } else {
+                    subscribe(BTCCNY_TICKER_CHANNEL);
+                    m_topSubscribed = true;
+                }
             } else {
-                System.out.println("no topListener");
+                log("no topListener");
             }
         } catch (Exception e) {
-            System.out.println("resubscribe error: " + e);
+            log("resubscribe error: " + e);
             e.printStackTrace();
         }
     }
