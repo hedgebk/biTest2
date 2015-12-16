@@ -21,6 +21,10 @@ import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
 import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.BOBYQAOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
+import org.apache.commons.math3.util.FastMath;
 
 import java.io.File;
 import java.io.IOException;
@@ -364,34 +368,86 @@ class TresLogProcessor extends Thread {
             }
         };
 
-        // Choices that exceed 2n+1 are not recommended.
+        MultivariateOptimizer optimize;
+        PointValuePair pair1 = null;
+        PointValuePair pair2 = null;
+        PointValuePair pair3 = null;
+        double[] point;
+
+        // -------------------------------------------------------
+        log("-----------------------------------------------------");
+        optimize = new PowellOptimizer(1e-13, FastMath.ulp(1d));
+        try {
+            pair1 = optimize.optimize(
+                    new ObjectiveFunction(function),
+                    new MaxEval(200),
+                    GoalType.MAXIMIZE,
+                    new InitialGuess(startPoint)
+            );
+
+            log("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            log("optimize: Evaluations=" + optimize.getEvaluations()
+                    + "; Iterations=" + optimize.getIterations());
+
+            setOptimalConfig(tres, fieldConfigs, pair1.getPoint());
+        } catch (Exception e) {
+            err("error: " + e, e);
+        }
+
+        // -------------------------------------------------------
+        log("-----------------------------------------------------");
+//        // Choices that exceed 2n+1 are not recommended.
         int numberOfInterpolationPoints = 5; //1 * startPoint.length + 1;
-        MultivariateOptimizer optimize = new BOBYQAOptimizer(numberOfInterpolationPoints);
-        PointValuePair pair = optimize.optimize(
-                new ObjectiveFunction(function),
-                new MaxEval(200),
-                GoalType.MAXIMIZE,
-                new InitialGuess(startPoint),
-                bounds
-        );
+        optimize = new BOBYQAOptimizer(numberOfInterpolationPoints);
+        try {
+            pair2 = optimize.optimize(
+                    new ObjectiveFunction(function),
+                    new MaxEval(200),
+                    GoalType.MAXIMIZE,
+                    new InitialGuess(startPoint),
+                    bounds
+            );
 
-//        SimplexOptimizer optimize = new SimplexOptimizer(1e-3, 1e-6);
-//        PointValuePair pair = optimize.optimize(
-//                new ObjectiveFunction(function),
-//                new MaxEval(200),
-//                GoalType.MAXIMIZE,
-//                new InitialGuess(startPoint),
-//                bounds,
-//                new MultiDirectionalSimplex(startPoint.length));
+            log("point=" + Arrays.toString(pair2.getPoint()) + "; value=" + pair2.getValue());
+            log("optimize: Evaluations=" + optimize.getEvaluations()
+                    + "; Iterations=" + optimize.getIterations());
 
-        double[] point = pair.getPoint();
-        String pointStr = Arrays.toString(point);
+            setOptimalConfig(tres, fieldConfigs, pair2.getPoint());
+        } catch (Exception e) {
+            err("error: " + e, e);
+        }
 
-        log("point=" + pointStr + "; value=" + pair.getValue());
-        log("optimize: Evaluations=" + optimize.getEvaluations()
-                + "; Iterations=" + optimize.getIterations());
+        // -------------------------------------------------------
+        log("-----------------------------------------------------");
+        optimize = new SimplexOptimizer(1e-3, 1e-6);
+        try {
+            pair3 = optimize.optimize(
+                    new ObjectiveFunction(function),
+                    new MaxEval(100),
+                    GoalType.MAXIMIZE,
+                    new InitialGuess(startPoint),
+                    new MultiDirectionalSimplex(startPoint.length));
 
-        setOptimalConfig(tres, fieldConfigs, point);
+            log("point=" + Arrays.toString(pair3.getPoint()) + "; value=" + pair3.getValue());
+            log("optimize: Evaluations=" + optimize.getEvaluations()
+                    + "; Iterations=" + optimize.getIterations());
+
+            setOptimalConfig(tres, fieldConfigs, pair3.getPoint());
+        } catch (Exception e) {
+            err("error: " + e, e);
+        }
+
+        log("-----------------------------------------------------");
+        log("-----------------------------------------------------");
+        if (pair1 != null) {
+            log("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+        }
+        if (pair2 != null) {
+            log("point=" + Arrays.toString(pair2.getPoint()) + "; value=" + pair2.getValue());
+        }
+        if (pair3 != null) {
+            log("point=" + Arrays.toString(pair3.getPoint()) + "; value=" + pair3.getValue());
+        }
     }
 
     private void setOptimalConfig(Tres tres, List<OptimizeFieldConfig> fieldConfigs, double[] point) {
