@@ -4,6 +4,10 @@ import bthdg.tres.Tres;
 import bthdg.tres.ind.OscIndicator;
 
 public enum OptimizeField {
+    OSC_BAR_SIZE("osc.bar_size") {
+        @Override public double get(Tres tres) { return tres.m_barSizeMillis; }
+        @Override public void set(Tres tres, double value) { tres.m_barSizeMillis = (int) value; }
+    },
     OSC_LEN1("osc.len1") {
         @Override public double get(Tres tres) { return tres.m_len1; }
         @Override public void set(Tres tres, double value) { tres.m_len1 = (int) value; }
