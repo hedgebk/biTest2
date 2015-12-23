@@ -78,6 +78,7 @@ class TresLogProcessor extends Thread {
     private long s_lastTradeMillis;
     private boolean m_iterated;
     private HashMap<OptimizeField, String> m_optCfg;
+    private HashMap<OptimizeField, String> m_gridCfg;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -186,9 +187,27 @@ class TresLogProcessor extends Thread {
         }
 
         getOptimizeConfig(config);
+        getGridConfig(config);
 
         BaseExecutor.DO_TRADE = false;
         log("DO_TRADE set to false");
+    }
+
+    private void getGridConfig(Config config) {
+        for (OptimizeField field : OptimizeField.values()) {
+            String key = field.m_key;
+            String cfgStr = config.getProperty("tre.grid." + key);
+            if (cfgStr != null) {
+                log("opt." + key + "=" + cfgStr);
+                if (m_gridCfg == null) {
+                    m_gridCfg = new HashMap<OptimizeField, String>();
+                }
+                m_gridCfg.put(field, cfgStr);
+            }
+        }
+        if (m_gridCfg != null) {
+            log("GridConfig=" + m_gridCfg);
+        }
     }
 
     private void getOptimizeConfig(Config config) {
@@ -307,11 +326,29 @@ class TresLogProcessor extends Thread {
         }
 
         checkOptimize(tres, datas);
+        checkGrid(tres, datas);
 
         if(!m_iterated) {
             tres.m_collectPoints = true;
             Map<String, Double> averageProjected = processAllTicks(datas);
             log("averageProjected: " + averageProjected);
+        }
+    }
+
+    private void checkGrid(Tres tres, List<TradesTopsData> datas) {
+        if (m_gridCfg != null) {
+            List<OptimizeFieldConfig> fieldConfigs = new ArrayList<OptimizeFieldConfig>(m_gridCfg.size());
+            for (Map.Entry<OptimizeField, String> entry : m_gridCfg.entrySet()) {
+                OptimizeField field = entry.getKey();
+                String configStr = entry.getValue();
+                String[] split = configStr.split(";"); // 123;456.6;222.2
+                double min = Double.parseDouble(split[0]);
+                double max = Double.parseDouble(split[1]);
+                double step = Double.parseDouble(split[2]);
+                OptimizeFieldConfig fieldConfig = new OptimizeFieldConfig(field, min, max, step);
+                fieldConfigs.add(fieldConfig);
+            }
+            doGrid(tres, datas, fieldConfigs);
         }
     }
 
@@ -332,8 +369,13 @@ class TresLogProcessor extends Thread {
         }
     }
 
+    private void doGrid(Tres tres, List<TradesTopsData> datas, List<OptimizeFieldConfig> fieldConfigs) {
+        final String algoName = tres.m_exchDatas.get(0).m_playAlgos.get(0).m_algo.m_name;
+        log("doGrid(algoName=" + algoName + ")...");
+    }
+
+
     private void doOptimize(final Tres tres, final List<TradesTopsData> datas, final List<OptimizeFieldConfig> fieldConfigs) {
-//        final String algoName = tres.m_algosArr[0];
         final String algoName = tres.m_exchDatas.get(0).m_playAlgos.get(0).m_algo.m_name;
         log("doOptimize(algoName=" + algoName + ")...");
         double[] startPoint = buildStartPoint(fieldConfigs);
@@ -497,19 +539,7 @@ class TresLogProcessor extends Thread {
 
     private void varyBarSize(List<TradesTopsData> datas, Tres tres, String varyBarSize) throws Exception {
         log("varyBarSize: " + varyBarSize);
-        long old = tres.m_barSizeMillis;
-
-        String[] split = varyBarSize.split(";"); // 2000ms;10000ms;500ms
-        long min = Utils.parseDHMSMtoMillis(split[0]);
-        long max = Utils.parseDHMSMtoMillis(split[1]);
-        long step = Utils.parseDHMSMtoMillis(split[2]);
-        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
-        for (long i = min; i <= max; i += step) {
-            tres.m_barSizeMillis = i;
-            iterate(datas, i, "%d", "barSizeMillis", maxMap);
-        }
-        logMax(maxMap, "barSizeMillis");
-        tres.m_barSizeMillis = old;
+        varyInteger(datas, tres, OptimizeField.OSC_BAR_SIZE, varyBarSize);
     }
 
     private void varyBarSizeMul(List<TradesTopsData> datas, Tres tres, String varyBarSizeMul) throws Exception {
