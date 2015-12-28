@@ -5,6 +5,7 @@ import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.util.Colors;
+import bthdg.util.Utils;
 
 import java.awt.*;
 
@@ -18,13 +19,18 @@ public class CciIndicator extends TresIndicator {
     @Override public Color getPeakColor() { return CCI_AVG_COLOR; }
 
     public CciIndicator(TresAlgo algo) {
-        super( "Cci", PEAK_TOLERANCE, algo);
+        this("Cci", algo);
+    }
+
+    protected CciIndicator(String name, TresAlgo algo) {
+        super( name, PEAK_TOLERANCE, algo);
     }
 
     @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) {
         return new PhasedCciIndicator(this, exchData, phaseIndex);
     }
 
+    // ======================================================================================
     public static class PhasedCciIndicator extends TresPhasedIndicator {
         public static int SMA_LENGTH = 20;
 
@@ -51,6 +57,71 @@ public class CciIndicator extends TresIndicator {
 
         @Override public boolean update(long timestamp, double price) {
             return m_calculator.update(timestamp, price);
+        }
+    }
+
+
+    // ======================================================================================
+    public static class CciAdjustedIndicator extends TresIndicator {
+        public static double FRAME_RATIO = 21;
+        private static final Color COLOR = new Color(130, 200, 43);
+
+        private final Utils.SlidingValuesFrame m_cciFrameCounter;
+        private long m_lastCciMillis;
+        private double m_lastCciValue;
+        private double m_lastCciAdjusted;
+        private double m_lastMinValue;
+        private double m_lastMaxValue;
+
+        public CciAdjustedIndicator(TresAlgo algo) {
+            super("Cci'", 0, algo);
+            TresExchData tresExchData = m_algo.m_tresExchData;
+            long millis = (long) (tresExchData.m_tres.m_barSizeMillis * FRAME_RATIO);
+            m_cciFrameCounter = new Utils.SlidingValuesFrame(millis);
+        }
+
+        @Override public Color getColor() { return COLOR; }
+        @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+
+        @Override public void addBar(ChartPoint chartPoint) {
+            ChartPoint adjustedPoint = recalcCciAdjusted(chartPoint);
+            super.addBar(adjustedPoint);
+        }
+
+        private ChartPoint recalcCciAdjusted(ChartPoint cci) {
+            if (cci != null) {
+                double cciValue = cci.m_value;
+                long cciMillis = cci.m_millis;
+                boolean timeChanged = m_lastCciMillis != cciMillis;
+                if (timeChanged || (m_lastCciValue != cciValue)) {
+                    m_cciFrameCounter.justAdd(cciMillis, cciValue);
+                    if (m_cciFrameCounter.m_full) {
+                        // recalc if timeframe changed or new value is out of known bounds
+                        if (timeChanged || (cciValue > m_lastMaxValue) || (cciValue < m_lastMinValue)) {
+                            Utils.DoubleDoubleMinMaxCalculator minMaxCalc = new Utils.DoubleDoubleMinMaxCalculator();
+                            for (Double value : m_cciFrameCounter.m_map.values()) {
+                                minMaxCalc.calculate(value);
+                            }
+                            double minValue = minMaxCalc.m_minValue;
+                            m_lastMinValue = minValue;
+                            double maxValue = minMaxCalc.m_maxValue;
+                            m_lastMaxValue = maxValue;
+                        }
+
+                        double minMaxDiff = m_lastMaxValue - m_lastMinValue;
+                        if (minMaxDiff != 0) {
+                            double cciAdjusted = (cciValue - m_lastMinValue) / minMaxDiff;
+                            m_lastCciAdjusted = cciAdjusted;
+                        } else {
+                            m_lastCciAdjusted = 0;
+                        }
+                        m_lastCciMillis = cciMillis;
+                        m_lastCciValue = cciValue;
+                        return new ChartPoint(m_lastCciMillis, m_lastCciAdjusted);
+                    }
+                }
+            }
+            return null;
         }
     }
 }

@@ -370,7 +370,7 @@ public abstract class TresIndicator {
     }
 
     protected void onAvgPeak(TrendWatcher<ChartPoint> trendWatcher) {
-        m_algo.onAvgPeak(TresIndicator.this);
+        m_algo.onAvgPeak(TresIndicator.this, trendWatcher);
     }
 
     protected void drawZeroHLine(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {

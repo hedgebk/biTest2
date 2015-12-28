@@ -44,6 +44,8 @@ public abstract class TresAlgo {
             return new CnoAlgo(tresExchData);
         } else if (algoName.equals("c+o2")) {
             return new Cno2Algo(tresExchData);
+        } else if (algoName.equals("c+o3")) {
+            return new Cno3Algo(tresExchData);
         } else if (algoName.equals("osc")) {
             return new OscAlgo(tresExchData);
         } else if (algoName.equals("tre")) {
@@ -72,7 +74,7 @@ public abstract class TresAlgo {
         }
     }
 
-    public void onAvgPeak(TresIndicator indicator) {
+    public void onAvgPeak(TresIndicator indicator, TrendWatcher<ChartPoint> trendWatcher) {
         notifyListener();
     }
 
