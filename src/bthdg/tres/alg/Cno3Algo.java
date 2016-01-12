@@ -10,12 +10,14 @@ import java.awt.*;
 
 public class Cno3Algo extends TresAlgo {
     private static final Color COLOR = new Color(30, 100, 73);
+    public static final double SMOOTH_RATE = 0.5;
 
     private final CciIndicator m_cciIndicator;
     private final CciIndicator.CciAdjustedIndicator m_cciAdjustedIndicator;
     private final OscIndicator m_oscIndicator;
     private final MidIndicator m_midIndicator;
-    private final AndIndicator m_andIndicator;
+//    private final AndIndicator m_andIndicator;
+    private final AndIndicator m_andIndicator2;
     private final SmoochedIndicator m_smoochedIndicator;
 
     @Override public Color getColor() { return COLOR; }
@@ -54,23 +56,43 @@ public class Cno3Algo extends TresAlgo {
                 if (chartPoint != null) {
                     super.addBar(new ChartPoint(chartPoint.m_millis, (chartPoint.m_value - 0.5) * 2));
                     ChartPoint osc = getLastPoint();
-                    m_andIndicator.addBar(osc);
+//                    m_andIndicator.addBar(osc);
+                    m_andIndicator2.addBar(osc);
                 }
             }
         };
         m_indicators.add(m_midIndicator);
 
-        m_andIndicator = new AndIndicator(this) {
+//        m_andIndicator = new AndIndicator(this) {
+//            @Override public void addBar(ChartPoint chartPoint) {
+//                super.addBar(chartPoint);
+//                ChartPoint osc = getLastPoint();
+//                m_smoochedIndicator.addBar(osc);
+//            }
+//        };
+//        m_indicators.add(m_andIndicator);
+
+        m_andIndicator2 = new AndIndicator(this, "+'") {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 ChartPoint osc = getLastPoint();
                 m_smoochedIndicator.addBar(osc);
             }
+
+            @Override protected double updateOutValue(double inValue) {
+                double outValue = inValue * 2; // [-2 ... 2]
+                if(outValue > 0) {
+                    outValue -= 1;
+                } else {
+                    outValue += 1;
+                }
+                return outValue;
+            }
         };
-        m_indicators.add(m_andIndicator);
+        m_indicators.add(m_andIndicator2);
 
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
-        m_smoochedIndicator = new SmoochedIndicator(this, "sm", (long) (0.2 * barSizeMillis), 0) {
+        m_smoochedIndicator = new SmoochedIndicator(this, "sm", (long) (SMOOTH_RATE * barSizeMillis), 0) {
             @Override protected boolean countPeaks() { return false; }
         };
         m_indicators.add(m_smoochedIndicator);
@@ -90,7 +112,7 @@ public class Cno3Algo extends TresAlgo {
         ChartPoint lastPoint = m_smoochedIndicator.getLastPoint();
         return (lastPoint == null) ? 0 : lastPoint.m_value;
     }
-    @Override public Direction getDirection() { return m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
+    @Override public Direction getDirection() { return m_andIndicator2.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
     @Override public String getRunAlgoParams() {
         return "Cno3";
@@ -106,7 +128,10 @@ public class Cno3Algo extends TresAlgo {
         private double m_lastInValue = 0;
 
         public AndIndicator(TresAlgo algo) {
-            super("+", 0.2, algo);
+            this(algo, "+");
+        }
+        public AndIndicator(TresAlgo algo, String name) {
+            super(name, 0.2, algo);
         }
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
         @Override public Color getColor() { return Color.CYAN; }
@@ -123,7 +148,8 @@ public class Cno3Algo extends TresAlgo {
                 double outValue;
                 if (((m_lastInValue > 0) && (inValue > 0)) || ((m_lastInValue < 0) && (inValue < 0))) { // same sign
                     m_maxAbs = Math.max(m_maxAbs, abs);
-                    outValue = inValue / m_maxAbs;
+                    outValue = inValue / m_maxAbs; // [-1...1]
+                    outValue = updateOutValue(outValue);
                 } else { // different sign - zero cross
                     m_maxAbs = abs;
                     outValue = Math.signum(inValue); // 1 | -1
@@ -132,5 +158,7 @@ public class Cno3Algo extends TresAlgo {
                 super.addBar(new ChartPoint(chartPoint.m_millis, outValue));
             }
         }
+
+        protected double updateOutValue(double outValue) { return outValue; }
     }
 }
