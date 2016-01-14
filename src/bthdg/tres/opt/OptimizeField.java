@@ -1,6 +1,7 @@
 package bthdg.tres.opt;
 
 import bthdg.tres.Tres;
+import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.OscIndicator;
 
 public enum OptimizeField {
@@ -18,7 +19,11 @@ public enum OptimizeField {
     },
     OSC_PEAK("osc.peak") {
         @Override public double get(Tres tres) { return OscIndicator.PEAK_TOLERANCE; }
-        @Override public void set(Tres tres, double value) { OscIndicator.PEAK_TOLERANCE= value; }
+        @Override public void set(Tres tres, double value) { OscIndicator.PEAK_TOLERANCE = value; }
+    },
+    ARO_LEN("aro.len") {
+        @Override public double get(Tres tres) { return AroonIndicator.PhasedAroonIndicator.LENGTH; }
+        @Override public void set(Tres tres, double value) { AroonIndicator.PhasedAroonIndicator.LENGTH = (int) value; }
     };
 
     public final String m_key;

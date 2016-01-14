@@ -54,6 +54,8 @@ public abstract class TresAlgo {
             return new TreAlgo.TreAlgoSharp(tresExchData);
         } else if (algoName.equals("cop+")) {
             return new CoppockPlusAlgo(tresExchData);
+        } else if (algoName.equals("aro")) {
+            return new AroonAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }

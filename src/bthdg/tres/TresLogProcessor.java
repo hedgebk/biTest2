@@ -79,6 +79,7 @@ class TresLogProcessor extends Thread {
     private boolean m_iterated;
     private HashMap<OptimizeField, String> m_optCfg;
     private HashMap<OptimizeField, String> m_gridCfg;
+    private String m_varyAroLen;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -184,6 +185,11 @@ class TresLogProcessor extends Thread {
         m_varyCno2Frame = config.getProperty("tre.vary.cno2_frame");
         if (m_varyCno2Frame != null) {
             log("varyCno2Frame=" + m_varyCno2Frame);
+        }
+
+        m_varyAroLen = config.getProperty("tre.vary.aro_len");
+        if (m_varyAroLen != null) {
+            log("varyAroLen=" + m_varyAroLen);
         }
 
         getOptimizeConfig(config);
@@ -323,6 +329,10 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyCno2Frame != null) {
             varyCno2FrameRate(datas, m_varyCno2Frame);
+        }
+
+        if (m_varyAroLen != null) {
+            varyAroLen(datas, tres, m_varyAroLen);
         }
 
         checkOptimize(tres, datas);
@@ -648,6 +658,11 @@ class TresLogProcessor extends Thread {
     private void varyLen1(List<TradesTopsData> datas, Tres tres, String varyLen1) throws Exception {
         log("varyLen1: " + varyLen1);
         varyInteger(datas, tres, OptimizeField.OSC_LEN1, varyLen1);
+    }
+
+    private void varyAroLen(List<TradesTopsData> datas, Tres tres, String varyAroLen) throws Exception {
+        log("varyAroLen: " + varyAroLen);
+        varyInteger(datas, tres, OptimizeField.ARO_LEN, varyAroLen);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {

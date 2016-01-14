@@ -56,6 +56,7 @@ public class OscAlgo extends TresAlgo {
     @Override public Direction getDirection() { return m_oscIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
 
 
+    // ======================================================================================
     public static class DirectionIndicator extends TresIndicator {
         public static double PEAK_TOLERANCE = 0.06470;
 

@@ -266,22 +266,40 @@ public class Tres {
         m_barSizeMillis = Utils.toMillis(barSizeStr);
         log(" .millis=" + m_barSizeMillis);
 
-        m_len1 = Integer.parseInt(getProperty("tre.len1"));
-        log("len1=" + m_len1);
-        m_len2 = Integer.parseInt(getProperty("tre.len2"));
-        log("len2=" + m_len2);
-        m_k = Integer.parseInt(getProperty("tre.k"));
-        log("k=" + m_k);
-        m_d = Integer.parseInt(getProperty("tre.d"));
-        log("d=" + m_d);
+        String prop = m_config.getProperty("tre.len1");
+        if (prop != null) {
+            m_len1 = Integer.parseInt(prop);
+            log("len1=" + m_len1);
+        }
+        prop = m_config.getProperty("tre.len2");
+        if (prop != null) {
+            m_len2 = Integer.parseInt(prop);
+            log("len2=" + m_len2);
+        }
+        prop = m_config.getProperty("tre.k");
+        if (prop != null) {
+            m_k = Integer.parseInt(prop);
+            log("k=" + m_k);
+        }
+        prop = m_config.getProperty("tre.d");
+        if (prop != null) {
+            m_d = Integer.parseInt(prop);
+            log("d=" + m_d);
+        }
+        prop = m_config.getProperty("tre.ma");
+        if (prop != null) {
+            m_ma = Integer.parseInt(prop);
+            log("ma=" + m_ma);
+        }
+        prop = m_config.getProperty("tre.osc_lock");
+        if (prop != null) {
+            double lockOscLevel = Double.parseDouble(prop);
+            log("osc_lock=" + lockOscLevel);
+            TresOscCalculator.LOCK_OSC_LEVEL = lockOscLevel;
+        }
+
         m_phases = Integer.parseInt(getProperty("tre.phases"));
         log("phases=" + m_phases);
-        m_ma = Integer.parseInt(getProperty("tre.ma"));
-        log("ma=" + m_ma);
-
-        double lockOscLevel = Double.parseDouble(getProperty("tre.osc_lock"));
-        log("osc_lock=" + lockOscLevel);
-        TresOscCalculator.LOCK_OSC_LEVEL = lockOscLevel;
 
         boolean doTrade = Boolean.parseBoolean(getProperty("tre.do_trade"));
         log("doTrade=" + doTrade);
