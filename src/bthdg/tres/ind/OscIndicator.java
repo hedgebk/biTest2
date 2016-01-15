@@ -47,7 +47,6 @@ public class OscIndicator extends TresIndicator {
         private double m_direction = 0; // [-1 ... 1].   parked initially
 
         @Override public Color getColor() { return OSC_COLOR; }
-        @Override public Color getPeakColor() { return OSC_COLOR; }
 
         public OscPhasedIndicator(TresExchData exchData, int phaseIndex) {
             super(OscIndicator.this, exchData, phaseIndex, OscIndicator.PEAK_TOLERANCE);

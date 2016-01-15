@@ -10,9 +10,9 @@ public class AroonCalculator extends OHLCCalculator {
     private boolean m_filled;
     public Double m_aroonUp;
     public Double m_aroonDown;
-    public Double m_aroonOscillator; // between -100 and 100
+    public Double m_aroonOscillator; // between -1 and 1
 
-    public double getDirectionAdjusted() { return (m_aroonOscillator == null) ? 0 : m_aroonOscillator / 100; }
+    public double getDirectionAdjusted() { return (m_aroonOscillator == null) ? 0 : m_aroonOscillator; }
 
     protected void bar(long barEnd, double value) {}
 
@@ -61,8 +61,8 @@ public class AroonCalculator extends OHLCCalculator {
                     }
                     index--;
                 }
-                //  it will be between 0 and 100
-                double aroonUp = 100 * (1 - maxIndex / (m_length - 1));
+                //  it will be between 0 and 1
+                double aroonUp = 1 - maxIndex / (m_length - 1);
                 if ((m_aroonUp == null) || (m_aroonUp != aroonUp)) {
                     m_aroonUp = aroonUp;
                     recalcOscillator();
@@ -83,8 +83,8 @@ public class AroonCalculator extends OHLCCalculator {
                     }
                     index--;
                 }
-                //  it will be between 0 and 100
-                double aroonDown = 100 * (1 - minIndex / (m_length - 1));
+                //  it will be between 0 and 1
+                double aroonDown = 1 - minIndex / (m_length - 1);
                 if ((m_aroonDown == null) || (m_aroonDown != aroonDown)) {
                     m_aroonDown = aroonDown;
                     recalcOscillator();

@@ -394,11 +394,11 @@ public abstract class TresIndicator {
 
         public abstract boolean update(long timestamp, double price);
         public abstract Color getColor();
-        public abstract Color getPeakColor();
         public abstract double lastTickPrice();
         public abstract long lastTickTime();
 
         public ChartPoint getLastBar() { return m_lastBar; }
+        public Color getPeakColor() { return getColor(); }
 
         public TresPhasedIndicator(TresIndicator tresIndicator, TresExchData exchData, int phaseIndex, double peakTolerance) {
             m_indicator = tresIndicator;

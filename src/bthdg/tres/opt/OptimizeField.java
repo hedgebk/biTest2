@@ -24,6 +24,10 @@ public enum OptimizeField {
     ARO_LEN("aro.len") {
         @Override public double get(Tres tres) { return AroonIndicator.PhasedAroonIndicator.LENGTH; }
         @Override public void set(Tres tres, double value) { AroonIndicator.PhasedAroonIndicator.LENGTH = (int) value; }
+    },
+    ARO_PEAK("aro.peak") {
+        @Override public double get(Tres tres) { return AroonIndicator.PEAK_TOLERANCE; }
+        @Override public void set(Tres tres, double value) { AroonIndicator.PEAK_TOLERANCE = value; }
     };
 
     public final String m_key;

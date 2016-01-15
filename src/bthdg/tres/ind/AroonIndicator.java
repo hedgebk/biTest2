@@ -10,36 +10,38 @@ import java.awt.*;
 
 // http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:aroon
 public class AroonIndicator extends TresIndicator {
-    public static double PEAK_TOLERANCE = 0.1;
+    public static double PEAK_TOLERANCE = 0.5;
     public static final Color PHASED_COLOR = Colors.setAlpha(Color.MAGENTA, 25);
     public static final Color COLOR = Color.MAGENTA;
 
+    private final double m_barRatio;
+
     @Override public Color getColor() { return COLOR; }
-    @Override protected boolean countPeaks() { return false; }
     @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) {
-        return new PhasedAroonIndicator(this, exchData, phaseIndex);
+        return new PhasedAroonIndicator(this, exchData, phaseIndex, m_barRatio);
     }
 
-    public AroonIndicator(TresAlgo algo) {
-        super( "ar", PEAK_TOLERANCE, algo);
+    public AroonIndicator(TresAlgo algo, double barRatio) {
+        super("ar", PEAK_TOLERANCE, algo);
+        m_barRatio = barRatio;
     }
 
 
     // ======================================================================================
     public static class PhasedAroonIndicator extends TresPhasedIndicator {
-        public static int LENGTH = 42; // 14
+        public static int LENGTH = 17;
 
         private AroonCalculator m_calculator;
 
         @Override public Color getColor() { return PHASED_COLOR; }
-        @Override public Color getPeakColor() { return PHASED_COLOR; }
         @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
         @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
         @Override public double getDirectionAdjusted() { return m_calculator.getDirectionAdjusted(); }
 
-        public PhasedAroonIndicator(AroonIndicator indicator, TresExchData exchData, int phaseIndex) {
+        public PhasedAroonIndicator(AroonIndicator indicator, TresExchData exchData, int phaseIndex, double barRatio) {
             super(indicator, exchData, phaseIndex, PEAK_TOLERANCE);
-            m_calculator = new AroonCalculator(LENGTH, exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex)) {
+            long barSize = (long) (exchData.m_tres.m_barSizeMillis * barRatio);
+            m_calculator = new AroonCalculator(LENGTH, barSize, exchData.m_tres.getBarOffset(phaseIndex)) {
                 @Override protected void bar(long barEnd, double value) {
                     ChartPoint tick = new ChartPoint(barEnd, value);
                     if (m_exchData.m_tres.m_collectPoints) {

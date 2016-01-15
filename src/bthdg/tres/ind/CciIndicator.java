@@ -37,7 +37,6 @@ public class CciIndicator extends TresIndicator {
         private final CciCalculator m_calculator;
 
         @Override public Color getColor() { return CCI_COLOR; }
-        @Override public Color getPeakColor() { return CCI_COLOR; }
         @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
         @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
 
