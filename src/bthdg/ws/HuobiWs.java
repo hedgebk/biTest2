@@ -14,13 +14,14 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.net.ssl.SSLContext;
 import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
 public class HuobiWs extends BaseWs {
-    public static final String ADDRESS = "http://hq.huobi.com:80/";
+    public static final String ADDRESS = "https://hq.huobi.com/"; // http://hq.huobi.com:80/
     public static final int DEF_RECONNECT_DELAY = 5000;
 
     private SocketIO m_socket;
@@ -29,6 +30,7 @@ public class HuobiWs extends BaseWs {
     private boolean m_reconnectRequested;
 
     private static void log(String s) { Log.log(s); }
+    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(String[] args) {
         try {
@@ -48,6 +50,11 @@ public class HuobiWs extends BaseWs {
             m_socket = new SocketIO(ADDRESS);
         } catch (MalformedURLException e) {}
 
+        try {
+            m_socket.setDefaultSSLSocketFactory(SSLContext.getDefault());
+        } catch (Exception e) {
+            err("setDefaultSSLSocketFactory error:" + e, e);
+        }
         m_socket.connect(new IOCallback() {
             @Override public void onMessage(JSONObject json, IOAcknowledge ack) {
                 try {

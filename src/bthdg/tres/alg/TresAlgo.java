@@ -56,6 +56,8 @@ public abstract class TresAlgo {
             return new CoppockPlusAlgo(tresExchData);
         } else if (algoName.equals("aro")) {
             return new AroonAlgo(tresExchData);
+        } else if (algoName.equals("aro!")) {
+            return new AroonAlgo.AroonSharpAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }

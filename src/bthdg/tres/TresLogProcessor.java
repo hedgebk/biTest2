@@ -83,6 +83,7 @@ class TresLogProcessor extends Thread {
     private String m_varyAroPeak;
     private String m_varyAroPeak2;
     private String m_varyAroPeak3;
+    private String m_varyAroPeak4;
     private String m_varyAroBarRatioStep;
     private String m_varyAroBarRatioStepNum;
 
@@ -207,6 +208,10 @@ class TresLogProcessor extends Thread {
         m_varyAroPeak3 = config.getProperty("tre.vary.aro_peak3");
         if (m_varyAroPeak3 != null) {
             log("varyAroPeak3=" + m_varyAroPeak3);
+        }
+        m_varyAroPeak4 = config.getProperty("tre.vary.aro_peak4");
+        if (m_varyAroPeak4 != null) {
+            log("varyAroPeak4=" + m_varyAroPeak4);
         }
         m_varyAroBarRatioStep = config.getProperty("tre.vary.aro_bar_ratio_step");
         if (m_varyAroBarRatioStep != null) {
@@ -367,6 +372,9 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyAroPeak3 != null) {
             varyAroPeak3(datas, tres, m_varyAroPeak3);
+        }
+        if (m_varyAroPeak4 != null) {
+            varyAroPeak4(datas, tres, m_varyAroPeak4);
         }
         if (m_varyAroBarRatioStep != null) {
             varyAroBarRatioStep(datas, tres, m_varyAroBarRatioStep);
@@ -718,6 +726,11 @@ class TresLogProcessor extends Thread {
     private void varyAroPeak3(List<TradesTopsData> datas, Tres tres, String varyAroPeak3) throws Exception {
         log("varyAroPeak3: " + varyAroPeak3);
         varyDouble(datas, tres, OptimizeField.ARO_PEAK3, varyAroPeak3);
+    }
+
+    private void varyAroPeak4(List<TradesTopsData> datas, Tres tres, String varyAroPeak4) throws Exception {
+        log("varyAroPeak4: " + varyAroPeak4);
+        varyDouble(datas, tres, OptimizeField.ARO_PEAK4, varyAroPeak4);
     }
 
     private void varyAroBarRatioStep(List<TradesTopsData> datas, Tres tres, String varyAroBarRatioStep) throws Exception {

@@ -224,7 +224,7 @@
              todir="${export.host}:."
              keyfile="${key.file}">
             <fileset dir="${module.bitest.basedir}/stage">
-                <include name="keys.txt"/>
+                <include name="keys.properties"/>
             </fileset>
         </scp>
     </target>

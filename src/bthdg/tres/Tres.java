@@ -11,6 +11,7 @@ import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.CncAlgo;
 import bthdg.tres.alg.Cno2Algo;
 import bthdg.tres.alg.TreAlgo;
+import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.OscIndicator;
@@ -411,6 +412,13 @@ public class Tres {
             log("orderAlgoStr=" + orderAlgoStr);
             BaseExecutor.OrderPriceMode opm = BaseExecutor.OrderPriceMode.get(orderAlgoStr);
             TresExecutor.ORDER_PRICE_MODE = opm;
+        }
+
+        String aroLenStr = m_config.getProperty("tre.aro_len");
+        if (aroLenStr != null) {
+            log("aro_len=" + aroLenStr);
+            int aroLen = Integer.parseInt(aroLenStr);
+            AroonIndicator.LENGTH = aroLen;
         }
 
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;

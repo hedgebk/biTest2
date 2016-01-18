@@ -13,8 +13,8 @@ import java.util.List;
 
 public class AroonAlgo extends TresAlgo {
     public static double PEAK_TOLERANCE2 = 0.48;
-    public static double PEAK_TOLERANCE3 = 0.036;
-    public static double PEAK_TOLERANCE4 = 0.99;
+    public static double PEAK_TOLERANCE3 = 0.049200;
+    public static double PEAK_TOLERANCE4 = 0.96;
 
     public static double BAR_RATIOS_STEP = 1.065;
     public static int BAR_RATIOS_STEP_NUM = 6;
@@ -27,14 +27,18 @@ public class AroonAlgo extends TresAlgo {
     private final VelocityIndicator m_velocityIndicator;
     private final SmoochedIndicator m_smoochedVelocityIndicator;
     private final VelocityRateIndicator m_velRateIndicator;
-    private final AndIndicator m_andIndicator;
+    protected final AndIndicator m_andIndicator;
 
     @Override public double lastTickPrice() { return m_aroonIndicators.get(0).lastTickPrice(); }
     @Override public long lastTickTime() { return m_aroonIndicators.get(0).lastTickTime(); }
     @Override public Color getColor() { return AroonIndicator.COLOR; }
 
     public AroonAlgo(TresExchData exchData) {
-        super("ARO", exchData);
+        this("ARO", exchData);
+    }
+
+    public AroonAlgo(String name, TresExchData exchData) {
+        super(name, exchData);
 
         double barRatio = 1;
         for (int i = 0; i < BAR_RATIOS_STEP_NUM; i++) {
@@ -92,6 +96,9 @@ public class AroonAlgo extends TresAlgo {
                 if (lastPoint != null) {
                     double copValue = getDirectionAdjustedByPeakWatchers(m_smoochedIndicator);
                     double copValue2 = copValue * m_velRateIndicator.m_velRateCalc.m_velocityRate;
+
+                    copValue2 = Math.signum(copValue2) * Math.pow(Math.abs(copValue2), 0.25);
+
                     long millis = lastPoint.m_millis;
                     m_andIndicator.addBar(new ChartPoint(millis, copValue2));
                 }
@@ -218,9 +225,9 @@ public class AroonAlgo extends TresAlgo {
 
 
     // ======================================================================================
-    public class AroonSharpAlgo extends AroonAlgo {
+    public static class AroonSharpAlgo extends AroonAlgo {
         public AroonSharpAlgo(TresExchData exchData) {
-            super(exchData);
+            super("ARO!", exchData);
         }
 
         @Override public double getDirectionAdjusted() { // [-1 ... 1]

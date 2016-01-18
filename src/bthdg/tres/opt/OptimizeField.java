@@ -38,6 +38,10 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return AroonAlgo.PEAK_TOLERANCE3; }
         @Override public void set(Tres tres, double value) { AroonAlgo.PEAK_TOLERANCE3 = value; }
     },
+    ARO_PEAK4("aro.peak4") {
+        @Override public double get(Tres tres) { return AroonAlgo.PEAK_TOLERANCE4; }
+        @Override public void set(Tres tres, double value) { AroonAlgo.PEAK_TOLERANCE4 = value; }
+    },
     ARO_BAR_RATIO_STEP("aro.bar_ratio_step") {
         @Override public double get(Tres tres) { return AroonAlgo.BAR_RATIOS_STEP; }
         @Override public void set(Tres tres, double value) { AroonAlgo.BAR_RATIOS_STEP = value; }
