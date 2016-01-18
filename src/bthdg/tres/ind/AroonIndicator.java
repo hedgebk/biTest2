@@ -11,6 +11,8 @@ import java.awt.*;
 // http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:aroon
 public class AroonIndicator extends TresIndicator {
     public static double PEAK_TOLERANCE = 0.5;
+    public static int LENGTH = 38; //21 , 15
+
     public static final Color PHASED_COLOR = Colors.setAlpha(Color.MAGENTA, 25);
     public static final Color COLOR = Color.MAGENTA;
 
@@ -21,16 +23,14 @@ public class AroonIndicator extends TresIndicator {
         return new PhasedAroonIndicator(this, exchData, phaseIndex, m_barRatio);
     }
 
-    public AroonIndicator(TresAlgo algo, double barRatio) {
-        super("ar", PEAK_TOLERANCE, algo);
+    public AroonIndicator(String name, TresAlgo algo, double barRatio) {
+        super(name, PEAK_TOLERANCE, algo);
         m_barRatio = barRatio;
     }
 
 
     // ======================================================================================
     public static class PhasedAroonIndicator extends TresPhasedIndicator {
-        public static int LENGTH = 17;
-
         private AroonCalculator m_calculator;
 
         @Override public Color getColor() { return PHASED_COLOR; }

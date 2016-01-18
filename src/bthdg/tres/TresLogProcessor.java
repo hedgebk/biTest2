@@ -81,6 +81,10 @@ class TresLogProcessor extends Thread {
     private HashMap<OptimizeField, String> m_gridCfg;
     private String m_varyAroLen;
     private String m_varyAroPeak;
+    private String m_varyAroPeak2;
+    private String m_varyAroPeak3;
+    private String m_varyAroBarRatioStep;
+    private String m_varyAroBarRatioStepNum;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -195,6 +199,22 @@ class TresLogProcessor extends Thread {
         m_varyAroPeak = config.getProperty("tre.vary.aro_peak");
         if (m_varyAroPeak != null) {
             log("varyAroPeak=" + m_varyAroPeak);
+        }
+        m_varyAroPeak2 = config.getProperty("tre.vary.aro_peak2");
+        if (m_varyAroPeak2 != null) {
+            log("varyAroPeak2=" + m_varyAroPeak2);
+        }
+        m_varyAroPeak3 = config.getProperty("tre.vary.aro_peak3");
+        if (m_varyAroPeak3 != null) {
+            log("varyAroPeak3=" + m_varyAroPeak3);
+        }
+        m_varyAroBarRatioStep = config.getProperty("tre.vary.aro_bar_ratio_step");
+        if (m_varyAroBarRatioStep != null) {
+            log("varyAroBarRatioStep=" + m_varyAroBarRatioStep);
+        }
+        m_varyAroBarRatioStepNum = config.getProperty("tre.vary.aro_bar_ratio_step_num");
+        if (m_varyAroBarRatioStepNum != null) {
+            log("varyAroBarRatioStepNum=" + m_varyAroBarRatioStepNum);
         }
 
         getOptimizeConfig(config);
@@ -341,6 +361,18 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyAroPeak != null) {
             varyAroPeak(datas, tres, m_varyAroPeak);
+        }
+        if (m_varyAroPeak2 != null) {
+            varyAroPeak2(datas, tres, m_varyAroPeak2);
+        }
+        if (m_varyAroPeak3 != null) {
+            varyAroPeak3(datas, tres, m_varyAroPeak3);
+        }
+        if (m_varyAroBarRatioStep != null) {
+            varyAroBarRatioStep(datas, tres, m_varyAroBarRatioStep);
+        }
+        if (m_varyAroBarRatioStepNum != null) {
+            varyAroBarRatioStepNum(datas, tres, m_varyAroBarRatioStepNum);
         }
 
         checkOptimize(tres, datas);
@@ -676,6 +708,26 @@ class TresLogProcessor extends Thread {
     private void varyAroPeak(List<TradesTopsData> datas, Tres tres, String varyAroPeak) throws Exception {
         log("varyAroPeak: " + varyAroPeak);
         varyDouble(datas, tres, OptimizeField.ARO_PEAK, varyAroPeak);
+    }
+
+    private void varyAroPeak2(List<TradesTopsData> datas, Tres tres, String varyAroPeak2) throws Exception {
+        log("varyAroPeak2: " + varyAroPeak2);
+        varyDouble(datas, tres, OptimizeField.ARO_PEAK2, varyAroPeak2);
+    }
+
+    private void varyAroPeak3(List<TradesTopsData> datas, Tres tres, String varyAroPeak3) throws Exception {
+        log("varyAroPeak3: " + varyAroPeak3);
+        varyDouble(datas, tres, OptimizeField.ARO_PEAK3, varyAroPeak3);
+    }
+
+    private void varyAroBarRatioStep(List<TradesTopsData> datas, Tres tres, String varyAroBarRatioStep) throws Exception {
+        log("varyAroBarRatioStep: " + varyAroBarRatioStep);
+        varyDouble(datas, tres, OptimizeField.ARO_BAR_RATIO_STEP, varyAroBarRatioStep);
+    }
+
+    private void varyAroBarRatioStepNum(List<TradesTopsData> datas, Tres tres, String varyAroBarRatioStepNum) throws Exception {
+        log("varyAroBarRatioStepNum: " + varyAroBarRatioStepNum);
+        varyInteger(datas, tres, OptimizeField.ARO_BAR_RATIO_STEP_NUM, varyAroBarRatioStepNum);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {

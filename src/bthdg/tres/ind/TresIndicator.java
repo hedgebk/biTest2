@@ -385,7 +385,7 @@ public abstract class TresIndicator {
         final TresIndicator m_indicator;
         protected final TresExchData m_exchData;
         private final int m_phaseIndex;
-        public final TrendWatcher<ChartPoint> m_peakCalculator;
+        public final TrendWatcher<ChartPoint> m_peakCalculator; // TODO: make optional
         protected final LinkedList<ChartPoint> m_points = new LinkedList<ChartPoint>();
         final LinkedList<ChartPoint> m_peaks = new LinkedList<ChartPoint>();
         final List<ChartPoint> m_paintPoints = new ArrayList<ChartPoint>();

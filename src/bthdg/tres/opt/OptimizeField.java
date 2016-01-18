@@ -1,6 +1,7 @@
 package bthdg.tres.opt;
 
 import bthdg.tres.Tres;
+import bthdg.tres.alg.AroonAlgo;
 import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.OscIndicator;
 
@@ -22,12 +23,28 @@ public enum OptimizeField {
         @Override public void set(Tres tres, double value) { OscIndicator.PEAK_TOLERANCE = value; }
     },
     ARO_LEN("aro.len") {
-        @Override public double get(Tres tres) { return AroonIndicator.PhasedAroonIndicator.LENGTH; }
-        @Override public void set(Tres tres, double value) { AroonIndicator.PhasedAroonIndicator.LENGTH = (int) value; }
+        @Override public double get(Tres tres) { return AroonIndicator.LENGTH; }
+        @Override public void set(Tres tres, double value) { AroonIndicator.LENGTH = (int) value; }
     },
     ARO_PEAK("aro.peak") {
         @Override public double get(Tres tres) { return AroonIndicator.PEAK_TOLERANCE; }
         @Override public void set(Tres tres, double value) { AroonIndicator.PEAK_TOLERANCE = value; }
+    },
+    ARO_PEAK2("aro.peak2") {
+        @Override public double get(Tres tres) { return AroonAlgo.PEAK_TOLERANCE2; }
+        @Override public void set(Tres tres, double value) { AroonAlgo.PEAK_TOLERANCE2 = value; }
+    },
+    ARO_PEAK3("aro.peak3") {
+        @Override public double get(Tres tres) { return AroonAlgo.PEAK_TOLERANCE3; }
+        @Override public void set(Tres tres, double value) { AroonAlgo.PEAK_TOLERANCE3 = value; }
+    },
+    ARO_BAR_RATIO_STEP("aro.bar_ratio_step") {
+        @Override public double get(Tres tres) { return AroonAlgo.BAR_RATIOS_STEP; }
+        @Override public void set(Tres tres, double value) { AroonAlgo.BAR_RATIOS_STEP = value; }
+    },
+    ARO_BAR_RATIO_STEP_NUM("aro.bar_ratio_step_num") {
+        @Override public double get(Tres tres) { return AroonAlgo.BAR_RATIOS_STEP_NUM; }
+        @Override public void set(Tres tres, double value) { AroonAlgo.BAR_RATIOS_STEP_NUM = (int) value; }
     };
 
     public final String m_key;
