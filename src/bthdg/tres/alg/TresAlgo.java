@@ -46,6 +46,10 @@ public abstract class TresAlgo {
             return new Cno2Algo(tresExchData);
         } else if (algoName.equals("c+o3")) {
             return new Cno3Algo(tresExchData);
+        } else if (algoName.equals("c+o3!")) {
+            return new Cno3Algo.Cno3SharpAlgo(tresExchData);
+        } else if (algoName.equals("c+o3f")) {
+            return new Cno3Algo.Cno3FastAlgo(tresExchData);
         } else if (algoName.equals("osc")) {
             return new OscAlgo(tresExchData);
         } else if (algoName.equals("tre")) {
@@ -56,8 +60,12 @@ public abstract class TresAlgo {
             return new CoppockPlusAlgo(tresExchData);
         } else if (algoName.equals("aro")) {
             return new AroonAlgo(tresExchData);
-        } else if (algoName.equals("aro!")) {
-            return new AroonAlgo.AroonSharpAlgo(tresExchData);
+        } else if (algoName.equals("aro+")) {
+            return new AroonAlgo.AroonFasterAlgo(tresExchData);
+        } else if (algoName.equals("aro2")) {
+            return new Aroon2Algo(tresExchData);
+        } else if (algoName.equals("aro2!")) {
+            return new Aroon2Algo.Aroon2SharpAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }

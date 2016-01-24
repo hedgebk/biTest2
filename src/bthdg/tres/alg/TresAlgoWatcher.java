@@ -16,6 +16,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
+    private static final double AVG_HALF_BID_ASK_DIF = 0.06;
+
     private final TresExchData m_tresExchData;
     public final TresAlgo m_algo;
     final public LinkedList<AlgoWatcherPoint> m_points = new LinkedList<AlgoWatcherPoint>();
@@ -123,8 +125,10 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
             if (m_lastDirection != null) {
                 double priceRatio; // actually 2 trades need to get ratio
                 if (direction == Direction.FORWARD) { // up
+                    lastPrice += AVG_HALF_BID_ASK_DIF;
                     priceRatio = (lastPrice + (m_lastPeakPrice - lastPrice) / 2) / lastPrice;
                 } else { // down
+                    lastPrice -= AVG_HALF_BID_ASK_DIF;
                     priceRatio = (m_lastPeakPrice + (lastPrice - m_lastPeakPrice) / 2) / m_lastPeakPrice;
                 }
                 m_totalPriceRatio *= priceRatio;

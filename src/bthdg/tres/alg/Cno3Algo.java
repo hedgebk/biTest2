@@ -10,20 +10,26 @@ import java.awt.*;
 
 public class Cno3Algo extends TresAlgo {
     private static final Color COLOR = new Color(30, 100, 73);
-    public static final double SMOOTH_RATE = 0.5;
+    public static double SMOOTH_RATE = 0.6;
+    public static final double AND_PEAK_TOLERANCE = 0.13;
+    public static double SMOOCH_PEAK_TOLERANCE = 0.18;
 
     private final CciIndicator m_cciIndicator;
     private final CciIndicator.CciAdjustedIndicator m_cciAdjustedIndicator;
     private final OscIndicator m_oscIndicator;
     private final MidIndicator m_midIndicator;
 //    private final AndIndicator m_andIndicator;
-    private final AndIndicator m_andIndicator2;
-    private final SmoochedIndicator m_smoochedIndicator;
+    protected final AndIndicator m_andIndicator2;
+    protected final SmoochedIndicator m_smoochedIndicator;
 
     @Override public Color getColor() { return COLOR; }
 
     public Cno3Algo(TresExchData tresExchData) {
-        super("C3O", tresExchData);
+        this("C3O", tresExchData);
+    }
+
+    public Cno3Algo(String name, TresExchData tresExchData) {
+        super(name, tresExchData);
         m_cciIndicator = new CciIndicator(this) {
             @Override protected void onBar() {
                 super.onBar();
@@ -92,8 +98,8 @@ public class Cno3Algo extends TresAlgo {
         m_indicators.add(m_andIndicator2);
 
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
-        m_smoochedIndicator = new SmoochedIndicator(this, "sm", (long) (SMOOTH_RATE * barSizeMillis), 0) {
-            @Override protected boolean countPeaks() { return false; }
+        m_smoochedIndicator = new SmoochedIndicator(this, "sm", (long) (SMOOTH_RATE * barSizeMillis), SMOOCH_PEAK_TOLERANCE) {
+//            @Override protected boolean countPeaks() { return false; }
         };
         m_indicators.add(m_smoochedIndicator);
     }
@@ -112,7 +118,10 @@ public class Cno3Algo extends TresAlgo {
         ChartPoint lastPoint = m_smoochedIndicator.getLastPoint();
         return (lastPoint == null) ? 0 : lastPoint.m_value;
     }
-    @Override public Direction getDirection() { return m_andIndicator2.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
+    @Override public Direction getDirection() {  // UP/DOWN
+        return m_smoochedIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction;
+//        return m_andIndicator2.m_peakWatcher.m_avgPeakCalculator.m_direction;
+    }
 
     @Override public String getRunAlgoParams() {
         return "Cno3";
@@ -131,7 +140,7 @@ public class Cno3Algo extends TresAlgo {
             this(algo, "+");
         }
         public AndIndicator(TresAlgo algo, String name) {
-            super(name, 0.2, algo);
+            super(name, AND_PEAK_TOLERANCE, algo);
         }
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
         @Override public Color getColor() { return Color.CYAN; }
@@ -160,5 +169,33 @@ public class Cno3Algo extends TresAlgo {
         }
 
         protected double updateOutValue(double outValue) { return outValue; }
+    }
+
+    // ======================================================================================
+    public static class Cno3SharpAlgo extends Cno3Algo {
+
+        public Cno3SharpAlgo(TresExchData tresExchData) {
+            super("C3O!", tresExchData);
+        }
+
+        @Override public double getDirectionAdjusted() { // [-1 ... 1]
+            Direction direction = m_smoochedIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction;
+//            Direction direction = m_andIndicator2.m_peakWatcher.m_avgPeakCalculator.m_direction;
+            return (direction == null)
+                    ? 0
+                    : direction.isForward() ? 1 : -1;
+        }
+    }
+
+    // ======================================================================================
+    public static class Cno3FastAlgo extends Cno3Algo {
+
+        public Cno3FastAlgo(TresExchData tresExchData) {
+            super("C3Of", tresExchData);
+        }
+
+        @Override public double getDirectionAdjusted() { // [-1 ... 1]
+            return getDirectionAdjustedByPeakWatchers(m_smoochedIndicator);
+        }
     }
 }
