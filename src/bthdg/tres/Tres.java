@@ -8,9 +8,7 @@ import bthdg.exch.OrderData;
 import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
-import bthdg.tres.alg.CncAlgo;
-import bthdg.tres.alg.Cno2Algo;
-import bthdg.tres.alg.TreAlgo;
+import bthdg.tres.alg.*;
 import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
@@ -419,6 +417,43 @@ public class Tres {
             log("aro_len=" + aroLenStr);
             int aroLen = Integer.parseInt(aroLenStr);
             AroonIndicator.LENGTH = aroLen;
+        }
+        String aroPeak3Str = m_config.getProperty("tre.aro_peak3");
+        if (aroPeak3Str != null) {
+            log("aro_peak3=" + aroPeak3Str);
+            double aroPeak3 = Double.parseDouble(aroPeak3Str);
+            AroonAlgo.PEAK_TOLERANCE3 = aroPeak3;
+        }
+        String aroPeak4Str = m_config.getProperty("tre.aro_peak4");
+        if (aroPeak4Str != null) {
+            log("aro_peak4=" + aroPeak4Str);
+            double aroPeak4 = Double.parseDouble(aroPeak4Str);
+            Aroon2Algo.PEAK_TOLERANCE4 = aroPeak4;
+        }
+        String barRatioStepStr = m_config.getProperty("tre.aro_bar_ratio_step");
+        if (barRatioStepStr != null) {
+            log("aro_bar_ratio_step=" + barRatioStepStr);
+            double barRatioStep = Double.parseDouble(barRatioStepStr);
+            AroonAlgo.BAR_RATIOS_STEP = barRatioStep;
+        }
+        String barRatioStepNumStr = m_config.getProperty("tre.aro_bar_ratio_step_num");
+        if (barRatioStepNumStr != null) {
+            log("aro_bar_ratio_step_num=" + barRatioStepNumStr);
+            int barRatioStepNum = Integer.parseInt(barRatioStepNumStr);
+            AroonAlgo.BAR_RATIOS_STEP_NUM = barRatioStepNum;
+        }
+
+        String cno3PeakStr = m_config.getProperty("tre.cno3_peak");
+        if (cno3PeakStr != null) {
+            log("cno3_peak=" + cno3PeakStr);
+            double cno3Peak = Double.parseDouble(cno3PeakStr);
+            Cno3Algo.SMOOCH_PEAK_TOLERANCE = cno3Peak;
+        }
+        String cno3SmoochStr = m_config.getProperty("tre.cno3_smooch");
+        if (cno3SmoochStr != null) {
+            log("cno3_smooch=" + cno3SmoochStr);
+            double cno3Smooch = Double.parseDouble(cno3SmoochStr);
+            Cno3Algo.SMOOTH_RATE = cno3Smooch;
         }
 
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;

@@ -86,6 +86,8 @@ class TresLogProcessor extends Thread {
     private String m_varyAroPeak4;
     private String m_varyAroBarRatioStep;
     private String m_varyAroBarRatioStepNum;
+    private String m_varyCno3Peak;
+    private String m_varyCno3Smooch;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -220,6 +222,15 @@ class TresLogProcessor extends Thread {
         m_varyAroBarRatioStepNum = config.getProperty("tre.vary.aro_bar_ratio_step_num");
         if (m_varyAroBarRatioStepNum != null) {
             log("varyAroBarRatioStepNum=" + m_varyAroBarRatioStepNum);
+        }
+
+        m_varyCno3Peak = config.getProperty("tre.vary.cno3_peak");
+        if (m_varyCno3Peak != null) {
+            log("varyCno3Peak=" + m_varyCno3Peak);
+        }
+        m_varyCno3Smooch = config.getProperty("tre.vary.cno3_smooch");
+        if (m_varyCno3Smooch != null) {
+            log("varyCno3Smooch=" + m_varyCno3Smooch);
         }
 
         getOptimizeConfig(config);
@@ -381,6 +392,13 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyAroBarRatioStepNum != null) {
             varyAroBarRatioStepNum(datas, tres, m_varyAroBarRatioStepNum);
+        }
+
+        if (m_varyCno3Peak != null) {
+            varyCno3Peak(datas, tres, m_varyCno3Peak);
+        }
+        if (m_varyCno3Smooch != null) {
+            varyCno3Smooch(datas, tres, m_varyCno3Smooch);
         }
 
         checkOptimize(tres, datas);
@@ -741,6 +759,16 @@ class TresLogProcessor extends Thread {
     private void varyAroBarRatioStepNum(List<TradesTopsData> datas, Tres tres, String varyAroBarRatioStepNum) throws Exception {
         log("varyAroBarRatioStepNum: " + varyAroBarRatioStepNum);
         varyInteger(datas, tres, OptimizeField.ARO_BAR_RATIO_STEP_NUM, varyAroBarRatioStepNum);
+    }
+
+    private void varyCno3Peak(List<TradesTopsData> datas, Tres tres, String varyCno3Peak) throws Exception {
+        log("varyCno3Peak: " + varyCno3Peak);
+        varyDouble(datas, tres, OptimizeField.CNO3_PEAK, varyCno3Peak);
+    }
+
+    private void varyCno3Smooch(List<TradesTopsData> datas, Tres tres, String varyCno3Smooch) throws Exception {
+        log("varyCno3Smooch: " + varyCno3Smooch);
+        varyDouble(datas, tres, OptimizeField.CNO3_SMOOCH, varyCno3Smooch);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {

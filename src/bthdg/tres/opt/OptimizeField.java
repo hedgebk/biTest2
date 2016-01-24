@@ -1,7 +1,9 @@
 package bthdg.tres.opt;
 
 import bthdg.tres.Tres;
+import bthdg.tres.alg.Aroon2Algo;
 import bthdg.tres.alg.AroonAlgo;
+import bthdg.tres.alg.Cno3Algo;
 import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.OscIndicator;
 
@@ -39,8 +41,8 @@ public enum OptimizeField {
         @Override public void set(Tres tres, double value) { AroonAlgo.PEAK_TOLERANCE3 = value; }
     },
     ARO_PEAK4("aro.peak4") {
-        @Override public double get(Tres tres) { return AroonAlgo.PEAK_TOLERANCE4; }
-        @Override public void set(Tres tres, double value) { AroonAlgo.PEAK_TOLERANCE4 = value; }
+        @Override public double get(Tres tres) { return Aroon2Algo.PEAK_TOLERANCE4; }
+        @Override public void set(Tres tres, double value) { Aroon2Algo.PEAK_TOLERANCE4 = value; }
     },
     ARO_BAR_RATIO_STEP("aro.bar_ratio_step") {
         @Override public double get(Tres tres) { return AroonAlgo.BAR_RATIOS_STEP; }
@@ -49,6 +51,14 @@ public enum OptimizeField {
     ARO_BAR_RATIO_STEP_NUM("aro.bar_ratio_step_num") {
         @Override public double get(Tres tres) { return AroonAlgo.BAR_RATIOS_STEP_NUM; }
         @Override public void set(Tres tres, double value) { AroonAlgo.BAR_RATIOS_STEP_NUM = (int) value; }
+    },
+    CNO3_PEAK("cno3.peak") {
+        @Override public double get(Tres tres) { return Cno3Algo.SMOOCH_PEAK_TOLERANCE; }
+        @Override public void set(Tres tres, double value) { Cno3Algo.SMOOCH_PEAK_TOLERANCE = value; }
+    },
+    CNO3_SMOOCH("cno3.smooch") {
+        @Override public double get(Tres tres) { return Cno3Algo.SMOOTH_RATE; }
+        @Override public void set(Tres tres, double value) { Cno3Algo.SMOOTH_RATE = value; }
     };
 
     public final String m_key;
