@@ -17,7 +17,7 @@ import java.util.List;
 
 public abstract class BaseExecutor implements Runnable {
     public static final int MID_TO_MKT_STEPS = 2;
-    public static final int TIMER_SLEEP_TIME = 1700;
+    public static final int TIMER_SLEEP_TIME = 1300;
     public static final int DEEP_MKT_PIP_RATIO = 2;
     public static boolean DO_TRADE = true;
     public static final int STATE_NO_CHANGE = 0;
