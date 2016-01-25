@@ -86,6 +86,7 @@ class TresLogProcessor extends Thread {
     private String m_varyAroPeak4;
     private String m_varyAroBarRatioStep;
     private String m_varyAroBarRatioStepNum;
+    private String m_varyAroSmoothRate;
     private String m_varyCno3Peak;
     private String m_varyCno3Smooch;
 
@@ -223,6 +224,10 @@ class TresLogProcessor extends Thread {
         if (m_varyAroBarRatioStepNum != null) {
             log("varyAroBarRatioStepNum=" + m_varyAroBarRatioStepNum);
         }
+        m_varyAroSmoothRate = config.getProperty("tre.vary.aro_smooth_rate");
+        if (m_varyAroSmoothRate != null) {
+            log("varyAroSmoothRate=" + m_varyAroSmoothRate);
+        }
 
         m_varyCno3Peak = config.getProperty("tre.vary.cno3_peak");
         if (m_varyCno3Peak != null) {
@@ -231,6 +236,12 @@ class TresLogProcessor extends Thread {
         m_varyCno3Smooch = config.getProperty("tre.vary.cno3_smooch");
         if (m_varyCno3Smooch != null) {
             log("varyCno3Smooch=" + m_varyCno3Smooch);
+        }
+
+        String avgHalfBidAskDiff = config.getProperty("tre.avg_half_bid_ask_diff");
+        if (avgHalfBidAskDiff != null) {
+            log("avgHalfBidAskDiff=" + avgHalfBidAskDiff);
+            TresAlgoWatcher.AVG_HALF_BID_ASK_DIF = Double.parseDouble(avgHalfBidAskDiff);
         }
 
         getOptimizeConfig(config);
@@ -386,6 +397,9 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyAroPeak4 != null) {
             varyAroPeak4(datas, tres, m_varyAroPeak4);
+        }
+        if (m_varyAroSmoothRate != null) {
+            varyAroSmoothRate(datas, tres, m_varyAroSmoothRate);
         }
         if (m_varyAroBarRatioStep != null) {
             varyAroBarRatioStep(datas, tres, m_varyAroBarRatioStep);
@@ -761,6 +775,11 @@ class TresLogProcessor extends Thread {
         varyInteger(datas, tres, OptimizeField.ARO_BAR_RATIO_STEP_NUM, varyAroBarRatioStepNum);
     }
 
+    private void varyAroSmoothRate(List<TradesTopsData> datas, Tres tres, String varyAroSmoothRate) throws Exception {
+        log("varyAroSmoothRate: " + varyAroSmoothRate);
+        varyDouble(datas, tres, OptimizeField.ARO_SMOOTH_RATE, varyAroSmoothRate);
+    }
+
     private void varyCno3Peak(List<TradesTopsData> datas, Tres tres, String varyCno3Peak) throws Exception {
         log("varyCno3Peak: " + varyCno3Peak);
         varyDouble(datas, tres, OptimizeField.CNO3_PEAK, varyCno3Peak);
@@ -768,7 +787,7 @@ class TresLogProcessor extends Thread {
 
     private void varyCno3Smooch(List<TradesTopsData> datas, Tres tres, String varyCno3Smooch) throws Exception {
         log("varyCno3Smooch: " + varyCno3Smooch);
-        varyDouble(datas, tres, OptimizeField.CNO3_SMOOCH, varyCno3Smooch);
+        varyDouble(datas, tres, OptimizeField.CNO3_SMOOTH, varyCno3Smooch);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {

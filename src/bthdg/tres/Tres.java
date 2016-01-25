@@ -436,18 +436,24 @@ public class Tres {
             double barRatioStep = Double.parseDouble(barRatioStepStr);
             AroonAlgo.BAR_RATIOS_STEP = barRatioStep;
         }
-        String barRatioStepNumStr = m_config.getProperty("tre.aro_bar_ratio_step_num");
-        if (barRatioStepNumStr != null) {
-            log("aro_bar_ratio_step_num=" + barRatioStepNumStr);
-            int barRatioStepNum = Integer.parseInt(barRatioStepNumStr);
+        String aroBarRatioStepNumStr = m_config.getProperty("tre.aro_bar_ratio_step_num");
+        if (aroBarRatioStepNumStr != null) {
+            log("aro_bar_ratio_step_num=" + aroBarRatioStepNumStr);
+            int barRatioStepNum = Integer.parseInt(aroBarRatioStepNumStr);
             AroonAlgo.BAR_RATIOS_STEP_NUM = barRatioStepNum;
+        }
+        String aroSmoothRateStr = m_config.getProperty("tre.aro_smooth_rate");
+        if (aroSmoothRateStr != null) {
+            log("aro_bar_ratio_step=" + aroSmoothRateStr);
+            double aroSmoothRate = Double.parseDouble(barRatioStepStr);
+            AroonAlgo.SMOOTH_RATE = aroSmoothRate;
         }
 
         String cno3PeakStr = m_config.getProperty("tre.cno3_peak");
         if (cno3PeakStr != null) {
             log("cno3_peak=" + cno3PeakStr);
             double cno3Peak = Double.parseDouble(cno3PeakStr);
-            Cno3Algo.SMOOCH_PEAK_TOLERANCE = cno3Peak;
+            Cno3Algo.SMOOTH_PEAK_TOLERANCE = cno3Peak;
         }
         String cno3SmoochStr = m_config.getProperty("tre.cno3_smooch");
         if (cno3SmoochStr != null) {

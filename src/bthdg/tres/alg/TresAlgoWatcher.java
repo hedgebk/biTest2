@@ -16,7 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
-    private static final double AVG_HALF_BID_ASK_DIF = 0.06;
+    public static double AVG_HALF_BID_ASK_DIF = 0.06;
 
     private final TresExchData m_tresExchData;
     public final TresAlgo m_algo;

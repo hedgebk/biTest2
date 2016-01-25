@@ -12,7 +12,7 @@ public class Cno3Algo extends TresAlgo {
     private static final Color COLOR = new Color(30, 100, 73);
     public static double SMOOTH_RATE = 0.6;
     public static final double AND_PEAK_TOLERANCE = 0.13;
-    public static double SMOOCH_PEAK_TOLERANCE = 0.18;
+    public static double SMOOTH_PEAK_TOLERANCE = 0.18;
 
     private final CciIndicator m_cciIndicator;
     private final CciIndicator.CciAdjustedIndicator m_cciAdjustedIndicator;
@@ -98,7 +98,7 @@ public class Cno3Algo extends TresAlgo {
         m_indicators.add(m_andIndicator2);
 
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
-        m_smoochedIndicator = new SmoochedIndicator(this, "sm", (long) (SMOOTH_RATE * barSizeMillis), SMOOCH_PEAK_TOLERANCE) {
+        m_smoochedIndicator = new SmoochedIndicator(this, "sm", (long) (SMOOTH_RATE * barSizeMillis), SMOOTH_PEAK_TOLERANCE) {
 //            @Override protected boolean countPeaks() { return false; }
         };
         m_indicators.add(m_smoochedIndicator);

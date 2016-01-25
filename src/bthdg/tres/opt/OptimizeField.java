@@ -52,11 +52,15 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return AroonAlgo.BAR_RATIOS_STEP_NUM; }
         @Override public void set(Tres tres, double value) { AroonAlgo.BAR_RATIOS_STEP_NUM = (int) value; }
     },
-    CNO3_PEAK("cno3.peak") {
-        @Override public double get(Tres tres) { return Cno3Algo.SMOOCH_PEAK_TOLERANCE; }
-        @Override public void set(Tres tres, double value) { Cno3Algo.SMOOCH_PEAK_TOLERANCE = value; }
+    ARO_SMOOTH_RATE("aro.smooth_rate") {
+        @Override public double get(Tres tres) { return AroonAlgo.SMOOTH_RATE; }
+        @Override public void set(Tres tres, double value) { AroonAlgo.SMOOTH_RATE = value; }
     },
-    CNO3_SMOOCH("cno3.smooch") {
+    CNO3_PEAK("cno3.peak") {
+        @Override public double get(Tres tres) { return Cno3Algo.SMOOTH_PEAK_TOLERANCE; }
+        @Override public void set(Tres tres, double value) { Cno3Algo.SMOOTH_PEAK_TOLERANCE = value; }
+    },
+    CNO3_SMOOTH("cno3.smooch") {
         @Override public double get(Tres tres) { return Cno3Algo.SMOOTH_RATE; }
         @Override public void set(Tres tres, double value) { Cno3Algo.SMOOTH_RATE = value; }
     };

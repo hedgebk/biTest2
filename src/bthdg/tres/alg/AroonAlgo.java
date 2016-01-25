@@ -18,8 +18,7 @@ public class AroonAlgo extends TresAlgo {
 
     public static double BAR_RATIOS_STEP = 1.065;
     public static int BAR_RATIOS_STEP_NUM = 6;
-
-    private static final double SMOOTH_RATE = Math.pow(BAR_RATIOS_STEP, BAR_RATIOS_STEP_NUM - 1) * 2;
+    public static double SMOOTH_RATE = 2.0;
 
     private final List<AroonIndicator> m_aroonIndicators = new ArrayList<AroonIndicator>();
     private final DirectionIndicator m_directionIndicator;
@@ -55,8 +54,9 @@ public class AroonAlgo extends TresAlgo {
         };
         m_indicators.add(m_directionIndicator);
 
-        final long barSizeMillis = exchData.m_tres.m_barSizeMillis;
-        long frameSizeMillis = (long) (SMOOTH_RATE * barSizeMillis);
+        long barSizeMillis = exchData.m_tres.m_barSizeMillis;
+        double rate = Math.pow(BAR_RATIOS_STEP, BAR_RATIOS_STEP_NUM - 1) * SMOOTH_RATE;
+        long frameSizeMillis = (long) (rate * barSizeMillis);
         m_smoochedIndicator = new SmoochedIndicator(this, "sm", frameSizeMillis, PEAK_TOLERANCE3) {
             @Override public Color getColor() { return Color.lightGray; }
             @Override public void addBar(ChartPoint chartPoint) {
