@@ -37,6 +37,7 @@ public class Tres {
     public static final Pair PAIR = Pair.BTC_CNH;
     public static final boolean PAINT_TICK_TIMES_ONLY = false;
     public static final String ENCRYPT_FILE_KEY = "tre.e_file";
+    public static final double MB_IN_BYTES = 1048576.0; // 1024 x 1024
     public static boolean LOG_PARAMS = true;
     private static Tres s_inst;
 
@@ -591,7 +592,11 @@ public class Tres {
             writer.print(order.toString());
             writer.print("<br/>");
         }
+
         writer.print("<a href=/>status</a>; <a href=park>park</a><br/>");
+
+        writer.print(memState());
+        writer.print("<br/>");
 
         writer.print("<br/>");
         writer.print(" ServletPath=" + request.getServletPath());
@@ -606,6 +611,21 @@ public class Tres {
         writer.print("<br/>");
         writer.print("</p></body></html>");
     }
+
+    private String memState() {
+        Runtime runtime = Runtime.getRuntime();
+        long heapSize = runtime.totalMemory(); // current heap size - total amount of memory which is available to the running program
+        long heapRemaining = runtime.freeMemory(); // amount of free memory resources which are available to the running program
+        long maxMemory = Runtime.getRuntime().maxMemory();     // maximum amount of memory that may be used by the virtual machine
+        long used = heapSize - heapRemaining;
+        return String.format("Memory: max=%.2f MB, heap=%.2f MB, used=%.2f MB (%.2f%%); free=%.2f MB",
+                maxMemory / MB_IN_BYTES,
+                heapSize / MB_IN_BYTES,
+                used / MB_IN_BYTES, used * 100.0 / maxMemory,
+                heapRemaining / MB_IN_BYTES
+        );
+    }
+
 
     // ============================================================================================
     private static class IntConsoleReader extends ConsoleReader {
