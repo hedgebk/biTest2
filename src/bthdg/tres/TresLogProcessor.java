@@ -1271,7 +1271,7 @@ class TresLogProcessor extends Thread {
                 linesProcessed++;
             }
             long endTime = System.currentTimeMillis();
-            long timeTakes = endTime - startTime;
+            long timeTakes = endTime - startTime + 1;
             log(" parsed " + file.getName() + ". " + linesProcessed + " lines in " + timeTakes + " ms (" + (linesProcessed * 1000 / timeTakes) + " lines/s)");
             m_linesParsed += linesProcessed;
             return ret;
