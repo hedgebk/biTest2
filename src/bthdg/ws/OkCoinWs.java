@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 // http://img.okcoin.cn/about/ws_api.do
 //  error codes: https://www.okcoin.cn/about/ws_request.do
@@ -28,6 +30,9 @@ public class OkCoinWs extends BaseWs {
     private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH); // 09:26:02
     static {
         sdf.setTimeZone(TZ);
+
+//        Logger.getAnonymousLogger()/*getGlobal()*/.setLevel(Level.ALL);
+        Logger.getLogger(ClientManager.class.getName()).setLevel(Level.ALL);
     }
 
     public static final String URL = "wss://real.okcoin.cn:10440/websocket/okcoinapi";
@@ -121,6 +126,40 @@ public class OkCoinWs extends BaseWs {
     public static void main(String[] args) {
         try {
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
+//Logger.getLogger(ClientManager.class.getName()).setLevel(Level.ALL);
+
+//            Logger l = Logger.getLogger("org.glassfish.grizzly.http.server.HttpHandler");
+//            l.setLevel(Level.FINE);
+//            l.setUseParentHandlers(false);
+//            ConsoleHandler ch = new ConsoleHandler();
+//            ch.setLevel(Level.ALL);
+//            l.addHandler(ch);
+
+//            Handler fh = new ConsoleHandler(); // FileHandler("/tmp/jersey_test.log");
+//            Logger.getLogger("").addHandler(fh);
+//            Logger.getLogger("com.sun.jersey").setLevel(Level.FINEST);
+
+//            -Djava.util.logging.config.file=log.conf
+//              handlers=java.util.logging.ConsoleHandler
+//              java.util.logging.ConsoleHandler.level=ALL
+//              .level=ALL
+//              org.glassfish.level=CONFIG
+//              org.glassfish.level=ALL
+
+//            handlers=java.util.logging.ConsoleHandler
+//            .level=FINE
+//            java.util.logging.ConsoleHandler.level=ALL
+
+//            .handlers= java.util.logging.ConsoleHandler
+//            .level= ALL
+//            java.util.logging.FileHandler.pattern = logs/java%u.log
+//            java.util.logging.FileHandler.limit = 50000
+//            java.util.logging.FileHandler.count = 1
+//            java.util.logging.FileHandler.formatter = java.util.logging.XMLFormatter
+//            java.util.logging.ConsoleHandler.level = ALL
+//            java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter
+//            org.glassfish.level = FINEST
+
             ClientManager client = ClientManager.createClient();
             Session session = client.connectToServer(new Endpoint() {
                 @Override public void onOpen(final Session session, EndpointConfig config) {
@@ -347,8 +386,33 @@ public class OkCoinWs extends BaseWs {
     @Override public void connect(final Runnable callback) {
         try {
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
+
+//            // JDK 7 client
+//            // tyrus 1.8.3
+//            //  If you do not mind using Tyrus specific API, the most straightforward way is to use:
+//            ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
+
+
             ClientManager client = ClientManager.createClient();
+
+//            // SSL configuration
+//            SslContextConfigurator sslContextConfigurator = new SslContextConfigurator();
+//            sslContextConfigurator.setTrustStoreFile("...");
+//            sslContextConfigurator.setTrustStorePassword("...");
+//            sslContextConfigurator.setTrustStoreType("...");
+//            sslContextConfigurator.setKeyStoreFile("...");
+//            sslContextConfigurator.setKeyStorePassword("...");
+//            sslContextConfigurator.setKeyStoreType("...");
+//            SslEngineConfigurator sslEngineConfigurator = new SslEngineConfigurator(sslContextConfigurator, true, false, false);
+//            client.getProperties().put(ClientProperties.SSL_ENGINE_CONFIGURATOR, sslEngineConfigurator);
+
+            // Client handshake request and response logging
+            //  tyrus 1.8.3 ?
+//            client.getProperties().put(ClientProperties.LOG_HTTP_UPGRADE, true);
+
+            client.setAsyncSendTimeout(30000);
             client.setDefaultMaxSessionIdleTimeout(DEFAULT_MAX_SESSION_IDLE_TIMEOUT);
+//client.getProperties().put(ClientProperties.HANDSHAKE_TIMEOUT, 60000); //  must be int and represents handshake timeout in milliseconds. Default value is 30000 (30 seconds).
             log("connect to server...");
             client.connectToServer(new Endpoint() {
                 @Override public void onOpen(final Session session, EndpointConfig config) {
@@ -383,6 +447,50 @@ public class OkCoinWs extends BaseWs {
                 new ReconnectThread(callback).start();
             }
         }
+
+//        If you need semi-persistent client connection, you can always implement some reconnect logic by yourself, but Tyrus Client offers useful feature which should be much easier to use. See short sample code:
+//
+//        ClientManager client = ClientManager.createClient();
+//        ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
+//
+//            private int counter = 0;
+//
+//            @Override
+//            public boolean onDisconnect(CloseReason closeReason) {
+//                counter++;
+//                if (counter <= 3) {
+//                    System.out.println("### Reconnecting... (reconnect count: " + counter + ")");
+//                    return true;
+//                } else {
+//                    return false;
+//                }
+//            }
+//
+//            @Override
+//            public boolean onConnectFailure(Exception exception) {
+//                counter++;
+//                if (counter <= 3) {
+//                    System.out.println("### Reconnecting... (reconnect count: " + counter + ") " + exception.getMessage());
+//
+//                    // Thread.sleep(...) or something other "sleep-like" expression can be put here - you might want
+//                    // to do it here to avoid potential DDoS when you don't limit number of reconnects.
+//                    return true;
+//                } else {
+//                    return false;
+//                }
+//            }
+//
+//            @Override
+//            public long getDelay() {
+//                return 1;
+//            }
+//        };
+//
+//        client.getProperties().put(ClientProperties.RECONNECT_HANDLER, reconnectHandler);
+//
+//        client.connectToServer(...)
+//        ReconnectHandler contains three methods, onDisconnect, onConnectFailure and getDelay. First will be executed whenever @OnClose annotated method (or Endpoint.onClose(..)) is executed on client side - this should happen when established connection is lost for any reason. You can find the reason in methods parameter. Other one, called onConnectFailure is invoked when client fails to connect to remote endpoint, for example due to temporary network issue or current high server load. Method getDelay is called after any of previous methods returns true and the returned value will be used to determine delay before next connection attempt. Default value is 5 seconds.
+
     }
 
     private static Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
