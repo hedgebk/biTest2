@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Properties;
 
 public class HuobiWs extends BaseWs {
-    public static final String ADDRESS = "https://hq.huobi.com/"; // http://hq.huobi.com:80/
+    public static final String ADDRESS = "http://hq.huobi.com:80/"; // HTTPS gets TOO much cpu :-(   https://hq.huobi.com/
     public static final int DEF_RECONNECT_DELAY = 5000;
 
     private SocketIO m_socket;
