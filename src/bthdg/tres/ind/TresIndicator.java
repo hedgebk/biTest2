@@ -385,7 +385,7 @@ public abstract class TresIndicator {
         final TresIndicator m_indicator;
         protected final TresExchData m_exchData;
         private final int m_phaseIndex;
-        public final TrendWatcher<ChartPoint> m_peakCalculator; // TODO: make optional
+        public TrendWatcher<ChartPoint> m_peakCalculator;
         protected final LinkedList<ChartPoint> m_points = new LinkedList<ChartPoint>();
         final LinkedList<ChartPoint> m_peaks = new LinkedList<ChartPoint>();
         final List<ChartPoint> m_paintPoints = new ArrayList<ChartPoint>();
@@ -400,19 +400,21 @@ public abstract class TresIndicator {
         public ChartPoint getLastBar() { return m_lastBar; }
         public Color getPeakColor() { return getColor(); }
 
-        public TresPhasedIndicator(TresIndicator tresIndicator, TresExchData exchData, int phaseIndex, double peakTolerance) {
+        public TresPhasedIndicator(TresIndicator tresIndicator, TresExchData exchData, int phaseIndex, Double peakTolerance) {
             m_indicator = tresIndicator;
             m_exchData = exchData;
             m_phaseIndex = phaseIndex;
-            m_peakCalculator = new TrendWatcher<ChartPoint>(peakTolerance) {
-                @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
-                @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
-                    synchronized (m_peaks) {
-                        m_peaks.add(peak);
-                    }
+            if(peakTolerance != null) {
+                m_peakCalculator = new TrendWatcher<ChartPoint>(peakTolerance) {
+                    @Override protected double toDouble(ChartPoint tick) { return tick.m_value; }
+                    @Override protected void onNewPeak(ChartPoint peak, ChartPoint last) {
+                        synchronized (m_peaks) {
+                            m_peaks.add(peak);
+                        }
 //                    m_executor.postRecheckDirection();
-                }
-            };
+                    }
+                };
+            }
         }
 
         public void onBar(ChartPoint lastBar) {
@@ -431,6 +433,9 @@ public abstract class TresIndicator {
         }
 
         public double getDirectionAdjusted() {  // [-1 ... 1]
+            if (m_peakCalculator == null) {
+                return 0;
+            }
             Direction direction = m_peakCalculator.m_direction;
             return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
