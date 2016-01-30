@@ -1150,6 +1150,7 @@ public abstract class BaseExecutor implements Runnable {
         }
     }
 
+    //-------------------------------------------------------------------------------
     public enum TimeFrameType {
         place {
             @Override public Color color() { return Color.blue; }
@@ -1194,6 +1195,7 @@ public abstract class BaseExecutor implements Runnable {
         }
     }
 
+    //-------------------------------------------------------------------------------
     public enum TopSource {
         top_subscribe {
             @Override public Color color() { return Color.darkGray; }
@@ -1207,6 +1209,7 @@ public abstract class BaseExecutor implements Runnable {
         public Color color() { return null; }
     }
 
+    //-------------------------------------------------------------------------------
     public class TopDataPoint {
         public final double m_bid;
         public final double m_ask;

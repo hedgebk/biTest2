@@ -66,6 +66,8 @@ public abstract class TresAlgo {
             return new Aroon2Algo(tresExchData);
         } else if (algoName.equals("aro2!")) {
             return new Aroon2Algo.Aroon2SharpAlgo(tresExchData);
+        } else if (algoName.equals("ema")) {
+            return new EmaAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
