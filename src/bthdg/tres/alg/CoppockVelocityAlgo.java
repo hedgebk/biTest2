@@ -11,6 +11,7 @@ import bthdg.tres.ind.CursorPainter;
 import bthdg.tres.ind.SmoochedIndicator;
 import bthdg.tres.ind.TresIndicator;
 import bthdg.tres.ind.VelocityIndicator;
+import bthdg.util.Utils;
 
 import java.awt.*;
 
@@ -66,6 +67,11 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                 }
             }
             @Override public String toString() { return "CoppockVelocityAlgo.VelocitySmoochedIndicator"; }
+            @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
+                double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
+                minMaxCalculator.m_minValue = -max;
+                minMaxCalculator.m_maxValue = max;
+            }
         };
         m_indicators.add(m_velocitySmoochedIndicator);
 
@@ -146,6 +152,12 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
             g.setColor(getColor());
             int y = yAxe.getPointReverse(0);
             g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
+        }
+
+        @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
+            double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
+            minMaxCalculator.m_minValue = -max;
+            minMaxCalculator.m_maxValue = max;
         }
 
         public double calcDirectionAdjusted() {

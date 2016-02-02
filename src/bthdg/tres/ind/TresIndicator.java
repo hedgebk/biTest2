@@ -39,6 +39,7 @@ public abstract class TresIndicator {
     public PeakWatcher m_halfPeakWatcher;
 
     public ChartPoint getLastPoint() { return m_lastPoint; }
+    protected boolean usePriceAxe() { return false; }
 
     public TresIndicator(String name, double peakTolerance, TresAlgo algo) {
         m_name = name;
@@ -52,12 +53,14 @@ public abstract class TresIndicator {
         }
     }
 
-    protected boolean countPeaks() { return true; }
-    protected boolean countHalfPeaks() { return true; }
     public abstract TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex);
     public abstract Color getColor();
 
+    protected boolean countPeaks() { return true; }
+    protected boolean countHalfPeaks() { return true; }
     public Color getPeakColor() { return getColor(); } // the same as main color by def
+    protected boolean doPaint() { return m_doPaint; }
+    protected ILineColor getLineColor() { return null; }
 
     public TresPhasedIndicator createPhased(TresExchData exchData, int phaseIndex) {
         TresPhasedIndicator phased = createPhasedInt(exchData, phaseIndex);
@@ -89,6 +92,20 @@ public abstract class TresIndicator {
         m_lastPoint = chartPoint;
     }
 
+    public Double calcAvgValue() {
+        double ret = 0;
+        for (TresPhasedIndicator indicator : m_phasedIndicators) {
+            ChartPoint lastBar = indicator.getLastBar();
+            if (lastBar == null) {
+                return null; // not fully ready
+            }
+            double lastValue = lastBar.m_value;
+            ret += lastValue;
+        }
+        double avgValue = ret / m_phasedIndicators.size();
+        return avgValue;
+    }
+
     private ChartPoint calcAvg() {
         double ret = 0;
         long maxBarEnd = 0;
@@ -107,7 +124,7 @@ public abstract class TresIndicator {
     }
 
     public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe) {
-        if (m_doPaint) {
+        if (doPaint()) {
             Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
             for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
                 if (m_doPaintPhased) {
@@ -127,10 +144,18 @@ public abstract class TresIndicator {
                 Double valMax = minMaxCalculator.m_maxValue;
                 double diff = valMax - valMin;
                 double extra = diff * 0.01;
-                m_yAxe = new ChartAxe(valMin - extra, valMax + extra, yPriceAxe.m_size);
-                m_yAxe.m_offset = yPriceAxe.m_offset;
+                valMin -= extra;
+                valMax += extra;
 
-                return paintYAxe(g, right, m_yAxe);
+                if( usePriceAxe() ) {
+                    yPriceAxe.updateBounds(valMin, valMax);
+                    m_yAxe = yPriceAxe;
+                    return 0;
+                } else {
+                    m_yAxe = new ChartAxe(valMin - extra, valMax + extra, yPriceAxe.m_size);
+                    m_yAxe.m_offset = yPriceAxe.m_offset;
+                    return paintYAxe(g, right, m_yAxe);
+                }
             }
         }
         m_yAxe = null;
@@ -214,14 +239,14 @@ public abstract class TresIndicator {
     }
 
     public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
-        if (m_doPaint && (m_yAxe != null)) {
+        if (doPaint() && (m_yAxe != null)) {
             preDraw(g, xTimeAxe, m_yAxe);
             if (m_doPaintPhased) {
                 for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
                     phIndicator.paint(g, xTimeAxe, m_yAxe);
                 }
             }
-            paintPoints(g, xTimeAxe, m_yAxe, getColor(), m_avgPaintPoints);
+            paintPoints(g, xTimeAxe, m_yAxe, getColor(), getLineColor(), m_avgPaintPoints);
             if (countPeaks()) {
                 Color peakColor = getPeakColor();
                 m_peakWatcher.paintPeaks(g, xTimeAxe, m_yAxe, peakColor);
@@ -261,15 +286,28 @@ public abstract class TresIndicator {
         }
     }
 
-    protected static void paintPoints(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe, Color color, List<ChartPoint> paintPoints) {
-        g.setColor(color);
+    private static void paintPoints(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe, Color color, ILineColor iLineColor, List<ChartPoint> paintPoints) {
+        Color lastColor = null;
+        long lastTime = 0;
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
+        Double lastVal = null;
         for (ChartPoint tick : paintPoints) {
             long endTime = tick.m_millis;
             int x = xTimeAxe.getPoint(endTime);
             double val = tick.m_value;
             int y = yAxe.getPointReverse(val);
+
+            Color lineColor = (iLineColor == null)
+                                ? color
+                                : (endTime > lastTime)
+                                    ? iLineColor.getColor(val, lastVal)
+                                    : iLineColor.getColor(lastVal, val);
+            if(lineColor != lastColor) {
+                g.setColor(lineColor);
+                lastColor = lineColor;
+            }
+
             if (lastX != Integer.MAX_VALUE) {
                 g.drawLine(lastX, lastY, x, y);
             } else {
@@ -277,6 +315,8 @@ public abstract class TresIndicator {
             }
             lastX = x;
             lastY = y;
+            lastVal = val;
+            lastTime = endTime;
         }
     }
 
@@ -399,6 +439,7 @@ public abstract class TresIndicator {
 
         public ChartPoint getLastBar() { return m_lastBar; }
         public Color getPeakColor() { return getColor(); }
+        protected ILineColor getLineColor() { return null; }
 
         public TresPhasedIndicator(TresIndicator tresIndicator, TresExchData exchData, int phaseIndex, Double peakTolerance) {
             m_indicator = tresIndicator;
@@ -428,9 +469,10 @@ public abstract class TresIndicator {
         }
 
         public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
-            paintPoints(g, xTimeAxe, yAxe, getColor(), m_paintPoints);
+            paintPoints(g, xTimeAxe, yAxe, getColor(), getLineColor(), m_paintPoints);
             paintPeaks(g, xTimeAxe, yAxe, getPeakColor(), m_paintPeaks, false, true);
         }
+
 
         public double getDirectionAdjusted() {  // [-1 ... 1]
             if (m_peakCalculator == null) {
@@ -439,5 +481,19 @@ public abstract class TresIndicator {
             Direction direction = m_peakCalculator.m_direction;
             return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
+    }
+
+    // =================================================================================
+    public interface ILineColor {
+        Color getColor(Double val, Double lastVal);
+
+
+        ILineColor PRICE = new ILineColor() {
+            @Override public Color getColor(Double val, Double lastVal) {
+                return (val == null) || (lastVal == null) || val.equals(lastVal)
+                        ? Color.white
+                        : (val > lastVal) ? Color.GREEN : Color.RED;
+            }
+        };
     }
 }

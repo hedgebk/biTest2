@@ -27,10 +27,4 @@ public class SmoochedIndicator extends TresIndicator {
             super.addBar(smoochPoint);
         }
     }
-
-    @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-        double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
-        minMaxCalculator.m_minValue = -max;
-        minMaxCalculator.m_maxValue = max;
-    }
 }

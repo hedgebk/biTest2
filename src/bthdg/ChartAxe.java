@@ -3,10 +3,10 @@ package bthdg;
 import bthdg.util.Utils;
 
 public class ChartAxe {
-    public final double m_min;
-    public final double m_max;
     public final int m_size;
-    public final double m_scale;
+    public double m_min;
+    public double m_max;
+    public double m_scale;
     public int m_offset;
 
     public ChartAxe(Utils.DoubleMinMaxCalculator calculator, int size) {
@@ -14,11 +14,20 @@ public class ChartAxe {
     }
 
     public ChartAxe(double min, double max, int size) {
+        m_size = size;
         m_min = min;
         m_max = max;
-        m_size = size;
-        double diff = max - min;
-        m_scale = diff / size;
+        updateScale();
+    }
+
+    protected void updateScale() {
+        m_scale = (m_max - m_min) / m_size;
+    }
+
+    public void updateBounds(double min, double max) {
+        m_min = Math.min(m_min, min);
+        m_max = Math.max(m_max, max);
+        updateScale();
     }
 
     public int getPoint(double value) {

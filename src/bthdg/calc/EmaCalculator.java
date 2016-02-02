@@ -3,13 +3,14 @@ package bthdg.calc;
 
 public class EmaCalculator extends CloseCalculator {
     private final double m_multiplier;
-    public Double m_pervValue;
+    private Double m_prevEmaValue;
+    public Double m_lastEmaValue;
     private Double m_prevClose;
 
     public EmaCalculator(int emaSize, long barSize, long barsMillisOffset) {
         super(barSize, barsMillisOffset);
         // Multiplier: (2 / (Time periods + 1) ) = (2 / (10 + 1) ) = 0.1818 (18.18%)
-        m_multiplier = 2.0/ (emaSize + 1);
+        m_multiplier = 2.0 / (emaSize + 1);
     }
 
     @Override protected void startNewBar(long barStart, long barEnd) {
@@ -18,18 +19,32 @@ public class EmaCalculator extends CloseCalculator {
     }
 
     @Override protected void finishCurrentBar(long time, double price) {
+        Double ema = calcEma();
+        m_prevEmaValue = m_lastEmaValue;
+        m_lastEmaValue = ema;
+    }
+
+    private Double calcEma() {
         Double close = (m_close == null) ? m_prevClose : m_close;
-        Double ema = calcEma(close);
-        m_pervValue = ema;
+        return calcEma(close);
     }
 
     private Double calcEma(Double value) {
         if (value == null) {
             return null;
         }
-        double prevValue = (m_pervValue == null) ? value : m_pervValue;
+        double prevValue = (m_lastEmaValue == null) ? value : m_lastEmaValue;
         // EMA: {Close - EMA(previous day)} x multiplier + EMA(previous day).
         double ema = (value - prevValue) * m_multiplier + prevValue;
         return ema;
+    }
+
+    public int calcDirection() { // [-1 ... 1]
+        Double ema = calcEma();
+        if ((m_prevEmaValue == null) || (ema == null)) {
+            return 0;
+        }
+        double diff = ema - m_prevEmaValue;
+        return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
     }
 }

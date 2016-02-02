@@ -24,7 +24,7 @@ public class CursorPainter {
     }
 
     public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
-        if (m_indicator.m_doPaint && (m_indicator.m_yAxe != null)) {
+        if (m_indicator.doPaint() && (m_indicator.m_yAxe != null)) {
             if (cursorPoint != null) {
                 int cursorPointX = (int) cursorPoint.getX();
 

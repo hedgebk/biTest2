@@ -54,6 +54,11 @@ public class Aroon2Algo extends AroonAlgo {
             @Override protected boolean countPeaks() { return false; }
             @Override public Color getColor() { return Color.pink; }
             @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
+                double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
+                minMaxCalculator.m_minValue = -max;
+                minMaxCalculator.m_maxValue = max;
+            }
         };
         m_indicators.add(m_smoochedVelocityIndicator);
 
