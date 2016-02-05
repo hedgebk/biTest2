@@ -181,7 +181,10 @@ public class TresCanvas extends JComponent {
         List<BaseExecutor.TopDataPoint> topsClone = getTopsClone(executor.m_tops);
         ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, buyPrice, sellPrice, ohlcTicksClone, ordersClone, topsClone);
 
-        int yAxesWidth = paintYAxes(g, height, yPriceAxe, exchData);
+        ChartAxe yValueAxe = new ChartAxe(0, 0, height - 2);
+        yPriceAxe.m_offset = 1;
+
+        int yAxesWidth = paintYAxes(g, height, yPriceAxe, yValueAxe, exchData);
         int chartAreaRight = width - yAxesWidth;
         calcXTimeAxe(chartAreaRight, barSize, phaseData);
 
@@ -235,13 +238,20 @@ public class TresCanvas extends JComponent {
         g.drawString(getBarsShiftStr(), 5, fontHeight * 3 + 5);
     }
 
-    private int paintYAxes(Graphics g, int height, ChartAxe yPriceAxe, TresExchData exchData) {
+    private int paintYAxes(Graphics g, int height, ChartAxe yPriceAxe, ChartAxe yValueAxe, TresExchData exchData) {
         int yAxesWidth = paintYPriceAxe(g, yPriceAxe);
         int width = getWidth();
         for (TresAlgoWatcher algoWatcher : exchData.m_playAlgos) {
-            int axeWidth = algoWatcher.paintYAxe(g, m_xTimeAxe, width - yAxesWidth, yPriceAxe);
+            int axeWidth = algoWatcher.paintYAxe(g, m_xTimeAxe, width - yAxesWidth, yPriceAxe, yValueAxe);
             yAxesWidth += axeWidth;
         }
+
+        if ((yValueAxe.m_max != 0) || (yValueAxe.m_min != 0)) {
+            Color color = Color.WHITE;
+            int valueAxeWidth = yValueAxe.paintYAxe(g, width - yAxesWidth, color);
+            yAxesWidth += valueAxeWidth;
+        }
+
         return yAxesWidth;
     }
 

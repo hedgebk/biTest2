@@ -19,7 +19,7 @@ public class PhaseData {
     public PhaseData(TresExchData exchData, int phaseIndex) {
         m_exchData = exchData;
         m_phaseIndex = phaseIndex;
-        Tres tres = m_exchData.m_tres;
+//        Tres tres = m_exchData.m_tres;
 
         for (TresAlgoWatcher algoWatcher : exchData.m_playAlgos) {
             TresAlgo algo = algoWatcher.m_algo;

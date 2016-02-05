@@ -142,6 +142,11 @@ public class TresExchData {
         m_lastPrice = tdata.m_price;
         long timestamp = tdata.m_timestamp;
 
+        for (TresAlgoWatcher algoWatcher : m_playAlgos) {
+            TresAlgo algo = algoWatcher.m_algo;
+            algo.onTrade(tdata);
+        }
+
         for (PhaseData phaseData : m_phaseDatas) {
             phaseData.update(tdata);
         }

@@ -2,6 +2,7 @@ package bthdg.tres.alg;
 
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
+import bthdg.exch.TradeDataLight;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresCanvas;
@@ -23,6 +24,10 @@ public abstract class TresAlgo {
     public abstract double lastTickPrice();
     public abstract long lastTickTime();
     public abstract Color getColor();
+
+    public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
+    public Direction getDirection() { return null; } // UP/DOWN
+    public void onTrade(TradeDataLight tdata) { /*noop*/ }
 
     public TresAlgo(String name, TresExchData tresExchData) {
         m_name = name;
@@ -73,10 +78,10 @@ public abstract class TresAlgo {
     }
 
 
-    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe) {
+    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe, ChartAxe yValueAxe) {
         int width = 0;
         for (TresIndicator indicator : m_indicators) {
-            int axeWidth = indicator.paintYAxe(g, xTimeAxe, right - width, yPriceAxe);
+            int axeWidth = indicator.paintYAxe(g, xTimeAxe, right - width, yPriceAxe, yValueAxe);
             width += axeWidth;
         }
         return width;
@@ -97,9 +102,6 @@ public abstract class TresAlgo {
             m_listener.onValueChange();
         }
     }
-
-    public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
-    public Direction getDirection() { return null; } // UP/DOWN
 
     public JComponent getController(TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));

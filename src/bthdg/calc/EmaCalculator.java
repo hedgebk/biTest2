@@ -47,4 +47,12 @@ public class EmaCalculator extends CloseCalculator {
         double diff = ema - m_prevEmaValue;
         return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
     }
+
+    public int directionInt() {
+        if ((m_prevEmaValue == null) || (m_lastEmaValue == null)) {
+            return 0;
+        }
+        double diff = m_lastEmaValue - m_prevEmaValue;
+        return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
+    }
 }

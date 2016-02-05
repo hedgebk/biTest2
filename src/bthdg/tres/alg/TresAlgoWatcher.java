@@ -38,8 +38,8 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         algo.setListener(this);
     }
 
-    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int yRight, ChartAxe yPriceAxe) {
-        return m_algo.paintYAxe(g, xTimeAxe, yRight, yPriceAxe);
+    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int yRight, ChartAxe yPriceAxe, ChartAxe yValueAxe) {
+        return m_algo.paintYAxe(g, xTimeAxe, yRight, yPriceAxe, yValueAxe);
     }
 
     public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {

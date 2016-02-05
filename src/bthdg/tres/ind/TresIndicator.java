@@ -13,16 +13,12 @@ import bthdg.util.Utils;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
-import java.awt.geom.Rectangle2D;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
 public abstract class TresIndicator {
-    public static final int AXE_MARKER_WIDTH = 10;
-
     private final String m_name;
     public final TresAlgo m_algo;
     private final boolean m_collectPoints;
@@ -40,6 +36,7 @@ public abstract class TresIndicator {
 
     public ChartPoint getLastPoint() { return m_lastPoint; }
     protected boolean usePriceAxe() { return false; }
+    protected boolean useValueAxe() { return false; }
 
     public TresIndicator(String name, double peakTolerance, TresAlgo algo) {
         m_name = name;
@@ -123,7 +120,7 @@ public abstract class TresIndicator {
         return new ChartPoint(maxBarEnd, avgValue);
     }
 
-    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe) {
+    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe, ChartAxe yValueAxe) {
         if (doPaint()) {
             Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
             for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
@@ -151,6 +148,10 @@ public abstract class TresIndicator {
                     yPriceAxe.updateBounds(valMin, valMax);
                     m_yAxe = yPriceAxe;
                     return 0;
+                } else if( useValueAxe() ) {
+                    yValueAxe.updateBounds(valMin, valMax);
+                    m_yAxe = yValueAxe;
+                    return 0;
                 } else {
                     m_yAxe = new ChartAxe(valMin - extra, valMax + extra, yPriceAxe.m_size);
                     m_yAxe.m_offset = yPriceAxe.m_offset;
@@ -163,79 +164,8 @@ public abstract class TresIndicator {
     }
 
     private int paintYAxe(Graphics g, int right, ChartAxe yAxe) {
-        g.setColor(getColor());
-
-        int fontHeight = g.getFont().getSize();
-        int halfFontHeight = fontHeight / 2;
-        double min = yAxe.m_min;
-        double max = yAxe.m_max;
-        int height = yAxe.m_size;
-
-        int maxLabelsCount = height * 3 / fontHeight / 4;
-        double diff = max - min;
-        double maxLabelsStep = diff / maxLabelsCount;
-        double log = Math.log10(maxLabelsStep);
-        int floor = (int) Math.floor(log);
-        int points = Math.max(0, -floor);
-        double pow = Math.pow(10, floor);
-        double mant = maxLabelsStep / pow;
-        int stepMant;
-        if (mant == 1) {
-            stepMant = 1;
-        } else if (mant <= 2) {
-            stepMant = 2;
-        } else if (mant <= 5) {
-            stepMant = 5;
-        } else {
-            stepMant = 1;
-            floor++;
-            pow = Math.pow(10, floor);
-        }
-        double step = stepMant * pow;
-
-        double minLabel = Math.floor(min / step) * step;
-        double maxLabel = Math.ceil(max / step) * step;
-
-        NumberFormat nf = NumberFormat.getInstance();
-        nf.setMaximumFractionDigits(points);
-        nf.setMinimumFractionDigits(points);
-
-        FontMetrics fontMetrics = g.getFontMetrics();
-        int maxWidth = 10;
-        for (double y = minLabel; y <= maxLabel; y += step) {
-            String str = nf.format(y);
-            Rectangle2D bounds = fontMetrics.getStringBounds(str, g);
-            int stringWidth = (int) bounds.getWidth();
-            maxWidth = Math.max(maxWidth, stringWidth);
-        }
-
-        int x = right - maxWidth;
-
-        for (double val = minLabel; val <= maxLabel; val += step) {
-            String str = nf.format(val);
-            int y = yAxe.getPointReverse(val);
-            g.drawString(str, x, y + halfFontHeight);
-            g.drawLine(x - 2, y, x - AXE_MARKER_WIDTH, y);
-        }
-
-//        g.drawString("h" + height, x, fontHeight * 2);
-//        g.drawString("m" + maxLabelsCount, x, fontHeight * 3);
-//        g.drawString("d" + diff, x, fontHeight * 4);
-//        g.drawString("m" + maxLabelsStep, x, fontHeight * 5);
-//        g.drawString("l" + log, x, fontHeight * 6);
-//        g.drawString("f" + floor, x, fontHeight * 7);
-//        g.drawString("p" + pow, x, fontHeight * 8);
-//        g.drawString("m" + mant, x, fontHeight * 9);
-//        g.drawString("s" + stepMant, x, fontHeight * 11);
-//        g.drawString("f" + floor, x, fontHeight * 12);
-//        g.drawString("p" + pow, x, fontHeight * 13);
-//        g.drawString("s" + step, x, fontHeight * 14);
-//        g.drawString("p" + points, x, fontHeight * 15);
-//
-//        g.drawString("ma" + maxLabel, x, fontHeight * 17);
-//        g.drawString("mi" + minLabel, x, fontHeight * 18);
-
-        return maxWidth + AXE_MARKER_WIDTH + 2;
+        Color color = getColor();
+        return yAxe.paintYAxe(g, right, color);
     }
 
     public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {

@@ -1,6 +1,8 @@
 package bthdg.tres.alg;
 
 import bthdg.exch.Direction;
+import bthdg.exch.TradeDataLight;
+import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
@@ -18,22 +20,44 @@ import java.util.List;
 
 
 public class EmaAlgo extends TresAlgo {
-    public static final int FROM = 5;
-    public static final int TO = 110;
-    public static final int STEP = 5;
+    public static final int FROM = 12;
+    public static final int TO = 55;
+    public static final int STEP = 2;
+    public static final double SMOOCH_RATE = 0.6;
+    public static final double VELOCITY_SIZE = 0.8;
+    public static final double MID_VELOCITY_SIZE = 0.4;
+    public static final double MID_SMOOCH_SIZE = 0.4;
+    public static final double AND_SMOOCH_SIZE = 0.1;
+    public static final int PREHEAT_BARS = 7;
+    public static final double PRICE_SMOOCH_SIZE = 0.25;
+    public static final double PRICE_SMOOCH_SIZE2 = 0.5;
+    public static final double PRICE_SMOOCH_SIZE3 = 0.75;
+    public static final double PRICE_VELOCITY_SIZE = 0.15;
+    public static final double PRICE_VELOCITY_SIZE2 = 0.15;
+    public static final double PRICE_VELOCITY_SIZE3 = 0.15;
 
     public static double LEVEL = 0.5;
 
     final List<EmaIndicatorInt> m_emaIndicators = new ArrayList<EmaIndicatorInt>((TO - FROM) / STEP + 1);
-    private final VelocityIndicator m_velocityIndicator;
-    private final SmoochedIndicator m_smoochedFastestIndicator;
-    private final AndIndicator m_andIndicator;
+    private VelocityIndicator m_velocityIndicator;
+    private SmoochedIndicator m_smoochedFastestIndicator;
+    private TresIndicator m_andIndicator;
+    private SmoochedIndicator m_smoochedAndIndicator;
+    private TresIndicator m_midIndicator;
+    private VelocityIndicator m_midVelocityIndicator;
+    private SmoochedIndicator m_smoochedMidIndicator;
+    private SmoochedIndicator[] m_priceEmaIndicators;
     private EmaIndicator m_fastestEma;
     private EmaIndicator m_midEma;
     private boolean m_doPaintRibbon;
+    private Long m_firstBar;
+    private Boolean m_lastUp;
+    private boolean m_weakDirection;
+    private Double m_lastAndDirection = null;
 
     public EmaAlgo(TresExchData tresExchData) {
         super("EMA", tresExchData);
+        long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
         int centerEma = (TO + FROM) / 2;
 
@@ -63,63 +87,210 @@ public class EmaAlgo extends TresAlgo {
             }
         }
 
-        long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
-        long smoochSize = (long) (0.1 * barSizeMillis);
-        m_smoochedFastestIndicator = new SmoochedIndicator(this, "sm", smoochSize, 0) {
+        long smoochSize = (long) (SMOOCH_RATE * barSizeMillis);
+        m_smoochedFastestIndicator = new SmoochedIndicator(this, "sm", smoochSize, 0.1) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 ChartPoint lastPoint = getLastPoint();
                 m_velocityIndicator.addBar(lastPoint);
             }
-            @Override protected boolean countPeaks() { return false; }
+//            @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean countHalfPeaks() { return false; }
             @Override public Color getColor() { return Color.pink; }
-//            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected boolean usePriceAxe() { return true; }
         };
         m_indicators.add(m_smoochedFastestIndicator);
 
 
-        final long velSize = (long) (barSizeMillis * 0.25);
-        m_velocityIndicator = new VelocityIndicator(this, "vel", velSize, 0.1) {
-            @Override public void addBar(ChartPoint chartPoint) {
-                super.addBar(chartPoint);
-//                ChartPoint lastPoint = getLastPoint();
-//                m_velocitySmoochedIndicator.addBar(lastPoint);
-            }
+        final long velSize = (long) (barSizeMillis * VELOCITY_SIZE);
+        m_velocityIndicator = new VelocityIndicator(this, "vel", velSize, 0.3) {
             @Override public String toString() { return "Ema.Vel"; }
             @Override public Color getColor() { return Color.magenta; }
         };
         m_indicators.add(m_velocityIndicator);
 
-        m_andIndicator = new AndIndicator( this );
+        m_andIndicator = new TresIndicator( ".", 0, this ) {
+            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Colors.SKY; }
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean useValueAxe() { return true; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                double value = lastPoint.m_value;
+                double sqrtValue = Math.signum(value) * Math.sqrt(Math.abs(value));
+                ChartPoint point = new ChartPoint(lastPoint.m_millis, sqrtValue);
+                m_smoochedAndIndicator.addBar(point);
+            }
+        };
         m_indicators.add(m_andIndicator);
+
+        long andSmoochSize = (long) (AND_SMOOCH_SIZE * barSizeMillis);
+        m_smoochedAndIndicator = new SmoochedIndicator(this, "and'", andSmoochSize, 0) {
+            @Override protected boolean countPeaks() { return false; }
+            @Override public Color getColor() { return Color.WHITE; }
+            @Override protected boolean useValueAxe() { return true; }
+        };
+        m_indicators.add(m_smoochedAndIndicator);
+
+        m_midIndicator = new TresIndicator( "m", 0.04, this ) {
+            @Override public TresIndicator.TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Colors.LIGHT_BLUE; }
+//        @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean countHalfPeaks() { return false; }
+            @Override protected boolean usePriceAxe() { return true; }
+//        @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                m_smoochedMidIndicator.addBar(lastPoint);
+            }
+        };
+        m_indicators.add(m_midIndicator);
+
+        long midSmoochSize = (long) (MID_SMOOCH_SIZE * barSizeMillis);
+        m_smoochedMidIndicator = new SmoochedIndicator(this, "mid'", midSmoochSize, 0) {
+            @Override protected boolean countPeaks() { return false; }
+            @Override public Color getColor() { return Colors.TRANSP_LIGHT_CYAN; }
+            @Override protected boolean usePriceAxe() { return true; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                m_midVelocityIndicator.addBar(lastPoint);
+            }
+        };
+        m_indicators.add(m_smoochedMidIndicator);
+
+        final long midVelSize = (long) (barSizeMillis * MID_VELOCITY_SIZE);
+        m_midVelocityIndicator = new VelocityIndicator(this, "mv", midVelSize, 0.1) {
+            @Override public String toString() { return "Mid.Vel"; }
+            @Override public Color getColor() { return Color.magenta; }
+        };
+        m_indicators.add(m_midVelocityIndicator);
+
+        // ----------
+        m_priceEmaIndicators = new SmoochedIndicator[3];
+        addPriceFollower(0, PRICE_SMOOCH_SIZE,  PRICE_VELOCITY_SIZE);
+        addPriceFollower(1, PRICE_SMOOCH_SIZE2, PRICE_VELOCITY_SIZE2);
+        addPriceFollower(2, PRICE_SMOOCH_SIZE3, PRICE_VELOCITY_SIZE3);
     }
 
-    Double m_lastAndDirection = null;
+    private void addPriceFollower(final int index, double priceSmoochSize, double priceVelocitySize) {
+        long barSizeMillis = m_tresExchData.m_tres.m_barSizeMillis;
 
-    protected void addAndPoint(ChartPoint chartPoint) {
-        double direction = calcDirection();
-        if ((m_lastAndDirection == null) || (m_lastAndDirection != direction)) {
-System.out.println("direction = " + direction);
-            m_andIndicator.addBar(new ChartPoint(chartPoint.m_millis, direction));
-            m_lastAndDirection = direction;
+        final long priceVelSize = (long) (barSizeMillis * priceVelocitySize);
+        final VelocityIndicator priceVelocityIndicator = new VelocityIndicator(this, "pv" + index, priceVelSize, 0.000015) {
+            @Override public String toString() { return "price.Vel" + index; }
+            @Override public Color getColor() { return Color.magenta; }
+            @Override protected boolean countPeaks() { return true; }
+            @Override protected boolean countHalfPeaks() { return false; }
+
+        };
+
+        final TresIndicator zagIndicator = new TresIndicator("zz" + index, 0, this) {
+            @Override public TresIndicator.TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Colors.DARK_RED; }
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean usePriceAxe() { return true; }
+        };
+
+        final TresIndicator zigIndicator = new TresIndicator("z" + index, 0, this) {
+            public ChartPoint m_lastPeak;
+
+            @Override public TresIndicator.TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Colors.LIGHT_BLUE; }
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean usePriceAxe() { return true; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                if(m_lastPeak != null) {
+                    zagIndicator.addBar(new ChartPoint((chartPoint.m_millis + m_lastPeak.m_millis) / 2, (chartPoint.m_value + m_lastPeak.m_value) / 2));
+                }
+                m_lastPeak = chartPoint;
+            }
+        };
+
+        final long frameSizeMillis = (long) (barSizeMillis * priceSmoochSize);
+        SmoochedIndicator priceEmaIndicator = new SmoochedIndicator(this, "p" + index, frameSizeMillis, 0.1) {
+
+            @Override protected boolean countHalfPeaks() { return false; }
+            @Override protected boolean usePriceAxe() { return true; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                priceVelocityIndicator.addBar(getLastPoint());
+            }
+
+            @Override protected void onAvgPeak(TrendWatcher<ChartPoint> trendWatcher) {
+                ChartPoint peak = trendWatcher.m_peak;
+                zigIndicator.addBar(peak);
+            }
+        };
+        m_indicators.add(priceEmaIndicator);
+        m_priceEmaIndicators[index] = priceEmaIndicator;
+
+        m_indicators.add(priceVelocityIndicator);
+        m_indicators.add(zigIndicator);
+        m_indicators.add(zagIndicator);
+    }
+
+    @Override public void onTrade(TradeDataLight tdata) {
+        ChartPoint chartPoint = new ChartPoint(tdata.m_timestamp, tdata.m_price);
+        for (SmoochedIndicator priceEmaIndicator : m_priceEmaIndicators) {
+            priceEmaIndicator.addBar(chartPoint);
         }
     }
 
+    protected void addAndPoint(ChartPoint chartPoint) {
+        double direction = calcLastBarDirection();
+//        double direction = calcDirection();
 
-    private Boolean m_lastUp;
-    private boolean m_weakDirection;
+        long millis = chartPoint.m_millis;
+//        if ((m_lastAndDirection == null) || (m_lastAndDirection != direction)) {
+//System.out.println("direction = " + direction);
+            m_andIndicator.addBar(new ChartPoint(millis, direction));
+            m_lastAndDirection = direction;
+//        }
+        Double mid = calcMid();
+        if (mid != null) {
+            m_midIndicator.addBar(new ChartPoint(millis, mid));
+        }
+    }
+
+    private double calcLastBarDirection() {
+        double sum = 0;
+        for (EmaIndicatorInt indicator : m_emaIndicators) {
+            int dir = indicator.calcLastBarDirectionInt();
+            sum += dir;
+        }
+        double direction = sum / m_emaIndicators.size();
+        return direction;
+    }
 
     double calcDirection() { // [-1 ... 1]
         double sum = 0;
         for (EmaIndicatorInt indicator : m_emaIndicators) {
 //            double dir = indicator.calcDirection(); // [-1 ... 1]
-//            int dir = indicator.calcDirectionInt(); // [-1 ... 1]
-            int dir = indicator.calcDirectionInt2(); // [-1 ... 1]
+            int dir = indicator.calcDirectionInt(); // [-1 | 0 | 1]
+//            int dir = indicator.calcDirectionInt2(); // [-1 ... 1]
             sum += dir;
         }
         double direction = sum / m_emaIndicators.size();
         return direction;
+    }
+
+    private Double calcMid() {
+        Double min = null;
+        Double max = null;
+        for (EmaIndicatorInt indicator : m_emaIndicators) {
+            double lastValue = indicator.m_lastValue;
+            if (lastValue == 0) {
+                return null; // not full
+            }
+            min = (min == null) ? lastValue : Math.min(min, lastValue);
+            max = (max == null) ? lastValue : Math.max(max, lastValue);
+        }
+        return (min == null || max == null) ? null : (min + max) / 2;
     }
 
     Boolean up() {
@@ -189,13 +360,40 @@ System.out.println("direction = " + direction);
     @Override public String getRunAlgoParams() { return "EMA"; }
 
     @Override public double getDirectionAdjusted() {
-        return calcDirection();
+        if(m_smoochedAndIndicator == null) {
+            return 0;
+        }
+        ChartPoint lastPoint = m_smoochedAndIndicator.getLastPoint();
+        if (lastPoint == null) {
+            return 0;
+        } else {
+            long millis = lastPoint.m_millis;
+            if (m_firstBar == null) {
+                m_firstBar = millis;
+            }
+            double passed = millis - m_firstBar;
+            double preheatRate = passed / (PREHEAT_BARS * m_tresExchData.m_tres.m_barSizeMillis);
+            if (preheatRate > 1) {
+                preheatRate = 1;
+            }
+            return lastPoint.m_value * preheatRate;
+        }
     }
 
     @Override public Direction getDirection() {
-        double dir = calcDirection();
+        double dir = getDirectionAdjusted();
         return (dir == 0) ? null : Direction.get(dir);
     }
+
+//    @Override public double getDirectionAdjusted() {
+//        return calcDirection();
+//    }
+//
+//    @Override public Direction getDirection() {
+//        double dir = calcDirection();
+//        return (dir == 0) ? null : Direction.get(dir);
+//    }
+
 //    @Override public double getDirectionAdjusted() {
 //        Boolean up = up();
 //        return (up == null) ? 0 : (up ? 1 : -1);
@@ -227,19 +425,6 @@ System.out.println("direction = " + direction);
 
         return panel;
     }
-
-
-    // ======================================================================================
-    public static class AndIndicator extends TresIndicator {
-        public AndIndicator(TresAlgo algo) {
-            super(".", 0, algo);
-        }
-
-        @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-        @Override public Color getColor() { return Colors.SKY; }
-        @Override protected boolean countPeaks() { return false; }
-    }
-
 
     // ======================================================================================
     private class EmaIndicatorInt extends EmaIndicator {

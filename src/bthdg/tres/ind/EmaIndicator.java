@@ -27,6 +27,26 @@ public class EmaIndicator extends TresIndicator {
     @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
     @Override protected boolean usePriceAxe() { return true; }
 
+
+    public int calcLastBarDirectionInt() {
+        long lastTime = 0;
+        PhasedEmaIndicator lastIndicator = null;
+        for (TresPhasedIndicator indicator : m_phasedIndicators) {
+            PhasedEmaIndicator emaIndicator = (PhasedEmaIndicator) indicator;
+            ChartPoint lastBar = emaIndicator.getLastBar();
+            if (lastBar != null) {
+                long millis = lastBar.m_millis;
+//            long millis = emaIndicator.lastTickTime();
+                if (lastTime < millis) {
+                    lastTime = millis;
+                    lastIndicator = emaIndicator;
+                }
+            }
+        }
+        int dir = (lastIndicator != null) ? lastIndicator.directionInt() : 0;
+        return dir;
+    }
+
     public double calcDirection() { // [-1 ... 1]
         double ret = 0;
         for (TresPhasedIndicator indicator : m_phasedIndicators) {
@@ -43,7 +63,7 @@ public class EmaIndicator extends TresIndicator {
         double ret = 0;
         for (TresPhasedIndicator indicator : m_phasedIndicators) {
             PhasedEmaIndicator emaIndicator = (PhasedEmaIndicator) indicator;
-            int dir = emaIndicator.calcDirection(); // [-1 ... 1]
+            int dir = emaIndicator.calcDirection(); // [-1 | 0 | 1]
 // TODO: do progressive
             ret += dir;
         }
@@ -59,6 +79,7 @@ public class EmaIndicator extends TresIndicator {
         @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
         @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
         @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
+        public int directionInt() { return m_calculator.directionInt(); }
 
         public PhasedEmaIndicator(int emsSize, EmaIndicator indicator, TresExchData exchData, int phaseIndex) {
             super(indicator, exchData, phaseIndex, null);
@@ -82,8 +103,9 @@ public class EmaIndicator extends TresIndicator {
             return m_calculator.update(timestamp, price);
         }
 
-        public int calcDirection() { // [-1 ... 1]
-            return m_calculator.calcDirection(); // [-1 ... 1]
+        public int calcDirection() { // [-1 | 0 |  1]
+            return m_calculator.calcDirection(); // [-1 | 0 | 1]
         }
+
     }
 }
