@@ -18,8 +18,8 @@ import java.awt.event.ItemEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-
-public class EmaAlgo extends TresAlgo {
+// Madrid Moving Average Ribbon
+public class MmarAlgo extends TresAlgo {
     public static final int FROM = 12;
     public static final int TO = 55;
     public static final int STEP = 2;
@@ -55,8 +55,8 @@ public class EmaAlgo extends TresAlgo {
     private boolean m_weakDirection;
     private Double m_lastAndDirection = null;
 
-    public EmaAlgo(TresExchData tresExchData) {
-        super("EMA", tresExchData);
+    public MmarAlgo(TresExchData tresExchData) {
+        super("Mmar", tresExchData);
         long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
         int centerEma = (TO + FROM) / 2;
@@ -105,7 +105,7 @@ public class EmaAlgo extends TresAlgo {
 
         final long velSize = (long) (barSizeMillis * VELOCITY_SIZE);
         m_velocityIndicator = new VelocityIndicator(this, "vel", velSize, 0.3) {
-            @Override public String toString() { return "Ema.Vel"; }
+            @Override public String toString() { return "mmar.Vel"; }
             @Override public Color getColor() { return Color.magenta; }
         };
         m_indicators.add(m_velocityIndicator);
@@ -357,7 +357,7 @@ public class EmaAlgo extends TresAlgo {
     @Override public double lastTickPrice() { return m_fastestEma.lastTickPrice(); }
     @Override public long lastTickTime() { return m_fastestEma.lastTickTime(); }
     @Override public Color getColor() { return Color.LIGHT_GRAY; }
-    @Override public String getRunAlgoParams() { return "EMA"; }
+    @Override public String getRunAlgoParams() { return "MMAR"; }
 
     @Override public double getDirectionAdjusted() {
         if(m_smoochedAndIndicator == null) {
@@ -432,7 +432,7 @@ public class EmaAlgo extends TresAlgo {
         double m_lastValue = 0;
 
         public EmaIndicatorInt(int emaSize) {
-            super("ema", EmaAlgo.this, emaSize);
+            super("mmar", MmarAlgo.this, emaSize);
         }
 
         @Override protected boolean doPaint() { return m_doPaintRibbon; }
