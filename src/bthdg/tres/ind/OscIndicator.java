@@ -57,9 +57,7 @@ public class OscIndicator extends TresIndicator {
 
                     long barEnd = barStart + m_exchData.m_tres.m_barSizeMillis;
                     OscChartPoint tick = new OscChartPoint(barEnd, stoch1, stoch2);
-                    if (m_exchData.m_tres.m_collectPoints) {
-                        m_points.add(tick); // add to the end
-                    }
+                    collectPointIfNeeded(tick);
                     m_peakCalculator.update(tick);
                     onBar(tick);
                 }

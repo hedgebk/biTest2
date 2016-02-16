@@ -45,9 +45,7 @@ public class CciIndicator extends TresIndicator {
             m_calculator = new CciCalculator(SMA_LENGTH, exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex)) {
                 @Override protected void bar(long barEnd, double value) {
                     ChartPoint tick = new ChartPoint(barEnd, value);
-                    if (m_exchData.m_tres.m_collectPoints) {
-                        m_points.add(tick); // add to the end
-                    }
+                    collectPointIfNeeded(tick);
                     m_peakCalculator.update(tick);
                     onBar(tick);
                 }

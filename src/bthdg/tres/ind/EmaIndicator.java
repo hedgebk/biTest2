@@ -90,9 +90,7 @@ public class EmaIndicator extends TresIndicator {
                     super.finishCurrentBar(time, price);
                     if (m_lastEmaValue != null) {
                         ChartPoint tick = new ChartPoint(m_currentBarEnd, m_lastEmaValue);
-                        if (m_exchData.m_tres.m_collectPoints) {
-                            m_points.add(tick); // add to the end
-                        }
+                        collectPointIfNeeded(tick);
                         onBar(tick);
                     }
                 }

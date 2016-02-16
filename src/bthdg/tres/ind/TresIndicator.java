@@ -411,6 +411,12 @@ public abstract class TresIndicator {
             Direction direction = m_peakCalculator.m_direction;
             return (direction == null) ? 0 : ((direction == Direction.FORWARD) ? 1.0 : -1.0);
         }
+
+        protected void collectPointIfNeeded(ChartPoint tick) {
+            if (m_exchData.m_tres.m_collectPoints) {
+                m_points.add(tick); // add to the end
+            }
+        }
     }
 
     // =================================================================================

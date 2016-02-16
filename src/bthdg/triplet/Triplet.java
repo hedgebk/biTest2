@@ -376,7 +376,7 @@ public class Triplet {
                 double rateSleep = valuateSleep / startValuate;
                 double r = valuate / valuateSleep;
                 double d = Math.pow(r, pow);
-                String result = "; valuate" + Utils.capitalize(currency.m_name) + "=" + Utils.format5(rate) + " (" + Utils.format5(rateSleep) + ") " +
+                String result = "; valuateGain" + Utils.capitalize(currency.m_name) + "=" + Utils.format5(rate) + " (" + Utils.format5(rateSleep) + ") " +
                         Utils.format5(r) + " " + Utils.format5(d) + "/d";
                 buf.append(result);
             }

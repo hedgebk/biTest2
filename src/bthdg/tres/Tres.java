@@ -255,6 +255,11 @@ public class Tres {
         m_isLocal = Boolean.valueOf(getProperty("tre.local"));
         log("local=" + m_isLocal);
 
+        if (!m_isLocal) {
+            m_collectPoints = false;
+            log(" > collectPoints=" + m_collectPoints);
+        }
+
         String exchangesStr = (m_e == null) ? getProperty("tre.exchanges") : m_e;
         log("EXCHANGES=" + exchangesStr);
         m_exchangesArr = exchangesStr.split(",");
@@ -586,6 +591,8 @@ public class Tres {
             writer.print("<br/>");
         }
 
+        writer.print("<a href=/>status</a>; <a href=park>park</a><br/>");
+
         OrderData order = exchData.m_executor.m_order;
         if (order != null) {
 //            g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
@@ -593,23 +600,22 @@ public class Tres {
             writer.print("<br/>");
         }
 
-        writer.print("<a href=/>status</a>; <a href=park>park</a><br/>");
-
+        Runtime.getRuntime().gc();
         writer.print(memState());
         writer.print("<br/>");
 
-        writer.print("<br/>");
-        writer.print(" ServletPath=" + request.getServletPath());
-        writer.print("<br/>");
-        writer.print(" PathInfo=" + request.getPathInfo());
-        writer.print("<br/>");
-        writer.print(" PathTranslated=" + request.getPathTranslated());
-        writer.print("<br/>");
-        writer.print(" RequestURI=" + request.getRequestURI());
-        writer.print("<br/>");
-        writer.print(" QueryString=" + request.getQueryString());
-        writer.print("<br/>");
-        writer.print("</p></body></html>");
+//        writer.print("<br/>");
+//        writer.print(" ServletPath=" + request.getServletPath());
+//        writer.print("<br/>");
+//        writer.print(" PathInfo=" + request.getPathInfo());
+//        writer.print("<br/>");
+//        writer.print(" PathTranslated=" + request.getPathTranslated());
+//        writer.print("<br/>");
+//        writer.print(" RequestURI=" + request.getRequestURI());
+//        writer.print("<br/>");
+//        writer.print(" QueryString=" + request.getQueryString());
+//        writer.print("<br/>");
+//        writer.print("</p></body></html>");
     }
 
     private String memState() {

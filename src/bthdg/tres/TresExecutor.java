@@ -50,6 +50,7 @@ public class TresExecutor extends BaseExecutor {
         super(ws, pair, exchData.m_tres.m_barSizeMillis);
         m_exchData = exchData;
         m_orderPriceMode = ORDER_PRICE_MODE;
+        m_collectPoints = exchData.m_tres.m_collectPoints;
         if (!exchData.m_tres.m_logProcessing) {
             Thread thread = new Thread(this);
             thread.setName("TresExecutor");

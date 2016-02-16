@@ -44,9 +44,7 @@ public class AroonIndicator extends TresIndicator {
             m_calculator = new AroonCalculator(LENGTH, barSize, exchData.m_tres.getBarOffset(phaseIndex)) {
                 @Override protected void bar(long barEnd, double value) {
                     ChartPoint tick = new ChartPoint(barEnd, value);
-                    if (m_exchData.m_tres.m_collectPoints) {
-                        m_points.add(tick); // add to the end
-                    }
+                    collectPointIfNeeded(tick);
                     m_peakCalculator.update(tick);
                     onBar(tick);
                 }

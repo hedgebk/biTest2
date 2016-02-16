@@ -60,6 +60,7 @@ public abstract class BaseExecutor implements Runnable {
     final Utils.DoubleDoubleAverageCalculator m_topTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     public final Utils.DoubleDoubleAverageCalculator m_tickAgeCalc = new Utils.DoubleDoubleAverageCalculator();
     public final LinkedList<TimeFramePoint> m_timeFramePoints = new LinkedList<TimeFramePoint>();
+    public boolean m_collectPoints = true;
     public LinkedList<TopDataPoint> m_tops = new LinkedList<TopDataPoint>();
     public final Utils.AverageCounter m_buyAvgCounter;
     public final Utils.AverageCounter m_sellAvgCounter;
@@ -417,7 +418,7 @@ public abstract class BaseExecutor implements Runnable {
         return gainAvg;
     }
 
-    public String valuate() {
+    public String valuateGain() {
         if (m_initialized) {
             double valuateBtcInit = m_initAccount.evaluateAll(m_initTops, Currency.BTC, m_exchange);
             double valuateCnhInit = m_initAccount.evaluateAll(m_initTops, Currency.CNH, m_exchange);
@@ -431,6 +432,15 @@ public abstract class BaseExecutor implements Runnable {
             double projected = Math.pow(gainAvg, pow);
             return "GAIN: Btc=" + Utils.format5(gainBtc) + "; Cnh=" + Utils.format5(gainCnh) + " CNH; avg=" + Utils.format5(gainAvg)
                     + "; projected=" + Utils.format5(projected) + "; takes: " + Utils.millisToDHMSStr(takesMillis);
+        }
+        return "---";
+    }
+
+    public String valuate() {
+        if (m_initialized) {
+            double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
+            double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
+            return "VAL: Btc=" + Utils.format5(valuateBtcNow) + "; Cnh=" + Utils.format5(valuateCnhNow);
         }
         return "---";
     }
@@ -692,8 +702,10 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected void addTopDataPoint(TopDataPoint topDataPoint) {
-        synchronized (m_tops) {
-            m_tops.add(topDataPoint);
+        if (m_collectPoints) {
+            synchronized (m_tops) {
+                m_tops.add(topDataPoint);
+            }
         }
     }
 
@@ -763,8 +775,10 @@ public abstract class BaseExecutor implements Runnable {
 
     protected TimeFramePoint addTimeFrame(TimeFrameType type, long start) {
         TimeFramePoint timeFramePoint = new TimeFramePoint(type, start);
-        synchronized (m_timeFramePoints) {
-            m_timeFramePoints.add(timeFramePoint);
+        if (m_collectPoints) {
+            synchronized (m_timeFramePoints) {
+                m_timeFramePoints.add(timeFramePoint);
+            }
         }
         return timeFramePoint;
     }

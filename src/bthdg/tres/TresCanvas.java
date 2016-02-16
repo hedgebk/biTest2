@@ -656,13 +656,18 @@ public class TresCanvas extends JComponent {
 
     public static String[] getState(TresExchData exchData) {
         TresExecutor executor = exchData.m_executor;
+        double avgFillSize = executor.m_tradeVolume / executor.m_ordersFilled;
         return new String[]{
                 "avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()),
                 "takes:" + executor.dumpTakesTime(),
                 "wait=" + executor.dumpWaitTime(),
-                "placed=" + executor.m_ordersPlaced + "; filled=" + executor.m_ordersFilled + "; volume=" + Utils.format3(executor.m_tradeVolume),
-                "dir.adj=" + exchData.getDirectionAdjusted() + "; " + exchData.getRunAlgoParams(),
+                "placed=" + executor.m_ordersPlaced
+                        + "; filled=" + executor.m_ordersFilled
+                        + "; volume=" + Utils.format3(executor.m_tradeVolume)
+                        + "; avgFillSize=" + Utils.format3(avgFillSize),
+                "dir.adj=" + Utils.format5(exchData.getDirectionAdjusted()) + "; " + exchData.getRunAlgoParams(),
                 "acct: " + executor.m_account,
+                executor.valuateGain(),
                 executor.valuate()
         };
     }

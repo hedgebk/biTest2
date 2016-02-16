@@ -41,6 +41,10 @@ public class TresExchData {
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Exception e) { Log.err(s, e); }
 
+    @Override public String toString() {
+        return "TresExchData["+m_ws.exchange().name()+"]";
+    }
+
     public TresExchData(Tres tres, IWs ws) {
         m_tres = tres;
         m_ws = ws;
