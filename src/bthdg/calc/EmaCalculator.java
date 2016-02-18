@@ -2,7 +2,7 @@ package bthdg.calc;
 
 
 public class EmaCalculator extends CloseCalculator {
-    private final double m_multiplier;
+    protected final double m_multiplier;
     private Double m_prevEmaValue;
     public Double m_lastEmaValue;
     private Double m_prevClose;
@@ -55,4 +55,6 @@ public class EmaCalculator extends CloseCalculator {
         double diff = m_lastEmaValue - m_prevEmaValue;
         return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
     }
+
+
 }

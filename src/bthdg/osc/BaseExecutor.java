@@ -1160,6 +1160,7 @@ public abstract class BaseExecutor implements Runnable {
             if(orderAlgoStr.equals("deep_mkt_avg")) { return DEEP_MKT_AVG; }
             if(orderAlgoStr.equals("mkt_avg")) { return MKT_AVG; }
             if(orderAlgoStr.equals("mid")) { return MID; }
+            if(orderAlgoStr.equals("mkt")) { return MKT; }
             throw new RuntimeException("OrderPriceMode '"+orderAlgoStr+"' not supported");
         }
     }
