@@ -75,6 +75,8 @@ public abstract class TresAlgo {
             return new MmarAlgo(tresExchData);
         } else if (algoName.equals("emas")) {
             return new EmasAlgo(tresExchData);
+        } else if (algoName.equals("emas~")) {
+            return new EmasAlgo.Wide(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }

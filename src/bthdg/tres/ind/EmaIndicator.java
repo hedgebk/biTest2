@@ -11,9 +11,9 @@ import java.awt.*;
 public class EmaIndicator extends TresIndicator {
     public static final Color COLOR = Colors.setAlpha(Color.orange, 100);
 
-    private final int m_emaSize;
+    private final double m_emaSize;
 
-    public EmaIndicator(String name, TresAlgo algo, int emaSize) {
+    public EmaIndicator(String name, TresAlgo algo, double emaSize) {
         super(name, 0, algo);
         m_emaSize = emaSize;
     }
@@ -81,7 +81,7 @@ public class EmaIndicator extends TresIndicator {
         @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
         public int directionInt() { return m_calculator.directionInt(); }
 
-        public PhasedEmaIndicator(int emsSize, EmaIndicator indicator, TresExchData exchData, int phaseIndex) {
+        public PhasedEmaIndicator(double emsSize, EmaIndicator indicator, TresExchData exchData, int phaseIndex) {
             super(indicator, exchData, phaseIndex, null);
             long barSize = exchData.m_tres.m_barSizeMillis;
             long barOffset = exchData.m_tres.getBarOffset(phaseIndex);

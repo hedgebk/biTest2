@@ -6,7 +6,7 @@ public class TEmaCalculator extends EmaCalculator {
     private Double m_lastEmaEmaEmaValue;
     protected Double m_lastTEmaValue;
 
-    public TEmaCalculator(int emaSize, long barSize, long barsMillisOffset) {
+    public TEmaCalculator(double emaSize, long barSize, long barsMillisOffset) {
         super(emaSize, barSize, barsMillisOffset);
     }
 

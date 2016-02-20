@@ -11,13 +11,13 @@ import java.awt.*;
 public class TripleEmaIndicator extends TresIndicator {
     public static final Color COLOR = Colors.setAlpha(new Color(138, 230, 165), 100);
 
-    private final int m_emaSize;
+    private final double m_emaSize;
     private final Color m_color;
 
-    public TripleEmaIndicator(String name, TresAlgo algo, int emaSize) {
+    public TripleEmaIndicator(String name, TresAlgo algo, double emaSize) {
         this(name, algo, emaSize, COLOR);
     }
-    public TripleEmaIndicator(String name, TresAlgo algo, int emaSize, Color color) {
+    public TripleEmaIndicator(String name, TresAlgo algo, double emaSize, Color color) {
         super(name, 0, algo);
         m_emaSize = emaSize;
         m_color = color;
@@ -43,7 +43,7 @@ public class TripleEmaIndicator extends TresIndicator {
         @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
 //        public int directionInt() { return m_calculator.directionInt(); }
 
-        public PhasedTripleEmaIndicator(int emsSize, TripleEmaIndicator indicator, TresExchData exchData, int phaseIndex) {
+        public PhasedTripleEmaIndicator(double emsSize, TripleEmaIndicator indicator, TresExchData exchData, int phaseIndex) {
             super(indicator, exchData, phaseIndex, null);
             long barSize = exchData.m_tres.m_barSizeMillis;
             long barOffset = exchData.m_tres.getBarOffset(phaseIndex);

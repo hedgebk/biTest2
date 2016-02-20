@@ -1,9 +1,11 @@
 package bthdg.tres.alg;
 
+import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.EmaIndicator;
+import bthdg.tres.ind.SmoochedIndicator;
 import bthdg.tres.ind.TresIndicator;
 import bthdg.tres.ind.TripleEmaIndicator;
 import bthdg.util.Colors;
@@ -11,34 +13,43 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class EmasAlgo extends TresAlgo {
-    public static final double LEVEL = 0.4;
-    private EmaIndicator m_ema3;
-    private TripleEmaIndicator m_tripleEma10;
-    private TripleEmaIndicator m_tripleEma15;
-    private TripleEmaIndicator m_tripleEma20;
-    private TripleEmaIndicator m_tripleEma25;
-    private final TresIndicator m_oneIndicator;
+    public static final int TEMA_START = 6;
+    public static final int TEMA_STEP = 8;
+    private static final double BOUND_SMOOCH_RATE = 6.0;
+    public static double BOUND_LEVEL = 0.25;  // 0.4;
+    public static double EMA_SIZE = 1.7; // 0.77;
+
+    protected EmaIndicator m_ema;
+    protected TripleEmaIndicator m_tripleEma10;
+    protected TripleEmaIndicator m_tripleEma15;
+    protected TripleEmaIndicator m_tripleEma20;
+    protected TripleEmaIndicator m_tripleEma25;
+    protected final TresIndicator m_oneIndicator;
     private final TresIndicator m_twoIndicator;
     private final TresIndicator m_sumIndicator;
     private final TresIndicator m_spreadIndicator;
-    private Double m_one;
+    private final SmoochedIndicator m_smoochedSpreadIndicator;
+    protected Double m_one;
     private Double m_two;
     private Double m_sum;
     private Double m_spread;
+    private Double m_smoochedSpread;
 
     public EmasAlgo(TresExchData tresExchData) {
         super("EMAS", tresExchData);
+        final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
-        m_ema3 = new EmaIndicator("ema3", this, 3) {
+        m_ema = new EmaIndicator("ema", this, EMA_SIZE) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 recalcOne();
                 recalcSum();
             }
         };
-        m_indicators.add(m_ema3);
+        m_indicators.add(m_ema);
 
-        m_tripleEma10 = new TripleEmaIndicator("tema10", this, 10, Color.magenta) {
+        int emaSize = TEMA_START;
+        m_tripleEma10 = new TripleEmaIndicator("tema"+emaSize, this, emaSize, Color.magenta) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 recalcOne();
@@ -47,7 +58,9 @@ public class EmasAlgo extends TresAlgo {
             }
         };
         m_indicators.add(m_tripleEma10);
-        m_tripleEma15 = new TripleEmaIndicator("tema15", this, 15, Color.PINK) {
+
+        emaSize = TEMA_START + TEMA_STEP;
+        m_tripleEma15 = new TripleEmaIndicator("tema"+emaSize, this, emaSize, Color.PINK) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 recalcOne();
@@ -56,7 +69,9 @@ public class EmasAlgo extends TresAlgo {
             }
         };
         m_indicators.add(m_tripleEma15);
-        m_tripleEma20 = new TripleEmaIndicator("tema20", this, 20, Color.orange) {
+
+        emaSize = TEMA_START + TEMA_STEP * 2;
+        m_tripleEma20 = new TripleEmaIndicator("tema"+emaSize, this, emaSize, Color.orange) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 recalcOne();
@@ -65,7 +80,9 @@ public class EmasAlgo extends TresAlgo {
             }
         };
         m_indicators.add(m_tripleEma20);
-        m_tripleEma25 = new TripleEmaIndicator("tema25", this, 25, Color.BLUE) {
+
+        emaSize = TEMA_START + TEMA_STEP * 3;
+        m_tripleEma25 = new TripleEmaIndicator("tema"+emaSize, this, emaSize, Color.BLUE) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 recalcOne();
@@ -79,8 +96,26 @@ public class EmasAlgo extends TresAlgo {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
             @Override public Color getColor() { return Colors.DARK_GREEN; }
             @Override protected boolean countPeaks() { return false; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                m_smoochedSpreadIndicator.addBar(lastPoint);
+            }
         };
         m_indicators.add(m_spreadIndicator);
+
+        m_smoochedSpreadIndicator = new SmoochedIndicator(this, "[]s", (long) (BOUND_SMOOCH_RATE * barSizeMillis), 0) {
+            @Override protected boolean countPeaks() { return false; }
+            @Override public Color getColor() { return Color.CYAN; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                if(lastPoint != null) {
+                    m_smoochedSpread = lastPoint.m_value;
+                }
+            }
+        };
+        m_indicators.add(m_smoochedSpreadIndicator);
 
         m_oneIndicator = new TresIndicator( "1", 0, this ) {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
@@ -103,12 +138,13 @@ public class EmasAlgo extends TresAlgo {
             @Override public Color getColor() { return Colors.BEGIE; }
             @Override protected boolean countPeaks() { return false; }
             @Override protected boolean useValueAxe() { return true; }
+            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
         };
         m_indicators.add(m_sumIndicator);
     }
 
-    private void recalcOne() {
-        ChartPoint ema3 = m_ema3.getLastPoint();
+    protected void recalcOne() {
+        ChartPoint ema3 = m_ema.getLastPoint();
         ChartPoint tripleEma20 = m_tripleEma20.getLastPoint();
         ChartPoint tripleEma25 = m_tripleEma25.getLastPoint();
         if ((ema3 != null) && (tripleEma20 != null) && (tripleEma25 != null)) {
@@ -124,24 +160,6 @@ public class EmasAlgo extends TresAlgo {
                 m_oneIndicator.addBar(point);
             }
         }
-
-//        ChartPoint ema3 = m_ema3.getLastPoint();
-//        ChartPoint tripleEma10 = m_tripleEma10.getLastPoint();
-//        ChartPoint tripleEma15 = m_tripleEma15.getLastPoint();
-//        ChartPoint tripleEma20 = m_tripleEma20.getLastPoint();
-//        ChartPoint tripleEma25 = m_tripleEma25.getLastPoint();
-//        if ((ema3 != null) && (tripleEma10 != null) && (tripleEma15 != null) && (tripleEma20 != null) && (tripleEma25 != null)) {
-//            double value = ema3.m_value;
-//            double tema10 = tripleEma10.m_value;
-//            double tema15 = tripleEma15.m_value;
-//            double tema20 = tripleEma20.m_value;
-//            double tema25 = tripleEma25.m_value;
-//            double boundTop = Math.max(Math.max(tema10, tema15), Math.max(tema20, tema25));
-//            double boundBottom = Math.min(Math.min(tema10, tema15), Math.min(tema20, tema25));
-//            m_one = valueToBounds(value, boundTop, boundBottom);
-//            ChartPoint point = new ChartPoint(ema3.m_millis, m_one);
-//            m_oneIndicator.addBar(point);
-//        }
     }
 
     private void recalcTwo() {
@@ -178,22 +196,27 @@ public class EmasAlgo extends TresAlgo {
         if ((m_one != null) && (m_two != null)) {
             double sum = (m_one + m_two) / 2;
 
-            if ((m_spread != null) && (m_spread < LEVEL)) {
-                double mult = m_spread / LEVEL;
+//            if ((m_spread != null) && (m_spread < LEVEL)) {
+//                double mult = m_spread / LEVEL;
+//                mult = mult * mult;
+//                sum = sum * mult;
+//            }
+            if ((m_smoochedSpread != null) && (m_smoochedSpread < BOUND_LEVEL)) {
+                double mult = m_smoochedSpread / BOUND_LEVEL;
                 mult = mult * mult;
                 sum = sum * mult;
             }
 
             if ((m_sum == null) || !m_sum.equals(sum)) {
                 m_sum = sum;
-                ChartPoint point = new ChartPoint(m_ema3.getLastPoint().m_millis, sum);
+                ChartPoint point = new ChartPoint(m_ema.getLastPoint().m_millis, sum);
                 m_sumIndicator.addBar(point);
                 notifyListener();
             }
         }
     }
 
-    private double valueToBounds(double value, double boundTop, double boundBottom) {
+    protected double valueToBounds(double value, double boundTop, double boundBottom) {
         double ret;
         if (value >= boundTop) {
             ret = 1.0;
@@ -208,8 +231,8 @@ public class EmasAlgo extends TresAlgo {
         return ret;
     }
 
-    @Override public double lastTickPrice() { return m_ema3.lastTickPrice(); }
-    @Override public long lastTickTime() { return m_ema3.lastTickTime(); }
+    @Override public double lastTickPrice() { return m_ema.lastTickPrice(); }
+    @Override public long lastTickTime() { return m_ema.lastTickTime(); }
     @Override public Color getColor() { return Color.LIGHT_GRAY; }
     @Override public String getRunAlgoParams() { return "EMAS"; }
 
@@ -220,5 +243,32 @@ public class EmasAlgo extends TresAlgo {
     @Override public Direction getDirection() {
         double dir = getDirectionAdjusted();
         return (dir == 0) ? null : Direction.get(dir);
+    }
+
+    //===========================================================================
+    public static class Wide extends EmasAlgo {
+        public Wide(TresExchData tresExchData) {
+            super(tresExchData);
+        }
+
+        @Override protected void recalcOne() {
+            ChartPoint ema3 = m_ema.getLastPoint();
+            ChartPoint tripleEma10 = m_tripleEma10.getLastPoint();
+            ChartPoint tripleEma15 = m_tripleEma15.getLastPoint();
+            ChartPoint tripleEma20 = m_tripleEma20.getLastPoint();
+            ChartPoint tripleEma25 = m_tripleEma25.getLastPoint();
+            if ((ema3 != null) && (tripleEma10 != null) && (tripleEma15 != null) && (tripleEma20 != null) && (tripleEma25 != null)) {
+                double value = ema3.m_value;
+                double tema10 = tripleEma10.m_value;
+                double tema15 = tripleEma15.m_value;
+                double tema20 = tripleEma20.m_value;
+                double tema25 = tripleEma25.m_value;
+                double boundTop = Math.max(Math.max(tema10, tema15), Math.max(tema20, tema25));
+                double boundBottom = Math.min(Math.min(tema10, tema15), Math.min(tema20, tema25));
+                m_one = valueToBounds(value, boundTop, boundBottom);
+                ChartPoint point = new ChartPoint(ema3.m_millis, m_one);
+                m_oneIndicator.addBar(point);
+            }
+        }
     }
 }

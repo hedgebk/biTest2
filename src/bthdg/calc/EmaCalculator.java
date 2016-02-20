@@ -7,7 +7,7 @@ public class EmaCalculator extends CloseCalculator {
     public Double m_lastEmaValue;
     private Double m_prevClose;
 
-    public EmaCalculator(int emaSize, long barSize, long barsMillisOffset) {
+    public EmaCalculator(double emaSize, long barSize, long barsMillisOffset) {
         super(barSize, barsMillisOffset);
         // Multiplier: (2 / (Time periods + 1) ) = (2 / (10 + 1) ) = 0.1818 (18.18%)
         m_multiplier = 2.0 / (emaSize + 1);
