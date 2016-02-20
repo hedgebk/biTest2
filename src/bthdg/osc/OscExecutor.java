@@ -47,7 +47,10 @@ class OscExecutor extends BaseExecutor {
     private NoTradesWatcher m_noTradesWatcher = new NoTradesWatcher();
 
     @Override protected double minOrderSizeToCreate() { return MIN_ORDER_SIZE; }
-    @Override protected void onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource) { m_order = placeOrder; }
+    @Override protected int onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource) {
+        m_order = placeOrder;
+        return STATE_ORDER;
+    }
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
@@ -346,7 +349,11 @@ class OscExecutor extends BaseExecutor {
         return super.processTrade(tData, inContext);
     }
 
-    @Override protected int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception {
+    @Override protected int checkOrderState(IIterationContext.BaseIterationContext iContext, OrderData order) throws Exception {
+        throw new RuntimeException("not implemented");
+    }
+
+    protected int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception {
         OscState oscState = checkOrderState(iContext);
         return OscState.toCode(oscState);
     }

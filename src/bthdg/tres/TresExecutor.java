@@ -229,6 +229,19 @@ public class TresExecutor extends BaseExecutor {
                 }
             }
         }
+
+        for (OrderData pOrd : m_pendingMktOrders) {
+            OrderSide side = pOrd.m_side;
+            double amount = pOrd.m_amount;
+            if(side == needOrderSide) {
+                log("     we have already pending market of same side:" + pOrd);
+                orderSize -= amount;
+            } else {
+                log("     we have pending market of OPPOSITE side:" + pOrd);
+                orderSize += amount;
+            }
+            log("      order size adjusted to: " + orderSize);
+        }
         return orderSize;
     }
 
@@ -300,7 +313,7 @@ public class TresExecutor extends BaseExecutor {
         IIterationContext.BaseIterationContext iContext = null;
         if (m_order != null) {
             iContext = getLiveOrdersContext();
-            setState(checkOrderState(iContext));
+            setState(checkIntOrderState(iContext));
         }
         return iContext;
     }
@@ -316,28 +329,40 @@ public class TresExecutor extends BaseExecutor {
     }
 
     @Override protected int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception {
-        TresState state = checkOrderState(iContext);
+        TresState tresState = checkIntOrderState(iContext);
+        return TresState.toCode(tresState);
+    }
+
+    @Override protected int checkOrderState(IIterationContext.BaseIterationContext iContext, OrderData order) throws Exception {
+        TresState state = checkOrderStateInt(iContext, order);
         return TresState.toCode(state);
     }
 
-    private TresState checkOrderState(IIterationContext.BaseIterationContext iContext) throws Exception {
-        m_order.checkState(iContext, m_exchange, m_account,
+    private TresState checkIntOrderState(IIterationContext.BaseIterationContext iContext) throws Exception {
+        TresState tresState = checkOrderStateInt(iContext, m_order);
+        if (tresState == TresState.NONE) { // order was filled
+            m_orderPlaceAttemptCounter = 0;
+            m_order = null;
+        }
+        return tresState;
+    }
+
+    protected TresState checkOrderStateInt(IIterationContext.BaseIterationContext iContext, OrderData order) throws Exception {
+        order.checkState(iContext, m_exchange, m_account,
                 null, // TODO - implement exec listener, add partial support - to fire partial close orders
                 null);
-        log("  order state checked: " + m_order);
+        log("  order state checked: " + order);
 
-        if (m_order.isFilled()) {
-            m_orderPlaceAttemptCounter = 0;
-            log("$$$$$$   order FILLED: " + m_order);
-            onOrderFilled();
+        if (order.isFilled()) {
+            log("$$$$$$   order FILLED: " + order);
+            onOrderFilled(order);
             logValuate();
-            m_order = null;
             return TresState.NONE;
-        } else if( m_order.m_status == OrderStatus.ERROR ) {
-            log(" order status ERROR. switch to error state: " + m_order);
+        } else if( order.m_status == OrderStatus.ERROR ) {
+            log(" order status ERROR. switch to error state: " + order);
             return TresState.ERROR;
         } else {
-            log("   have order. not yet FILLED: " + m_order);
+            log("   have order. not yet FILLED: " + order);
             return null; // no change
         }
     }
@@ -373,15 +398,44 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    @Override protected void onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource) {
+    private final List<OrderData> m_pendingMktOrders = new ArrayList<OrderData>();
+
+    @Override protected int onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource) {
         m_order = placeOrder;
         m_ordersPlaced++;
         m_exchData.addOrder(placeOrder, tickAge, buy, sell, topSource, getGainAvg()); // will call postFrameRepaint inside
+
+        OrderType orderType = placeOrder.m_type;
+        if (orderType == OrderType.MARKET) {
+            m_pendingMktOrders.add(placeOrder);
+            log(" added to pendingMktOrders. now num=" + m_pendingMktOrders.size() + " : " + placeOrder);
+            m_order = null;
+            return STATE_NO_CHANGE;
+        }
+        return STATE_ORDER;
     }
 
-    private void onOrderFilled() {
+    @Override protected int recheckPendingMktOrders() throws Exception {
+        boolean isNotEmpty = !m_pendingMktOrders.isEmpty();
+        log(" recheckPendingMktOrders() pendingMktOrders.num=" + m_pendingMktOrders.size());
+        if (isNotEmpty) {
+            OrderData od = m_pendingMktOrders.remove(0);
+            log(" next PendingMktOrder: " + od);
+            int status = checkMarketOrder(od);
+            if (status == BaseExecutor.STATE_ERROR) {
+                log("  checkMarketOrder() gives STATE_ERROR -> recheck all pendingMktOrders");
+                while (!m_pendingMktOrders.isEmpty()) {
+                    recheckPendingMktOrders();
+                }
+            }
+            return status;
+        }
+        return STATE_NO_CHANGE;
+    }
+
+    private void onOrderFilled(OrderData order) {
         m_ordersFilled++;
-        double amount = m_order.m_amount;
+        double amount = order.m_amount;
         m_tradeVolume += amount;
         m_exchData.m_tres.postFrameRepaint();
     }

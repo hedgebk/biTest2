@@ -84,13 +84,14 @@ public abstract class BaseExecutor implements Runnable {
     protected abstract int cancelOrderIfPresent() throws Exception;
     protected abstract double minOrderSizeToCreate();
     protected abstract boolean cancelOtherOrdersIfNeeded(OrderSide needOrderSide, double notEnough) throws Exception;
-    protected abstract void onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource);
+    protected abstract int onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource);
     protected abstract boolean checkNoOpenOrders();
     protected abstract long minOrderLiveTime();
     protected abstract double outOfMarketThreshold();
     protected abstract boolean hasOrdersWithMatchedPrice(double tradePrice);
     protected abstract void checkOrdersOutOfMarket() throws Exception;
     protected abstract int checkOrdersState(IIterationContext.BaseIterationContext iContext) throws Exception;
+    protected abstract int checkOrderState(IIterationContext.BaseIterationContext iContext, OrderData order) throws Exception;
     protected abstract boolean haveNotFilledOrder();
     protected abstract void processTopInt() throws Exception;
     protected abstract double useFundsFromAvailable();
@@ -504,35 +505,48 @@ public abstract class BaseExecutor implements Runnable {
         double needSellCnh = haveCnh - needCnh;
         log("  directionAdjusted=" + directionAdjusted + "; needBuyBtc=" + Utils.format8(needBuyBtc) + "; needSellCnh=" + Utils.format8(needSellCnh));
 
-        double orderSize = Math.abs(needBuyBtc);
+        double absOrderSize = Math.abs(needBuyBtc);
         OrderSide needOrderSide = (needBuyBtc == 0) ? null : (needBuyBtc > 0) ? OrderSide.BUY : OrderSide.SELL;
-        log("   needOrderSide=" + needOrderSide + "; orderSize=" + orderSize);
+        log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + absOrderSize);
+
+        double absOrderSizeAdjusted = checkAgainstExistingOrders(needOrderSide, absOrderSize);
+        if(absOrderSize != absOrderSizeAdjusted) {
+            absOrderSize = absOrderSizeAdjusted;
+            log("   absOrderSizeAdjusted=" + absOrderSize);
+            if (absOrderSize < 0) {
+                needOrderSide = needOrderSide.opposite();
+                absOrderSize = -absOrderSize;
+                log("    reversed: needOrderSide=" + needOrderSide + "; absOrderSize=" + absOrderSize);
+            }
+            needBuyBtc = needOrderSide.isBuy() ? absOrderSize : -absOrderSize;
+            log("   new needBuyBtc=" + needBuyBtc);
+        }
+
         double exchMinOrderToCreate = m_exchange.minOrderToCreate(m_pair);
         double minOrderSizeToCreate = minOrderSizeToCreate();
-        if ((orderSize < exchMinOrderToCreate) || (orderSize < minOrderSizeToCreate)) {
-            log("small orderSize. needOrderSide=" + needOrderSide +
+        if ((absOrderSize < exchMinOrderToCreate) || (absOrderSize < minOrderSizeToCreate)) {
+            log("small absOrderSize. needOrderSide=" + needOrderSide +
                     "; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
             log(" seems funds balance is ok. cancelOrderIfPresent...");
 
             int ret = cancelOrderIfPresent();
             if (ret == STATE_NO_CHANGE) { // cancel attempt was not performed
-                if (m_maySyncAccount) {
-                    log("no orders - we may re-check account");
-                    initAccount();
-                }
+                ret = doVoidCycle();
             }
             return ret;
         }
 
-        if (orderSize != 0) {
-            double orderSizeAdjusted = orderSize;
+        if (absOrderSize != 0) {
+            double orderSizeAdjusted = absOrderSize;
             if (orderSizeAdjusted > 0) {
                 orderSizeAdjusted = (needOrderSide == OrderSide.BUY) ? orderSizeAdjusted : -orderSizeAdjusted;
                 log("     signed orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted));
 
-                orderSize = checkAgainstExistingOrders(needOrderSide, orderSize);
-                if (orderSize == 0) { // existingOrder(s) OK - no need to changes
-                    return STATE_NO_CHANGE;
+                absOrderSize = checkAgainstExistingOrders(needOrderSide, absOrderSize);
+                if (absOrderSize == 0) { // existingOrder(s) OK - no need to changes
+                    log("     existingOrder(s) OK - no need to changes");
+
+                    return doVoidCycle();
                 }
             }
         }
@@ -598,16 +612,16 @@ public abstract class BaseExecutor implements Runnable {
                     TopSource topSource = m_topSource;
                     int rett = placeOrderToExchange(placeOrder);
                     if (rett == STATE_ORDER) {
-                        onOrderPlace(placeOrder, tickAge, buy, sell, topSource); // notify on order place
+                        rett = onOrderPlace(placeOrder, tickAge, buy, sell, topSource); // notify on order place
 
-                        if (orderType == OrderType.MARKET) {
-                            Thread.sleep(500); // small delay - allow order to execute
-
-                            int ret2 = checkMarketOrder(placeOrder);
-                            if (ret2 != STATE_NO_CHANGE) {
-                                rett = ret2;
-                            }
-                        }
+//                        if (orderType == OrderType.MARKET) {
+//                            Thread.sleep(500); // small delay - allow order to execute
+//
+//                            int ret2 = checkMarketOrder(placeOrder);
+//                            if (ret2 != STATE_NO_CHANGE) {
+//                                rett = ret2;
+//                            }
+//                        }
                     }
                     return rett;
                 } else {
@@ -616,11 +630,8 @@ public abstract class BaseExecutor implements Runnable {
             } else {
                 log("warning: small order to create: placeOrderSize=" + placeOrderSize +
                         "; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
-                if (m_maySyncAccount) {
-                    log("no orders - we may re-check account");
-                    initAccount();
-                }
-                return STATE_NO_CHANGE;
+
+                return doVoidCycle();
             }
         } else {
             log("order cancel was attempted. time passed. posting recheck direction");
@@ -629,7 +640,23 @@ public abstract class BaseExecutor implements Runnable {
         return ret;
     }
 
-    private int checkMarketOrder(OrderData order) throws Exception {
+    private int doVoidCycle() throws Exception {
+        log("doVoidCycle()");
+        int ret = cancelOrderIfPresent();
+        if (ret == STATE_NO_CHANGE) { // cancel attempt was not performed
+            if (m_maySyncAccount) {
+                log("no orders - we may re-check account");
+                initAccount();
+            } else {
+                ret = recheckPendingMktOrders();
+            }
+        }
+        return ret;
+    }
+
+    protected int recheckPendingMktOrders() throws Exception { return STATE_NO_CHANGE; }
+
+    protected int checkMarketOrder(OrderData order) throws Exception {
         String orderId = order.m_orderId;
         System.out.println(" checkMarketOrder() query order status (orderId=" + orderId + ")...");
         long start = System.currentTimeMillis();
@@ -647,7 +674,7 @@ public abstract class BaseExecutor implements Runnable {
                 return ordersData;
             }
         };
-        int state = checkOrdersState(iContext);
+        int state = checkOrderState(iContext, order);
         return state;
     }
 
