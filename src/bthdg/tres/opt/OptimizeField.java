@@ -4,6 +4,7 @@ import bthdg.tres.Tres;
 import bthdg.tres.alg.Aroon2Algo;
 import bthdg.tres.alg.AroonAlgo;
 import bthdg.tres.alg.Cno3Algo;
+import bthdg.tres.alg.EmasAlgo;
 import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.OscIndicator;
 
@@ -63,6 +64,14 @@ public enum OptimizeField {
     CNO3_SMOOTH("cno3.smooch") {
         @Override public double get(Tres tres) { return Cno3Algo.SMOOTH_RATE; }
         @Override public void set(Tres tres, double value) { Cno3Algo.SMOOTH_RATE = value; }
+    },
+    EMAS_SIZE("emas.size") {
+        @Override public double get(Tres tres) { return EmasAlgo.EMA_SIZE; }
+        @Override public void set(Tres tres, double value) { EmasAlgo.EMA_SIZE = value; }
+    },
+    EMAS_LEVEL("emas.level") {
+        @Override public double get(Tres tres) { return EmasAlgo.BOUND_LEVEL; }
+        @Override public void set(Tres tres, double value) { EmasAlgo.BOUND_LEVEL = value; }
     };
 
     public final String m_key;

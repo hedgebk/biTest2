@@ -89,6 +89,8 @@ class TresLogProcessor extends Thread {
     private String m_varyAroSmoothRate;
     private String m_varyCno3Peak;
     private String m_varyCno3Smooch;
+    private String m_varyEmasSize;
+    private String m_varyEmasLevel;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -236,6 +238,15 @@ class TresLogProcessor extends Thread {
         m_varyCno3Smooch = config.getProperty("tre.vary.cno3_smooch");
         if (m_varyCno3Smooch != null) {
             log("varyCno3Smooch=" + m_varyCno3Smooch);
+        }
+
+        m_varyEmasSize = config.getProperty("tre.vary.emas_size");
+        if (m_varyEmasSize != null) {
+            log("varyEmasSize=" + m_varyEmasSize);
+        }
+        m_varyEmasLevel = config.getProperty("tre.vary.emas_level");
+        if (m_varyEmasLevel != null) {
+            log("varyEmasLevel=" + m_varyEmasLevel);
         }
 
         String avgHalfBidAskDiff = config.getProperty("tre.avg_half_bid_ask_diff");
@@ -413,6 +424,13 @@ class TresLogProcessor extends Thread {
         }
         if (m_varyCno3Smooch != null) {
             varyCno3Smooch(datas, tres, m_varyCno3Smooch);
+        }
+
+        if (m_varyEmasSize != null) {
+            varyEmasSize(datas, tres, m_varyEmasSize);
+        }
+        if (m_varyEmasLevel != null) {
+            varyEmasLevel(datas, tres, m_varyEmasLevel);
         }
 
         checkOptimize(tres, datas);
@@ -788,6 +806,15 @@ class TresLogProcessor extends Thread {
     private void varyCno3Smooch(List<TradesTopsData> datas, Tres tres, String varyCno3Smooch) throws Exception {
         log("varyCno3Smooch: " + varyCno3Smooch);
         varyDouble(datas, tres, OptimizeField.CNO3_SMOOTH, varyCno3Smooch);
+    }
+
+    private void varyEmasSize(List<TradesTopsData> datas, Tres tres, String varyEmasSize) throws Exception {
+        log("varyEmasSize: " + varyEmasSize);
+        varyDouble(datas, tres, OptimizeField.EMAS_SIZE, varyEmasSize);
+    }
+    private void varyEmasLevel(List<TradesTopsData> datas, Tres tres, String varyEmasLevel) throws Exception {
+        log("varyEmasLevel: " + varyEmasLevel);
+        varyDouble(datas, tres, OptimizeField.EMAS_LEVEL, varyEmasLevel);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {
