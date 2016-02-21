@@ -27,6 +27,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
     private boolean m_doPaint = false;
     private List<AlgoWatcherPoint> m_paintPoints = new ArrayList<AlgoWatcherPoint>();
     private TresAlgo.TresAlgoListener m_listener;
+    private long m_lastTickTime;
 
     public void setListener(TresAlgo.TresAlgoListener listener) { m_listener = listener; }
 
@@ -121,7 +122,8 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
         double lastPrice = m_algo.lastTickPrice();
 //log("onValueChange: direction=" + direction + "; lastPeakPrice=" + m_lastPeakPrice + "; lastPrice=" + lastPrice);
 
-        if (m_lastDirection != direction) { // direction changed
+        long lastTickTime = m_algo.lastTickTime();
+        if (m_lastDirection != direction && (lastTickTime-m_lastTickTime > 3000)) { // direction changed
             if (m_lastDirection != null) {
                 double priceRatio; // actually 2 trades need to get ratio
                 if (direction == Direction.FORWARD) { // up
@@ -135,7 +137,6 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
 //log(" priceRatio=" + priceRatio + "; m_totalPriceRatio=" + m_totalPriceRatio);
 
                 if (m_tresExchData.m_tres.m_collectPoints) {
-                    long lastTickTime = m_algo.lastTickTime();
                     AlgoWatcherPoint data = new AlgoWatcherPoint(lastTickTime, lastPrice, priceRatio, m_totalPriceRatio);
                     synchronized (m_points) {
                         m_points.add(data);
@@ -144,6 +145,7 @@ public class TresAlgoWatcher implements TresAlgo.TresAlgoListener {
             }
             m_lastDirection = direction;
             m_lastPeakPrice = lastPrice;
+            m_lastTickTime = lastTickTime;
 //        } else {
 //            AlgoWatcherPoint data = new AlgoWatcherPoint(m_tresExchData.m_lastTickMillis, lastPrice, 0, m_totalPriceRatio);
 //            synchronized (m_points) {

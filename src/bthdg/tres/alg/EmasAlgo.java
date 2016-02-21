@@ -14,9 +14,9 @@ import java.awt.*;
 
 public class EmasAlgo extends TresAlgo {
     public static final int TEMA_START = 6;
-    public static final int TEMA_STEP = 8;
-    private static final double BOUND_SMOOCH_RATE = 6.0;
-    public static double BOUND_LEVEL = 0.25;  // 0.4;
+    public static final int TEMA_STEP = 9;
+    private static final double BOUND_SMOOCH_RATE = 7.0;
+    public static double BOUND_LEVEL = 0.3;  // 0.4;
     public static double EMA_SIZE = 1.7; // 0.77;
 
     protected EmaIndicator m_ema;
@@ -216,21 +216,6 @@ public class EmasAlgo extends TresAlgo {
         }
     }
 
-    protected double valueToBounds(double value, double boundTop, double boundBottom) {
-        double ret;
-        if (value >= boundTop) {
-            ret = 1.0;
-        } else if (value < boundBottom) {
-            ret = -1.0;
-        } else if (boundTop == boundBottom) {
-            ret = 0.0;
-        } else {
-            double val = (value - boundBottom) / (boundTop - boundBottom); // [0...1]
-            ret = val * 2 - 1; // [-1...1]
-        }
-        return ret;
-    }
-
     @Override public double lastTickPrice() { return m_ema.lastTickPrice(); }
     @Override public long lastTickTime() { return m_ema.lastTickTime(); }
     @Override public Color getColor() { return Color.LIGHT_GRAY; }
@@ -247,6 +232,8 @@ public class EmasAlgo extends TresAlgo {
 
     //===========================================================================
     public static class Wide extends EmasAlgo {
+        @Override public String getRunAlgoParams() { return "EMAS~"; }
+
         public Wide(TresExchData tresExchData) {
             super(tresExchData);
         }

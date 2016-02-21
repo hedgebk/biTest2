@@ -77,6 +77,8 @@ public abstract class TresAlgo {
             return new EmasAlgo(tresExchData);
         } else if (algoName.equals("emas~")) {
             return new EmasAlgo.Wide(tresExchData);
+        } else if (algoName.equals("4ema")) {
+            return new FourEmaAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -156,6 +158,21 @@ public abstract class TresAlgo {
                 return dirAdjusted;
             }
         }
+    }
+
+    public static double valueToBounds(double value, double boundTop, double boundBottom) {
+        double ret;
+        if (value >= boundTop) {
+            ret = 1.0;
+        } else if (value < boundBottom) {
+            ret = -1.0;
+        } else if (boundTop == boundBottom) {
+            ret = 0.0;
+        } else {
+            double val = (value - boundBottom) / (boundTop - boundBottom); // [0...1]
+            ret = val * 2 - 1; // [-1...1]
+        }
+        return ret;
     }
 
     // ========================================================================================

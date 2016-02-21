@@ -415,17 +415,22 @@ public class TresExecutor extends BaseExecutor {
         return STATE_ORDER;
     }
 
-    @Override protected int recheckPendingMktOrders() throws Exception {
+    protected int recheckPendingMktOrders() throws Exception {
         boolean isNotEmpty = !m_pendingMktOrders.isEmpty();
         log(" recheckPendingMktOrders() pendingMktOrders.num=" + m_pendingMktOrders.size());
         if (isNotEmpty) {
-            OrderData od = m_pendingMktOrders.remove(0);
+            OrderData od = m_pendingMktOrders.get(0);
             log(" next PendingMktOrder: " + od);
             int status = checkMarketOrder(od);
-            if (status == BaseExecutor.STATE_ERROR) {
-                log("  checkMarketOrder() gives STATE_ERROR -> recheck all pendingMktOrders");
-                while (!m_pendingMktOrders.isEmpty()) {
-                    recheckPendingMktOrders();
+            if (status == STATE_NO_CHANGE) {
+                log("  MktOrder NOT yet executed: " + od);
+            } else {
+                m_pendingMktOrders.remove(0);
+                if (status == BaseExecutor.STATE_ERROR) {
+                    log("  checkMarketOrder() gives STATE_ERROR -> recheck all pendingMktOrders");
+                    while (!m_pendingMktOrders.isEmpty()) {
+                        recheckPendingMktOrders();
+                    }
                 }
             }
             return status;
@@ -511,6 +516,29 @@ public class TresExecutor extends BaseExecutor {
         log("   no stop order");
         return true;
     }
+
+    @Override protected int doVoidCycle() throws Exception {
+        int ret = super.doVoidCycle();
+        if (ret == STATE_NO_CHANGE) {
+            ret = recheckPendingMktOrders();
+            if (ret == STATE_NO_CHANGE) {
+                if ((m_order == null) && m_pendingMktOrders.isEmpty()) {
+                    Currency curr1 = m_pair.m_from;
+                    double allocated1 = m_account.allocated(curr1);
+                    double all1 = m_account.evaluateAll(m_topsData, curr1, m_exchange);
+                    Currency curr2 = m_pair.m_to;
+                    double allocated2 = m_account.allocated(curr2);
+                    double all2 = m_account.evaluateAll(m_topsData, curr2, m_exchange);
+                    if ((allocated1 > all1 * 0.1) || (allocated2 > all2 * 0.1)) {
+                        log("   ERROR: no orders but have allocated: " + curr1 + " allocated " + all1 + "; " + curr2 + " allocated " + all2);
+                        ret = BaseExecutor.STATE_ERROR;
+                    }
+                }
+            }
+        }
+        return ret;
+    }
+
 
     //-------------------------------------------------------------------------------
     public class StopTask extends TaskQueueProcessor.SinglePresenceTask {

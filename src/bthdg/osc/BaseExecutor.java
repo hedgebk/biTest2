@@ -33,7 +33,7 @@ public abstract class BaseExecutor implements Runnable {
 
     protected final long m_startMillis;
     private final IWs m_ws;
-    protected final Pair m_pair;
+    public final Pair m_pair;
     protected final Exchange m_exchange;
     protected TaskQueueProcessor m_taskQueueProcessor;
     private boolean m_run = true;
@@ -640,21 +640,17 @@ public abstract class BaseExecutor implements Runnable {
         return ret;
     }
 
-    private int doVoidCycle() throws Exception {
+    protected int doVoidCycle() throws Exception {
         log("doVoidCycle()");
         int ret = cancelOrderIfPresent();
         if (ret == STATE_NO_CHANGE) { // cancel attempt was not performed
             if (m_maySyncAccount) {
                 log("no orders - we may re-check account");
                 initAccount();
-            } else {
-                ret = recheckPendingMktOrders();
             }
         }
         return ret;
     }
-
-    protected int recheckPendingMktOrders() throws Exception { return STATE_NO_CHANGE; }
 
     protected int checkMarketOrder(OrderData order) throws Exception {
         String orderId = order.m_orderId;
