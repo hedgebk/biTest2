@@ -147,12 +147,15 @@ public class TresExchData {
         long timestamp = tdata.m_timestamp;
 
         for (TresAlgoWatcher algoWatcher : m_playAlgos) {
-            TresAlgo algo = algoWatcher.m_algo;
-            algo.onTrade(tdata);
+            algoWatcher.m_algo.preUpdate(tdata);
         }
 
         for (PhaseData phaseData : m_phaseDatas) {
             phaseData.update(tdata);
+        }
+
+        for (TresAlgoWatcher algoWatcher : m_playAlgos) {
+            algoWatcher.m_algo.postUpdate(tdata);
         }
 
         if (!m_tres.m_logProcessing) {

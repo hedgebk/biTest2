@@ -2,6 +2,7 @@ package bthdg.tres.alg;
 
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
+import bthdg.exch.TradeDataLight;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.*;
@@ -22,11 +23,14 @@ public class FourEmaAlgo extends TresAlgo {
     protected final TripleEmaIndicator m_tripleEma;
     protected final LaguerreMaIndicator m_laguerreMa;
     protected final TresIndicator m_valIndicator;
+    protected final TresIndicator m_levelIndicator;
     private final TresIndicator m_spreadIndicator;
     private final SmoochedIndicator m_smoochedSpreadIndicator;
     private final TresIndicator m_midIndicator;
     private final TresIndicator m_sumIndicator;
+    private final Leveler m_leveler;
     private Double m_value;
+    private Double m_level;
     private Double m_spread;
     private Double m_smoochedSpread;
     private Double m_sum;
@@ -36,36 +40,18 @@ public class FourEmaAlgo extends TresAlgo {
         super("4ema", tresExchData);
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
-        m_ema = new EmaIndicator("ema", this, EMA_SIZE) {
-            @Override public void addBar(ChartPoint chartPoint) {
-                super.addBar(chartPoint);
-                recalc();
-            }
-        };
+        m_leveler = new Leveler();
+
+        m_ema = new EmaIndicator("ema", this, EMA_SIZE);
         m_indicators.add(m_ema);
 
-        m_doubleEma = new DoubleEmaIndicator("dema", this, DEMA_SIZE, Color.PINK) {
-            @Override public void addBar(ChartPoint chartPoint) {
-                super.addBar(chartPoint);
-                recalc();
-            }
-        };
+        m_doubleEma = new DoubleEmaIndicator("dema", this, DEMA_SIZE, Color.PINK);
         m_indicators.add(m_doubleEma);
 
-        m_tripleEma = new TripleEmaIndicator("tema", this, TEMA_SIZE, Color.magenta) {
-            @Override public void addBar(ChartPoint chartPoint) {
-                super.addBar(chartPoint);
-                recalc();
-            }
-        };
+        m_tripleEma = new TripleEmaIndicator("tema", this, TEMA_SIZE, Color.magenta);
         m_indicators.add(m_tripleEma);
 
-        m_laguerreMa = new LaguerreMaIndicator("lema", this, LEMA_FACTOR, Color.ORANGE) {
-            @Override public void addBar(ChartPoint chartPoint) {
-                super.addBar(chartPoint);
-                recalc();
-            }
-        };
+        m_laguerreMa = new LaguerreMaIndicator("lema", this, LEMA_FACTOR, Color.ORANGE);
         m_indicators.add(m_laguerreMa);
 
         m_valIndicator = new TresIndicator( "v", 0, this ) {
@@ -76,6 +62,15 @@ public class FourEmaAlgo extends TresAlgo {
             @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
         };
         m_indicators.add(m_valIndicator);
+
+        m_levelIndicator = new TresIndicator( "L", 0, this ) {
+            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Colors.SKY; }
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean useValueAxe() { return true; }
+            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+        };
+        m_indicators.add(m_levelIndicator);
 
         m_midIndicator = new TresIndicator( "m", 0, this ) {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
@@ -132,12 +127,17 @@ public class FourEmaAlgo extends TresAlgo {
 
     }
 
+    @Override public void postUpdate(TradeDataLight tdata) {
+        recalc();
+    }
+
     private void recalc() {
         ChartPoint emaPoint = m_ema.getLastPoint();
         ChartPoint doubleEmaPoint = m_doubleEma.getLastPoint();
         ChartPoint tripleEmaPoint = m_tripleEma.getLastPoint();
         ChartPoint laguerreMaPoint = m_laguerreMa.getLastPoint();
         if ((emaPoint != null) && (doubleEmaPoint != null) && (tripleEmaPoint != null) && (laguerreMaPoint != null)) {
+            long millis = emaPoint.m_millis;
             double ema = emaPoint.m_value;
             double doubleEma = doubleEmaPoint.m_value;
             double tripleEma = tripleEmaPoint.m_value;
@@ -145,29 +145,36 @@ public class FourEmaAlgo extends TresAlgo {
             double boundTop    = Math.max(doubleEma, Math.max(tripleEma, laguerreMa));
             double boundBottom = Math.min(doubleEma, Math.min(tripleEma, laguerreMa));
             double value = valueToBounds(ema, boundTop, boundBottom);
+            double level = m_leveler.update(ema, boundTop, boundBottom);
 
             double mid = (boundTop + boundBottom) / 2;
             if ((m_mid == null) || !m_mid.equals(mid)) {
                 m_mid = mid;
-                ChartPoint point = new ChartPoint(emaPoint.m_millis, mid);
+                ChartPoint point = new ChartPoint(millis, mid);
                 m_midIndicator.addBar(point);
             }
 
             double spread = boundTop - boundBottom;
             if ((m_spread == null) || !m_spread.equals(spread)) {
                 m_spread = spread;
-                ChartPoint point = new ChartPoint(emaPoint.m_millis, spread);
+                ChartPoint point = new ChartPoint(millis, spread);
                 m_spreadIndicator.addBar(point);
             }
 
             if ((m_value == null) || !m_value.equals(value)) {
                 m_value = value;
-                ChartPoint point = new ChartPoint(emaPoint.m_millis, value);
+                ChartPoint point = new ChartPoint(millis, value);
                 m_valIndicator.addBar(point);
             }
 
+            if ((m_level == null) || !m_level.equals(level)) {
+                m_level = level;
+                ChartPoint point = new ChartPoint(millis, level);
+                m_levelIndicator.addBar(point);
+            }
+
             if (m_value != null) {
-                double sum = value;
+                double sum = level; // value;
                 if ((m_smoochedSpread != null) && (m_smoochedSpread < BOUND_LEVEL)) {
                     double mult = m_smoochedSpread / BOUND_LEVEL;
                     mult = mult * mult;
@@ -176,7 +183,7 @@ public class FourEmaAlgo extends TresAlgo {
 
                 if ((m_sum == null) || !m_sum.equals(sum)) {
                     m_sum = sum;
-                    ChartPoint point = new ChartPoint(m_ema.getLastPoint().m_millis, sum);
+                    ChartPoint point = new ChartPoint(millis, sum);
                     m_sumIndicator.addBar(point);
                     notifyListener();
                 }

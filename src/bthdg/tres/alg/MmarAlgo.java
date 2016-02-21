@@ -234,7 +234,7 @@ public class MmarAlgo extends TresAlgo {
         m_indicators.add(zagIndicator);
     }
 
-    @Override public void onTrade(TradeDataLight tdata) {
+    @Override public void preUpdate(TradeDataLight tdata) {
         ChartPoint chartPoint = new ChartPoint(tdata.m_timestamp, tdata.m_price);
         for (SmoochedIndicator priceEmaIndicator : m_priceEmaIndicators) {
             priceEmaIndicator.addBar(chartPoint);

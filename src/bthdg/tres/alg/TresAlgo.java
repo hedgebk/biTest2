@@ -27,7 +27,8 @@ public abstract class TresAlgo {
 
     public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
     public Direction getDirection() { return null; } // UP/DOWN
-    public void onTrade(TradeDataLight tdata) { /*noop*/ }
+    public void preUpdate(TradeDataLight tdata) { /*noop*/ }
+    public void postUpdate(TradeDataLight tdata) { /*noop*/ }
 
     public TresAlgo(String name, TresExchData tresExchData) {
         m_name = name;
