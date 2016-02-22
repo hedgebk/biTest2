@@ -4,43 +4,63 @@ import bthdg.tres.alg.TresAlgo;
 
 public class Leveler {
     private Boolean m_direction;
-    private double m_upper = 1;
-    private double m_upperUp = 1;
-    private double m_lower = -1;
-    private double m_lowerLow = -1;
-    private double m_lastScaled;
+    private double m_diff;
+    private double m_diffMax;
 
     public double update(double value, double top, double bottom) {
         double spread = top - bottom;
-        double scaled = (value - bottom) * 2 / spread - 1;
         if (value > top) {
-            m_direction = Boolean.TRUE;
-            m_lower = -1;
-            if (scaled > m_upper) {
-                m_upper = scaled;
-                m_upperUp = scaled;
+            double diff = value - bottom;
+            if ((m_direction == null) || !m_direction) { // up started
+                m_direction = Boolean.TRUE;
+                m_diff = diff;
+                m_diffMax = diff;
+            } else {
+                if (diff > m_diff) {
+                    m_diff = diff;
+                    m_diffMax = diff;
+                }
             }
         } else if (value < bottom) {
-            m_direction = Boolean.FALSE;
-            m_upper = 1;
-            if (scaled < m_lower) {
-                m_lower = scaled;
-                m_lowerLow = scaled;
+            double diff = top - value;
+            if ((m_direction == null) || m_direction) { // down started
+                m_direction = Boolean.FALSE;
+                m_diff = diff;
+                m_diffMax = diff;
+            } else {
+                if (diff > m_diff) {
+                    m_diff = diff;
+                    m_diffMax = diff;
+                }
             }
         } else {
             if (m_direction != null) {
-                if (m_direction && (scaled < m_lastScaled)) {
-                    double rate = (value - bottom) / spread; // [1 -> 0]
-                    m_upper = 1 + (m_upperUp - 1) * rate;
-                } else if (!m_direction && (scaled > m_lastScaled)) {
-                    double rate = (top - value) / spread; // [1 -> 0]
-                    m_lower = -1 - (-1 - m_lowerLow) * rate;
+                if (m_direction) {
+                    if (value < top) {
+                        double rate = (value - bottom) / spread;
+                        double diff = (m_diffMax - spread) * rate + spread;
+                        if (diff < m_diff) {
+                            m_diff = diff;
+                        }
+                    }
+                } else {
+                    if (value > bottom) {
+                        double rate = (top - value) / spread;
+                        double diff = (m_diffMax - spread) * rate + spread;
+                        if (diff < m_diff) {
+                            m_diff = diff;
+                        }
+                    }
+                }
+                if(spread > m_diff) {
+                    m_diff = spread;
                 }
             }
         }
-        m_lastScaled = scaled;
         return (m_direction == null)
                     ? TresAlgo.valueToBounds(value, top, bottom)
-                    : TresAlgo.valueToBounds(scaled, m_upper, m_lower);
+                    : m_direction
+                        ? TresAlgo.valueToBounds(value - bottom, m_diff, 0)
+                        : TresAlgo.valueToBounds(value - top, 0, -m_diff);
     }
 }
