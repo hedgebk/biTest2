@@ -11,12 +11,12 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class FourEmaAlgo extends TresAlgo {
-    private static final double EMA_SIZE = 3; // 5
-    private static final double DEMA_SIZE = 27;
-    private static final double TEMA_SIZE = 25;
-    private static final double LEMA_FACTOR = 0.44;
-    private static final long BOUND_SMOOCH_RATE = 7;
-    private static final double BOUND_LEVEL = 0.41;
+    public static double EMA_SIZE = 5;
+    public static double DEMA_SIZE = 27;
+    public static double TEMA_SIZE = 25;
+    public static double LEMA_FACTOR = 0.44;
+    public static long BOUND_SMOOCH_RATE = 7;
+    public static double BOUND_LEVEL = 0.41;
 
     protected final EmaIndicator m_ema;
     protected final DoubleEmaIndicator m_doubleEma;
@@ -75,13 +75,9 @@ public class FourEmaAlgo extends TresAlgo {
         m_midIndicator = new TresIndicator( "m", 0, this ) {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
             @Override public Color getColor() { return Colors.TRANSP_LIGHT_CYAN; }
+            @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
             @Override protected boolean countPeaks() { return false; }
             @Override protected boolean usePriceAxe() { return true; }
-//            @Override public void addBar(ChartPoint chartPoint) {
-//                super.addBar(chartPoint);
-//                ChartPoint lastPoint = getLastPoint();
-//                m_smoochedSpreadIndicator.addBar(lastPoint);
-//            }
         };
         m_indicators.add(m_midIndicator);
 

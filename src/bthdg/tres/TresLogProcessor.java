@@ -48,6 +48,8 @@ class TresLogProcessor extends Thread {
     public static final int READ_BUFFER_SIZE = 1024 * 32;
     public static final int PARSE_THREADS_NUM = 2;
     public static final int PROCESS_THREADS_NUM = 8;
+    private final Config m_config;
+    private Map<OptimizeField, String> m_varyConfigs = new HashMap<OptimizeField, String>();
 
     private TresExchData m_exchData;
     private String m_logFilePattern;
@@ -96,6 +98,7 @@ class TresLogProcessor extends Thread {
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public TresLogProcessor(Config config, ArrayList<TresExchData> exchDatas) {
+        m_config = config;
         init(config);
         m_exchData = exchDatas.get(0);
     }
@@ -249,6 +252,8 @@ class TresLogProcessor extends Thread {
             log("varyEmasLevel=" + m_varyEmasLevel);
         }
 
+        getConfig(OptimizeField.FOUR_EMA_SIZE);
+
         String avgHalfBidAskDiff = config.getProperty("tre.avg_half_bid_ask_diff");
         if (avgHalfBidAskDiff != null) {
             log("avgHalfBidAskDiff=" + avgHalfBidAskDiff);
@@ -260,6 +265,15 @@ class TresLogProcessor extends Thread {
 
         BaseExecutor.DO_TRADE = false;
         log("DO_TRADE set to false");
+    }
+
+    private void getConfig(OptimizeField optimizeField) {
+        String name = optimizeField.m_key;
+        String config = m_config.getProperty("tre.vary." + name);
+        if (config != null) {
+            log("vary" + name + "=" + config);
+            m_varyConfigs.put(optimizeField, config);
+        }
     }
 
     private void getGridConfig(Config config) {
@@ -433,6 +447,8 @@ class TresLogProcessor extends Thread {
             varyEmasLevel(datas, tres, m_varyEmasLevel);
         }
 
+        varyDouble(datas, tres, OptimizeField.FOUR_EMA_SIZE);
+
         checkOptimize(tres, datas);
         checkGrid(tres, datas);
 
@@ -440,6 +456,15 @@ class TresLogProcessor extends Thread {
             tres.m_collectPoints = true;
             Map<String, Double> averageProjected = processAllTicks(datas);
             log("averageProjected: " + averageProjected);
+        }
+    }
+
+    private void varyDouble(List<TradesTopsData> datas, Tres tres, OptimizeField optimizeField) throws Exception {
+        String config = m_varyConfigs.get(optimizeField);
+        if (config != null) {
+            String name = optimizeField.m_key;
+            log("vary" + name + ": " + config);
+            varyDouble(datas, tres, optimizeField, config);
         }
     }
 
@@ -815,6 +840,11 @@ class TresLogProcessor extends Thread {
     private void varyEmasLevel(List<TradesTopsData> datas, Tres tres, String varyEmasLevel) throws Exception {
         log("varyEmasLevel: " + varyEmasLevel);
         varyDouble(datas, tres, OptimizeField.EMAS_LEVEL, varyEmasLevel);
+    }
+
+    private void vary4EmaSize(List<TradesTopsData> datas, Tres tres, String vary4EmaSize) throws Exception {
+        log("vary4EmaSize: " + vary4EmaSize);
+        varyDouble(datas, tres, OptimizeField.FOUR_EMA_SIZE, vary4EmaSize);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {

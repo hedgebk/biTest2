@@ -13,6 +13,7 @@ import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.CoppockIndicator;
 import bthdg.tres.ind.OscIndicator;
+import bthdg.tres.opt.OptimizeField;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Sync;
 import bthdg.util.Utils;
@@ -468,7 +469,19 @@ public class Tres {
             Cno3Algo.SMOOTH_RATE = cno3Smooch;
         }
 
+        setDoubleConfig(OptimizeField.FOUR_EMA_SIZE);
+
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
+    }
+
+    private void setDoubleConfig(OptimizeField optimizeField) {
+        String key = optimizeField.m_key;
+        String config = m_config.getProperty("tre."+key);
+        if (config != null) {
+            log(key + "=" + config);
+            double value = Double.parseDouble(config);
+            optimizeField.set(this, value);
+        }
     }
 
     private void createExchData() {

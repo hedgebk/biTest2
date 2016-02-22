@@ -1,10 +1,7 @@
 package bthdg.tres.opt;
 
 import bthdg.tres.Tres;
-import bthdg.tres.alg.Aroon2Algo;
-import bthdg.tres.alg.AroonAlgo;
-import bthdg.tres.alg.Cno3Algo;
-import bthdg.tres.alg.EmasAlgo;
+import bthdg.tres.alg.*;
 import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.OscIndicator;
 
@@ -72,6 +69,10 @@ public enum OptimizeField {
     EMAS_LEVEL("emas.level") {
         @Override public double get(Tres tres) { return EmasAlgo.BOUND_LEVEL; }
         @Override public void set(Tres tres, double value) { EmasAlgo.BOUND_LEVEL = value; }
+    },
+    FOUR_EMA_SIZE("4emas.size") {
+        @Override public double get(Tres tres) { return FourEmaAlgo.EMA_SIZE; }
+        @Override public void set(Tres tres, double value) { FourEmaAlgo.EMA_SIZE = value; }
     };
 
     public final String m_key;

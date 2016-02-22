@@ -161,7 +161,7 @@ public abstract class TresAlgo {
         }
     }
 
-    public static double valueToBounds(double value, double boundTop, double boundBottom) {
+    public static double valueToBounds(double value, double boundTop, double boundBottom) { // [-1...1]
         double ret;
         if (value >= boundTop) {
             ret = 1.0;
