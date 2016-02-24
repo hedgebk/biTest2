@@ -17,6 +17,7 @@ import java.util.*;
 public class OkCoin extends BaseExch {
     private static String SECRET;
     private static String PARTNER;
+    private static String API_KEY;
     public static boolean LOG_PARSE = false;
     public static boolean JOIN_SMALL_QUOTES = false;
     public static final int CONNECT_TIMEOUT = 13000; // todo: mk big for market; smaller for other orders
@@ -136,7 +137,10 @@ public class OkCoin extends BaseExch {
         if(SECRET != null) {
             PARTNER = properties.getProperty("okcoin_partner");
             if(PARTNER != null) {
-                return true;
+                API_KEY = properties.getProperty("okcoin_apiKey");
+                if(API_KEY != null) {
+                    return true;
+                }
             }
         }
         return false;
@@ -243,6 +247,29 @@ public class OkCoin extends BaseExch {
         String json = loadJsonStr(null, postData);
         log("Loaded json: " + json);
     }
+
+    public String signForWs(Map<String, String> preMap) {
+        preMap.put("api_key", API_KEY);
+//        String preStr = MD5Util.createLinkString(preMap);
+        String preStr = Post.createHttpPostString(preMap, true);
+        preStr = preStr + "&secret_key=" + SECRET;
+//        String signStr = MD5Util.getMD5String(preStr);
+        String signStr = Md5.getMD5String(preStr);
+        preMap.put("sign", signStr);
+        String params = getParams(preMap);
+        return params;    // {'api_key':'XXXX','sign':'XXXX'}
+    }
+
+    public static String getParams(Map<String,String> map) {
+        StringBuilder params = new StringBuilder("{");
+        for (Map.Entry<String, String> param : map.entrySet()) {
+            params.append("'").append(param.getKey()).append("':'").append(param.getValue()).append("',");
+        }
+        int length = params.length();
+        params.replace(length - 1, length, "}");
+        return params.toString();
+    }
+
 
     public static String buildMysign(Map<String, String> sArray, String secretKey) {
         String mysign = "";

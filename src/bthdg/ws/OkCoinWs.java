@@ -39,7 +39,7 @@ public class OkCoinWs extends BaseWs {
     public static final int DEFAULT_MAX_SESSION_IDLE_TIMEOUT = 25000;
 
     public static final String BTCCNY_TICKER_CHANNEL = "ok_btccny_ticker";
-//    public static final String SUBSCRIBE_BTCCNY_TICKER = "{'event':'addChannel','channel':'ok_btccny_ticker'}";
+    public static final String SUBSCRIBE_BTCCNY_TICKER = "{'event':'addChannel','channel':'ok_btccny_ticker'}";
 // [{"channel":"ok_btccny_ticker",
 //   "data":{"buy":"2606.01",
 //           "high":"2977.9",
@@ -103,6 +103,29 @@ public class OkCoinWs extends BaseWs {
 //   "data":[["2595.74","0.066","07:50:47","ask"]]}]
 // [{"channel":"ok_btccny_trades",
 //   "data":[["2595.74","0.38","07:50:47","ask"]]}]
+
+    public static final String EXECS_CHANNEL = "ok_sub_spotcny_trades";
+//    [
+//    {
+//        "channel": "ok_sub_spotusd_trades",
+//            "data": {
+//        "averagePrice": "0",
+//                "completedTradeAmount": "0",
+//                "createdDate": 1422258604000,
+//                "id": 268013884,
+//                "orderId": 268013884,
+//                "sigTradeAmount": "0",
+//                "sigTradePrice": "0",
+//                "status": -1,
+//                "symbol": "btc_usd",
+//                "tradeAmount": "1.105",
+//                "tradePrice": "0",
+//                "tradeType": "buy",
+//                "tradeUnitPrice": "1853.74",
+//                "unTrade": "0"
+//    }
+//    }
+//    ]
 
     public static final String UNSUBSCRIBE_BTCCNY_TRADES = "{'event':'removeChannel','channel':'ok_btccny_trades'}";
 
@@ -168,7 +191,7 @@ public class OkCoinWs extends BaseWs {
                         session.addMessageHandler(new MessageHandler.Whole<String>() {
                             private int m_counter;
                             @Override public void onMessage(String message) {
-//System.out.println("Received message: " + message);
+System.out.println("Received message: " + message);
                                 m_counter++;
                                 if (m_counter == 4) {
                                     try {
@@ -181,14 +204,15 @@ public class OkCoinWs extends BaseWs {
                         });
 //                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_TICKER);
 //                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_DEPTH);
-                        session.getBasicRemote().sendText(""                            /* SUBSCRIBE_BTCCNY_TRADES */);
+//                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_TICKER);
+                        session.getBasicRemote().sendText("{'event':'addChannel','channel':'ok_sub_spotcny_btc_ticker'}");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
             }, cec, new URI(URL));
             log("session isOpen=" + session.isOpen() + "; session=" + session);
-            Thread.sleep(15000);
+            Thread.sleep(25000);
             log("done");
         } catch (Exception e) {
             e.printStackTrace();
@@ -202,6 +226,20 @@ public class OkCoinWs extends BaseWs {
 
     @Override public Exchange exchange() {
         return Exchange.OKCOIN;
+    }
+
+    @Override public void subscribeExecs(Pair pair, IExecsListener listener) throws Exception {
+//        if (pair != Pair.BTC_CNH) {
+//            throw new RuntimeException("pair " + pair + " not supported yet");
+//        }
+//        m_execsListener = listener;
+//        m_channelListeners.put(EXECS_CHANNEL, new MessageHandler.Whole<Object>() {
+//            @Override public void onMessage(Object json) {
+//log("   execsListener.onMessage() json=" + json);
+////                x
+//            }
+//        });
+//        subscribe(EXECS_CHANNEL, true);
     }
 
     @Override public void subscribeTrades(Pair pair, ITradesListener listener) throws Exception {
@@ -306,23 +344,40 @@ public class OkCoinWs extends BaseWs {
     }
 
     private void subscribe(final String channel) throws Exception {
+        subscribe(channel, false);
+    }
+
+    private void subscribe(final String channel, final boolean toSign) throws Exception {
         log("subscribe() channel=" + channel + "; m_session=" + m_session);
         if( m_session == null ) {
             log(" no session. connecting...");
             connect(new Runnable() {
                 @Override public void run() {
                     log("subscribe().connect().connected");
-                    sendSubscribe(channel);
+                    sendSubscribe(channel, toSign);
                 }
             });
         } else {
-            sendSubscribe(channel);
+            sendSubscribe(channel, toSign);
         }
     }
 
-    private void sendSubscribe(String channel) {
-        String subscribeCmd = "{'event':'addChannel','channel':'" + channel + "'}";
-        log("sendSubscribe() channel=" + channel + "; subscribeCmd=" + subscribeCmd + "; m_session=" + m_session);
+    private void sendSubscribe(String channel, boolean toSign) {
+        String subscribeCmd;
+        if(toSign) {
+            OkCoin exch = (OkCoin) Exchange.OKCOIN.m_baseExch;
+            Map<String, String> preMap = new HashMap<String, String>();
+            String params = exch.signForWs(preMap);
+
+            StringBuilder tradeStr = new StringBuilder(
+                    "{'event': 'addChannel','channel': '"+channel+"','parameters': ")
+                    .append(params).append("}");
+            subscribeCmd = tradeStr.toString();
+        } else {
+            subscribeCmd = "{'event':'addChannel','channel':'" + channel + "'}";
+        }
+
+        log("sendSubscribe() toSign=" + toSign + "; channel=" + channel + "; subscribeCmd=" + subscribeCmd + "; m_session=" + m_session);
 
         addMessageHandlerIfNeeded();
         try {

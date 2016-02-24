@@ -733,6 +733,10 @@ public class HuobiWs extends BaseWs {
 //        stop();
     }
 
+    @Override public void subscribeExecs(Pair pair, IExecsListener listener) throws Exception {
+        /* noop */
+    }
+
     private class ReconnectThread extends Thread {
         private final Runnable m_connectCallback;
 
