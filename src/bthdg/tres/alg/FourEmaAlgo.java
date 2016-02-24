@@ -17,6 +17,11 @@ public class FourEmaAlgo extends TresAlgo {
     public static double LEMA_FACTOR = 0.44;
     public static long BOUND_SMOOCH_RATE = 7;
     public static double BOUND_LEVEL = 0.41;
+    public static double MID_SMOOCH_RATE = 5;
+    public static double MID_VELOCITY_SIZE = 0.2;
+    public static double SUM_SMOOCH_RATE = 5;
+    public static double SUM_VELOCITY_SIZE = 0.2;
+    public static double START_ZERO_LEVEL = 0.0000016;
 
     protected final EmaIndicator m_ema;
     protected final DoubleEmaIndicator m_doubleEma;
@@ -27,20 +32,30 @@ public class FourEmaAlgo extends TresAlgo {
     private final TresIndicator m_spreadIndicator;
     private final SmoochedIndicator m_smoochedSpreadIndicator;
     private final TresIndicator m_midIndicator;
+    private final SmoochedIndicator m_smoochedMidIndicator;
+    private final VelocityIndicator m_midVelocityIndicator;
     private final TresIndicator m_sumIndicator;
-    private final Leveler m_leveler;
+    private final SmoochedIndicator m_smoochedSumIndicator;
+    private final VelocityIndicator m_sumVelocityIndicator;
+    private final TresIndicator m_avgVelocityIndicator;
+    private final TresIndicator m_leveledAvgVelocityIndicator;
+    private final ZeroLeveler m_zeroLeveler;
+    private final RangeLeveler m_leveler;
     private Double m_value;
     private Double m_level;
     private Double m_spread;
     private Double m_smoochedSpread;
     private Double m_sum;
     private Double m_mid;
+    private Double m_avgVelocity;
+    private Double m_leveledAvgVelocity;
 
     public FourEmaAlgo(TresExchData tresExchData) {
         super("4ema", tresExchData);
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
-        m_leveler = new Leveler();
+        m_leveler = new RangeLeveler();
+        m_zeroLeveler = new ZeroLeveler(START_ZERO_LEVEL);
 
         m_ema = new EmaIndicator("ema", this, EMA_SIZE);
         m_indicators.add(m_ema);
@@ -78,8 +93,31 @@ public class FourEmaAlgo extends TresAlgo {
             @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
             @Override protected boolean countPeaks() { return false; }
             @Override protected boolean usePriceAxe() { return true; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                m_smoochedMidIndicator.addBar(lastPoint);
+            }
         };
         m_indicators.add(m_midIndicator);
+
+        m_smoochedMidIndicator = new SmoochedIndicator(this, "ms", (long) (MID_SMOOCH_RATE * barSizeMillis), 0) {
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
+            @Override protected boolean usePriceAxe() { return true; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                m_midVelocityIndicator.addBar(lastPoint);
+            }
+        };
+        m_indicators.add(m_smoochedMidIndicator);
+
+        long midVelocitySize = (long) (barSizeMillis * MID_VELOCITY_SIZE);
+        m_midVelocityIndicator = new VelocityIndicator(this, "mv", midVelocitySize, 0.1) {
+            @Override public String toString() { return "Mid.VelIndicator"; }
+        };
+        m_indicators.add(m_midVelocityIndicator);
 
         m_spreadIndicator = new TresIndicator( "[]", 0, this ) {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
@@ -114,13 +152,53 @@ public class FourEmaAlgo extends TresAlgo {
 
         m_sumIndicator = new TresIndicator( "s", 0, this ) {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-            @Override public Color getColor() { return Colors.BEGIE; }
+            @Override public Color getColor() { return Colors.DARK_RED; }
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean useValueAxe() { return true; }
+            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                m_smoochedSumIndicator.addBar(lastPoint);
+            }
+        };
+        m_indicators.add(m_sumIndicator);
+
+        m_smoochedSumIndicator = new SmoochedIndicator(this, "ss", (long) (SUM_SMOOCH_RATE * barSizeMillis), 0) {
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                m_sumVelocityIndicator.addBar(lastPoint);
+            }
+        };
+        m_indicators.add(m_smoochedSumIndicator);
+
+        long sumVelocitySize = (long) (barSizeMillis * SUM_VELOCITY_SIZE);
+        m_sumVelocityIndicator = new VelocityIndicator(this, "sv", sumVelocitySize, 0.1) {
+            @Override public String toString() { return "Sum.VelIndicator"; }
+        };
+        m_indicators.add(m_sumVelocityIndicator);
+
+        m_avgVelocityIndicator = new TresIndicator( "AV", 0, this ) {
+            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Colors.DARK_RED; }
+            @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+        };
+        m_indicators.add(m_avgVelocityIndicator);
+
+        m_leveledAvgVelocityIndicator = new TresIndicator( "AVl", 0, this ) {
+            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Colors.LIGHT_BLUE; }
+//            @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
             @Override protected boolean countPeaks() { return false; }
             @Override protected boolean useValueAxe() { return true; }
             @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
         };
-        m_indicators.add(m_sumIndicator);
-
+        m_indicators.add(m_leveledAvgVelocityIndicator);
     }
 
     @Override public void postUpdate(TradeDataLight tdata) {
@@ -185,6 +263,32 @@ public class FourEmaAlgo extends TresAlgo {
                 }
             }
         }
+
+        ChartPoint midVelocityLastPoint = m_midVelocityIndicator.getLastPoint();
+        ChartPoint sumVelocityLastPoint = m_sumVelocityIndicator.getLastPoint();
+        if ((midVelocityLastPoint != null) && (sumVelocityLastPoint != null)) {
+            double midVelocity = midVelocityLastPoint.m_value;
+            double sumVelocity = sumVelocityLastPoint.m_value;
+            double avgVelocity = (midVelocity + sumVelocity) / 2;
+            if ((m_avgVelocity == null) || !m_avgVelocity.equals(avgVelocity)) {
+                m_avgVelocity = avgVelocity;
+                long millis = Math.max(midVelocityLastPoint.m_millis, sumVelocityLastPoint.m_millis);
+                ChartPoint point = new ChartPoint(millis, avgVelocity);
+                m_avgVelocityIndicator.addBar(point);
+
+                double leveledAvgVelocity = m_zeroLeveler.update(avgVelocity);
+
+                if ((m_smoochedSpread != null) && (m_smoochedSpread < BOUND_LEVEL)) {
+                    double mult = m_smoochedSpread / BOUND_LEVEL;
+                    mult = mult * mult;
+                    leveledAvgVelocity *= mult;
+                }
+
+                m_leveledAvgVelocity = leveledAvgVelocity;
+                point = new ChartPoint(millis, leveledAvgVelocity);
+                m_leveledAvgVelocityIndicator.addBar(point);
+            }
+        }
     }
 
     @Override public double lastTickPrice() { return m_ema.lastTickPrice(); }
@@ -192,8 +296,11 @@ public class FourEmaAlgo extends TresAlgo {
     @Override public Color getColor() { return Color.blue; }
     @Override public String getRunAlgoParams() { return "FourEMA"; }
 
+//    @Override public double getDirectionAdjusted() {
+//        return (m_sum == null) ? 0 : m_sum;
+//    }
     @Override public double getDirectionAdjusted() {
-        return (m_sum == null) ? 0 : m_sum;
+        return (m_leveledAvgVelocity == null) ? 0 : m_leveledAvgVelocity;
     }
 
     @Override public Direction getDirection() {

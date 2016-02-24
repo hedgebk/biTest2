@@ -8,6 +8,7 @@ import bthdg.exch.OrderData;
 import bthdg.exch.Pair;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
+import bthdg.osc.OrderPriceMode;
 import bthdg.tres.alg.*;
 import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.CciIndicator;
@@ -415,7 +416,7 @@ public class Tres {
         String orderAlgoStr = m_config.getProperty("tre.order_algo");
         if (orderAlgoStr != null) {
             log("orderAlgoStr=" + orderAlgoStr);
-            BaseExecutor.OrderPriceMode opm = BaseExecutor.OrderPriceMode.get(orderAlgoStr);
+            OrderPriceMode opm = OrderPriceMode.get(orderAlgoStr);
             TresExecutor.ORDER_PRICE_MODE = opm;
         }
 
@@ -470,6 +471,9 @@ public class Tres {
         }
 
         setDoubleConfig(OptimizeField.FOUR_EMA_SIZE);
+        setDoubleConfig(OptimizeField.FOUR_EMA_SMOOTH);
+        setDoubleConfig(OptimizeField.FOUR_EMA_VELOCITY);
+        setDoubleConfig(OptimizeField.FOUR_EMA_ZERO);
 
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
     }

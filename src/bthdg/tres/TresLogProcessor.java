@@ -253,6 +253,9 @@ class TresLogProcessor extends Thread {
         }
 
         getConfig(OptimizeField.FOUR_EMA_SIZE);
+        getConfig(OptimizeField.FOUR_EMA_SMOOTH);
+        getConfig(OptimizeField.FOUR_EMA_VELOCITY);
+        getConfig(OptimizeField.FOUR_EMA_ZERO);
 
         String avgHalfBidAskDiff = config.getProperty("tre.avg_half_bid_ask_diff");
         if (avgHalfBidAskDiff != null) {
@@ -448,6 +451,9 @@ class TresLogProcessor extends Thread {
         }
 
         varyDouble(datas, tres, OptimizeField.FOUR_EMA_SIZE);
+        varyDouble(datas, tres, OptimizeField.FOUR_EMA_SMOOTH);
+        varyDouble(datas, tres, OptimizeField.FOUR_EMA_VELOCITY);
+        varyDouble(datas, tres, OptimizeField.FOUR_EMA_ZERO);
 
         checkOptimize(tres, datas);
         checkGrid(tres, datas);
@@ -840,11 +846,6 @@ class TresLogProcessor extends Thread {
     private void varyEmasLevel(List<TradesTopsData> datas, Tres tres, String varyEmasLevel) throws Exception {
         log("varyEmasLevel: " + varyEmasLevel);
         varyDouble(datas, tres, OptimizeField.EMAS_LEVEL, varyEmasLevel);
-    }
-
-    private void vary4EmaSize(List<TradesTopsData> datas, Tres tres, String vary4EmaSize) throws Exception {
-        log("vary4EmaSize: " + vary4EmaSize);
-        varyDouble(datas, tres, OptimizeField.FOUR_EMA_SIZE, vary4EmaSize);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {

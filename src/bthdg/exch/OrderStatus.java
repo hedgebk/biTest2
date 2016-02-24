@@ -10,6 +10,7 @@ public enum OrderStatus {
         @Override public boolean partialOrFilled() { return true; }
     },
     REJECTED,
+    CANCELING,
     CANCELLED,
     ERROR;
 

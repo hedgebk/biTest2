@@ -87,6 +87,7 @@ public enum OrderState {
         if ((liveOrders != null) && (liveOrders.m_error == null)) {
             String orderId = orderData.m_orderId;
             OrdersData.OrdData ordData = liveOrders.getOrderData(orderId);
+            log(" ordData=" + ordData);
             Pair pair = orderData.m_pair;
             double orderPrice = orderData.roundPrice(exchange);
             double remainedAmountBefore = orderData.remained();
@@ -95,7 +96,7 @@ public enum OrderState {
             double volumeBefore = orderData.getFilledVolume();
             double avgFillPrice = (ordData == null) ? orderPrice : ordData.m_avgPrice;
 
-            if ((ordData != null) && (ordData.m_orderStatus == OrderStatus.SUBMITTED || ordData.m_orderStatus == OrderStatus.PARTIALLY_FILLED)) {
+            if ((ordData != null) && ((ordData.m_orderStatus == OrderStatus.SUBMITTED) || (ordData.m_orderStatus == OrderStatus.PARTIALLY_FILLED))) {
                 log(" order still alive - liveOrder[" + orderId + "]=" + ordData);
                 double remainedAmountNow = ordData.m_remainedAmount;
                 double filledAmountNow = orderAmount - remainedAmountNow;
@@ -149,11 +150,15 @@ public enum OrderState {
                     orderData.m_price = ordData.m_avgPrice; // update order price to avg filled
                 }
             } else {
-                if (ordData.m_orderStatus == OrderStatus.CANCELLED) {
+                if (ordData.m_orderStatus == OrderStatus.CANCELING) {
+                    orderData.m_status = OrderStatus.CANCELING;
+                    log("  order still CANCELING. leave as is");
+                } else if (ordData.m_orderStatus == OrderStatus.CANCELLED) {
                     orderData.m_status = OrderStatus.ERROR;
-                    log("  order got cancelled. setting OrderStatus.ERROR");
+                    log("  order got cancelled. setting OrderStatus.ERROR - need to reload all");
                 } else {
-                    log("  error unexpected order status " + orderData.m_status + "='" + ordData.m_orderStatus + "': orderData=" + orderData + "; ordData=" + ordData);
+                    log("  error unexpected order status=" + orderData.m_status +  "; ordStatus=" + ordData.m_orderStatus
+                            + "': orderData=" + orderData + "; ordData=" + ordData);
                     orderData.m_status = OrderStatus.ERROR;
                 }
             }

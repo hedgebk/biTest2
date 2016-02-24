@@ -2,7 +2,7 @@ package bthdg.tres.ind;
 
 import bthdg.tres.alg.TresAlgo;
 
-public class Leveler {
+public class RangeLeveler {
     private Boolean m_direction;
     private double m_diff;
     private double m_diffMax;

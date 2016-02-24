@@ -4,6 +4,7 @@ import bthdg.Fetcher;
 import bthdg.IIterationContext;
 import bthdg.exch.*;
 import bthdg.osc.BaseExecutor;
+import bthdg.osc.OrderPriceMode;
 import bthdg.osc.TaskQueueProcessor;
 import bthdg.util.Utils;
 import bthdg.ws.IWs;
@@ -37,6 +38,7 @@ public class TresExecutor extends BaseExecutor {
     private long m_lastSeenTradeTime;
     private double m_lastTradePartRate;
     private boolean m_oldLastTradeReconnectRequested;
+    private final List<OrderData> m_pendingMktOrders = new ArrayList<OrderData>();
 
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
@@ -45,6 +47,9 @@ public class TresExecutor extends BaseExecutor {
     @Override protected double useFundsFromAvailable() { return USE_FUNDS_FROM_AVAILABLE; }
     @Override protected boolean haveNotFilledOrder() { return (m_order != null) && !m_order.isFilled(); }
     @Override protected TaskQueueProcessor createTaskQueueProcessor() { return new TresTaskQueueProcessor(); }
+    @Override public double getAvgFillSize() {
+        return (m_ordersFilled > 0) ? m_tradeVolume / m_ordersFilled : 0;
+    }
 
     public TresExecutor(TresExchData exchData, IWs ws, Pair pair) {
         super(ws, pair, exchData.m_tres.m_barSizeMillis);
@@ -159,6 +164,21 @@ public class TresExecutor extends BaseExecutor {
     @Override public int processDirection() throws Exception {
         if (m_order != null) {
             log("TresExecutor.processDirection() m_order=" + m_order);
+
+            if (m_order.m_status == OrderStatus.CANCELING) {
+                checkOrderState(m_order);
+                if (m_order.m_status == OrderStatus.CANCELING) {
+                    log("  CANCEL request not yet executed: " + m_order);
+                    return STATE_NO_CHANGE;
+                } else if (m_order.m_status == OrderStatus.CANCELLED) {
+                    log("  CANCEL request confirmed: " + m_order);
+                    m_order = null;
+                    return STATE_ERROR; // need recheck everything
+                } else {
+                    log("  error: unexpected status of CANCELING order: " + m_order);
+                    return STATE_ERROR; // need recheck everything
+                }
+            }
         }
         checkLastSeenTrade();
         return super.processDirection();
@@ -256,13 +276,13 @@ public class TresExecutor extends BaseExecutor {
             m_maySyncAccount = true;
 
             if (error == null) {
-                log("   order cancelled OK: " + m_order);
+                log("   order cancel OK: " + m_order);
                 m_order = null;
 
                 postRecheckDirection();
                 return STATE_NONE;
             } else {
-                log("ERROR in cancel order: " + error + "; " + m_order);
+                log("ERROR in cancelOrderIfPresent: " + error + "; " + m_order);
                 return STATE_ERROR;
             }
         }
@@ -293,11 +313,25 @@ public class TresExecutor extends BaseExecutor {
                 cancelledOrdIds.add(m_order.m_orderId);
                 m_order = null;
             } else {
-                log("    error in cancel order: " + error + "; " + m_order);
+                log("    error in cancelAllOrders: " + error + "; " + m_order);
                 m_order = null;
             }
             log("    order cancel attempted - need sync account since part can be executed in the middle");
         }
+        for (OrderData pendingMktOrder : m_pendingMktOrders) {
+            log("   we have pendingMktOrder, will try cancel: " + pendingMktOrder);
+            String error = cancelOrder(pendingMktOrder);
+            if (error == null) {
+                if (cancelledOrdIds == null) {
+                    cancelledOrdIds = new ArrayList<String>();
+                }
+                cancelledOrdIds.add(pendingMktOrder.m_orderId);
+            } else {
+                log("    error in cancel pendingMktOrder (can be already executed): " + error + "; " + pendingMktOrder);
+            }
+
+        }
+        m_pendingMktOrders.clear();
         return cancelledOrdIds;
     }
 
@@ -398,8 +432,6 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
-    private final List<OrderData> m_pendingMktOrders = new ArrayList<OrderData>();
-
     @Override protected int onOrderPlace(OrderData placeOrder, long tickAge, double buy, double sell, TopSource topSource) {
         m_order = placeOrder;
         m_ordersPlaced++;
@@ -421,13 +453,13 @@ public class TresExecutor extends BaseExecutor {
         if (isNotEmpty) {
             OrderData od = m_pendingMktOrders.get(0);
             log(" next PendingMktOrder: " + od);
-            int status = checkMarketOrder(od);
+            int status = checkOrderState(od);
             if (status == STATE_NO_CHANGE) {
                 log("  MktOrder NOT yet executed: " + od);
             } else {
                 m_pendingMktOrders.remove(0);
                 if (status == BaseExecutor.STATE_ERROR) {
-                    log("  checkMarketOrder() gives STATE_ERROR -> recheck all pendingMktOrders");
+                    log("  checkOrderState() gives STATE_ERROR -> recheck all pendingMktOrders");
                     while (!m_pendingMktOrders.isEmpty()) {
                         recheckPendingMktOrders();
                     }

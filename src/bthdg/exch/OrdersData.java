@@ -67,15 +67,15 @@ public class OrdersData {
         @Override public String toString() {
             return "OrdData{" +
                     "orderId='" + m_orderId + '\'' +
+                    ", status=" + m_status +
+                    ", pair=" + m_pair +
                     ", orderSide=" + m_orderSide +
                     ", orderType=" + m_orderType +
                     ", orderAmount=" + m_orderAmount +
+                    ", rate=" + m_rate +
                     ", filledAmount=" + m_filledAmount +
                     ", remainedAmount=" + m_remainedAmount +
-                    ", rate=" + m_rate +
-                    ", pair=" + m_pair +
                     ", createTime=" + m_createTime +
-                    ", status=" + m_status +
                     ((m_orderStatus == null) ? "" : " " + m_orderStatus) +
                     ", avgPrice=" + m_avgPrice +
                     '}';

@@ -73,6 +73,24 @@ public enum OptimizeField {
     FOUR_EMA_SIZE("4emas.size") {
         @Override public double get(Tres tres) { return FourEmaAlgo.EMA_SIZE; }
         @Override public void set(Tres tres, double value) { FourEmaAlgo.EMA_SIZE = value; }
+    },
+    FOUR_EMA_SMOOTH("4emas.smooch") {
+        @Override public double get(Tres tres) { return FourEmaAlgo.MID_SMOOCH_RATE; }
+        @Override public void set(Tres tres, double value) {
+            FourEmaAlgo.MID_SMOOCH_RATE = value;
+            FourEmaAlgo.SUM_SMOOCH_RATE = value;
+        }
+    },
+    FOUR_EMA_VELOCITY("4emas.velocity") {
+        @Override public double get(Tres tres) { return FourEmaAlgo.MID_VELOCITY_SIZE; }
+        @Override public void set(Tres tres, double value) {
+            FourEmaAlgo.MID_VELOCITY_SIZE = value;
+            FourEmaAlgo.SUM_VELOCITY_SIZE = value;
+        }
+    },
+    FOUR_EMA_ZERO("4emas.zero") {
+        @Override public double get(Tres tres) { return FourEmaAlgo.START_ZERO_LEVEL; }
+        @Override public void set(Tres tres, double value) { FourEmaAlgo.START_ZERO_LEVEL = value; }
     };
 
     public final String m_key;

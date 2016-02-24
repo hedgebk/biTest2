@@ -13,13 +13,14 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class EmasAlgo extends TresAlgo {
-    public static final int TEMA_START = 6;
-    public static final int TEMA_STEP = 9;
+    public static final int TEMA_START = 10;
+    public static final int TEMA_STEP = 5;
     private static final double BOUND_SMOOCH_RATE = 7.0;
     public static double BOUND_LEVEL = 0.3;  // 0.4;
     public static double EMA_SIZE = 1.7; // 0.77;
 
     protected EmaIndicator m_ema;
+    protected TripleEmaIndicator m_tripleEma1;
     protected TripleEmaIndicator m_tripleEma10;
     protected TripleEmaIndicator m_tripleEma15;
     protected TripleEmaIndicator m_tripleEma20;
@@ -47,6 +48,16 @@ public class EmasAlgo extends TresAlgo {
             }
         };
         m_indicators.add(m_ema);
+
+        m_tripleEma1 = new TripleEmaIndicator("tema", this, 2, Color.gray) {
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                recalcOne();
+                recalcTwo();
+                recalcSum();
+            }
+        };
+        m_indicators.add(m_tripleEma1);
 
         int emaSize = TEMA_START;
         m_tripleEma10 = new TripleEmaIndicator("tema"+emaSize, this, emaSize, Color.magenta) {

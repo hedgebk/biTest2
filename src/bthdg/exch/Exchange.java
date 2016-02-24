@@ -142,6 +142,7 @@ public enum Exchange {
         @Override public Currency baseCurrency() { return Currency.CNH; }
         @Override public boolean requirePairForOrders() { return true; }
         @Override public boolean requirePairForCancel() { return true; }
+        @Override public void onOrderCancel(OrderData order) { OkCoin.onOrderCancel(order); }
     },
     HUOBI("Huobi", new Huobi(), "", 11, 0.000001, false, // https://github.com/xiaojay/huobi/blob/master/huobi.py
            null, "http://api.huobi.com/staticmarket/ticker_XXXX_json.js", // XXXX like "btc"
@@ -336,6 +337,8 @@ public enum Exchange {
     public void init(Properties keys) {}
 
     public void waitIfNeeded() { /*do nothing by def*/ }
+
+    public void onOrderCancel(OrderData order) { /*noop*/ }
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////

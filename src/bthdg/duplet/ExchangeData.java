@@ -214,9 +214,9 @@ public class ExchangeData {
         // todo: implement
         if (orderData != null) {
             if ((orderData.m_status == OrderStatus.SUBMITTED) || (orderData.m_status == OrderStatus.PARTIALLY_FILLED)) {
-                log("cancelOrder() not implemented yet: " + orderData);
+                log("cancelOrder() error: not implemented yet: " + orderData);
             } else {
-                log("cancelOrder() no need to cancel oder in state: " + orderData);
+                log("cancelOrder() error: no need to cancel oder in state: " + orderData);
             }
             orderData.m_status = OrderStatus.CANCELLED;
             orderData.m_state = OrderState.NONE;

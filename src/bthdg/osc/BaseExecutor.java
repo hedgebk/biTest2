@@ -11,7 +11,6 @@ import bthdg.ws.ITopListener;
 import bthdg.ws.IWs;
 
 import java.awt.*;
-import java.math.RoundingMode;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -97,6 +96,7 @@ public abstract class BaseExecutor implements Runnable {
     protected abstract double useFundsFromAvailable();
 
     protected double maxOrderSizeToCreate() { return 1000000; }
+    public double getAvgFillSize() { return 0; }
 
     public BaseExecutor(IWs ws, Pair pair, long barSizeMillis) {
         m_ws = ws;
@@ -323,15 +323,20 @@ public abstract class BaseExecutor implements Runnable {
         timeFramePoint.m_end = end;
         long takes = end - start;
         m_cancelOrderTakesCalc.addValue((double) takes);
-        log(" order cancelled in " + Utils.millisToDHMSStr(takes) + ": error=" + error);
         m_maySyncAccount = true; // even successfully cancelled order can be concurrently partially filled - resync account when possible
+        if (error == null) {
+            log(" order cancelled in " + Utils.millisToDHMSStr(takes) + "ms");
+            m_exchange.onOrderCancel(order);
+        } else {
+            log(" cancelOrder error: " + error + "; order=" + order);
+        }
         return error;
     }
 
     public final void onError() throws Exception {
-        log("onError() resetting...  -------------------------- ");
+        log("onError() resetting...  ----------------------------------------------------");
         onErrorInt();
-        log("onError() end");
+        log("onError() end  ----------------------------------------------------");
     }
 
     protected void onErrorInt() throws Exception {
@@ -525,15 +530,9 @@ public abstract class BaseExecutor implements Runnable {
         double exchMinOrderToCreate = m_exchange.minOrderToCreate(m_pair);
         double minOrderSizeToCreate = minOrderSizeToCreate();
         if ((absOrderSize < exchMinOrderToCreate) || (absOrderSize < minOrderSizeToCreate)) {
-            log("small absOrderSize. needOrderSide=" + needOrderSide +
+            log("small absOrderSize. do nothing. needOrderSide=" + needOrderSide +
                     "; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
-            log(" seems funds balance is ok. cancelOrderIfPresent...");
-
-            int ret = cancelOrderIfPresent();
-            if (ret == STATE_NO_CHANGE) { // cancel attempt was not performed
-                ret = doVoidCycle();
-            }
-            return ret;
+            return doVoidCycle();
         }
 
         if (absOrderSize != 0) {
@@ -590,7 +589,7 @@ public abstract class BaseExecutor implements Runnable {
 
                     OrderType orderType = OrderType.LIMIT;
                     double orderPrice;
-                    if (m_orderPriceMode.isMarketPrice(this)) {
+                    if (m_orderPriceMode.isMarketPrice(this, placeOrderSize)) {
                         orderType = OrderType.MARKET;
                         orderPrice = needOrderSide.isBuy() ? m_sell : m_buy;
                     } else {
@@ -613,15 +612,6 @@ public abstract class BaseExecutor implements Runnable {
                     int rett = placeOrderToExchange(placeOrder);
                     if (rett == STATE_ORDER) {
                         rett = onOrderPlace(placeOrder, tickAge, buy, sell, topSource); // notify on order place
-
-//                        if (orderType == OrderType.MARKET) {
-//                            Thread.sleep(500); // small delay - allow order to execute
-//
-//                            int ret2 = checkMarketOrder(placeOrder);
-//                            if (ret2 != STATE_NO_CHANGE) {
-//                                rett = ret2;
-//                            }
-//                        }
                     }
                     return rett;
                 } else {
@@ -652,9 +642,9 @@ public abstract class BaseExecutor implements Runnable {
         return ret;
     }
 
-    protected int checkMarketOrder(OrderData order) throws Exception {
+    protected int checkOrderState(OrderData order) throws Exception {
         String orderId = order.m_orderId;
-        System.out.println(" checkMarketOrder() query order status (orderId=" + orderId + ")...");
+        System.out.println(" checkOrderState() query order status (orderId=" + orderId + ")...");
         long start = System.currentTimeMillis();
         TimeFramePoint timeFramePoint = addTimeFrame(TimeFrameType.orderState, start);
         OrderStatusData osData = Fetcher.orderStatus(m_exchange, orderId, order.m_pair);
@@ -663,7 +653,6 @@ public abstract class BaseExecutor implements Runnable {
         System.out.println("  orderStatus '" + orderId + "' result: " + osData);
 
         final OrdersData ordersData = osData.toOrdersData();
-//        final OrdersData ordersData = Fetcher.fetchOrders(m_exchange, m_pair);
 
         IIterationContext.BaseIterationContext iContext = new IIterationContext.BaseIterationContext() {
             @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception {
@@ -1003,188 +992,6 @@ public abstract class BaseExecutor implements Runnable {
         @Override public void process() throws Exception {
             log("CheckLiveOrdersTask.process()");
             checkLiveOrders();
-        }
-    }
-
-    //-------------------------------------------------------------------------------
-    public enum OrderPriceMode {
-        MID_THEN_MARKET {
-            @Override public boolean isMarketPrice(BaseExecutor baseExecutor) {
-                int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
-                return (orderPlaceAttemptCounter != 0);
-            }
-            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-                // directionAdjusted [-1 ... 1]
-                double buy = baseExecutor.m_buy;
-                double sell = baseExecutor.m_sell;
-                log("  buy=" + buy + "; sell=" + sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
-                double midPrice = (buy + sell) / 2;
-                double bidAskDiff = sell - buy;
-                log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff);
-                RoundingMode roundMode = needOrderSide.getPegRoundMode();
-                double orderPrice = exchange.roundPrice(midPrice, baseExecutor.m_pair, roundMode);
-                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-                return orderPrice;
-            }
-        },
-        MARKET {
-            @Override public boolean isMarketPrice(BaseExecutor baseExecutor) { return true; }
-        },
-        DEEP_MKT_AVG {
-            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-                double buy = baseExecutor.m_buy;
-                double sell = baseExecutor.m_sell;
-                double diff = sell - buy;
-                double midPrice = (buy + sell) / 2;
-                double avgBuy = baseExecutor.m_buyAvgCounter.get();
-                double avgSell = baseExecutor.m_sellAvgCounter.get();
-                double avgDiff = avgSell - avgBuy;
-                double diffRate = diff / avgDiff;
-                double rate = Math.min(1, diffRate);
-
-                Pair pair = baseExecutor.m_pair;
-                log("  buy=" + exchange.roundPriceStr(buy, pair) + "; sell=" + exchange.roundPriceStr(sell, pair) +
-                        "; diff=" + exchange.roundPriceStr(diff, pair) + "; midPrice=" + Utils.format5(midPrice) +
-                        "; avgBuy=" + Utils.format5(avgBuy) + "; avgSell=" + Utils.format5(avgSell) + "; avgDiff=" + Utils.format5(avgDiff) +
-                        "; diffRate=" + Utils.format5(diffRate) + "; rate=" + Utils.format5(rate) +
-                        "; needOrderSide=" + needOrderSide);
-                boolean isBuy = needOrderSide.isBuy();
-                int sideDirection = isBuy ? 1 : -1;
-                double offset = rate * avgDiff / 2;
-                int orderPlaceAttempt = baseExecutor.m_orderPlaceAttemptCounter;
-                double pip = exchange.minExchPriceStep(pair);
-                double adjustedPrice = midPrice + offset * sideDirection + DEEP_MKT_PIP_RATIO * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
-                log("    sideDirection=" + sideDirection + " offset=" + offset +
-                        "; orderPlaceAttempt=" + orderPlaceAttempt + "; pip=" + pip +
-                        "; adjustedPrice=" + adjustedPrice );
-                RoundingMode roundMode = needOrderSide.getMktRoundMode();
-                double orderPrice = exchange.roundPrice(adjustedPrice, pair, roundMode);
-                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-                return orderPrice;
-            }
-        },
-        MKT_AVG {
-            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-                double buy = baseExecutor.m_buy;
-                double sell = baseExecutor.m_sell;
-                double diff = sell - buy;
-                double midPrice = (buy + sell) / 2;
-                double avgBuy = baseExecutor.m_buyAvgCounter.get();
-                double avgSell = baseExecutor.m_sellAvgCounter.get();
-                double avgDiff = avgSell - avgBuy;
-                double diffRate = diff / avgDiff;
-                double rate = Math.min(1, diffRate);
-                log("  buy=" + buy + "; sell=" + sell + "; diff=" + diff + "; midPrice=" + midPrice +
-                        "; avgBuy=" + avgBuy + "; avgSell=" + avgSell + "; avgDiff=" + avgDiff +
-                        "; diffRate=" + diffRate + "; rate=" + rate +
-                        "; needOrderSide=" + needOrderSide);
-                int sideDirection = needOrderSide.isBuy() ? 1 : -1;
-                double offset = rate * avgDiff / 2;
-                double adjustedPrice = midPrice + offset * sideDirection;
-                log("    sideDirection=" + sideDirection + " offset=" + offset + "; adjustedPrice=" + adjustedPrice);
-                RoundingMode roundMode = needOrderSide.getMktRoundMode();
-                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
-                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-                return orderPrice;
-            }
-        },
-        DEEP_MKT {
-            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-                double buy = baseExecutor.m_buy;
-                double sell = baseExecutor.m_sell;
-                boolean isBuy = needOrderSide.isBuy();
-                double mktPrice = isBuy ? sell : buy;
-                log("  buy=" + buy + "; sell=" + sell + "; mktPrice=" + mktPrice + "; needOrderSide=" + needOrderSide);
-                double pip = exchange.minExchPriceStep(baseExecutor.m_pair);
-                int orderPlaceAttempt = baseExecutor.m_orderPlaceAttemptCounter;
-                double adjustedPrice = mktPrice + DEEP_MKT_PIP_RATIO * (1 + orderPlaceAttempt) * (isBuy ? pip : -pip);
-                log("    orderPlaceAttempt=" + orderPlaceAttempt +
-                        "; pip=" + pip +
-                        "; adjustedPrice=" + adjustedPrice);
-                RoundingMode roundMode = needOrderSide.getMktRoundMode();
-                double orderPrice = exchange.roundPrice(mktPrice, baseExecutor.m_pair, roundMode);
-                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-                return orderPrice;
-            }
-        },
-        MID_TO_MKT { // mid->mkt
-            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-                // directionAdjusted [-1 ... 1]
-                double buy = baseExecutor.m_buy;
-                double sell = baseExecutor.m_sell;
-                log("  buy=" + buy + "; sell=" + sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
-                double midPrice = (buy + sell) / 2;
-                double bidAskDiff = sell - buy;
-                log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff);
-                int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
-                double orderPriceCounterCorrection = bidAskDiff / MID_TO_MKT_STEPS * orderPlaceAttemptCounter;
-                double adjustedPrice = midPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
-                log("   orderPlaceAttemptCounter=" + orderPlaceAttemptCounter + "; orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
-                RoundingMode roundMode = needOrderSide.getPegRoundMode();
-                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
-                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-                return orderPrice;
-            }
-        },
-        PEG_TO_MKT { // peg->mkt
-            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-                // directionAdjusted [-1 ... 1]
-                double buy = baseExecutor.m_buy;
-                double sell = baseExecutor.m_sell;
-                log("  buy=" + buy + "; sell=" + sell + "; directionAdjusted=" + directionAdjusted + "; needOrderSide=" + needOrderSide);
-                double midPrice = (buy + sell) / 2;
-                double bidAskDiff = sell - buy;
-                double followMktPrice = needOrderSide.isBuy() ? buy : sell;
-                log("   midPrice=" + midPrice + "; bidAskDiff=" + bidAskDiff + "; followMktPrice=" + followMktPrice);
-                int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
-                double orderPriceCounterCorrection = bidAskDiff / 5 * orderPlaceAttemptCounter;
-                double adjustedPrice = followMktPrice + (needOrderSide.isBuy() ? orderPriceCounterCorrection : -orderPriceCounterCorrection);
-                log("   orderPlaceAttemptCounter=" + orderPlaceAttemptCounter + "; orderPriceCounterCorrection=" + orderPriceCounterCorrection + "; adjustedPrice=" + adjustedPrice);
-                RoundingMode roundMode = needOrderSide.getPegRoundMode();
-                double orderPrice = exchange.roundPrice(adjustedPrice, baseExecutor.m_pair, roundMode);
-                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-                return orderPrice;
-            }
-        },
-        MKT {
-            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-                double buy = baseExecutor.m_buy;
-                double sell = baseExecutor.m_sell;
-                double mktPrice = needOrderSide.isBuy() ? sell : buy;
-                log("  buy=" + buy + "; sell=" + sell + "; mktPrice=" + mktPrice + "; needOrderSide=" + needOrderSide);
-                RoundingMode roundMode = needOrderSide.getMktRoundMode();
-                double orderPrice = exchange.roundPrice(mktPrice, baseExecutor.m_pair, roundMode);
-                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-                return orderPrice;
-            }
-        },
-        MID {
-            @Override public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-                double buy = baseExecutor.m_buy;
-                double sell = baseExecutor.m_sell;
-                double midPrice = (buy + sell) / 2;
-                log("  buy=" + buy + "; sell=" + sell + "; midPrice=" + midPrice + "; needOrderSide=" + needOrderSide);
-                RoundingMode roundMode = needOrderSide.getPegRoundMode();
-                double orderPrice = exchange.roundPrice(midPrice, baseExecutor.m_pair, roundMode);
-                log("   roundMode=" + roundMode + "; rounded orderPrice=" + orderPrice);
-                return orderPrice;
-            }
-        };
-
-        public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) { return 0; }
-        public boolean isMarketPrice(BaseExecutor baseExecutor) { return false; }
-
-        public static OrderPriceMode get(String orderAlgoStr) {
-            if(orderAlgoStr.equals("market")) { return MARKET; }
-            if(orderAlgoStr.equals("mid_then_market")) { return MID_THEN_MARKET; }
-            if(orderAlgoStr.equals("mid_to_mkt")) { return MID_TO_MKT; }
-            if(orderAlgoStr.equals("peg_to_mkt")) { return PEG_TO_MKT; }
-            if(orderAlgoStr.equals("deep_mkt")) { return DEEP_MKT; }
-            if(orderAlgoStr.equals("deep_mkt_avg")) { return DEEP_MKT_AVG; }
-            if(orderAlgoStr.equals("mkt_avg")) { return MKT_AVG; }
-            if(orderAlgoStr.equals("mid")) { return MID; }
-            if(orderAlgoStr.equals("mkt")) { return MKT; }
-            throw new RuntimeException("OrderPriceMode '"+orderAlgoStr+"' not supported");
         }
     }
 

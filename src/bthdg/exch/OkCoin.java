@@ -69,6 +69,12 @@ public class OkCoin extends BaseExch {
         add(10013, "This interface only accepts https requests");
         add(10014, "Single price shall ≤ 0 or ≥ 1000000");
         add(10015, "Single price and the latest transaction price deviation is too large");
+        add(10016, "Insufficient coins balance");
+        add(10017, "API authorization error");
+        add(10024, "balance not sufficient");
+        add(10049, "User can not have more than 50 unfilled small orders (amount<0.5BTC)");
+        add(10050, "can't cancel more than once");
+        add(10100, "User account frozen");
     }
 
     private static void add(long code, String str) {
@@ -412,13 +418,14 @@ public class OkCoin extends BaseExch {
     public static CancelOrderData parseCancelOrders(Object obj) {
 // {"result":true, "order_id":123456}
 // {"result":false,"errorCode":10000}
+// {"errorCode":10050}
         JSONObject jObj = (JSONObject) obj;
         if (LOG_PARSE) {
             log("OkCoin.parseCancelOrders() " + jObj);
         }
         try {
             Boolean result = (Boolean) jObj.get("result");
-            if( result ) {
+            if ((result != null) && result) {
                 String orderId = Utils.getString(jObj.get("order_id"));
                 return new CancelOrderData(orderId, null);
             } else { // we may try to cancel already filled order
@@ -460,7 +467,6 @@ log("OkCoin.parseOrderStatus() " + jObj);
 
                 JSONObject order = (JSONObject) orders.get(0);
                 OrdersData.OrdData ord = parseOrdData(order);
-                ord.m_orderStatus = getOrderStatus(ord.m_status);
 
                 return new OrderStatusData(ord);
             } else { // we may try to cancel already filled order
@@ -490,6 +496,9 @@ log("OkCoin.parseOrderStatus() " + jObj);
         if (status.equals("-1")) {
             return OrderStatus.CANCELLED;
         }
+        if (status.equals("4")) {
+            return OrderStatus.CANCELING; // 4 = cancel request in process
+        }
         return null;
     }
 
@@ -507,6 +516,13 @@ log("OkCoin.parseOrderStatus() " + jObj);
 
         OrdersData.OrdData ordData = new OrdersData.OrdData(orderId, orderAmount, executedAmount, remainedAmount, rate, createDate, status, getPair(pair), getOrderSide(type), getOrderType(type));
         ordData.m_avgPrice = avgRate;
+
+        OrderStatus orderStatus = getOrderStatus(status);
+        if (orderStatus == null) {
+            log("OkCoin.parseOrdData() error: unknown order status '" + status + "' for order: " + order);
+        }
+        ordData.m_orderStatus = orderStatus;
+
         return ordData;
     }
 
@@ -514,6 +530,10 @@ log("OkCoin.parseOrderStatus() " + jObj);
         Long errorCode = Utils.getLong(jObj.get("errorCode"));
         String error = ERROR_CODES.get(errorCode);
         return "errorCode: " + errorCode + ": " + error;
+    }
+
+    public static void onOrderCancel(OrderData order) {
+        order.m_status = OrderStatus.CANCELING; // cancel order request successful, wait to be processed
     }
 
     /*

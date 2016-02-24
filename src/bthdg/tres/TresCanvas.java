@@ -656,7 +656,7 @@ public class TresCanvas extends JComponent {
 
     public static String[] getState(TresExchData exchData) {
         TresExecutor executor = exchData.m_executor;
-        double avgFillSize = executor.m_tradeVolume / executor.m_ordersFilled;
+        double avgFillSize = executor.getAvgFillSize();
         return new String[]{
                 "avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()),
                 "takes:" + executor.dumpTakesTime(),
@@ -715,6 +715,8 @@ public class TresCanvas extends JComponent {
             fillColor = Colors.setAlpha(isBuy ? Color.BLUE : Color.RED, 100);
         } else if (status == OrderStatus.FILLED) {
             fillColor = isBuy ? Color.BLUE : Color.RED;
+        } else if (status == OrderStatus.CANCELING) {
+            fillColor = Color.gray;
         } else if (status == OrderStatus.CANCELLED) {
             fillColor = Color.gray;
         } else if ((status == OrderStatus.REJECTED) || (status == OrderStatus.ERROR)) {
@@ -729,6 +731,8 @@ public class TresCanvas extends JComponent {
             borderColor = Color.green;
         } else if ((status == OrderStatus.SUBMITTED) || (status == OrderStatus.PARTIALLY_FILLED)) {
             borderColor = isBuy ? Color.BLUE : Color.RED;
+        } else if (status == OrderStatus.CANCELING) {
+            borderColor = Color.ORANGE;
         } else if (status == OrderStatus.CANCELLED) {
             if (order.m_filled > 0) {
                 borderColor = isBuy ? Color.BLUE : Color.RED;
