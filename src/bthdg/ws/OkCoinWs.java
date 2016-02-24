@@ -2,6 +2,7 @@ package bthdg.ws;
 
 import bthdg.Log;
 import bthdg.exch.*;
+import bthdg.tres.Tres;
 import bthdg.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.json.simple.JSONArray;
@@ -145,8 +146,9 @@ public class OkCoinWs extends BaseWs {
     private boolean m_topSubscribed;
 
     private static void log(String s) { Log.log("OK: "+s); }
+    private static void err(String s, Exception e) { Log.err("OK: "+s, e); }
 
-    public static void main(String[] args) {
+    public static void main_(String[] args) {
         try {
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
 //Logger.getLogger(ClientManager.class.getName()).setLevel(Level.ALL);
@@ -219,7 +221,49 @@ System.out.println("Received message: " + message);
         }
     }
 
-    public static IWs create(Properties keys) {
+    public static void main(String[] args) {
+        try {
+            Config config = new Config();
+            Properties keys = config.m_keys;
+            final OkCoinWs ok = OkCoinWs.create(keys);
+
+            ok.connect(new Runnable() {
+                @Override public void run() {
+                    log(" connected on " + this);
+                    try {
+                        ok.subscribeExecs(Tres.PAIR, new IExecsListener() {});
+                    } catch (Exception e) {
+                        err("error: " + e, e);
+                    }
+                }
+            });
+
+//"tradeAmount":"0.034","createdDate":1456353398382,"orderId":2032282774,"unTrade":"0.034","completedTradeAmount":"0","averagePrice":"0","id":2032282774,"tradePrice":"0","tradeType":"buy","status":0,"tradeUnitPrice":"2806.97"}
+// submitted
+//"orderId":2032282774,"unTrade":"0","tradeUnitPrice":"2806.97","sigTradePrice":"0","tradeAmount":"0.034","createdDate":1456353398000,"completedTradeAmount":"0","averagePrice":"0","id":2032282774,"sigTradeAmount":"0","tradePrice":"0","tradeType":"buy","status":-1}
+// cancelled
+//
+//"tradeAmount":"0","createdDate":1456353404432,"orderId":2032283532,"unTrade":"168.42","completedTradeAmount":"0","averagePrice":"0","id":2032283532,"tradePrice":"0","tradeType":"buy_market","status":0,"tradeUnitPrice":"168.42"}
+// submitted
+//"orderId":2032283532,"unTrade":"0","tradeUnitPrice":"168.42","sigTradePrice":"2807.27","tradeAmount":"0","createdDate":1456353404000,"completedTradeAmount":"0.059","averagePrice":"2807.27","id":2032283532,"sigTradeAmount":"0.059","tradePrice":"165.62","tradeType":"buy_market","status":2}
+// filled
+//
+//"tradeAmount":"0.042","createdDate":1456353407996,"orderId":2032283966,"unTrade":"0.042","completedTradeAmount":"0","averagePrice":"0","id":2032283966,"tradePrice":"0","tradeType":"sell","status":0,"tradeUnitPrice":"2807.28"}
+// submitted
+//"orderId":2032283966,"unTrade":"0.031","tradeUnitPrice":"2807.28","sigTradePrice":"2807.35","tradeAmount":"0.042","createdDate":1456353407000,"completedTradeAmount":"0.011","averagePrice":"2807.35","id":2032283966,"sigTradeAmount":"0.011","tradePrice":"30.88","tradeType":"sell","status":1}
+// partial
+//"orderId":2032283966,"unTrade":"0","tradeUnitPrice":"2807.28","sigTradePrice":"2807.33","tradeAmount":"0.042","createdDate":1456353407000,"completedTradeAmount":"0.042","averagePrice":"2807.34","id":2032283966,"sigTradeAmount":"0.031","tradePrice":"117.90","tradeType":"sell","status":2}
+// filled
+
+            log("waiting 60sec");
+            Thread.sleep(60000);
+            log("done");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static OkCoinWs create(Properties keys) {
         OkCoin.init(keys);
         return new OkCoinWs();
     }
@@ -229,17 +273,17 @@ System.out.println("Received message: " + message);
     }
 
     @Override public void subscribeExecs(Pair pair, IExecsListener listener) throws Exception {
-//        if (pair != Pair.BTC_CNH) {
-//            throw new RuntimeException("pair " + pair + " not supported yet");
-//        }
-//        m_execsListener = listener;
-//        m_channelListeners.put(EXECS_CHANNEL, new MessageHandler.Whole<Object>() {
-//            @Override public void onMessage(Object json) {
-//log("   execsListener.onMessage() json=" + json);
-////                x
-//            }
-//        });
-//        subscribe(EXECS_CHANNEL, true);
+        if (pair != Pair.BTC_CNH) {
+            throw new RuntimeException("pair " + pair + " not supported yet");
+        }
+        m_execsListener = listener;
+        m_channelListeners.put(EXECS_CHANNEL, new MessageHandler.Whole<Object>() {
+            @Override public void onMessage(Object json) {
+log("   execsListener.onMessage() json=" + json);
+//                x
+            }
+        });
+        subscribe(EXECS_CHANNEL, true);
     }
 
     @Override public void subscribeTrades(Pair pair, ITradesListener listener) throws Exception {

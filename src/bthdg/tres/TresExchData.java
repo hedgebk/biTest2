@@ -8,7 +8,6 @@ import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.util.Queue;
-import bthdg.ws.IExecsListener;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
 
@@ -114,8 +113,8 @@ public class TresExchData {
                         }
                     });
 
-                    m_ws.subscribeExecs(Tres.PAIR, new IExecsListener() {
-                    });
+//                    m_ws.subscribeExecs(Tres.PAIR, new IExecsListener() {
+//                    });
 
                     m_executor.initImpl();
                 } catch (Exception e) {
