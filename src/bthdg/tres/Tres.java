@@ -470,6 +470,12 @@ public class Tres {
             Cno3Algo.SMOOTH_RATE = cno3Smooch;
         }
 
+        setDoubleConfig(OptimizeField.EMAS_SIZE);
+        setDoubleConfig(OptimizeField.EMAS_LEVEL);
+        setDoubleConfig(OptimizeField.EMAS_FAST_SIZE);
+        setDoubleConfig(OptimizeField.EMAS_START);
+        setDoubleConfig(OptimizeField.EMAS_STEP);
+
         setDoubleConfig(OptimizeField.FOUR_EMA_SIZE);
         setDoubleConfig(OptimizeField.FOUR_EMA_SMOOTH);
         setDoubleConfig(OptimizeField.FOUR_EMA_VELOCITY);

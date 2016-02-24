@@ -28,6 +28,7 @@ public class AroonAlgo extends TresAlgo {
     @Override public double lastTickPrice() { return m_aroonIndicators.get(0).lastTickPrice(); }
     @Override public long lastTickTime() { return m_aroonIndicators.get(0).lastTickTime(); }
     @Override public Color getColor() { return AroonIndicator.COLOR; }
+    @Override public String getRunAlgoParams() { return "Aroon"; }
 
     protected void onSmoochedBar() {}
 
@@ -72,8 +73,6 @@ public class AroonAlgo extends TresAlgo {
         };
         m_indicators.add(m_smoochedIndicator);
     }
-
-    @Override public String getRunAlgoParams() { return "Aroon"; }
 
     private double getAverageDirectionAdjusted() {
         double sum = 0;
@@ -177,5 +176,6 @@ public class AroonAlgo extends TresAlgo {
         }
 
         @Override public Direction getDirection() { return m_smoochedIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
+        @Override public String getRunAlgoParams() { return "AroonF"; }
     }
 }

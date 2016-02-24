@@ -21,10 +21,8 @@ public class Aroon2Algo extends AroonAlgo {
     private final VelocityRateIndicator m_velRateIndicator;
     protected final AndIndicator m_andIndicator;
 
-    @Override protected void onSmoochedBar() {
-        ChartPoint lastPoint = m_smoochedIndicator.getLastPoint();
-        m_velocityIndicator.addBar(lastPoint);
-    }
+    @Override protected void onSmoochedBar() { m_velocityIndicator.addBar(m_smoochedIndicator.getLastPoint()); }
+    @Override public String getRunAlgoParams() { return "Aroon2"; }
 
     public Aroon2Algo(TresExchData exchData) {
         this("ARO2", exchData);
@@ -119,6 +117,7 @@ public class Aroon2Algo extends AroonAlgo {
 
         // --------------------------------------------------------------------------------------------
         @Override public Direction getDirection() { return m_andIndicator.m_peakWatcher.m_avgPeakCalculator.m_direction; } // UP/DOWN
+        @Override public String getRunAlgoParams() { return "Aroon2Sh"; }
     }
 
 }

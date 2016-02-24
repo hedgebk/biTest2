@@ -185,21 +185,23 @@ public class TresExecutor extends BaseExecutor {
     }
 
     protected void checkLastSeenTrade() {
-        long millis = System.currentTimeMillis();
-        long lastTradeAge = millis - m_lastSeenTradeTime;
-        if (lastTradeAge > NO_TRADE_TIMEOUT) { // no trade in 1 min - start park
-            m_lastTradePartRate = Math.max(0, 1 - ((double)lastTradeAge - NO_TRADE_TIMEOUT) / NO_TRADE_TIMEOUT);
-            log("lastTradeAge=" + lastTradeAge + " => lastTradePartRate=" + m_lastTradePartRate);
-            if (lastTradeAge > RECONNECT_TIMEOUT) { // no trade in 3 min - request reconnect
-                if(!m_oldLastTradeReconnectRequested) {
-                    log(" TOO old last trade - request reconnect...");
-                    m_oldLastTradeReconnectRequested = true;
-                    m_exchData.m_ws.reconnect();
+        if (m_lastSeenTradeTime > 0) { // do we got any trade at all ?
+            long millis = System.currentTimeMillis();
+            long lastTradeAge = millis - m_lastSeenTradeTime;
+            if (lastTradeAge > NO_TRADE_TIMEOUT) { // no trade in 1 min - start park
+                m_lastTradePartRate = Math.max(0, 1 - ((double) lastTradeAge - NO_TRADE_TIMEOUT) / NO_TRADE_TIMEOUT);
+                log("lastTradeAge=" + lastTradeAge + " => lastTradePartRate=" + m_lastTradePartRate);
+                if (lastTradeAge > RECONNECT_TIMEOUT) { // no trade in 3 min - request reconnect
+                    if (!m_oldLastTradeReconnectRequested) {
+                        log(" TOO old last trade - request reconnect...");
+                        m_oldLastTradeReconnectRequested = true;
+                        m_exchData.m_ws.reconnect();
+                    }
                 }
+            } else {
+                m_lastTradePartRate = 1.0;
+                m_oldLastTradeReconnectRequested = false;
             }
-        } else {
-            m_lastTradePartRate = 1.0;
-            m_oldLastTradeReconnectRequested = false;
         }
     }
 

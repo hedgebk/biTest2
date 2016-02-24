@@ -70,6 +70,19 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return EmasAlgo.BOUND_LEVEL; }
         @Override public void set(Tres tres, double value) { EmasAlgo.BOUND_LEVEL = value; }
     },
+    EMAS_FAST_SIZE("emas.fast") {
+        @Override public double get(Tres tres) { return EmasAlgo.TEMA_FAST_SIZE; }
+        @Override public void set(Tres tres, double value) { EmasAlgo.TEMA_FAST_SIZE = value; }
+    },
+    EMAS_START("emas.start") {
+        @Override public double get(Tres tres) { return EmasAlgo.TEMA_START; }
+        @Override public void set(Tres tres, double value) { EmasAlgo.TEMA_START = value; }
+    },
+    EMAS_STEP("emas.step") {
+        @Override public double get(Tres tres) { return EmasAlgo.TEMA_STEP; }
+        @Override public void set(Tres tres, double value) { EmasAlgo.TEMA_STEP = value; }
+    },
+
     FOUR_EMA_SIZE("4emas.size") {
         @Override public double get(Tres tres) { return FourEmaAlgo.EMA_SIZE; }
         @Override public void set(Tres tres, double value) { FourEmaAlgo.EMA_SIZE = value; }
