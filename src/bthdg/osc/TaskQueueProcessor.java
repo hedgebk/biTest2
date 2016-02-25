@@ -108,8 +108,7 @@ public class TaskQueueProcessor implements Runnable {
                     m_processingTask = null;
                 }
             } catch (Exception e) {
-                BaseExecutor.log("error in TaskQueueProcessor: " + e + "; for task " + task);
-                e.printStackTrace();
+                BaseExecutor.err("error in TaskQueueProcessor: " + e + "; for task " + task, e );
             }
         }
         BaseExecutor.log("TaskQueueProcessor.queue: thread finished");

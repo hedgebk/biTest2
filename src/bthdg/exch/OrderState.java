@@ -81,7 +81,9 @@ public enum OrderState {
         return false;
     }
 
-    private static void checkOrderExecuted(IIterationContext iContext, Exchange exchange, OrderData orderData, AccountData account) throws Exception {
+    // return true if error detected
+    private static boolean checkOrderExecuted(IIterationContext iContext, Exchange exchange, OrderData orderData, AccountData account) throws Exception {
+        boolean error = false;
         log("checkOrderExecuted() orderData=" + orderData);
         OrdersData liveOrders = iContext.getLiveOrders(exchange);
         if ((liveOrders != null) && (liveOrders.m_error == null)) {
@@ -140,7 +142,11 @@ public enum OrderState {
                 log("    volumeBefore=" + volumeBefore + "; fillVolume=" + fillVolume + "; fillPrice=" + fillPrice);
                 if (remainedAmountBefore > 0) {
                     orderData.addExecution(fillPrice, remainedAmountBefore, exchange);
-                    account.releaseTrade(pair, orderData.m_side, fillPrice, remainedAmountBefore, exchange);
+                    error = account.releaseTrade(pair, orderData.m_side, fillPrice, remainedAmountBefore, exchange);
+                    if (error) {
+                        orderData.m_status = OrderStatus.ERROR;
+                        log("  error while releasing trade - setting OrderStatus.ERROR - need to reload all");
+                    }
                 } else {
                     log("     error: cant add execution - just set order as FILLED");
                     orderData.m_status = OrderStatus.FILLED;
@@ -166,6 +172,7 @@ public enum OrderState {
             // sometimes we having here  'invalid nonce parameter; on key:1397515806, you sent:1397515020'
             log("  error loading liveOrder: " + liveOrders);
         }
+        return error;
     }
 
     private static void log(String s) { Log.log(s); }

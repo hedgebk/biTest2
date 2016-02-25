@@ -139,15 +139,17 @@ public class AccountData {
         return true;
     }
 
-    public void releaseOrder(OrderData orderData, Exchange exchange) {
+    // return true if error detected
+    public boolean releaseOrder(OrderData orderData, Exchange exchange) {
         double amount = orderData.remained();
         if(orderData.m_filled > 0) { // special case - some portion is already executed. releasing only remained part
             log("special case - some portion is already executed. releasing only remained part="+ amount);
         }
-        release(orderData.m_pair, orderData.m_side, orderData.m_price, amount, false, exchange);
+        return release(orderData.m_pair, orderData.m_side, orderData.m_price, amount, false, exchange);
     }
 
-    private void release(Pair pair, OrderSide orderSide, double price, double amount, boolean tradeHappens, Exchange exchange) {
+    // return true if error detected
+    private boolean release(Pair pair, OrderSide orderSide, double price, double amount, boolean tradeHappens, Exchange exchange) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
         log("release() pair: " + pair + "; side: " + orderSide + "; price=" + exchange.roundPriceStr(price, pair) +
                 "; amount=" + exchange.roundAmountStr(amount, pair) + "   on " + this);
@@ -157,7 +159,8 @@ public class AccountData {
         String str = " fromCurrency " + fromCurrency + "; fromSize=" + Utils.format8(fromSize);
 
         double allocated = allocated(fromCurrency);
-        setAllocated(fromCurrency, allocated - fromSize);
+        double newAllocated = allocated - fromSize;
+        setAllocated(fromCurrency, newAllocated);
 
         if (tradeHappens) {
             Currency toCurrency = isBuy ? pair.m_to : pair.m_from;
@@ -178,14 +181,22 @@ public class AccountData {
             str += ";   result=" + this;
             log(str);
         }
+        boolean error = (fromCurrency == Currency.CNH)
+                            ? (newAllocated < -1)
+                            : (newAllocated < 0);
+        if (error) {
+            log("ERROR: result allocated " + newAllocated + " " + fromCurrency + " is negative for " + this);
+        }
+        return error;
     }
 
     public double getFee(Exchange exchange, Pair pair) {
         return exchange.getFee(pair, m_fee);
     }
 
-    public void releaseTrade(Pair pair, OrderSide orderSide, double price, double amount, Exchange exchnage) {
-        release(pair, orderSide, price, amount, true, exchnage);
+    // return true if error detected
+    public boolean releaseTrade(Pair pair, OrderSide orderSide, double price, double amount, Exchange exchnage) {
+        return release(pair, orderSide, price, amount, true, exchnage);
     }
 
     public AccountData copy() {
@@ -286,8 +297,8 @@ public class AccountData {
             String error = coData.m_error;
             if (error == null) {
                 od.cancel();
-                releaseOrder(od, m_exchange);
-                return null;
+                boolean cancelRet = releaseOrder(od, m_exchange);
+                return cancelRet ? "error releasing order" : null;
             } else {
                 return error;
             }

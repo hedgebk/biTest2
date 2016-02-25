@@ -69,6 +69,8 @@ public abstract class BaseExecutor implements Runnable {
     private boolean m_topSubscribed;
 
     protected static void log(String s) { Log.log(s); }
+    protected static void err(String s, Exception e) { Log.err(s, e); }
+
     public String dumpWaitTime() { return (m_taskQueueProcessor == null) ? "" : m_taskQueueProcessor.dumpWaitTime(); }
 
     // abstract
@@ -366,7 +368,8 @@ public abstract class BaseExecutor implements Runnable {
         }
     }
 
-    private void cancelOfflineOrders(OrdersData liveOrders, List<String> cancelledOrdIds) {
+    private boolean cancelOfflineOrders(OrdersData liveOrders, List<String> cancelledOrdIds) {
+        boolean hadErrors = false;
         if (liveOrders.m_ords != null) {
             log("cancelOfflineOrders() liveOrders ids:" + liveOrders.m_ords.keySet());
             for (OrdersData.OrdData nextOrder : liveOrders.m_ords.values()) {
@@ -382,6 +385,7 @@ public abstract class BaseExecutor implements Runnable {
 //  TODO: guess order side from order price and bid/ask prices
                     String error = cancelOrder(order);
                     if (error != null) {
+                        hadErrors = true;
                         log("  error cancelling live order: " + error);
                     }
                 } catch (Exception e) {
@@ -389,6 +393,7 @@ public abstract class BaseExecutor implements Runnable {
                 }
             }
         }
+        return hadErrors;
     }
 
     protected void logValuate() {
@@ -511,7 +516,7 @@ public abstract class BaseExecutor implements Runnable {
         log("  directionAdjusted=" + directionAdjusted + "; needBuyBtc=" + Utils.format8(needBuyBtc) + "; needSellCnh=" + Utils.format8(needSellCnh));
 
         double absOrderSize = Math.abs(needBuyBtc);
-        OrderSide needOrderSide = (needBuyBtc == 0) ? null : (needBuyBtc > 0) ? OrderSide.BUY : OrderSide.SELL;
+        OrderSide needOrderSide = (needBuyBtc >= 0) ? OrderSide.BUY : OrderSide.SELL;
         log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + absOrderSize);
 
         double absOrderSizeAdjusted = checkAgainstExistingOrders(needOrderSide, absOrderSize);
@@ -727,21 +732,22 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected boolean placeOrderToExchange(Exchange exchange, OrderData order) throws Exception {
+        boolean succsess = false;
         if (m_account.allocateOrder(order)) {
             OrderState newState = (order.m_type == OrderType.MARKET) ? OrderState.MARKET_PLACED : OrderState.LIMIT_PLACED;
             OrderData.OrderPlaceStatus ops = placeOrderToExchange(exchange, order, newState);
             if (ops == OrderData.OrderPlaceStatus.OK) {
                 log(" placeOrderToExchange successful: " + exchange + ", " + order + ", account: " + m_account);
-                return true;
+                succsess = true;
             } else {
-                m_account.releaseOrder(order, exchange);
                 m_maySyncAccount = true; // order place error - need account recync
+                m_account.releaseOrder(order, exchange);
             }
         } else {
             log("ERROR: account allocateOrder unsuccessful: " + exchange + ", " + order + ", account: " + m_account);
             m_maySyncAccount = true; // allocate error - need account recync
         }
-        return false;
+        return succsess;
     }
 
     protected OrderData.OrderPlaceStatus placeOrderToExchange(Exchange exchange, OrderData order, OrderState state) throws Exception {
