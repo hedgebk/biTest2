@@ -2,7 +2,6 @@ package bthdg.ws;
 
 import bthdg.Log;
 import bthdg.exch.*;
-import bthdg.tres.Tres;
 import bthdg.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.json.simple.JSONArray;
@@ -127,7 +126,19 @@ public class OkCoinWs extends BaseWs {
 //    }
 //    }
 //    ]
-
+//    createdDate: created date
+//    orderId: order ID
+//    tradeType: trade type (buy: buy;sell: sell;buy_market: buy at market price;sell_market: sell at market price)
+//    sigTradeAmount:quantity in a single transaction
+//    sigTradePrice:rate in a single transaction
+//    tradeAmount:for market sell orders: total sell quantity, for limit orders: order quantity
+//    tradeUnitPrice:for market buy orders: total buy amount, for limit orders: order rate
+//    symbol:btc_cny;ltc_cny
+//    completedTradeAmount: filled 'tradeAmount'
+//    tradePrice: filled amount
+//    averagePrice: average transaction price
+//    unTrade: unfilled amount in cny for market order, unfilled coin quantity for limit order
+//    status: -1: cancelled, 0: pending, 1: partially filled, 2: fully filled, 4: cancel request in process
     public static final String UNSUBSCRIBE_BTCCNY_TRADES = "{'event':'removeChannel','channel':'ok_btccny_trades'}";
 
 //    websocket.send("{'event':'ping'}");
@@ -137,6 +148,10 @@ public class OkCoinWs extends BaseWs {
 //function spotCancelOrder(channel, symbol, order_id) { //撤销订单
 //        doSend("{'event':'addChannel','channel':'"+channel+"','parameters':{'partner':'"+partner+"','secretkey':'"+secretKey+"','symbol':'"+symbol+"','order_id':'"+order_id+"'}}");
 //}
+
+    public static final String ACCT_CHANNEL = "ok_sub_spotcny_userinfo";
+
+
 
     private Session m_session;
     private final Map<String,MessageHandler.Whole<Object>> m_channelListeners = new HashMap<String,MessageHandler.Whole<Object>>();
@@ -227,11 +242,31 @@ System.out.println("Received message: " + message);
             Properties keys = config.m_keys;
             final OkCoinWs ok = OkCoinWs.create(keys);
 
+            final Thread pingThread = new Thread() {
+                @Override public void run() {
+                    while (!isInterrupted()) {
+                        try {
+                            synchronized (this) {
+                                wait(10000);
+                            }
+                        } catch (InterruptedException e) {
+                            err("ping error: " + e, e);
+                        }
+                        ok.sendPing();
+                    }
+                    log("ping thread finished");
+                }
+            };
+
             ok.connect(new Runnable() {
                 @Override public void run() {
                     log(" connected on " + this);
                     try {
-                        ok.subscribeExecs(Tres.PAIR, new IExecsListener() {});
+//                        ok.subscribeExecs(Tres.PAIR, new IExecsListener() {});
+                        ok.subscribeAcct(new IAcctListener() {});
+
+                        pingThread.start();
+
                     } catch (Exception e) {
                         err("error: " + e, e);
                     }
@@ -255,11 +290,34 @@ System.out.println("Received message: " + message);
 //"orderId":2032283966,"unTrade":"0","tradeUnitPrice":"2807.28","sigTradePrice":"2807.33","tradeAmount":"0.042","createdDate":1456353407000,"completedTradeAmount":"0.042","averagePrice":"2807.34","id":2032283966,"sigTradeAmount":"0.031","tradePrice":"117.90","tradeType":"sell","status":2}
 // filled
 
+
+
+//{"info":{"free":{"btc":0.64469,"ltc":0,"cny":1031.62907},"freezed":{"btc":0,"ltc":0,"cny":93.36303}}}
+//{"info":{"free":{"btc":0.67769,"ltc":0,"cny":1031.63042},"freezed":{"btc":0,"ltc":0,"cny":0.01887}}}
+//{"info":{"free":{"btc":0.67769,"ltc":0,"cny":774.2204},"freezed":{"btc":0,"ltc":0,"cny":257.4289}}}
+//{"info":{"free":{"btc":0.69669,"ltc":0,"cny":774.2204},"freezed":{"btc":0,"ltc":0,"cny":203.68056}}}
+
+
             log("waiting 60sec");
             Thread.sleep(60000);
+            pingThread.interrupt();
             log("done");
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private void sendPing() {
+        if( m_session != null ) {
+            try {
+                log("send ping");
+                m_session.getBasicRemote().sendText("{'event':'ping'}");
+            } catch (IOException e) {
+                err("ping send error", e);
+            }
+
+        } else {
+            log("can not send PING - no session");
         }
     }
 
@@ -280,10 +338,19 @@ System.out.println("Received message: " + message);
         m_channelListeners.put(EXECS_CHANNEL, new MessageHandler.Whole<Object>() {
             @Override public void onMessage(Object json) {
 log("   execsListener.onMessage() json=" + json);
-//                x
             }
         });
         subscribe(EXECS_CHANNEL, true);
+    }
+
+    public void subscribeAcct(IAcctListener listener) throws Exception {
+        m_acctListener = listener;
+        m_channelListeners.put(ACCT_CHANNEL, new MessageHandler.Whole<Object>() {
+            @Override public void onMessage(Object json) {
+log("   acctListener.onMessage() json=" + json);
+            }
+        });
+        subscribe(ACCT_CHANNEL, true);
     }
 
     @Override public void subscribeTrades(Pair pair, ITradesListener listener) throws Exception {
