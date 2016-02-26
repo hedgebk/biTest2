@@ -30,7 +30,7 @@ public class PhaseData {
 //        m_maCalculator = new TresMaCalculator(this, phaseIndex);
     }
 
-    protected void registerPhasedIndicators(TresExchData exchData, int phaseIndex, TresAlgo algo) {
+    private void registerPhasedIndicators(TresExchData exchData, int phaseIndex, TresAlgo algo) {
         for (TresIndicator indicator : algo.m_indicators) {
             TresIndicator.TresPhasedIndicator phasedIndicator = indicator.createPhased(exchData, phaseIndex);
             if (phasedIndicator != null) {

@@ -463,7 +463,7 @@ class TresLogProcessor extends Thread {
         String config = m_varyConfigs.get(optimizeField);
         if (config != null) {
             String name = optimizeField.m_key;
-            log("vary" + name + ": " + config);
+            log("vary " + name + ": " + config);
             varyDouble(datas, tres, optimizeField, config);
         }
     }

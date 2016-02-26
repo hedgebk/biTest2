@@ -99,7 +99,8 @@ public class Cno3Algo extends TresAlgo {
 
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
         m_smoochedIndicator = new SmoochedIndicator(this, "sm", (long) (SMOOTH_RATE * barSizeMillis), SMOOTH_PEAK_TOLERANCE) {
-//            @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean useValueAxe() { return true; }
+            //            @Override protected boolean countPeaks() { return false; }
             @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
                 double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
                 minMaxCalculator.m_minValue = -max;

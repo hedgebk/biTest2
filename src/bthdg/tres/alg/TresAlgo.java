@@ -80,6 +80,8 @@ public abstract class TresAlgo {
             return new EmasAlgo.Wide(tresExchData);
         } else if (algoName.equals("4ema")) {
             return new FourEmaAlgo(tresExchData);
+        } else if (algoName.equals("combo")) {
+            return new ComboAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
