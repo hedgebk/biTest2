@@ -223,6 +223,7 @@ public class TresExecutor extends BaseExecutor {
     }
 
     @Override protected double checkAgainstExistingOrders(OrderSide needOrderSide, double orderSizeIn) {
+        log("    checkAgainstExistingOrders: needOrderSide=" + needOrderSide + "; orderSizeIn="+orderSizeIn);
         double orderSize = orderSizeIn;
         if (m_order != null) { // we have already live order
             log("     we have already live order:" + m_order);
@@ -249,6 +250,8 @@ public class TresExecutor extends BaseExecutor {
                     log("        order Sizes are very close - do not cancel existing order (tolerance=" + ORDER_SIZE_TOLERANCE + ")");
                     return 0;
                 }
+            } else {
+                log("       we have order of another side");
             }
         }
 
@@ -552,11 +555,15 @@ public class TresExecutor extends BaseExecutor {
     }
 
     @Override protected int doVoidCycle() throws Exception {
-        int ret = super.doVoidCycle();
+        log("doVoidCycle() m_pendingMktOrders.size=" + m_pendingMktOrders.size() + "; order=" + m_order);
+        int ret = recheckPendingMktOrders();
         if (ret == STATE_NO_CHANGE) {
-            ret = recheckPendingMktOrders();
-            if (ret == STATE_NO_CHANGE) {
-                if ((m_order == null) && m_pendingMktOrders.isEmpty()) {
+            if ((m_order == null) && m_pendingMktOrders.isEmpty()) {
+                if (m_maySyncAccount) {
+                    log(" no orders - we may re-check account...");
+                    initAccount();
+                } else {
+                    log(" no orders - we may re-check account allocated...");
                     Currency curr1 = m_pair.m_from;
                     double allocated1 = m_account.allocated(curr1);
                     double all1 = m_account.evaluateAll(m_topsData, curr1, m_exchange);

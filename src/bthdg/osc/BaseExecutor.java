@@ -637,12 +637,10 @@ public abstract class BaseExecutor implements Runnable {
 
     protected int doVoidCycle() throws Exception {
         log("doVoidCycle()");
-        int ret = cancelOrderIfPresent();
-        if (ret == STATE_NO_CHANGE) { // cancel attempt was not performed
-            if (m_maySyncAccount) {
-                log("no orders - we may re-check account");
-                initAccount();
-            }
+        int ret = STATE_NO_CHANGE;
+        if (m_maySyncAccount) {
+            log("no orders - we may re-check account");
+            initAccount();
         }
         return ret;
     }
