@@ -54,7 +54,6 @@ class TresLogProcessor extends Thread {
     private TresExchData m_exchData;
     private String m_logFilePattern;
     private String m_varyMa;
-    private String m_varyBarSize;
     private String m_varyBarSizeMul;
     private String m_varyPhases;
     private String m_varyLen1;
@@ -111,10 +110,6 @@ class TresLogProcessor extends Thread {
         m_varyMa = config.getProperty("tre.vary.ma");
         if (m_varyMa != null) {
             log("varyMa=" + m_varyMa);
-        }
-        m_varyBarSize = config.getProperty("tre.vary.bar_size");
-        if (m_varyBarSize != null) {
-            log("varyBarSize=" + m_varyBarSize);
         }
         m_varyBarSizeMul = config.getProperty("tre.vary.bar_size_mul");
         if (m_varyBarSizeMul != null) {
@@ -241,6 +236,8 @@ class TresLogProcessor extends Thread {
             log("varyCno3Smooch=" + m_varyCno3Smooch);
         }
 
+        getConfig(OptimizeField.BAR_SIZE);
+
         getConfig(OptimizeField.EMAS_SIZE);
         getConfig(OptimizeField.EMAS_LEVEL);
         getConfig(OptimizeField.EMAS_FAST_SIZE);
@@ -340,9 +337,8 @@ class TresLogProcessor extends Thread {
         if (m_varyMa != null) {
             varyMa(datas, tres, m_varyMa);
         }
-        if (m_varyBarSize != null) {
-            varyBarSize(datas, tres, m_varyBarSize);
-        }
+        varyDouble(datas, tres, OptimizeField.OSC_BAR_SIZE); // bar_size only
+        varyDouble(datas, tres, OptimizeField.BAR_SIZE);     // bar_size + phases
         if (m_varyBarSizeMul != null) {
             varyBarSizeMul(datas, tres, m_varyBarSizeMul);
         }

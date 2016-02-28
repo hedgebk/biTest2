@@ -17,7 +17,6 @@ import bthdg.tres.ind.OscIndicator;
 import bthdg.tres.opt.OptimizeField;
 import bthdg.util.ConsoleReader;
 import bthdg.util.Sync;
-import bthdg.util.Utils;
 import bthdg.ws.IWs;
 import bthdg.ws.WsFactory;
 import org.eclipse.jetty.server.*;
@@ -268,10 +267,18 @@ public class Tres {
         int exchangesLen = m_exchangesArr.length;
         log(" .len=" + exchangesLen);
 
-        String barSizeStr = getProperty("tre.bar_size");
-        log("barSize=" + barSizeStr);
-        m_barSizeMillis = Utils.toMillis(barSizeStr);
-        log(" .millis=" + m_barSizeMillis);
+        setDoubleConfig(OptimizeField.BAR_SIZE);
+
+        setDoubleConfig(OptimizeField.EMAS_SIZE);
+        setDoubleConfig(OptimizeField.EMAS_LEVEL);
+        setDoubleConfig(OptimizeField.EMAS_FAST_SIZE);
+        setDoubleConfig(OptimizeField.EMAS_START);
+        setDoubleConfig(OptimizeField.EMAS_STEP);
+
+        setDoubleConfig(OptimizeField.FOUR_EMA_SIZE);
+        setDoubleConfig(OptimizeField.FOUR_EMA_SMOOTH);
+        setDoubleConfig(OptimizeField.FOUR_EMA_VELOCITY);
+        setDoubleConfig(OptimizeField.FOUR_EMA_ZERO);
 
         String prop = m_config.getProperty("tre.len1");
         if (prop != null) {
@@ -469,17 +476,6 @@ public class Tres {
             double cno3Smooch = Double.parseDouble(cno3SmoochStr);
             Cno3Algo.SMOOTH_RATE = cno3Smooch;
         }
-
-        setDoubleConfig(OptimizeField.EMAS_SIZE);
-        setDoubleConfig(OptimizeField.EMAS_LEVEL);
-        setDoubleConfig(OptimizeField.EMAS_FAST_SIZE);
-        setDoubleConfig(OptimizeField.EMAS_START);
-        setDoubleConfig(OptimizeField.EMAS_STEP);
-
-        setDoubleConfig(OptimizeField.FOUR_EMA_SIZE);
-        setDoubleConfig(OptimizeField.FOUR_EMA_SMOOTH);
-        setDoubleConfig(OptimizeField.FOUR_EMA_VELOCITY);
-        setDoubleConfig(OptimizeField.FOUR_EMA_ZERO);
 
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
     }

@@ -6,6 +6,13 @@ import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.OscIndicator;
 
 public enum OptimizeField {
+    BAR_SIZE("bar_size") {
+        @Override public double get(Tres tres) { return tres.m_barSizeMillis; }
+        @Override public void set(Tres tres, double value) {
+            tres.m_barSizeMillis = (long) value;
+            tres.m_phases = (int) (value/1000);
+        }
+    },
     OSC_BAR_SIZE("osc.bar_size") {
         @Override public double get(Tres tres) { return tres.m_barSizeMillis; }
         @Override public void set(Tres tres, double value) { tres.m_barSizeMillis = (int) value; }
@@ -104,7 +111,8 @@ public enum OptimizeField {
     FOUR_EMA_ZERO("4emas.zero") {
         @Override public double get(Tres tres) { return FourEmaAlgo.START_ZERO_LEVEL; }
         @Override public void set(Tres tres, double value) { FourEmaAlgo.START_ZERO_LEVEL = value; }
-    };
+    },
+    ;
 
     public final String m_key;
 
