@@ -334,7 +334,7 @@ public class TresCanvas extends JComponent {
         int minLabel = (int) Math.floor(min / step);
         int maxLabel = (int) Math.ceil(max / step);
 
-        int axeWidth = measueYPriceAxeWidth(g, step, minLabel, maxLabel);
+        int axeWidth = measureYPriceAxeWidth(g, step, minLabel, maxLabel);
         int width = getWidth();
         int x = width - axeWidth;
 
@@ -366,7 +366,7 @@ public class TresCanvas extends JComponent {
         return yPriceAxeWidth;
     }
 
-    private int measueYPriceAxeWidth(Graphics g, int step, int minLabel, double maxLabel) {
+    private int measureYPriceAxeWidth(Graphics g, int step, int minLabel, double maxLabel) {
         FontMetrics fontMetrics = g.getFontMetrics();
         int maxWidth = 10;
         for (int y = minLabel; y <= maxLabel; y += step) {
@@ -535,12 +535,16 @@ public class TresCanvas extends JComponent {
 
             double avgBuy = paintTop.m_avgBuy;
             double avgSell = paintTop.m_avgSell;
+            double avgBuySellMid = (avgBuy + avgSell) / 2;
             int yAvgBuy = yPriceAxe.getPointReverse(avgBuy);
             g.setColor(Color.red);
             g.drawLine(x, yAvgBuy, x, yAvgBuy);
             int yAvgSell = yPriceAxe.getPointReverse(avgSell);
             g.setColor(Color.blue);
             g.drawLine(x, yAvgSell, x, yAvgSell);
+            int yAvgBuySellMid = yPriceAxe.getPointReverse(avgBuySellMid);
+            g.setColor(Color.gray);
+            g.drawLine(x, yAvgBuySellMid, x, yAvgBuySellMid);
 
             double diff = sell - buy;
             double avgDiff = avgSell - avgBuy;
@@ -640,7 +644,7 @@ public class TresCanvas extends JComponent {
         g.setColor(Color.YELLOW);
         int height = getHeight();
 
-        int y = height - fontHeight * 7;
+        int y = (int) (height - fontHeight * 7.5);
         String[] strings = getState(exchData);
         for (String string : strings) {
             g.drawString(string, 2, y);
@@ -657,8 +661,13 @@ public class TresCanvas extends JComponent {
     public static String[] getState(TresExchData exchData) {
         TresExecutor executor = exchData.m_executor;
         double avgFillSize = executor.getAvgFillSize();
+
+        double avgBuy = executor.m_buyAvgCounter.get();
+        double avgSell = executor.m_sellAvgCounter.get();
+        double avgBidAskDiff = avgSell - avgBuy;
+
         return new String[]{
-                "avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()),
+                "avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()) + "; avgBidAskDiff="+Utils.format3(avgBidAskDiff),
                 "takes:" + executor.dumpTakesTime(),
                 "wait=" + executor.dumpWaitTime(),
                 "placed=" + executor.m_ordersPlaced
