@@ -45,7 +45,7 @@ class TresLogProcessor extends Thread {
     private static final Pattern FX_TRADE_PATTERN = Pattern.compile("EUR/USD,(\\d\\d\\d\\d)(\\d\\d)(\\d\\d) (\\d\\d):(\\d\\d):(\\d\\d).(\\d\\d\\d),(\\d+\\.\\d+),(\\d+.\\d+)");
 
     private static final Calendar GMT_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.ENGLISH);
-    public static final int READ_BUFFER_SIZE = 1024 * 32;
+    public static final int READ_BUFFER_SIZE = 1024 * 128;
     public static final int PARSE_THREADS_NUM = 2;
     public static final int PROCESS_THREADS_NUM = 8;
     private final Config m_config;

@@ -662,12 +662,13 @@ public class TresCanvas extends JComponent {
         TresExecutor executor = exchData.m_executor;
         double avgFillSize = executor.getAvgFillSize();
 
-        double avgBuy = executor.m_buyAvgCounter.get();
-        double avgSell = executor.m_sellAvgCounter.get();
-        double avgBidAskDiff = avgSell - avgBuy;
+        Double avgBuy = executor.m_buyAvgCounter.get();
+        Double avgSell = executor.m_sellAvgCounter.get();
+        Double avgBidAskDiff = (avgBuy != null) && (avgSell != null) ? avgSell - avgBuy : null;
+        String avgBidAskDiffStr = (avgBidAskDiff != null) ? Utils.format3(avgBidAskDiff) : "";
 
         return new String[]{
-                "avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()) + "; avgBidAskDiff="+Utils.format3(avgBidAskDiff),
+                "avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()) + "; avgBidAskDiff=" + avgBidAskDiffStr,
                 "takes:" + executor.dumpTakesTime(),
                 "wait=" + executor.dumpWaitTime(),
                 "placed=" + executor.m_ordersPlaced

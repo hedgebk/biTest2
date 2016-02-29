@@ -697,10 +697,13 @@ public class Utils {
             return get();
         }
 
-        public double get() {
+        public Double get() {
             double totalWeight = 0;
             double summ = 0.0;
             synchronized (m_map) {
+                if(m_map.isEmpty()) {
+                    return null;
+                }
                 Long lastKey = m_map.lastKey();
                 for (Map.Entry<Long, Double> entry : m_map.entrySet()) {
                     Long time = entry.getKey();
