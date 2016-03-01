@@ -634,7 +634,6 @@ public class TresCanvas extends JComponent {
                 if (m_paintOrderIds) {
                     String ordId = order.m_orderId.substring(order.m_orderId.length() - 6);
                     g.drawString(ordId, x, yy);
-                    yy += yStep;
                 }
             }
         }
@@ -654,7 +653,7 @@ public class TresCanvas extends JComponent {
         OrderData order = executor.m_order;
         if (order != null) {
             g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
-            g.drawString(order.toString(), 2, height - fontHeight * 8);
+            g.drawString(order.toString(), 2, y - fontHeight);
         }
     }
 
