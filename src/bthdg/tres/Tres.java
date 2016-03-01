@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.swing.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -609,7 +610,7 @@ public class Tres {
             writer.print(string);
             writer.print("<br/>");
         }
-
+        writer.print(getLogInfo());
         writer.print("<a href=/>status</a>; <a href=park>park</a><br/>");
 
         OrderData order = exchData.m_executor.m_order;
@@ -635,6 +636,18 @@ public class Tres {
 //        writer.print(" QueryString=" + request.getQueryString());
 //        writer.print("<br/>");
 //        writer.print("</p></body></html>");
+    }
+
+    private String getLogInfo() {
+        File file = new File("log.log");
+        double length = file.length();
+        try {
+            return String.format("Log: %s; len=%f MB<br/>",
+                    file.getCanonicalPath(), length / MB_IN_BYTES
+            );
+        } catch (IOException e) {
+            return "log file info error: " + e.toString() + "<br/>";
+        }
     }
 
     private String memState() {
