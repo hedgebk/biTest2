@@ -86,6 +86,8 @@ public abstract class TresAlgo {
             return new FourEmaAlgo(tresExchData);
         } else if (algoName.equals("combo")) {
             return new ComboAlgo(tresExchData);
+        } else if (algoName.equals("ewo")) {
+            return new EwoAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
