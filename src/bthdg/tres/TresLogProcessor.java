@@ -519,8 +519,9 @@ class TresLogProcessor extends Thread {
                     double value = point[i];
                     OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
                     OptimizeField field = fieldConfig.m_field;
-                    field.set(tres, value);
-                    sb.append(field.m_key).append("=").append(Utils.format5(value)).append("; ");
+                    double val = value * fieldConfig.m_multiplier;
+                    field.set(tres, val);
+                    sb.append(field.m_key).append("=").append(Utils.format5(val)).append("(").append(Utils.format5(value)).append("); ");
                 }
                 sb.append(")=");
 
@@ -543,7 +544,6 @@ class TresLogProcessor extends Thread {
         PointValuePair pair1 = null;
         PointValuePair pair2 = null;
         PointValuePair pair3 = null;
-        double[] point;
 
         // -------------------------------------------------------
         log("-----------------------------------------------------");
@@ -642,9 +642,11 @@ class TresLogProcessor extends Thread {
             OptimizeField field = fieldConfig.m_field;
             double min = fieldConfig.m_min;
             double max = fieldConfig.m_max;
-            mins[i] = min;
-            maxs[i] = max;
-            log("field[" + field.m_key + "] min=" + min + "; max=" + max);
+            double minim = min / fieldConfig.m_multiplier;
+            double maxim = max / fieldConfig.m_multiplier;
+            mins[i] = minim;
+            maxs[i] = maxim;
+            log("field[" + field.m_key + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
         }
         SimpleBounds bounds = new SimpleBounds(mins, maxs);
         return bounds;
@@ -659,16 +661,12 @@ class TresLogProcessor extends Thread {
             OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
             OptimizeField field = fieldConfig.m_field;
             double start = fieldConfig.m_start;
-            startPoint[i] = start;
-            sb.append(field.m_key).append("=").append(Utils.format5(start)).append("; ");
+            double strt = start / fieldConfig.m_multiplier;
+            startPoint[i] = strt;
+            sb.append(field.m_key).append("=").append(Utils.format5(start)).append("(").append(Utils.format5(strt)).append("); ");
         }
         log(sb.toString());
         return startPoint;
-    }
-
-    private void varyBarSize(List<TradesTopsData> datas, Tres tres, String varyBarSize) throws Exception {
-        log("varyBarSize: " + varyBarSize);
-        varyInteger(datas, tres, OptimizeField.OSC_BAR_SIZE, varyBarSize);
     }
 
     private void varyBarSizeMul(List<TradesTopsData> datas, Tres tres, String varyBarSizeMul) throws Exception {
@@ -1265,7 +1263,7 @@ class TresLogProcessor extends Thread {
         long endTime = System.currentTimeMillis();
         long timeTakes = endTime - startTime;
         String takesStr = Utils.millisToDHMSStr(timeTakes);
-        log("parsing done in " + takesStr + "; totally parsed " + m_linesParsed + " lines");
+        log("parsing done in " + takesStr + "; totally parsed " + String.format("%,d", m_linesParsed ) + " lines");
 
         executorService.shutdown();
         return datas;
