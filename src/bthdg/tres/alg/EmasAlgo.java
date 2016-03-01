@@ -37,10 +37,14 @@ public class EmasAlgo extends TresAlgo {
     private Double m_spread;
     private Double m_smoochedSpread;
     private final Booster m_booster;
-    private double m_boosted;
+    protected double m_boosted;
 
     public EmasAlgo(TresExchData tresExchData) {
-        super("EMAS", tresExchData);
+        this("EMAS", tresExchData);
+    }
+
+    public EmasAlgo(String name, TresExchData tresExchData) {
+        super(name, tresExchData);
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
         m_ema = new EmaIndicator("ema", this, EMA_SIZE); // just to show - not used in calculations
@@ -261,7 +265,10 @@ public class EmasAlgo extends TresAlgo {
         @Override public String getRunAlgoParams() { return "EMAS~"; }
 
         public Wide(TresExchData tresExchData) {
-            super(tresExchData);
+            this("EMAS~", tresExchData);
+        }
+        public Wide(String name, TresExchData tresExchData) {
+            super(name, tresExchData);
         }
 
         @Override protected void recalcOne() {
@@ -285,6 +292,26 @@ public class EmasAlgo extends TresAlgo {
                     m_oneIndicator.addBar(point);
                 }
             }
+        }
+    }
+
+    //===========================================================================
+    public static class Boosted extends EmasAlgo {
+        @Override public String getRunAlgoParams() { return "EMAS*"; }
+        @Override public double getDirectionAdjusted() { return m_boosted; }
+
+        public Boosted(TresExchData tresExchData) {
+            super("EMAS*", tresExchData);
+        }
+    }
+
+    //===========================================================================
+    public static class WideBoosted extends Wide {
+        @Override public String getRunAlgoParams() { return "EMAS~*"; }
+        @Override public double getDirectionAdjusted() { return m_boosted; }
+
+        public WideBoosted(TresExchData tresExchData) {
+            super("EMAS~*", tresExchData);
         }
     }
 }

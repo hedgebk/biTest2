@@ -78,6 +78,10 @@ public abstract class TresAlgo {
             return new EmasAlgo(tresExchData);
         } else if (algoName.equals("emas~")) {
             return new EmasAlgo.Wide(tresExchData);
+        } else if (algoName.equals("emas*")) {
+            return new EmasAlgo.Boosted(tresExchData);
+        } else if (algoName.equals("emas~*")) {
+            return new EmasAlgo.WideBoosted(tresExchData);
         } else if (algoName.equals("4ema")) {
             return new FourEmaAlgo(tresExchData);
         } else if (algoName.equals("combo")) {
