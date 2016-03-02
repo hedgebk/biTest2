@@ -268,18 +268,7 @@ public class Tres {
         int exchangesLen = m_exchangesArr.length;
         log(" .len=" + exchangesLen);
 
-        setDoubleConfig(OptimizeField.BAR_SIZE);
-
-        setDoubleConfig(OptimizeField.EMAS_SIZE);
-        setDoubleConfig(OptimizeField.EMAS_LEVEL);
-        setDoubleConfig(OptimizeField.EMAS_FAST_SIZE);
-        setDoubleConfig(OptimizeField.EMAS_START);
-        setDoubleConfig(OptimizeField.EMAS_STEP);
-
-        setDoubleConfig(OptimizeField.FOUR_EMA_SIZE);
-        setDoubleConfig(OptimizeField.FOUR_EMA_SMOOTH);
-        setDoubleConfig(OptimizeField.FOUR_EMA_VELOCITY);
-        setDoubleConfig(OptimizeField.FOUR_EMA_ZERO);
+        setDoubleConfigs();
 
         String prop = m_config.getProperty("tre.len1");
         if (prop != null) {
@@ -479,6 +468,12 @@ public class Tres {
         }
 
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
+    }
+
+    private void setDoubleConfigs() {
+        for (OptimizeField optimizeField : OptimizeField.values()) {
+            setDoubleConfig(optimizeField);
+        }
     }
 
     private void setDoubleConfig(OptimizeField optimizeField) {

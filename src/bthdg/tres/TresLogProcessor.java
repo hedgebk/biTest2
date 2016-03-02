@@ -236,23 +236,12 @@ class TresLogProcessor extends Thread {
             log("varyCno3Smooch=" + m_varyCno3Smooch);
         }
 
-        getConfig(OptimizeField.BAR_SIZE);
-
-        getConfig(OptimizeField.EMAS_SIZE);
-        getConfig(OptimizeField.EMAS_LEVEL);
-        getConfig(OptimizeField.EMAS_FAST_SIZE);
-        getConfig(OptimizeField.EMAS_START);
-        getConfig(OptimizeField.EMAS_STEP);
-
-        getConfig(OptimizeField.FOUR_EMA_SIZE);
-        getConfig(OptimizeField.FOUR_EMA_SMOOTH);
-        getConfig(OptimizeField.FOUR_EMA_VELOCITY);
-        getConfig(OptimizeField.FOUR_EMA_ZERO);
+        getOptimizeFieldConfigs();
 
         String avgHalfBidAskDiff = config.getProperty("tre.avg_half_bid_ask_diff");
         if (avgHalfBidAskDiff != null) {
             log("avgHalfBidAskDiff=" + avgHalfBidAskDiff);
-            TresAlgoWatcher.AVG_HALF_BID_ASK_DIF = Double.parseDouble(avgHalfBidAskDiff);
+            BaseAlgoWatcher.AVG_HALF_BID_ASK_DIF = Double.parseDouble(avgHalfBidAskDiff);
         }
 
         getOptimizeConfig(config);
@@ -260,6 +249,12 @@ class TresLogProcessor extends Thread {
 
         BaseExecutor.DO_TRADE = false;
         log("DO_TRADE set to false");
+    }
+
+    private void getOptimizeFieldConfigs() {
+        for (OptimizeField optimizeField : OptimizeField.values()) {
+            getConfig(optimizeField);
+        }
     }
 
     private void getConfig(OptimizeField optimizeField) {
@@ -434,16 +429,7 @@ class TresLogProcessor extends Thread {
             varyCno3Smooch(datas, tres, m_varyCno3Smooch);
         }
 
-        varyDouble(datas, tres, OptimizeField.EMAS_SIZE);
-        varyDouble(datas, tres, OptimizeField.EMAS_LEVEL);
-        varyDouble(datas, tres, OptimizeField.EMAS_FAST_SIZE);
-        varyDouble(datas, tres, OptimizeField.EMAS_START);
-        varyDouble(datas, tres, OptimizeField.EMAS_STEP);
-
-        varyDouble(datas, tres, OptimizeField.FOUR_EMA_SIZE);
-        varyDouble(datas, tres, OptimizeField.FOUR_EMA_SMOOTH);
-        varyDouble(datas, tres, OptimizeField.FOUR_EMA_VELOCITY);
-        varyDouble(datas, tres, OptimizeField.FOUR_EMA_ZERO);
+        varyOptimizeFieldsDouble(datas, tres);
 
         checkOptimize(tres, datas);
         checkGrid(tres, datas);
@@ -452,6 +438,12 @@ class TresLogProcessor extends Thread {
             tres.m_collectPoints = true;
             Map<String, Double> averageProjected = processAllTicks(datas);
             log("averageProjected: " + averageProjected);
+        }
+    }
+
+    private void varyOptimizeFieldsDouble(List<TradesTopsData> datas, Tres tres) throws Exception {
+        for (OptimizeField optimizeField : OptimizeField.values()) {
+            varyDouble(datas, tres, optimizeField);
         }
     }
 
@@ -704,12 +696,16 @@ class TresLogProcessor extends Thread {
     }
 
     private void logMax(Map<String, Map.Entry<Number, Double>> maxMap, String key) {
+        logMax(maxMap, key, "%.6f");
+    }
+
+    private void logMax(Map<String, Map.Entry<Number, Double>> maxMap, String key, String format) {
         for (Map.Entry<String, Map.Entry<Number, Double>> entry : maxMap.entrySet()) {
             String name = entry.getKey();
             Map.Entry<Number, Double> maxEntry = entry.getValue();
             Number num = maxEntry.getKey();
             Double value = maxEntry.getValue();
-            log(name + "[" + key + "=" + num + "]=" + value);
+            log(name + "[" + key + "=" + String.format(format, num) + "]=" + value);
         }
     }
 
@@ -894,11 +890,12 @@ class TresLogProcessor extends Thread {
         double max = Double.parseDouble(split[1]);
         double step = Double.parseDouble(split[2]);
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
+        String format = optimizeField.getFormat();
         for (double i = min; i <= max; i += step) {
             optimizeField.set(tres, i);
-            iterate(datas, i, "%.6f", optimizeField.m_key, maxMap);
+            iterate(datas, i, format, optimizeField.m_key, maxMap);
         }
-        logMax(maxMap, optimizeField.m_key);
+        logMax(maxMap, optimizeField.m_key, format);
         optimizeField.set(tres, old);
     }
 
