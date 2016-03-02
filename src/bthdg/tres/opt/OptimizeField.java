@@ -12,10 +12,12 @@ public enum OptimizeField {
             tres.m_barSizeMillis = (long) value;
             tres.m_phases = (int) (value/1000);
         }
+        @Override public String getFormat() { return "%,.0f"; }
     },
     OSC_BAR_SIZE("osc.bar_size") {
         @Override public double get(Tres tres) { return tres.m_barSizeMillis; }
         @Override public void set(Tres tres, double value) { tres.m_barSizeMillis = (int) value; }
+        @Override public String getFormat() { return "%,.0f"; }
     },
     OSC_LEN1("osc.len1") {
         @Override public double get(Tres tres) { return tres.m_len1; }
@@ -111,6 +113,25 @@ public enum OptimizeField {
     FOUR_EMA_ZERO("4emas.zero") {
         @Override public double get(Tres tres) { return FourEmaAlgo.START_ZERO_LEVEL; }
         @Override public void set(Tres tres, double value) { FourEmaAlgo.START_ZERO_LEVEL = value; }
+        @Override public String getFormat() { return "%.8f"; }
+    },
+
+    EWO_VELOCITY("ewo.velocity") {
+        @Override public double get(Tres tres) { return EwoAlgo.VELOCITY_SIZE; }
+        @Override public void set(Tres tres, double value) { EwoAlgo.VELOCITY_SIZE = value; }
+    },
+    EWO_SLOW_EMA("ewo.slow_ema") {
+        @Override public double get(Tres tres) { return EwoAlgo.SLOW_EMA_SIZE; }
+        @Override public void set(Tres tres, double value) { EwoAlgo.SLOW_EMA_SIZE = value; }
+    },
+    EWO_FAST_EMA("ewo.fast_ema") {
+        @Override public double get(Tres tres) { return EwoAlgo.FAST_EMA_SIZE; }
+        @Override public void set(Tres tres, double value) { EwoAlgo.FAST_EMA_SIZE = value; }
+    },
+    EWO_ZERO("ewo.zero") {
+        @Override public double get(Tres tres) { return EwoAlgo.START_ZERO_LEVEL; }
+        @Override public void set(Tres tres, double value) { EwoAlgo.START_ZERO_LEVEL = value; }
+        @Override public String getFormat() { return "%.8f"; }
     },
     ;
 
@@ -122,4 +143,5 @@ public enum OptimizeField {
 
     public double get(Tres tres) { throw new RuntimeException("not implemented"); }
     public void set(Tres tres, double value) { throw new RuntimeException("not implemented"); }
+    public String getFormat() { return "%.6f"; }
 }
