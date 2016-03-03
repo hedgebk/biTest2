@@ -160,6 +160,7 @@ public class TresAlgoWatcher extends BaseAlgoWatcher {
     }
 
 
+    // -----------------------------------------------------------------------------------------------
     public static class AlgoWatcherPoint {
         public final long m_millis;
         public final double m_price;
