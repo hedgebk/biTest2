@@ -11,6 +11,7 @@ import org.json.simple.parser.ParseException;
 
 import javax.websocket.*;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -159,6 +160,7 @@ public class OkCoinWs extends BaseWs {
     private boolean m_stopped;
     private boolean m_tradesSubscribed;
     private boolean m_topSubscribed;
+    private Runnable m_callback;
 
     private static void log(String s) { Log.log("OK: "+s); }
     private static void err(String s, Exception e) { Log.err("OK: "+s, e); }
@@ -435,8 +437,7 @@ log("   acctListener.onMessage() json=" + json);
                 log("OkCoin: session closed");
             }
         } catch (IOException e) {
-            log("error close OkCoin session: " + e);
-            e.printStackTrace();
+            err("error close OkCoin session: " + e, e);
         }
     }
 
@@ -446,12 +447,16 @@ log("   acctListener.onMessage() json=" + json);
 
     @Override public void reconnect() {
         log("Huobi: reconnect requested");
-        try {
-            m_session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "reconnect requested"));
-        } catch (IOException e) {
-            log("reconnect error in close session: " + e);
-            e.printStackTrace();
+        if (m_session.isOpen()) {
+            try {
+                m_session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "reconnect requested"));
+            } catch (IOException e) {
+                err("reconnect error in close session: " + e, e);
+            }
+        } else {
+            log(" session is closed");
         }
+        new ReconnectThread(m_callback).start();
     }
 
     private void subscribe(final String channel) throws Exception {
@@ -550,6 +555,7 @@ log("   acctListener.onMessage() json=" + json);
     }
 
     @Override public void connect(final Runnable callback) {
+        m_callback = callback;
         try {
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
 
@@ -587,32 +593,39 @@ log("   acctListener.onMessage() json=" + json);
                     long maxIdleTimeout = m_session.getMaxIdleTimeout();
                     log(" maxIdleTimeout=" + maxIdleTimeout);
                     callback.run();
+                    logInfo();
                 }
 
                 @Override public void onClose(Session session, CloseReason closeReason) {
                     log("onClose session=" + session + "; closeReason=" + closeReason);
-                    m_messageHandler = null;
+                    closeAll();
                     if (m_stopped) {
                         log("session stopped - no reconnect");
                     } else {
                         new ReconnectThread(callback).start();
                     }
+                    logInfo();
                 }
 
                 @Override public void onError(Session session, Throwable thr) {
                     log("onError session=" + session + "; Throwable=" + thr);
                     thr.printStackTrace();
+                    closeAll();
+                    logInfo();
                 }
             }, cec, new URI(URL));
             log("session isOpen=" + m_session.isOpen() + "; session=" + m_session);
         } catch (Exception e) {
-            log("connectToServer error: " + e);
+            err("connectToServer error: " + e, e);
             if (m_stopped) {
                 log("session stopped - no reconnect");
             } else {
                 new ReconnectThread(callback).start();
             }
         }
+
+        ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {};
+
 
 //        If you need semi-persistent client connection, you can always implement some reconnect logic by yourself, but Tyrus Client offers useful feature which should be much easier to use. See short sample code:
 //
@@ -659,8 +672,47 @@ log("   acctListener.onMessage() json=" + json);
 
     }
 
-    private static Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
-    private static Calendar OUT_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
+    protected void logInfo() {
+        try {
+            double activeCount = Thread.activeCount();
+            log("thread group active thread count = " + activeCount);
+
+            Set<Thread> threads = Thread.getAllStackTraces().keySet();
+            int nbThreads = threads.size();
+            int nbRunning = 0;
+            for (Thread t : threads) {
+                if (t.getState() == Thread.State.RUNNABLE) {
+                    nbRunning++;
+                }
+            }
+            log("jvm thread num = " + nbThreads + "; executing threads num = " + nbRunning );
+
+            double threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
+            log("all thread count = " + threadCount);
+        } catch (Exception e) {
+            err("logInfo error: " + e, e);
+        }
+    }
+
+    protected void closeAll() {
+        if (m_session != null) {
+            if (m_session.isOpen()) {
+                if (m_messageHandler != null) {
+                    m_session.removeMessageHandler(m_messageHandler);
+                }
+                try {
+                    m_session.close();
+                } catch (IOException e) {
+                    err("session close error: " + e, e);
+                }
+            }
+            m_session = null;
+        }
+        m_messageHandler = null;
+    }
+
+    private static final Calendar NOW_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
+    private static final Calendar OUT_CALENDAR = Calendar.getInstance(TZ, Locale.ENGLISH);
 
     // we got only time in mkt tick - need to figure out the date
     private static long parseTimeToDate(String time) {
