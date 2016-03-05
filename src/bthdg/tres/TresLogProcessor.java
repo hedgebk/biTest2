@@ -451,7 +451,7 @@ class TresLogProcessor extends Thread {
         String config = m_varyConfigs.get(optimizeField);
         if (config != null) {
             String name = optimizeField.m_key;
-            log("vary " + name + ": " + config);
+            log("vary " + name + ": " + config + "; field: " + optimizeField);
             varyDouble(datas, tres, optimizeField, config);
         }
     }
@@ -620,7 +620,7 @@ class TresLogProcessor extends Thread {
             OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
             OptimizeField field = fieldConfig.m_field;
             double value = point[i];
-            log(" field[" + field.m_key + "]=" + value);
+            log(" field[" + field.m_key + "]=" + (value * fieldConfig.m_multiplier) + "(value)");
             field.set(tres, value);
         }
     }
@@ -1194,9 +1194,9 @@ class TresLogProcessor extends Thread {
 //        double projected = Math.pow(averageTotal, exponent);
 //        ret.put("osc", projected);
 
-        for(TresAlgoWatcher algo : exchData.m_playAlgos) {
+        for(BaseAlgoWatcher algo : exchData.m_playAlgos) {
             String name = algo.m_algo.m_name;
-            double ratio = algo.m_totalPriceRatio;
+            double ratio = algo.totalPriceRatio();
             double algoProjected = Math.pow(ratio, exponent);
             ret.put(name, algoProjected);
         }
