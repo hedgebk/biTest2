@@ -11,4 +11,8 @@ public abstract class BaseWs implements IWs {
     @Override public void subscribeExecs(Pair pair, IExecsListener listener) throws Exception {
         throw new RuntimeException("subscribeExecs not implemented for " + this);
     }
+
+    @Override public void subscribeAcct(IAcctListener listener) throws Exception {
+        throw new RuntimeException("subscribeAcct not implemented for " + this);
+    }
 }

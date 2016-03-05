@@ -9,8 +9,7 @@ import bthdg.tres.alg.BaseAlgoWatcher;
 import bthdg.tres.alg.FineAlgoWatcher;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.util.Queue;
-import bthdg.ws.ITradesListener;
-import bthdg.ws.IWs;
+import bthdg.ws.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -115,27 +114,24 @@ public class TresExchData {
                         }
                     });
 
-//                    m_ws.subscribeExecs(Tres.PAIR, new IExecsListener() {
-//                    });
-
                     m_executor.initImpl();
+
+                    m_ws.subscribeExecs(Tres.PAIR, new IExecsListener() {
+                    });
+
+                    m_ws.subscribeAcct(new IAcctListener() {
+                    });
+
+                    m_ws.subscribeTop(Tres.PAIR, new ITopListener() {
+                        @Override public void onTop(long timestamp, double buy, double sell) {
+                            m_executor.onTopInt(timestamp, buy, sell, BaseExecutor.TopSource.top_subscribe);
+                        }
+                    });
                 } catch (Exception e) {
-                    err("error subscribeTrades[" + m_ws.exchange() + "]: " + e, e);
+                    err("ERROR subscribe/init [" + m_ws.exchange() + "]: " + e, e);
                 }
             }
         });
-
-//            m_ws.subscribeTop(Tres.PAIR, new ITopListener() {
-//                @Override public void onTop(long timestamp, double buy, double sell) {
-////                    log("onTop() timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
-//                    if (buy > sell) {
-//                        log("ERROR: ignored invalid top data. buy > sell: timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
-//                        return;
-//                    }
-//                    TradeData tradeData = new TradeData(0, (buy + sell) / 2, timestamp);
-//                    onTrade(tradeData);
-//                }
-//            });
     }
 
     public void processTrade(TradeDataLight tdata) {
@@ -186,6 +182,7 @@ public class TresExchData {
     }
 
     public void onTop(final BaseExecutor.TopDataPoint topDataPoint) {
+        // TODO: add top feed support to algos
 //        m_tradesQueue.addItem(new Runnable() {
 //            @Override public void run() {
 //                processTop(topDataPoint);
@@ -194,7 +191,7 @@ public class TresExchData {
     }
 
     private void processTop(BaseExecutor.TopDataPoint topDataPoint) {
-//        x
+        // TODO: add top feed support to algos
     }
 
     public void getState0(StringBuilder sb) {
@@ -214,7 +211,6 @@ public class TresExchData {
 
     public JComponent getController(TresCanvas canvas) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 1));
-//        panel.setBorder(BorderFactory.createLineBorder(Color.black));
 
         AlgoComboBox combo = new AlgoComboBox(m_playAlgos);
         panel.add(combo);

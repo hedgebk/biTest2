@@ -311,6 +311,7 @@ System.out.println("Received message: " + message);
     }
 
     @Override public void subscribeExecs(Pair pair, IExecsListener listener) throws Exception {
+log("subscribeExecs(pair="+pair+")");
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
@@ -323,7 +324,7 @@ log("   execsListener.onMessage() json=" + json);
         subscribe(EXECS_CHANNEL, true);
     }
 
-    public void subscribeAcct(IAcctListener listener) throws Exception {
+    @Override public void subscribeAcct(IAcctListener listener) throws Exception {
 log("subscribeAcct()");
         m_acctListener = listener;
         m_channelListeners.put(ACCT_CHANNEL, new MessageHandler.Whole<Object>() {
