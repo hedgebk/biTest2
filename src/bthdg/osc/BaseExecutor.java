@@ -272,8 +272,9 @@ public abstract class BaseExecutor implements Runnable {
             long takes = end - start;
             m_initAccountTakesCalc.addValue((double) takes);
             log(" account loaded in " + Utils.millisToDHMSStr(takes) + ":" + m_account);
-            double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
-            log("  valuateBtc=" + valuateBtc + " BTC");
+            Currency currencyTo = m_pair.m_to;     // btc=to
+            double valuateTo = m_account.evaluateAll(m_topsData, currencyTo, m_exchange);
+            log("  valuate" + currencyTo + "=" + valuateTo + " " + currencyTo);
             if (oldAccount != null) {
                 oldAccount.compareFunds(m_account);
             }
@@ -397,51 +398,60 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected void logValuate() {
-        // Currencies hardcoded - play from Pair m_pair
         log("{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{");
-        double valuateBtcInit = m_initAccount.evaluateAll(m_initTops, Currency.BTC, m_exchange);
-        double valuateCnhInit = m_initAccount.evaluateAll(m_initTops, Currency.CNH, m_exchange);
-        log("  INIT:  valuateBtc=" + valuateBtcInit + " BTC; valuateCnh=" + valuateCnhInit + " CNH");
-        double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
-        double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
-        log("  NOW:   valuateBtc=" + valuateBtcNow + " BTC; valuateCnh=" + valuateCnhNow + " CNH");
-        double valuateBtcSleep = m_initAccount.evaluateAll(m_topsData, Currency.BTC, m_exchange);
-        double valuateCnhSleep = m_initAccount.evaluateAll(m_topsData, Currency.CNH, m_exchange);
-        log("  SLEEP: valuateBtc=" + valuateBtcSleep + " BTC; valuateCnh=" + valuateCnhSleep + " CNH");
-        double gainBtc = valuateBtcNow / valuateBtcInit;
-        double gainCnh = valuateCnhNow / valuateCnhInit;
-        double gainAvg = (gainBtc + gainCnh) / 2;
+        Currency currencyFrom = m_pair.m_from; // cnh=from
+        Currency currencyTo = m_pair.m_to;     // btc=to
+
+        double valuateToInit = m_initAccount.evaluateAll(m_initTops, currencyTo, m_exchange);
+        double valuateFromInit = m_initAccount.evaluateAll(m_initTops, currencyFrom, m_exchange);
+        log("  INIT:  valuate" + currencyTo + "=" + valuateToInit + " " + currencyTo + "; valuate" + currencyFrom + "=" + valuateFromInit + " " + currencyFrom);
+        double valuateToNow = m_account.evaluateAll(m_topsData, currencyTo, m_exchange);
+        double valuateFromNow = m_account.evaluateAll(m_topsData, currencyFrom, m_exchange);
+        log("  NOW:   valuate" + currencyTo + "=" + valuateToNow + " " + currencyTo + "; valuate" + currencyFrom + "=" + valuateFromNow + " " + currencyFrom);
+        double valuateToSleep = m_initAccount.evaluateAll(m_topsData, currencyTo, m_exchange);
+        double valuateFromSleep = m_initAccount.evaluateAll(m_topsData, currencyFrom, m_exchange);
+        log("  SLEEP: valuate" + currencyTo + "=" + valuateToSleep + " " + currencyTo + "; valuate" + currencyFrom + "=" + valuateFromSleep + " " + currencyFrom);
+        double gainTo = valuateToNow / valuateToInit;
+        double gainFrom = valuateFromNow / valuateFromInit;
+        double gainAvg = (gainTo + gainFrom) / 2;
         long takesMillis = System.currentTimeMillis() - m_startMillis;
         double pow = ((double) Utils.ONE_DAY_IN_MILLIS) / takesMillis;
         double projected = Math.pow(gainAvg, pow);
-        log("  GAIN: Btc=" + gainBtc + "; Cnh=" + gainCnh + " CNH; avg=" + gainAvg + "; projected=" + projected + "; takes: " + Utils.millisToDHMSStr(takesMillis));
+        log("  GAIN: " + currencyTo + "=" + gainTo + "; " + currencyFrom + "=" + gainFrom + " " + currencyFrom + "; avg=" + gainAvg + "; projected=" + projected + "; takes: " + Utils.millisToDHMSStr(takesMillis));
         log("}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}");
     }
 
     protected double getGainAvg() {
-        double valuateBtcInit = m_initAccount.evaluateAll(m_initTops, Currency.BTC, m_exchange);
-        double valuateCnhInit = m_initAccount.evaluateAll(m_initTops, Currency.CNH, m_exchange);
-        double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
-        double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
-        double gainBtc = valuateBtcNow / valuateBtcInit;
-        double gainCnh = valuateCnhNow / valuateCnhInit;
-        double gainAvg = (gainBtc + gainCnh) / 2;
+        Currency currencyFrom = m_pair.m_from; // cnh=from
+        Currency currencyTo = m_pair.m_to;     // btc=to
+
+        double valuateToInit = m_initAccount.evaluateAll(m_initTops, currencyTo, m_exchange);
+        double valuateFromInit = m_initAccount.evaluateAll(m_initTops, currencyFrom, m_exchange);
+        double valuateToNow = m_account.evaluateAll(m_topsData, currencyTo, m_exchange);
+        double valuateFromNow = m_account.evaluateAll(m_topsData, currencyFrom, m_exchange);
+        double gainTo = valuateToNow / valuateToInit;
+        double gainFrom = valuateFromNow / valuateFromInit;
+        double gainAvg = (gainTo + gainFrom) / 2;
         return gainAvg;
     }
 
     public String valuateGain() {
         if (m_initialized) {
-            double valuateBtcInit = m_initAccount.evaluateAll(m_initTops, Currency.BTC, m_exchange);
-            double valuateCnhInit = m_initAccount.evaluateAll(m_initTops, Currency.CNH, m_exchange);
-            double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
-            double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
-            double gainBtc = valuateBtcNow / valuateBtcInit;
-            double gainCnh = valuateCnhNow / valuateCnhInit;
-            double gainAvg = (gainBtc + gainCnh) / 2;
+            Currency currencyFrom = m_pair.m_from; // cnh=from
+            Currency currencyTo = m_pair.m_to;     // btc=to
+
+            double valuateToInit = m_initAccount.evaluateAll(m_initTops, currencyTo, m_exchange);
+            double valuateFromInit = m_initAccount.evaluateAll(m_initTops, currencyFrom, m_exchange);
+            double valuateToNow = m_account.evaluateAll(m_topsData, currencyTo, m_exchange);
+            double valuateFromNow = m_account.evaluateAll(m_topsData, currencyFrom, m_exchange);
+            double gainTo = valuateToNow / valuateToInit;
+            double gainFrom = valuateFromNow / valuateFromInit;
+            double gainAvg = (gainTo + gainFrom) / 2;
             long takesMillis = System.currentTimeMillis() - m_startMillis;
             double pow = ((double) Utils.ONE_DAY_IN_MILLIS) / takesMillis;
             double projected = Math.pow(gainAvg, pow);
-            return "GAIN: Btc=" + Utils.format5(gainBtc) + "; Cnh=" + Utils.format5(gainCnh) + " CNH; avg=" + Utils.format5(gainAvg)
+            return "GAIN: " + currencyTo + "=" + Utils.format5(gainTo) + "; " + currencyFrom + "=" + Utils.format5(gainFrom) + " "
+                    + currencyFrom + "; avg=" + Utils.format5(gainAvg)
                     + "; projected=" + Utils.format5(projected) + "; takes: " + Utils.millisToDHMSStr(takesMillis);
         }
         return "---";
@@ -449,38 +459,46 @@ public abstract class BaseExecutor implements Runnable {
 
     public String valuate() {
         if (m_initialized) {
-            double valuateBtcNow = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
-            double valuateCnhNow = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
-            return "VAL: Btc=" + Utils.format5(valuateBtcNow) + "; Cnh=" + Utils.format5(valuateCnhNow);
+            Currency currencyFrom = m_pair.m_from; // cnh=from
+            Currency currencyTo = m_pair.m_to;     // btc=to
+
+            double valuateToNow = m_account.evaluateAll(m_topsData, currencyTo, m_exchange);
+            double valuateFromNow = m_account.evaluateAll(m_topsData, currencyFrom, m_exchange);
+            return "VAL: " + currencyTo + "=" + Utils.format5(valuateToNow) + "; " + currencyFrom + "=" + Utils.format5(valuateFromNow);
         }
         return "---";
     }
 
-    protected double adjustSizeToAvailable(double needBuyBtc) {
+    protected double adjustSizeToAvailable(double needBuyTo) {
         log(" account=" + m_account);
-        double haveBtc = m_account.available(Currency.BTC);
-        double haveCnh = m_account.available(Currency.CNH);
-        log(" haveBtc=" + Utils.format8(haveBtc) + "; haveCnh=" + Utils.format8(haveCnh));
-        double buyBtc;
-        if (needBuyBtc > 0) {
-            log("  will buy Btc:");
-            double needSellCnh = m_topsData.convert(Currency.BTC, Currency.CNH, needBuyBtc, m_exchange);
-            double canSellCnh = Math.min(needSellCnh, haveCnh * useFundsFromAvailable());
-            double canBuyBtc = m_topsData.convert(Currency.CNH, Currency.BTC, canSellCnh, m_exchange);
-            log("   need to sell " + Utils.format8(needSellCnh) + " CNH; can Sell " + Utils.format8(canSellCnh) + " CNH; this will buy " + Utils.format8(canBuyBtc) + " BTC");
-            buyBtc = canBuyBtc;
-        } else if (needBuyBtc < 0) {
-            log("  will sell Btc:");
-            double needSellBtc = -needBuyBtc;
-            double canSellBtc = Math.min(needSellBtc, haveBtc * useFundsFromAvailable());
-            double canBuyCnh = m_topsData.convert(Currency.BTC, Currency.CNH, canSellBtc, m_exchange);
-            log("   need to sell " + Utils.format8(needSellBtc) + " BTC; can Sell " + Utils.format8(canSellBtc) + " BTC; this will buy " + Utils.format8(canBuyCnh) + " CNH");
-            buyBtc = -canSellBtc;
+        Currency currencyFrom = m_pair.m_from; // cnh=from
+        Currency currencyTo = m_pair.m_to;     // btc=to
+
+        double haveTo = m_account.available(currencyTo);
+        double haveFrom = m_account.available(currencyFrom);
+        log(" have" + currencyTo + "=" + Utils.format8(haveTo) + "; have" + currencyFrom + "=" + Utils.format8(haveFrom));
+        double buyTo;
+        if (needBuyTo > 0) {
+            log("  will buy " + currencyTo + ":");
+            double needSellFrom = m_topsData.convert(currencyTo, currencyFrom, needBuyTo, m_exchange);
+            double canSellFrom = Math.min(needSellFrom, haveFrom * useFundsFromAvailable());
+            double canBuyTo = m_topsData.convert(currencyFrom, currencyTo, canSellFrom, m_exchange);
+            log("   need to sell " + Utils.format8(needSellFrom) + " " + currencyFrom + "; can Sell " + Utils.format8(canSellFrom) + " " + currencyFrom
+                    + "; this will buy " + Utils.format8(canBuyTo) + " " + currencyTo);
+            buyTo = canBuyTo;
+        } else if (needBuyTo < 0) {
+            log("  will sell " + currencyTo + ":");
+            double needSellTo = -needBuyTo;
+            double canSellTo = Math.min(needSellTo, haveTo * useFundsFromAvailable());
+            double canBuyFrom = m_topsData.convert(currencyTo, currencyFrom, canSellTo, m_exchange);
+            log("   need to sell " + Utils.format8(needSellTo) + " " + currencyTo + "; can Sell " + Utils.format8(canSellTo) + " " + currencyTo
+                    + "; this will buy " + Utils.format8(canBuyFrom) + " " + currencyFrom);
+            buyTo = -canSellTo;
         } else {
             log("  do not buy/sell anything");
-            buyBtc = 0;
+            buyTo = 0;
         }
-        return buyBtc;
+        return buyTo;
     }
 
     public void postRecheckDirection() {
@@ -499,25 +517,14 @@ public abstract class BaseExecutor implements Runnable {
             return STATE_NO_CHANGE;
         }
 
-        double valuateBtc = m_account.evaluateAll(m_topsData, Currency.BTC, m_exchange);
-        double valuateCnh = m_account.evaluateAll(m_topsData, Currency.CNH, m_exchange);
-        log("  valuateBtc=" + valuateBtc + " BTC; valuateCnh=" + valuateCnh + " CNH");
+        double needBuyTo = m_account.calcNeedBuyTo(directionAdjusted, m_pair, m_topsData, m_exchange);
 
-        double haveBtc = m_account.getAllValue(Currency.BTC);
-        double haveCnh = m_account.getAllValue(Currency.CNH);
-        log("  haveBtc=" + Utils.format8(haveBtc) + " BTC; haveCnh=" + Utils.format8(haveCnh) + " CNH; on account=" + m_account);
-
-        double needBtc = (1 + directionAdjusted) / 2 * valuateBtc;
-        double needCnh = (1 - directionAdjusted) / 2 * valuateCnh;
-        log("  needBtc=" + Utils.format8(needBtc) + " BTC; needCnh=" + Utils.format8(needCnh) + " CNH");
-
-        double needBuyBtc = needBtc - haveBtc;
-        double needSellCnh = haveCnh - needCnh;
-        log("  directionAdjusted=" + directionAdjusted + "; needBuyBtc=" + Utils.format8(needBuyBtc) + "; needSellCnh=" + Utils.format8(needSellCnh));
-
-        double absOrderSize = Math.abs(needBuyBtc);
-        OrderSide needOrderSide = (needBuyBtc >= 0) ? OrderSide.BUY : OrderSide.SELL;
+        double absOrderSize = Math.abs(needBuyTo);
+        OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
         log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + absOrderSize);
+
+        // Pair.BTC_CNH =>  cnh=from   btc=to
+        Currency currencyTo = m_pair.m_to;
 
         double absOrderSizeAdjusted = checkAgainstExistingOrders(needOrderSide, absOrderSize);
         if(absOrderSize != absOrderSizeAdjusted) {
@@ -528,8 +535,8 @@ public abstract class BaseExecutor implements Runnable {
                 absOrderSize = -absOrderSize;
                 log("    reversed: needOrderSide=" + needOrderSide + "; absOrderSize=" + absOrderSize);
             }
-            needBuyBtc = needOrderSide.isBuy() ? absOrderSize : -absOrderSize;
-            log("   new needBuyBtc=" + needBuyBtc);
+            needBuyTo = needOrderSide.isBuy() ? absOrderSize : -absOrderSize;
+            log("   new needBuy" + currencyTo + "=" + needBuyTo);
         }
 
         double exchMinOrderToCreate = m_exchange.minOrderToCreate(m_pair);
@@ -558,9 +565,9 @@ public abstract class BaseExecutor implements Runnable {
         int ret = cancelOrderIfPresent();
         if (ret == STATE_NO_CHANGE) { // cancel attempt was not performed
 
-            double canBuyBtc = adjustSizeToAvailable(needBuyBtc);
-            log("      needBuyBtc " + Utils.format8(needBuyBtc) + " adjusted by Available: canBuyBtc=" + Utils.format8(canBuyBtc));
-            double notEnough = Math.abs(needBuyBtc - canBuyBtc);
+            double canBuyTo = adjustSizeToAvailable(needBuyTo);
+            log("      needBuy" + currencyTo + " " + Utils.format8(needBuyTo) + " adjusted by Available: canBuy" + currencyTo + "=" + Utils.format8(canBuyTo));
+            double notEnough = Math.abs(needBuyTo - canBuyTo);
             if (notEnough > minOrderSizeToCreate) {
                 boolean cancelPerformed = cancelOtherOrdersIfNeeded(needOrderSide, notEnough);
                 if (cancelPerformed) {
@@ -575,9 +582,9 @@ public abstract class BaseExecutor implements Runnable {
                 log("      bidAskDiff=" + diff + "; avgDiff bidAskDiff=" + avgDiff + " => HALVING order size");
             }
 
-            double orderSizeRound = m_exchange.roundAmount(canBuyBtc, m_pair);
+            double orderSizeRound = m_exchange.roundAmount(canBuyTo, m_pair);
             double placeOrderSize = Math.abs(orderSizeRound);
-            log("        orderSizeAdjusted=" + Utils.format8(canBuyBtc) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
+            log("        orderSizeAdjusted=" + Utils.format8(canBuyTo) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
 
             double maxOrderSizeToCreate = maxOrderSizeToCreate();
             if (placeOrderSize > maxOrderSizeToCreate) {
