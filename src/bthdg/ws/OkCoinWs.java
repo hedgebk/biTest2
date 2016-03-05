@@ -4,6 +4,7 @@ import bthdg.Log;
 import bthdg.exch.*;
 import bthdg.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
+import org.glassfish.tyrus.client.ClientProperties;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -20,7 +21,6 @@ import java.util.logging.Logger;
 
 // http://img.okcoin.cn/about/ws_api.do
 //  error codes: https://www.okcoin.cn/about/ws_request.do
-//  ping, okcoin.com: https://www.okcoin.com/about/ws_faq.do
 //
 // ! How to know whether connection is lost?
 //     OKCoin provides heartbeat verification process. Clients send: {'event':'ping'}, the server returns heartbeats {"event":"pong"} to indicate connection between the clients and the server. If the clients stop receiving the heartbeats, then they will need to reconnect with the server.
@@ -39,40 +39,8 @@ public class OkCoinWs extends BaseWs {
     public static final String URL = "wss://real.okcoin.cn:10440/websocket/okcoinapi";
     public static final int DEFAULT_MAX_SESSION_IDLE_TIMEOUT = 25000;
 
-    public static final String BTCCNY_TICKER_CHANNEL = "ok_btccny_ticker";
+    public static final String BTCCNY_TICKER_CHANNEL = "ok_sub_spotcny_btc_ticker"; // "ok_btccny_ticker";
     public static final String SUBSCRIBE_BTCCNY_TICKER = "{'event':'addChannel','channel':'ok_btccny_ticker'}";
-// [{"channel":"ok_btccny_ticker",
-//   "data":{"buy":"2606.01",
-//           "high":"2977.9",
-//           "last":"2607.01",
-//           "low":"2385",
-//           "sell":"2607",
-//           "timestamp":"1415921659329",
-//           "vol":"607,881.07"}}]
-// [{"channel":"ok_btccny_ticker",
-//   "data":{"buy":"2606.03",
-//           "high":"2977.9",
-//           "last":"2606.03",
-//           "low":"2385",
-//           "sell":"2606.95",
-//           "timestamp":"1415921660033",
-//           "vol":"607,891.07"}}]
-// [{"channel":"ok_btccny_ticker",
-//   "data":{"buy":"2606.05",
-//           "high":"2977.9",
-//           "last":"2606.75",
-//           "low":"2385",
-//           "sell":"2606.73",
-//           "timestamp":"1415921661992",
-//           "vol":"607,889.10"}}]
-// [{"channel":"ok_btccny_ticker",
-//   "data":{"buy":"2606.05",
-//           "high":"2977.9",
-//           "last":"2606.05",
-//           "low":"2385",
-//           "sell":"2606.68",
-//           "timestamp":"1415921663367",
-//           "vol":"607,889.34"}}]
 
     // BTC 20 Market Depth
     public static final String SUBSCRIBE_BTCCNY_DEPTH = "{'event':'addChannel','channel':'ok_btccny_depth'}";
@@ -87,23 +55,7 @@ public class OkCoinWs extends BaseWs {
 //           "asks":[[2655,0.01],[2653.24,0.5],[2651.91,0.03],[2650,1],[2649.99,0.03],[2649.52,0.03],[2648.9,0.1],[2648.87,0.88],[2648.8,0.76],[2648.71,0.1],[2648,12.95],[2647.99,0.03],[2647.83,0.03],[2647.08,5],[2644.79,0.03],[2644.69,2.071],[2644.68,0.58],[2644.67,0.66],[2644.64,0.614],[2638.26,0.909]],
 //           "timestamp":"1415831343526"}}]
 
-    public static final String BTCCNY_TRADES_CHANNEL = "ok_btccny_trades";
-// [{"channel":"ok_btccny_trades",
-//   "data":[["2595.86","0.01","07:50:37","bid"],
-//           ["2595.65","0.706","07:50:37","ask"],
-//           ["2595.63","8.579","07:50:38","ask"],
-//           ["2595.47","0.199","07:50:38","ask"],
-//           ["2595.47","1.801","07:50:38","ask"],
-//           ["2595.56","0.5","07:50:38","bid"],
-//           ["2595.56","0.791","07:50:38","bid"],
-//           ["2595.56","1.914","07:50:38","bid"],
-//           ...
-//           ["2595.63","0.168","07:50:46","ask"],
-//           ["2595.74","0.066","07:50:47","ask"]]}]
-// [{"channel":"ok_btccny_trades",
-//   "data":[["2595.74","0.066","07:50:47","ask"]]}]
-// [{"channel":"ok_btccny_trades",
-//   "data":[["2595.74","0.38","07:50:47","ask"]]}]
+    public static final String BTCCNY_TRADES_CHANNEL = "ok_sub_spotcny_btc_trades"; // "ok_btccny_trades";
 
     public static final String EXECS_CHANNEL = "ok_sub_spotcny_trades";
 //    [
@@ -142,7 +94,6 @@ public class OkCoinWs extends BaseWs {
 //    status: -1: cancelled, 0: pending, 1: partially filled, 2: fully filled, 4: cancel request in process
     public static final String UNSUBSCRIBE_BTCCNY_TRADES = "{'event':'removeChannel','channel':'ok_btccny_trades'}";
 
-//    websocket.send("{'event':'ping'}");
 //function spotTrade(channel, symbol, type, price, amount) {//下单接口  使用前请先配置partner 和 secretKey
 //    doSend("{'event':'addChannel','channel':'"+channel+"','parameters':{'partner':'"+partner+"','secretkey':'"+secretKey+"','symbol':'"+symbol+"','type':'"+type+"','price':'"+price+"','amount':'"+amount+"'}}");
 //}
@@ -152,8 +103,6 @@ public class OkCoinWs extends BaseWs {
 
     public static final String ACCT_CHANNEL = "ok_sub_spotcny_userinfo";
 
-
-
     private Session m_session;
     private final Map<String,MessageHandler.Whole<Object>> m_channelListeners = new HashMap<String,MessageHandler.Whole<Object>>();
     private MessageHandler.Whole<String> m_messageHandler;
@@ -161,9 +110,11 @@ public class OkCoinWs extends BaseWs {
     private boolean m_tradesSubscribed;
     private boolean m_topSubscribed;
     private Runnable m_callback;
+    private Thread m_pingThread;
+    private int m_reconnectCounter = 0;
 
     private static void log(String s) { Log.log("OK: "+s); }
-    private static void err(String s, Exception e) { Log.err("OK: "+s, e); }
+    private static void err(String s, Throwable e) { Log.err("OK: "+s, e); }
 
     public static void main_(String[] args) {
         try {
@@ -238,6 +189,30 @@ System.out.println("Received message: " + message);
         }
     }
 
+    private void startPingThread() {
+        m_pingThread = new Thread() {
+            @Override public void run() {
+                try {
+                    while (!isInterrupted() && !m_stopped && (m_pingThread == this)) {
+                        try {
+                            synchronized (this) {
+                                wait(10000);
+                            }
+                        } catch (InterruptedException e) {
+                            err("ping error: " + e, e);
+                        }
+                        sendPing();
+                    }
+                } catch (Exception e) {
+                    err("ping thread error: " + e, e);
+                }
+                log("ping thread finished. isInterrupted=" + isInterrupted() + "; stopped=" + m_stopped
+                        + "; pingThread=" + m_pingThread + "; this=" + this);
+            }
+        };
+        m_pingThread.start();
+    }
+
     public static void main(String[] args) {
         try {
             Config config = new Config();
@@ -310,14 +285,17 @@ System.out.println("Received message: " + message);
     }
 
     private void sendPing() {
-        if( m_session != null ) {
-            try {
-                log("send ping");
-                m_session.getBasicRemote().sendText("{'event':'ping'}");
-            } catch (IOException e) {
-                err("ping send error", e);
+        if (m_session != null) {
+            if (m_session.isOpen()) {
+                try {
+                    log("send ping");
+                    m_session.getBasicRemote().sendText("{'event':'ping'}");
+                } catch (IOException e) {
+                    err("ping send error", e);
+                }
+            } else {
+                log("can not send PING - session is not open");
             }
-
         } else {
             log("can not send PING - no session");
         }
@@ -346,6 +324,7 @@ log("   execsListener.onMessage() json=" + json);
     }
 
     public void subscribeAcct(IAcctListener listener) throws Exception {
+log("subscribeAcct()");
         m_acctListener = listener;
         m_channelListeners.put(ACCT_CHANNEL, new MessageHandler.Whole<Object>() {
             @Override public void onMessage(Object json) {
@@ -356,80 +335,35 @@ log("   acctListener.onMessage() json=" + json);
     }
 
     @Override public void subscribeTrades(Pair pair, ITradesListener listener) throws Exception {
+log("subscribeTrades() pair=" + pair);
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
         m_tradesListener = listener;
         m_channelListeners.put(BTCCNY_TRADES_CHANNEL, new MessageHandler.Whole<Object>() {
-            @Override public void onMessage(Object json) { // [["2228.01","0.2","09:26:02","ask"]]
-//log("   tradesDataListener.onMessage() json=" + json);
-                if (json instanceof JSONArray) {
-                    JSONArray array = (JSONArray) json;
-                    int length = array.size();
-//log("    trades array length = " + length);
-                    long lastMillis = 0;
-                    for(int i = 0; i < length; i++) {
-                        Object tradeObj = array.get(i); // ["2231.73","0.056","10:10:00","ask"]
-//log("     tradeObj["+i+"]: " + tradeObj + ";  class="+tradeObj.getClass());
-                        if (tradeObj instanceof JSONArray) {
-                            JSONArray tradeItem = (JSONArray) tradeObj;
-//log("     tradeItem[" + i + "]: " + tradeItem);
-                            String priceStr = (String) tradeItem.get(0);
-                            String size = (String) tradeItem.get(1);
-                            String time = (String) tradeItem.get(2);
-                            String side = (String) tradeItem.get(3);
-                            long millis = parseTimeToDate(time);
-                            if (millis < lastMillis) {
-                                log("got not increasing time: millis=" + millis + ", lastMillis=" + lastMillis + "; diff=" + (millis - lastMillis));
-                            }
-//log("     price=" + priceStr + "; size=" + size + "; time=" + time + "; side=" + side + "; millis=" + millis);
-                            if (millis != 0) {
-                                double amount = Utils.getDouble(size);
-                                double price = Utils.getDouble(priceStr);
-                                TradeType type = TradeType.get(side);
-                                TradeData tdata = new TradeData(amount, price, millis, 0, type);
-//log("      TradeData=" + tdata);
-                                if (m_tradesListener != null) {
-                                    m_tradesListener.onTrade(tdata);
-                                }
-                                lastMillis = millis;
-                            }
-                        }
-                    }
-                }
+            @Override public void onMessage(Object json) {
+                onTrades(json);
             }
         });
         subscribe(BTCCNY_TRADES_CHANNEL);
     }
 
     @Override public void subscribeTop(Pair pair, ITopListener listener) throws Exception {
+log("subscribeTop() pair="+pair);
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
         m_topListener = listener;
         m_channelListeners.put(BTCCNY_TICKER_CHANNEL, new MessageHandler.Whole<Object>() {
-            @Override public void onMessage(Object json) { // {"high":"1976.29","vol":"65,980.35","last":"1957.91","low":"1917.19","buy":"1957.85","sell":"1957.91","timestamp":"1419804927532"}
-//log("   topDataListener.onMessage() json=" + json + ";  class=" + json.getClass());
-                if (json instanceof JSONObject) {
-                    JSONObject jsonObject = (JSONObject) json;
-                    Object buyObj = jsonObject.get("buy");
-                    Object sellObj = jsonObject.get("sell");
-                    String timestampStr = (String) jsonObject.get("timestamp");
-//log("     buyStr=" + buyStr + "; sellStr=" + sellStr + "; timestampStr=" + timestampStr);
-                    double buy = Utils.getDouble(buyObj);
-                    double sell = Utils.getDouble(sellObj);
-                    long timestamp = Utils.getLong(timestampStr);
-//log("      buy=" + buy + "; sell=" + sell + "; timestamp=" + timestamp);
-                    if (m_topListener != null) {
-                        m_topListener.onTop(timestamp, buy, sell);
-                    }
-                }
+            @Override public void onMessage(Object json) {
+                onTopTicker(json);
             }
         });
         subscribe(BTCCNY_TICKER_CHANNEL);
     }
 
     @Override public void stop() {
+        log("OkCoin: stop()");
         try {
             m_stopped = true;
             if (m_session != null) {
@@ -493,31 +427,30 @@ log("   acctListener.onMessage() json=" + json);
             subscribeCmd = "{'event':'addChannel','channel':'" + channel + "'}";
         }
 
-        log("sendSubscribe() toSign=" + toSign + "; channel=" + channel + "; subscribeCmd=" + subscribeCmd + "; m_session=" + m_session);
+        log("sendSubscribe() toSign=" + toSign + "; channel=" + channel + "; subscribeCmd=" + subscribeCmd + "; session=" + m_session);
 
-        addMessageHandlerIfNeeded();
         try {
             m_session.getBasicRemote().sendText(subscribeCmd);
         } catch (IOException e) {
-            e.printStackTrace();
+            err("sendSubscribe() error: " + e, e);
         }
     }
 
-    private void addMessageHandlerIfNeeded() {
-        if( m_messageHandler == null ) {
-            m_messageHandler = new MessageHandler.Whole<String>() {
-                @Override public void onMessage(String message) {
-//log("Received message: " + message);
-                    Object obj = parseJson(message);
-                    OkCoinWs.this.onMessage(obj);
-                }
-            };
-            m_session.addMessageHandler(m_messageHandler);
-        }
-    }
+//    private void addMessageHandlerIfNeeded() {
+//        if( m_messageHandler == null ) {
+//            m_messageHandler = new MessageHandler.Whole<String>() {
+//                @Override public void onMessage(String message) {
+////log("Received message: " + message);
+//                    Object obj = parseJson(message);
+//                    OkCoinWs.this.onMessage(obj);
+//                }
+//            };
+//            m_session.addMessageHandler(m_messageHandler);
+//        }
+//    }
 
     private void onMessage(Object json) {
-//log("Received json message (class="+json.getClass()+"): " + json);
+log("Received json message (class="+json.getClass()+"): " + json);
         // [{ "channel":"ok_btccny_trades","data":[["2228.01","0.2","09:26:02","ask"]]}]
         if (json instanceof JSONArray) {
             JSONArray array = (JSONArray) json;
@@ -537,10 +470,14 @@ log("   acctListener.onMessage() json=" + json);
 //                                log("  data: " + data);
                         channelListener.onMessage(data);
                     } else {
-                        log("no listener for channel '" + channel + "'; keys:" + m_channelListeners.keySet());
+                        log("WARNING: no listener for channel '" + channel + "'; keys:" + m_channelListeners.keySet());
                     }
+                } else {
+                    log("WARNING: got unexpected object in JSONArray. class=" + channelObj.getClass().toGenericString() + "; channelObj=" + channelObj);
                 }
             }
+        } else {
+            log("WARNING: got unexpected message. class=" + json.getClass().toGenericString() + "; json=" + json);
         }
     }
 
@@ -563,8 +500,6 @@ log("   acctListener.onMessage() json=" + json);
 //            // tyrus 1.8.3
 //            //  If you do not mind using Tyrus specific API, the most straightforward way is to use:
 //            ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
-
-
             ClientManager client = ClientManager.createClient();
 
 //            // SSL configuration
@@ -585,91 +520,107 @@ log("   acctListener.onMessage() json=" + json);
             client.setAsyncSendTimeout(30000);
             client.setDefaultMaxSessionIdleTimeout(DEFAULT_MAX_SESSION_IDLE_TIMEOUT);
 //client.getProperties().put(ClientProperties.HANDSHAKE_TIMEOUT, 60000); //  must be int and represents handshake timeout in milliseconds. Default value is 30000 (30 seconds).
-            log("connect to server...");
+
+            ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
+                @Override public boolean onDisconnect(CloseReason closeReason) {
+                    log("ReconnectHandler.onDisconnect() reconnectCount=" + m_reconnectCounter + "; closeReason=" + closeReason);
+                    m_pingThread = null; // set flag to finish ping thread
+                    logInfo();
+                    m_reconnectCounter++;
+                    if (!m_stopped) {
+                        log("### Reconnecting...");
+                        return true;
+                    } else {
+                        log("### NO MORE RECONNECTS !!!!!");
+                        return false;
+                    }
+                }
+
+                @Override public boolean onConnectFailure(Exception exception) {
+                    log("ReconnectHandler.onConnectFailure() reconnectCount=" + m_reconnectCounter + "; exception=" + exception);
+                    m_pingThread = null; // set flag to finish ping thread
+                    logInfo();
+                    m_reconnectCounter++;
+                    if (!m_stopped) {
+                        log("### Reconnecting...");
+
+                        int timeout = m_reconnectCounter * 2000;
+                        log("### waiting to reconnect " + timeout + "ms");
+                        try {
+                            Thread.sleep(timeout);
+                        } catch (InterruptedException e) {
+                            err("### waiting to reconnect error" + e, e);
+                        }
+
+                        log("### Reconnecting after timeout " + timeout + "ms ...");
+                        return true;
+                    } else {
+                        log("### NO MORE RECONNECTS !!!!!");
+                        return false;
+                    }
+                }
+
+                @Override public long getDelay() { return m_reconnectCounter; }
+            };
+
+            client.getProperties().put(ClientProperties.RECONNECT_HANDLER, reconnectHandler);
+
+
+            log("connect to server... thread=" + Thread.currentThread());
             client.connectToServer(new Endpoint() {
                 @Override public void onOpen(final Session session, EndpointConfig config) {
-                    log("onOpen session=" + session + "; EndpointConfig=" + config);
+                    log("Endpoint.onOpen() session=" + session + "; EndpointConfig=" + config);
                     m_session = session;
+                    m_reconnectCounter = 0;
+
+                    m_messageHandler = new MessageHandler.Whole<String>() {
+                        @Override public void onMessage(String message) {
+//log("Received message: " + message);
+                            Object obj = parseJson(message);
+                            OkCoinWs.this.onMessage(obj);
+                        }
+                    };
+                    m_session.addMessageHandler(m_messageHandler);
+
                     long maxIdleTimeout = m_session.getMaxIdleTimeout();
                     log(" maxIdleTimeout=" + maxIdleTimeout);
                     callback.run();
                     logInfo();
+                    startPingThread();
                 }
 
                 @Override public void onClose(Session session, CloseReason closeReason) {
-                    log("onClose session=" + session + "; closeReason=" + closeReason);
-                    closeAll();
-                    if (m_stopped) {
-                        log("session stopped - no reconnect");
-                    } else {
-                        new ReconnectThread(callback).start();
-                    }
+                    m_pingThread = null; // set flag to finish ping thread
+                    super.onClose(session, closeReason);
+
+                    log("Endpoint.onClose() closeReason=" + closeReason + "; session.isOpen="+session.isOpen()+"; session=" + session);
+//                    closeAll();
+//                    if (m_stopped) {
+//                        log("session stopped - no reconnect");
+//                    } else {
+//                        new ReconnectThread(callback).start();
+//                    }
                     logInfo();
                 }
 
                 @Override public void onError(Session session, Throwable thr) {
-                    log("onError session=" + session + "; Throwable=" + thr);
-                    thr.printStackTrace();
-                    closeAll();
+                    m_pingThread = null; // set flag to finish ping thread
+                    super.onError(session, thr);
+                    err("Endpoint.onError() session.isOpen==" + session.isOpen() + "; Throwable=" + thr + "; session=" + session, thr);
+//                    closeAll();
                     logInfo();
                 }
             }, cec, new URI(URL));
+
             log("session isOpen=" + m_session.isOpen() + "; session=" + m_session);
         } catch (Exception e) {
             err("connectToServer error: " + e, e);
             if (m_stopped) {
                 log("session stopped - no reconnect");
             } else {
-                new ReconnectThread(callback).start();
+//                new ReconnectThread(callback).start();
             }
         }
-
-        ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {};
-
-
-//        If you need semi-persistent client connection, you can always implement some reconnect logic by yourself, but Tyrus Client offers useful feature which should be much easier to use. See short sample code:
-//
-//        ClientManager client = ClientManager.createClient();
-//        ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
-//
-//            private int counter = 0;
-//
-//            @Override
-//            public boolean onDisconnect(CloseReason closeReason) {
-//                counter++;
-//                if (counter <= 3) {
-//                    System.out.println("### Reconnecting... (reconnect count: " + counter + ")");
-//                    return true;
-//                } else {
-//                    return false;
-//                }
-//            }
-//
-//            @Override
-//            public boolean onConnectFailure(Exception exception) {
-//                counter++;
-//                if (counter <= 3) {
-//                    System.out.println("### Reconnecting... (reconnect count: " + counter + ") " + exception.getMessage());
-//
-//                    // Thread.sleep(...) or something other "sleep-like" expression can be put here - you might want
-//                    // to do it here to avoid potential DDoS when you don't limit number of reconnects.
-//                    return true;
-//                } else {
-//                    return false;
-//                }
-//            }
-//
-//            @Override
-//            public long getDelay() {
-//                return 1;
-//            }
-//        };
-//
-//        client.getProperties().put(ClientProperties.RECONNECT_HANDLER, reconnectHandler);
-//
-//        client.connectToServer(...)
-//        ReconnectHandler contains three methods, onDisconnect, onConnectFailure and getDelay. First will be executed whenever @OnClose annotated method (or Endpoint.onClose(..)) is executed on client side - this should happen when established connection is lost for any reason. You can find the reason in methods parameter. Other one, called onConnectFailure is invoked when client fails to connect to remote endpoint, for example due to temporary network issue or current high server load. Method getDelay is called after any of previous methods returns true and the returned value will be used to determine delay before next connection attempt. Default value is 5 seconds.
-
     }
 
     protected void logInfo() {
@@ -751,6 +702,77 @@ log("   acctListener.onMessage() json=" + json);
         }
         return 0;
     }
+
+    // [{"channel":"ok_btccny_ticker",
+//   "data":{"buy":"2606.01",
+//           "high":"2977.9",
+//           "last":"2607.01",
+//           "low":"2385",
+//           "sell":"2607",
+//           "timestamp":"1415921659329",
+//           "vol":"607,881.07"}}]
+    // {"high":"1976.29","vol":"65,980.35","last":"1957.91","low":"1917.19","buy":"1957.85","sell":"1957.91","timestamp":"1419804927532"}
+    protected void onTopTicker(Object json) {
+        //log("   topDataListener.onMessage() json=" + json + ";  class=" + json.getClass());
+        if (json instanceof JSONObject) {
+            JSONObject jsonObject = (JSONObject) json;
+            Object buyObj = jsonObject.get("buy");
+            Object sellObj = jsonObject.get("sell");
+            String timestampStr = (String) jsonObject.get("timestamp");
+            double buy = Utils.getDouble(buyObj);
+            double sell = Utils.getDouble(sellObj);
+            long timestamp = Utils.getLong(timestampStr);
+            if (m_topListener != null) {
+                m_topListener.onTop(timestamp, buy, sell);
+            }
+        }
+    }
+
+    // [{"channel":"ok_sub_spotcny_btc_trades",
+//   ""data":[["2064568242","2715.55","0.719","08:26:05","ask"],
+//           ["2064568243","2715.55","0.027","08:26:05","bid"]
+    protected void onTrades(Object json) {
+        //log("   tradesDataListener.onMessage() json=" + json);
+        if (json instanceof JSONArray) {
+            JSONArray array = (JSONArray) json;
+            int length = array.size();
+//log("    trades array length = " + length);
+            long lastMillis = 0;
+            for(int i = 0; i < length; i++) {
+                Object tradeObj = array.get(i);
+                // ["2064568251","2715.95","0.117","08:26:05","ask"]
+                // [tid, price, amount, time, type]
+//log("     tradeObj["+i+"]: " + tradeObj + ";  class="+tradeObj.getClass());
+                if (tradeObj instanceof JSONArray) {
+                    JSONArray tradeItem = (JSONArray) tradeObj;
+//log("     tradeItem[" + i + "]: " + tradeItem);
+                    String tidStr = (String) tradeItem.get(0);
+                    String priceStr = (String) tradeItem.get(1);
+                    String size = (String) tradeItem.get(2);
+                    String time = (String) tradeItem.get(3);
+                    String side = (String) tradeItem.get(4);
+                    long millis = parseTimeToDate(time);
+                    if (millis < lastMillis) {
+                        log("got not increasing time: millis=" + millis + ", lastMillis=" + lastMillis + "; diff=" + (millis - lastMillis));
+                    }
+//log("     price=" + priceStr + "; size=" + size + "; time=" + time + "; side=" + side + "; millis=" + millis);
+                    if (millis != 0) {
+                        long tid = Utils.getLong(tidStr);
+                        double amount = Utils.getDouble(size);
+                        double price = Utils.getDouble(priceStr);
+                        TradeType type = TradeType.get(side);
+                        TradeData tdata = new TradeData(amount, price, millis, tid, type);
+//log("      TradeData=" + tdata);
+                        if (m_tradesListener != null) {
+                            m_tradesListener.onTrade(tdata);
+                        }
+                        lastMillis = millis;
+                    }
+                }
+            }
+        }
+    }
+
 
     // ===================================================================================================
     private class ReconnectThread extends Thread {
