@@ -5,8 +5,9 @@ import bthdg.exch.OrderData;
 import bthdg.exch.TradeData;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
+import bthdg.tres.alg.BaseAlgoWatcher;
+import bthdg.tres.alg.FineAlgoWatcher;
 import bthdg.tres.alg.TresAlgo;
-import bthdg.tres.alg.TresAlgoWatcher;
 import bthdg.util.Queue;
 import bthdg.ws.ITradesListener;
 import bthdg.ws.IWs;
@@ -20,7 +21,7 @@ import java.util.List;
 
 public class TresExchData {
     public final Tres m_tres;
-    final IWs m_ws;
+    public final IWs m_ws;
     final LinkedList<TradeDataLight> m_trades = new LinkedList<TradeDataLight>();
     public final PhaseData[] m_phaseDatas;
     final TresExecutor m_executor;
@@ -30,8 +31,8 @@ public class TresExchData {
     long m_startTickMillis = Long.MAX_VALUE;
     public long m_lastTickMillis = 0;
     long m_tickCount;
-    final List<TresAlgoWatcher> m_playAlgos = new ArrayList<TresAlgoWatcher>();
-    private TresAlgoWatcher m_runAlgoWatcher;
+    final List<BaseAlgoWatcher> m_playAlgos = new ArrayList<BaseAlgoWatcher>();
+    private BaseAlgoWatcher m_runAlgoWatcher;
     TresAlgo.TresAlgoListener m_algoListener;
 
     public void setFeeding() { m_executor.m_feeding = true; }
@@ -53,7 +54,8 @@ public class TresExchData {
         if (tres.m_algosArr != null) {
             for (String algoName : tres.m_algosArr) {
                 TresAlgo algo = TresAlgo.get(algoName, this);
-                TresAlgoWatcher algoWatcher = new TresAlgoWatcher(this, algo);
+//                TresAlgoWatcher algoWatcher = new TresAlgoWatcher(this, algo);
+                BaseAlgoWatcher algoWatcher = new FineAlgoWatcher(this, algo);
                 m_playAlgos.add(algoWatcher);
             }
         }
@@ -62,7 +64,7 @@ public class TresExchData {
             throw new RuntimeException("playAlgos not specified");
         }
 
-        TresAlgoWatcher algoWatcher = m_playAlgos.get(0);
+        BaseAlgoWatcher algoWatcher = m_playAlgos.get(0);
         m_runAlgoWatcher = algoWatcher;
 
         if (BaseExecutor.DO_TRADE) {
@@ -98,7 +100,7 @@ public class TresExchData {
         log("start() on " + this);
         m_ws.connect(new Runnable() {
             @Override public void run() {
-                log(" connected on " + this);
+                log(" connected on " + TresExchData.this);
 
                 try {
                     m_ws.subscribeTrades(Tres.PAIR, new ITradesListener() {
@@ -149,7 +151,7 @@ public class TresExchData {
         m_lastPrice = tdata.m_price;
         long timestamp = tdata.m_timestamp;
 
-        for (TresAlgoWatcher algoWatcher : m_playAlgos) {
+        for (BaseAlgoWatcher algoWatcher : m_playAlgos) {
             algoWatcher.m_algo.preUpdate(tdata);
         }
 
@@ -157,7 +159,7 @@ public class TresExchData {
             phaseData.update(tdata);
         }
 
-        for (TresAlgoWatcher algoWatcher : m_playAlgos) {
+        for (BaseAlgoWatcher algoWatcher : m_playAlgos) {
             algoWatcher.m_algo.postUpdate(tdata);
         }
 
@@ -195,16 +197,8 @@ public class TresExchData {
 //        x
     }
 
-    public void getState(StringBuilder sb) {
-        sb.append("[").append(m_ws.exchange()).append("]: last=").append(m_lastPrice);
-        for (PhaseData phaseData : m_phaseDatas) {
-            phaseData.getState(sb);
-        }
-    }
-
     public void getState0(StringBuilder sb) {
         sb.append("[").append(m_ws.exchange()).append("]: last=").append(m_lastPrice);
-        m_phaseDatas[0].getState(sb);
     }
 
     public double getDirectionAdjusted() { // [-1 ... 1]
@@ -224,7 +218,7 @@ public class TresExchData {
 
         AlgoComboBox combo = new AlgoComboBox(m_playAlgos);
         panel.add(combo);
-        for (TresAlgoWatcher algoWatcher : m_playAlgos) {
+        for (BaseAlgoWatcher algoWatcher : m_playAlgos) {
             panel.add(Box.createHorizontalStrut(2));
             panel.add(algoWatcher.getController(canvas));
         }
@@ -247,10 +241,10 @@ public class TresExchData {
         m_ws.reconnect();
     }
 
-    private static String[] getComboItems(List<TresAlgoWatcher> playAlgos) {
+    private static String[] getComboItems(List<BaseAlgoWatcher> playAlgos) {
         String[] comboItems = new String[playAlgos.size()];
         int index= 0;
-        for (TresAlgoWatcher algoWatcher : playAlgos) {
+        for (BaseAlgoWatcher algoWatcher : playAlgos) {
             String name = algoWatcher.m_algo.m_name;
             comboItems[index++] = name;
         }
@@ -258,7 +252,7 @@ public class TresExchData {
     }
 
     private void selectAlgo(String algoName) {
-        for (TresAlgoWatcher algoWatcher : m_playAlgos) {
+        for (BaseAlgoWatcher algoWatcher : m_playAlgos) {
             String name = algoWatcher.m_algo.m_name;
             if (name.equals(algoName)) {
                 if (BaseExecutor.DO_TRADE) {
@@ -282,7 +276,7 @@ public class TresExchData {
         public final double m_buy;
         public final double m_sell;
         public final BaseExecutor.TopSource m_topSource;
-        final double m_gainAvg;
+        public final double m_gainAvg;
 
         public OrderPoint(OrderData order, long tickAge, double buy, double sell, BaseExecutor.TopSource topSource, double gainAvg) {
             m_order = order;
@@ -297,7 +291,7 @@ public class TresExchData {
 
     //=============================================================================================
     private class AlgoComboBox extends JComboBox<String> {
-        public AlgoComboBox(List<TresAlgoWatcher> playAlgos) {
+        public AlgoComboBox(List<BaseAlgoWatcher> playAlgos) {
             super(getComboItems(playAlgos));
             String runAlgoName = m_runAlgoWatcher.m_algo.m_name;
             setSelectedItem(runAlgoName);

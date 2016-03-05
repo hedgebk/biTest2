@@ -5,7 +5,7 @@ import bthdg.Log;
 import bthdg.calc.OHLCTick;
 import bthdg.exch.*;
 import bthdg.osc.BaseExecutor;
-import bthdg.tres.alg.TresAlgoWatcher;
+import bthdg.tres.alg.BaseAlgoWatcher;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
 
@@ -24,21 +24,11 @@ public class TresCanvas extends JComponent {
     public static final int PIX_PER_BAR = 12;
     public static final int LAST_PRICE_MARKER_WIDTH = 10;
     public static final int PRICE_AXE_MARKER_WIDTH = 10;
-    public static final Color TR_COLOR = new Color(20, 20, 20);
-    public static final Color OSC_1_LINE_COLOR = Colors.setAlpha(Color.RED, 25);
-    public static final Color OSC_2_LINE_COLOR = Colors.setAlpha(Color.BLUE, 25);
-    public static final Color OSC_MID_LINE_COLOR = new Color(30, 30, 30, 128);
     public static final int DIRECTION_ARROW_SIZE = 20;
     public static final Color BID_ASK_COLOR = Colors.setAlpha(Color.darkGray, 90);
-    public static final Color AVG_OSCS_COLOR = Color.pink;
-    public static final Color OSC_PEAKS_COLOR = Colors.setAlpha(Colors.LIGHT_CYAN, 127);
     public static final Color BAR_HIGHLIGHT_COLOR = new Color(32, 32, 32);
     public static final Color COPPOCK_AVG_COLOR = Color.CYAN;
-    public static final Color COPPOCK_COLOR = Colors.setAlpha(COPPOCK_AVG_COLOR, 25);
     public static final Color COPPOCK_AVG_PEAKS_COLOR = Color.WHITE;
-    public static final Color COPPOCK_PEAKS_COLOR = Colors.setAlpha(COPPOCK_AVG_PEAKS_COLOR, 60);
-    public static final Color CCI_COLOR = Colors.setAlpha(Colors.LIGHT_ORANGE, 25);
-    public static final Color CCI_AVG_COLOR = new Color(230, 100, 43);
     public static final double[] STEPS = new double[]{0.1, 0.2, 0.5};
 
     protected static boolean m_paintOrders = true;
@@ -202,7 +192,6 @@ public class TresCanvas extends JComponent {
 
             paintAlgos(g, exchData, yPriceAxe);
 
-//            paintMaTicks(g, phaseData.m_maCalculator, yPriceAxe);
             paintOrders(g, exchData, yPriceAxe, ordersClone);
 
             paintBuyPrice(g, width, buyPrice, yPriceAxe);
@@ -241,7 +230,7 @@ public class TresCanvas extends JComponent {
     private int paintYAxes(Graphics g, int height, ChartAxe yPriceAxe, ChartAxe yValueAxe, TresExchData exchData) {
         int yAxesWidth = paintYPriceAxe(g, yPriceAxe);
         int width = getWidth();
-        for (TresAlgoWatcher algoWatcher : exchData.m_playAlgos) {
+        for (BaseAlgoWatcher algoWatcher : exchData.m_playAlgos) {
             int axeWidth = algoWatcher.paintYAxe(g, m_xTimeAxe, width - yAxesWidth, yPriceAxe, yValueAxe);
             yAxesWidth += axeWidth;
         }
@@ -256,7 +245,7 @@ public class TresCanvas extends JComponent {
     }
 
     private void paintAlgos(Graphics g, TresExchData exchData, ChartAxe yPriceAxe) {
-        for (TresAlgoWatcher algoWatcher : exchData.m_playAlgos) {
+        for (BaseAlgoWatcher algoWatcher : exchData.m_playAlgos) {
             algoWatcher.paint(g, m_xTimeAxe, yPriceAxe, m_point);
         }
     }
@@ -503,25 +492,6 @@ public class TresCanvas extends JComponent {
         return m_paintTades;
     }
 
-//    private List<ChartPoint> cloneChartPoints(LinkedList<ChartPoint> points,
-//                                              Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-//        double minTime = m_xTimeAxe.m_min;
-//        double maxTime = m_xTimeAxe.m_max;
-//        List<ChartPoint> ret = new ArrayList<ChartPoint>();
-//        synchronized (points) {
-//            for (Iterator<ChartPoint> it = points.descendingIterator(); it.hasNext(); ) {
-//                ChartPoint chartPoint = it.next();
-//                long timestamp = chartPoint.m_millis;
-//                if (timestamp < minTime) { break; }
-//                if (timestamp > maxTime) { continue; }
-//                ret.add(chartPoint);
-//                double val = chartPoint.m_value;
-//                minMaxCalculator.calculate(val);
-//            }
-//        }
-//        return ret;
-//    }
-
     private void paintTops(Graphics g, List<BaseExecutor.TopDataPoint> topsClone, ChartAxe yPriceAxe) {
         for (BaseExecutor.TopDataPoint paintTop : topsClone) {
             long timestamp = paintTop.m_timestamp;
@@ -643,7 +613,7 @@ public class TresCanvas extends JComponent {
         g.setColor(Color.YELLOW);
         int height = getHeight();
 
-        int y = (int) (height - fontHeight * 7.5);
+        int y = (int) (height - fontHeight * 7.6);
         String[] strings = getState(exchData);
         for (String string : strings) {
             g.drawString(string, 2, y);
@@ -653,7 +623,7 @@ public class TresCanvas extends JComponent {
         OrderData order = executor.m_order;
         if (order != null) {
             g.setColor(order.m_side.isBuy() ? Color.BLUE : Color.RED);
-            g.drawString(order.toString(), 2, y - fontHeight);
+            g.drawString(order.toString(), 2, (int) (height - fontHeight * 8.8));
         }
     }
 
@@ -801,134 +771,6 @@ public class TresCanvas extends JComponent {
         g2.setStroke(new BasicStroke(1));
     }
 
-//    private void paintMaTicks(Graphics g, TresMaCalculator maCalculator, ChartAxe yPriceAxe) {
-//        LinkedList<TresMaCalculator.MaTick> maTicks = new LinkedList<TresMaCalculator.MaTick>();
-//        LinkedList<TresMaCalculator.MaTick> ticks = maCalculator.m_maTicks;
-//        synchronized (ticks) { // avoid ConcurrentModificationException - use local copy
-//            maTicks.addAll(ticks);
-//        }
-//        int firstX = Integer.MAX_VALUE;
-//        int firstY = Integer.MAX_VALUE;
-//        int lastX = Integer.MAX_VALUE;
-//        int lastY = Integer.MAX_VALUE;
-//        Color nextColor = null;
-//        for (Iterator<TresMaCalculator.MaTick> iterator = maTicks.descendingIterator(); iterator.hasNext(); ) {
-//            TresMaCalculator.MaTick maTick = iterator.next();
-//            double ma = maTick.m_ma;
-//            long barEnd = maTick.m_barEnd;
-//            int x = m_xTimeAxe.getPoint(barEnd);
-//            int y = yPriceAxe.getPointReverse(ma);
-//            if (firstX == Integer.MAX_VALUE) {
-//                firstX = x;
-//                firstY = y;
-//            }
-//            Color color = maTick.m_maCrossed ? Color.ORANGE : Color.WHITE;
-//            g.setColor(nextColor == null ? color : nextColor);
-//            if (lastX == Integer.MAX_VALUE) {
-//                g.fillRect(x - 1, y - 1, 3, 3);
-//            } else {
-//                g.drawLine(x, y, lastX, lastY);
-//            }
-//            nextColor = color;
-//            lastX = x;
-//            lastY = y;
-//            if (x < 0) {
-//                break;
-//            }
-//        }
-//
-//        if ((firstX != Integer.MAX_VALUE) && (firstY != Integer.MAX_VALUE)) {
-//            double directionAdjusted = maCalculator.m_phaseData.m_exchData.getDirectionAdjusted();
-//            double degrees = directionAdjusted * 90;
-//            double radians = degrees * Math.PI / 180;
-//            double dx = DIRECTION_ARROW_SIZE * Math.cos(radians);
-//            double dy = -DIRECTION_ARROW_SIZE * Math.sin(radians);
-//            Color color = (directionAdjusted > 0) ? Color.BLUE : (directionAdjusted < 0) ? Color.RED : Color.GRAY;
-//            g.setColor(color);
-//            Graphics2D g2 = (Graphics2D) g;
-//            g2.setStroke(new BasicStroke(3));
-//            g.drawLine(firstX, firstY, (int) (firstX + dx), (int) (firstY + dy));
-//            g2.setStroke(new BasicStroke(1));
-//        }
-//
-//        int canvasWidth = getWidth();
-//        int canvasHeight = getHeight();
-//        Boolean lastOscUp = null;
-//        Double lastPrice = null;
-//        double totalPriceRatio = 1;
-//        int tradeNum = 0;
-//        int fontHeight = g.getFont().getSize();
-//
-//        LinkedList<TresMaCalculator.MaCrossData> maCd = maCalculator.m_maCrossDatas;
-//        LinkedList<TresMaCalculator.MaCrossData> maCrossDatas = new LinkedList<TresMaCalculator.MaCrossData>();
-//        synchronized (maCd) { // avoid ConcurrentModificationException - use local copy
-//            maCrossDatas.addAll(maCd);
-//        }
-//        for (TresMaCalculator.MaCrossData maCrossData : maCrossDatas) {
-//            Long timestamp = maCrossData.m_timestamp;
-//            int x = m_xTimeAxe.getPoint(timestamp);
-//            boolean oscUp = maCrossData.m_oscUp;
-//            double price = maCrossData.m_price;
-//            int y = yPriceAxe.getPointReverse(price);
-//            if (lastOscUp != null) {
-//                if (lastOscUp != oscUp) {
-//                    if (m_paintSym && (x > 0)) {
-//                        int dy = y - lastY;
-//                        Color color = (lastOscUp && (dy < 0)) || (!lastOscUp && (dy > 0)) ? Color.GREEN : Color.RED;
-//                        g.setColor(color);
-//                        g.drawLine(lastX, lastY, x, y);
-//                    }
-//                    if (lastPrice != null) {
-//                        double priceRatio = price / lastPrice;
-//                        if (!lastOscUp) {
-//                            priceRatio = 1 / priceRatio;
-//                        }
-//                        totalPriceRatio *= priceRatio;
-//                        if (m_paintSym && ((x > 0) && (x < canvasWidth))) {
-//                            g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight);
-//                            Color color = (totalPriceRatio > 1) ? Color.GREEN : Color.RED;
-//                            g.setColor(color);
-//                            g.drawString(String.format("t: %1$,.5f", totalPriceRatio), x, y + fontHeight * 2);
-//
-//                            g.setColor(TR_COLOR);
-//                            g.drawLine(x, 0, x, canvasHeight);
-//                        }
-//                        tradeNum++;
-//                    }
-//                    lastOscUp = oscUp;
-//                    lastY = y;
-//                    lastX = x;
-//                    lastPrice = price;
-//                }
-//            } else { // first
-//                lastOscUp = oscUp;
-//                lastY = y;
-//                lastX = x;
-//                lastPrice = price;
-//            }
-//            if (m_paintSym && (x > 0)) {
-//                g.setColor(oscUp ? Color.GREEN : Color.RED);
-//                g.drawLine(x, y, x + 5, y + (oscUp ? -5 : 5));
-//            }
-//        }
-//
-//        g.setColor(Color.ORANGE);
-//        TresExchData exchData = maCalculator.m_phaseData.m_exchData;
-//        long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
-//        String runningStr = Utils.millisToDHMSStr(runningTimeMillis);
-//        g.drawString("running: " + runningStr, 5, fontHeight * 5 + 5);
-//
-//        g.drawString(String.format("ratio: %.5f", totalPriceRatio), 5, fontHeight * 6 + 5);
-//
-//        double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
-//        double aDay = Math.pow(totalPriceRatio, 1 / runningTimeDays);
-//        g.drawString(String.format("projected aDay: %.5f", aDay), 5, fontHeight * 7 + 5);
-//
-//        g.drawString(String.format("trade num: %d", tradeNum), 5, fontHeight * 8 + 5);
-//        long tradeFreq = (tradeNum == 0) ? 0 : (runningTimeMillis / tradeNum);
-//        g.drawString(String.format("trade every " + Utils.millisToDHMSStr(tradeFreq)), 5, fontHeight * 9 + 5);
-//    }
-
     private void paintOHLCTicks(Graphics g, List<OHLCTick> ohlcTicksClone, ChartAxe yPriceAxe) {
         g.setColor(Colors.BROWN);
         for (OHLCTick ohlcTick : ohlcTicksClone) {
@@ -959,87 +801,4 @@ public class TresCanvas extends JComponent {
             g.fillRect(endX - halfWidth, closeY - weight / 2, halfWidth, weight);
         }
     }
-
-//    private void paintOscTicks(Graphics g, LinkedList<OscTick> oscBars) {
-//        int canvasWidth = getWidth();
-//        int lastX = Integer.MAX_VALUE;
-//        int[] lastYs = new int[3];
-//        // todo: clone first
-//        for (Iterator<OscTick> iterator = oscBars.descendingIterator(); iterator.hasNext(); ) {
-//            OscTick tick = iterator.next();
-//            int endX = paintOsc(g, tick, lastX, lastYs, canvasWidth);
-//            if (endX < 0) { break; }
-//            lastX = endX;
-//        }
-//    }
-
-//    private void paintCoppockTicks(Graphics g, List<ChartPoint> ticksClone, ChartAxe yAxe, Color color) {
-//        g.setColor(color);
-//        int lastX = Integer.MAX_VALUE;
-//        int lastY = Integer.MAX_VALUE;
-//        for (ChartPoint tick : ticksClone) {
-//            long endTime = tick.m_millis;
-//            int x = m_xTimeAxe.getPoint(endTime);
-//            double val = tick.m_value;
-//            int y = yAxe.getPointReverse(val);
-//            if (lastX != Integer.MAX_VALUE) {
-//                g.drawLine(lastX, lastY, x, y);
-//            } else {
-//                g.drawRect(x - 1, y - 1, 2, 2);
-//            }
-//            lastX = x;
-//            lastY = y;
-//        }
-//    }
-
-//    private void paintCoppockPeaks(Graphics g, List<ChartPoint> peaksClone, ChartAxe yAxe, Color color, boolean big) {
-//        int size = big ? 6 : 3;
-//        g.setColor(color);
-//        for (ChartPoint peakClone : peaksClone) {
-//            long endTime = peakClone.m_millis;
-//            int x = m_xTimeAxe.getPoint(endTime);
-//            double coppock = peakClone.m_value;
-//            int y = yAxe.getPointReverse(coppock);
-//            g.drawLine(x - size, y - size, x + size, y + size);
-//            g.drawLine(x + size, y - size, x - size, y + size);
-//        }
-//    }
-
-//    private void paintLine(Graphics g, double level) {
-//        int y = m_yAxe.getPointReverse(level);
-//        g.drawLine(0, y, getWidth(), y);
-//    }
-
-//    private int paintOsc(Graphics g, OscTick tick, int lastX, int[] lastYs, int canvasWidth) {
-//        long startTime = tick.m_startTime;
-//        long endTime = startTime + m_tres.m_barSizeMillis;
-//        int x = m_xTimeAxe.getPoint(endTime);
-//
-//        double val1 = tick.m_val1;
-//        double val2 = tick.m_val2;
-//        double valMid = tick.getMid();
-//        int y1 = m_yAxe.getPointReverse(val1);
-//        int y2 = m_yAxe.getPointReverse(val2);
-//        int yMid = m_yAxe.getPointReverse(valMid);
-//
-//        if (lastX < canvasWidth) {
-//            if (lastX == Integer.MAX_VALUE) {
-//                g.setColor(Color.RED);
-//                g.drawRect(x - 2, y1 - 2, 5, 5);
-//                g.setColor(Color.BLUE);
-//                g.drawRect(x - 2, y2 - 2, 5, 5);
-//            } else {
-//                g.setColor(OSC_MID_LINE_COLOR);
-//                g.drawLine(lastX, lastYs[2], x, yMid);
-//                g.setColor(OSC_1_LINE_COLOR);
-//                g.drawLine(lastX, lastYs[0], x, y1);
-//                g.setColor(OSC_2_LINE_COLOR);
-//                g.drawLine(lastX, lastYs[1], x, y2);
-//            }
-//        }
-//        lastYs[0] = y1;
-//        lastYs[1] = y2;
-//        lastYs[2] = yMid;
-//        return x;
-//    }
 }
