@@ -11,6 +11,7 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class EmasAlgo extends TresAlgo {
+    public static double SUM_PEAK_TOLERANCE = 0.3;
     public static double TEMA_FAST_SIZE = 1.8;
     public static double TEMA_START = 10;
     public static double TEMA_STEP = 5;
@@ -24,7 +25,7 @@ public class EmasAlgo extends TresAlgo {
     protected TripleEmaIndicator m_tema2;
     protected TripleEmaIndicator m_tema3;
     protected TripleEmaIndicator m_tema4;
-    private final TresIndicator m_sumIndicator;
+    protected final TresIndicator m_sumIndicator;
     private final SmoochedIndicator m_smoochedSpreadIndicator;
     private final TresIndicator m_boostedIndicator;
     private boolean m_changed;
@@ -35,6 +36,8 @@ public class EmasAlgo extends TresAlgo {
     private Double m_smoochedSpread;
     private final Booster m_booster;
     protected double m_boosted;
+
+    protected boolean countSumPeaks() { return false; }
 
     public EmasAlgo(TresExchData tresExchData) {
         this("EMAS", tresExchData);
@@ -104,10 +107,10 @@ public class EmasAlgo extends TresAlgo {
         };
         m_indicators.add(m_smoochedSpreadIndicator);
 
-        m_sumIndicator = new TresIndicator( "s", 0.05, this ) {
+        m_sumIndicator = new TresIndicator( "s", SUM_PEAK_TOLERANCE, this ) {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
             @Override public Color getColor() { return Colors.BEGIE; }
-            @Override protected boolean countHalfPeaks() { return false; }
+            @Override protected boolean countHalfPeaks() { return countSumPeaks(); }
             @Override protected boolean useValueAxe() { return true; }
             @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
         };
@@ -254,6 +257,21 @@ public class EmasAlgo extends TresAlgo {
         }
     }
 
+
+    //===========================================================================
+    public static class WideFast extends Wide {
+        public WideFast(TresExchData tresExchData) {
+            super("EMAS~f", tresExchData);
+        }
+
+        @Override protected boolean countSumPeaks() { return true; }
+        @Override public String getRunAlgoParams() { return "EMAS~f"; }
+        @Override public double getDirectionAdjusted() {
+            return getDirectionAdjustedByPeakWatchers(m_sumIndicator);
+        }
+    }
+
+
     //===========================================================================
     public static class Boosted extends EmasAlgo {
         @Override public String getRunAlgoParams() { return "EMAS*"; }
@@ -263,6 +281,7 @@ public class EmasAlgo extends TresAlgo {
             super("EMAS*", tresExchData);
         }
     }
+
 
     //===========================================================================
     public static class WideBoosted extends Wide {
