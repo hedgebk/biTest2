@@ -24,10 +24,7 @@ public class EmasAlgo extends TresAlgo {
     protected TripleEmaIndicator m_tema2;
     protected TripleEmaIndicator m_tema3;
     protected TripleEmaIndicator m_tema4;
-//    protected final TresIndicator m_oneIndicator;
-//    private final TresIndicator m_twoIndicator;
     private final TresIndicator m_sumIndicator;
-//    private final TresIndicator m_spreadIndicator;
     private final SmoochedIndicator m_smoochedSpreadIndicator;
     private final TresIndicator m_boostedIndicator;
     private boolean m_changed;
@@ -94,18 +91,6 @@ public class EmasAlgo extends TresAlgo {
         };
         m_indicators.add(m_tema4);
 
-//        m_spreadIndicator = new TresIndicator( "[]", 0, this ) {
-//            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-//            @Override public Color getColor() { return Colors.DARK_GREEN; }
-//            @Override protected boolean countPeaks() { return false; }
-//            @Override public void addBar(ChartPoint chartPoint) {
-//                super.addBar(chartPoint);
-//                ChartPoint lastPoint = getLastPoint();
-//                m_smoochedSpreadIndicator.addBar(lastPoint);
-//            }
-//        };
-//        m_indicators.add(m_spreadIndicator);
-
         m_smoochedSpreadIndicator = new SmoochedIndicator(this, "[]s", (long) (BOUND_SMOOCH_RATE * barSizeMillis), 0) {
             @Override protected boolean countPeaks() { return false; }
             @Override public Color getColor() { return Color.CYAN; }
@@ -118,22 +103,6 @@ public class EmasAlgo extends TresAlgo {
             }
         };
         m_indicators.add(m_smoochedSpreadIndicator);
-
-//        m_oneIndicator = new TresIndicator( "1", 0, this ) {
-//            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-//            @Override public Color getColor() { return Colors.SKY; }
-//            @Override protected boolean countPeaks() { return false; }
-//            @Override protected boolean useValueAxe() { return true; }
-//        };
-//        m_indicators.add(m_oneIndicator);
-//
-//        m_twoIndicator = new TresIndicator( "2", 0, this ) {
-//            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-//            @Override public Color getColor() { return Colors.LIGHT_BLUE; }
-//            @Override protected boolean countPeaks() { return false; }
-//            @Override protected boolean useValueAxe() { return true; }
-//        };
-//        m_indicators.add(m_twoIndicator);
 
         m_sumIndicator = new TresIndicator( "s", 0.05, this ) {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
@@ -178,8 +147,6 @@ public class EmasAlgo extends TresAlgo {
             double one = valueToBounds(fast, boundTop, boundBottom);
             if ((m_one == null) || !m_one.equals(one)) {
                 m_one = one;
-//                ChartPoint point = new ChartPoint(fastPoint.m_millis, m_one);
-//                m_oneIndicator.addBar(point);
             }
         }
     }
@@ -199,8 +166,6 @@ public class EmasAlgo extends TresAlgo {
             double two = valueToBounds(tema10, boundTop, boundBottom);
             if ((m_two == null) || !m_two.equals(two)) {
                 m_two = two;
-//                ChartPoint point = new ChartPoint(tripleEma10.m_millis, two);
-//                m_twoIndicator.addBar(point);
             }
 
             boundTop    = Math.max(tema10, boundTop);
@@ -209,7 +174,6 @@ public class EmasAlgo extends TresAlgo {
             if ((m_spread == null) || !m_spread.equals(spread)) {
                 m_spread = spread;
                 ChartPoint point = new ChartPoint(tripleEma10.m_millis, spread);
-//                m_spreadIndicator.addBar(point);
                 m_smoochedSpreadIndicator.addBar(point);
             }
         }
@@ -251,11 +215,7 @@ public class EmasAlgo extends TresAlgo {
     @Override public long lastTickTime() { return m_fastEma.lastTickTime(); }
     @Override public Color getColor() { return Color.LIGHT_GRAY; }
     @Override public String getRunAlgoParams() { return "EMAS"; }
-
-    @Override public double getDirectionAdjusted() {
-        return (m_sum == null) ? 0 : m_sum;
-//        return m_boosted;
-    }
+    @Override public double getDirectionAdjusted() { return (m_sum == null) ? 0 : m_sum; }
     @Override public Direction getDirection() {
         double dir = getDirectionAdjusted();
         return (dir == 0) ? null : Direction.get(dir);
@@ -289,8 +249,6 @@ public class EmasAlgo extends TresAlgo {
                 double one = valueToBounds(fast, boundTop, boundBottom);
                 if ((m_one == null) || !m_one.equals(one)) {
                     m_one = one;
-//                    ChartPoint point = new ChartPoint(fastPoint.m_millis, m_one);
-//                    m_oneIndicator.addBar(point);
                 }
             }
         }
