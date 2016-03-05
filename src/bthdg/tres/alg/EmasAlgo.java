@@ -27,7 +27,7 @@ public class EmasAlgo extends TresAlgo {
 //    protected final TresIndicator m_oneIndicator;
 //    private final TresIndicator m_twoIndicator;
     private final TresIndicator m_sumIndicator;
-    private final TresIndicator m_spreadIndicator;
+//    private final TresIndicator m_spreadIndicator;
     private final SmoochedIndicator m_smoochedSpreadIndicator;
     private final TresIndicator m_boostedIndicator;
     private boolean m_changed;
@@ -94,17 +94,17 @@ public class EmasAlgo extends TresAlgo {
         };
         m_indicators.add(m_tema4);
 
-        m_spreadIndicator = new TresIndicator( "[]", 0, this ) {
-            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-            @Override public Color getColor() { return Colors.DARK_GREEN; }
-            @Override protected boolean countPeaks() { return false; }
-            @Override public void addBar(ChartPoint chartPoint) {
-                super.addBar(chartPoint);
-                ChartPoint lastPoint = getLastPoint();
-                m_smoochedSpreadIndicator.addBar(lastPoint);
-            }
-        };
-        m_indicators.add(m_spreadIndicator);
+//        m_spreadIndicator = new TresIndicator( "[]", 0, this ) {
+//            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+//            @Override public Color getColor() { return Colors.DARK_GREEN; }
+//            @Override protected boolean countPeaks() { return false; }
+//            @Override public void addBar(ChartPoint chartPoint) {
+//                super.addBar(chartPoint);
+//                ChartPoint lastPoint = getLastPoint();
+//                m_smoochedSpreadIndicator.addBar(lastPoint);
+//            }
+//        };
+//        m_indicators.add(m_spreadIndicator);
 
         m_smoochedSpreadIndicator = new SmoochedIndicator(this, "[]s", (long) (BOUND_SMOOCH_RATE * barSizeMillis), 0) {
             @Override protected boolean countPeaks() { return false; }
@@ -209,7 +209,8 @@ public class EmasAlgo extends TresAlgo {
             if ((m_spread == null) || !m_spread.equals(spread)) {
                 m_spread = spread;
                 ChartPoint point = new ChartPoint(tripleEma10.m_millis, spread);
-                m_spreadIndicator.addBar(point);
+//                m_spreadIndicator.addBar(point);
+                m_smoochedSpreadIndicator.addBar(point);
             }
         }
     }
