@@ -42,7 +42,7 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
 
         double lastPrice = m_algo.lastTickPrice();
         long lastTickTime = m_algo.lastTickTime();
-        log("onValueChange: lastTickTime=" + lastTickTime + "; lastPrice=" + lastPrice);
+        log("onValueChange: lastTickTime=" + lastTickTime + "; lastPrice=" + lastPrice + " .....................................");
 
         if ((lastPrice != 0) && (lastTickTime != 0)) {
             m_topsData.put(PAIR, new TopData(lastPrice, lastPrice, lastPrice));
@@ -59,7 +59,6 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
                 m_valuateToInit = m_initAcctData.evaluateAll(m_initTopsData, currencyTo, m_exchange);
                 m_valuateFromInit = m_initAcctData.evaluateAll(m_initTopsData, currencyFrom, m_exchange);
                 log("  INIT:  valuate" + currencyTo + "=" + m_valuateToInit + " " + currencyTo + "; valuate" + currencyFrom + "=" + m_valuateFromInit + " " + currencyFrom);
-
 
                 m_accountData = m_initAcctData.copy();
                 log("  start acctData=" + m_initAcctData);
@@ -78,12 +77,10 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
                 if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= MIN_MOVE)) {
                     long timeDiff = lastTickTime - m_lastMoveMillis;
                     if (timeDiff > MOVE_DELAY) {
-                        log("   account in: " + m_accountData);
                         m_accountData.move(currencyFrom, currencyTo, needBuyTo, m_topsData);
-                        log("   account out: " + m_accountData);
 
                         double gain = totalPriceRatio();
-                        log("    gain: " + Utils.format8(gain));
+                        log("    gain: " + Utils.format8(gain) + " .....................................");
 
                         OrderData orderData = new OrderData(PAIR, needOrderSide, lastPrice, absOrderSize);
                         TresExchData.OrderPoint orderPoint = new TresExchData.OrderPoint(orderData, 0, lastPrice, lastPrice, BaseExecutor.TopSource.top_fetch, gain);
@@ -92,10 +89,10 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
                         }
                         m_lastMoveMillis = lastTickTime;
                     } else {
-                        log("   need wait. timeDiff=" + timeDiff);
+                        log("   need wait. timeDiff=" + timeDiff + " .....................................");
                     }
                 } else {
-                    log("   small amount to move: " + Utils.format8(absOrderSize));
+                    log("   small amount to move: " + Utils.format8(absOrderSize) + " .....................................");
                 }
             }
             m_lastPrice = lastPrice;
@@ -121,6 +118,7 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
 
         if (m_doPaint) {
             List<TresExchData.OrderPoint> points = clonePoints(xTimeAxe);
+            log("paint points num=" + points.size());
             paintPoints(g, xTimeAxe, yPriceAxe, points);
         }
     }
@@ -185,5 +183,4 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
             lastY = y;
         }
     }
-
 }

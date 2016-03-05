@@ -191,6 +191,8 @@ public class AccountData {
     }
 
     public void move(Currency currencyFrom, Currency currencyTo, double amountTo, TopsData topsData) {
+        log("   move() currencyFrom=" + currencyFrom + "; currencyTo=" + currencyTo + "; amountTo=" + amountTo);
+        log("    account in: " + this);
         double amountFrom = topsData.convert(currencyTo, currencyFrom, amountTo, m_exchange);
         double availableFrom = available(currencyFrom);
         double newAvailableFrom = availableFrom - amountFrom;
@@ -207,6 +209,7 @@ public class AccountData {
                     + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; availableTo=" + availableTo + "; on " + this);
         }
         setAvailable(currencyTo, newAvailableTo);
+        log("    account out: " + this);
     }
 
     public double getFee(Exchange exchange, Pair pair) {
