@@ -7,7 +7,6 @@ import bthdg.exch.*;
 import bthdg.tres.Tres;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
-import bthdg.ws.ITopListener;
 import bthdg.ws.IWs;
 
 import java.awt.*;
@@ -66,7 +65,6 @@ public abstract class BaseExecutor implements Runnable {
     private double m_lastTopBid;
     private double m_lastTopAsk;
     private Thread m_timer;
-    private boolean m_topSubscribed;
 
     protected static void log(String s) { Log.log(s); }
     protected static void err(String s, Exception e) { Log.err(s, e); }
@@ -184,7 +182,6 @@ public abstract class BaseExecutor implements Runnable {
         initialize();
 
         log("initImpl() continue: subscribeTop()");
-        subscribeTopIfNeeded();
         createTimerIfNeeded();
     }
 
@@ -208,17 +205,6 @@ public abstract class BaseExecutor implements Runnable {
         }
     }
 
-    public void subscribeTopIfNeeded() throws Exception {
-        if (!m_topSubscribed) {
-            m_ws.subscribeTop(m_pair, new ITopListener() {
-                @Override public void onTop(long timestamp, double buy, double sell) {
-                    onTopInt(timestamp, buy, sell, TopSource.top_subscribe);
-                }
-            });
-            m_topSubscribed = true;
-        }
-    }
-
     public void initialize() throws Exception {
         log("initialize() ... ");
         m_topsData = Fetcher.fetchTops(m_exchange, m_pair);
@@ -234,7 +220,7 @@ public abstract class BaseExecutor implements Runnable {
         m_initialized = true;
     }
 
-    protected void onTopInt(long timestamp, double buy, double sell, TopSource topSource) {
+    public void onTopInt(long timestamp, double buy, double sell, TopSource topSource) {
         log("onTop() timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
         if (buy > sell) {
             log("ERROR: ignored invalid top data. buy > sell: timestamp=" + timestamp + "; buy=" + buy + "; sell=" + sell);
@@ -597,15 +583,16 @@ public abstract class BaseExecutor implements Runnable {
                     long tickAge = System.currentTimeMillis() - m_topMillis;
                     m_tickAgeCalc.addValue((double) tickAge);
                     double averageTickAge = m_tickAgeCalc.getAverage();
-                    log("   tickAge=" + tickAge + "; averageTickAge=" + averageTickAge);
+                    boolean tooOldTick = (tickAge > MAX_TICK_AGE_FOR_ORDER);
+                    log("   tickAge=" + tickAge + "; averageTickAge=" + averageTickAge + "; tooOldTick=" + tooOldTick);
 
                     OrderType orderType = OrderType.LIMIT;
                     double orderPrice;
-                    if (m_orderPriceMode.isMarketPrice(this, placeOrderSize)) {
+                    if (m_orderPriceMode.isMarketPrice(this, placeOrderSize, tooOldTick)) {
                         orderType = OrderType.MARKET;
                         orderPrice = needOrderSide.isBuy() ? m_sell : m_buy;
                     } else {
-                        if (tickAge > MAX_TICK_AGE_FOR_ORDER) {
+                        if (tooOldTick) {
                             boolean freshTopLoaded = onTooOldTick(tickAge);
                             if (freshTopLoaded) {
                                 return STATE_NO_CHANGE;
@@ -737,13 +724,13 @@ public abstract class BaseExecutor implements Runnable {
     }
 
     protected boolean placeOrderToExchange(Exchange exchange, OrderData order) throws Exception {
-        boolean succsess = false;
+        boolean success = false;
         if (m_account.allocateOrder(order)) {
             OrderState newState = (order.m_type == OrderType.MARKET) ? OrderState.MARKET_PLACED : OrderState.LIMIT_PLACED;
             OrderData.OrderPlaceStatus ops = placeOrderToExchange(exchange, order, newState);
             if (ops == OrderData.OrderPlaceStatus.OK) {
                 log(" placeOrderToExchange successful: " + exchange + ", " + order + ", account: " + m_account);
-                succsess = true;
+                success = true;
             } else {
                 m_maySyncAccount = true; // order place error - need account recync
                 m_account.releaseOrder(order, exchange);
@@ -752,7 +739,7 @@ public abstract class BaseExecutor implements Runnable {
             log("ERROR: account allocateOrder unsuccessful: " + exchange + ", " + order + ", account: " + m_account);
             m_maySyncAccount = true; // allocate error - need account recync
         }
-        return succsess;
+        return success;
     }
 
     protected OrderData.OrderPlaceStatus placeOrderToExchange(Exchange exchange, OrderData order, OrderState state) throws Exception {
@@ -972,8 +959,7 @@ public abstract class BaseExecutor implements Runnable {
 
     //-------------------------------------------------------------------------------
     public class RecheckDirectionTask extends TaskQueueProcessor.SinglePresenceTask {
-        public RecheckDirectionTask() {
-        }
+        public RecheckDirectionTask() {}
 
         @Override public TaskQueueProcessor.DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
             TaskQueueProcessor.DuplicateAction duplicate = super.isDuplicate(other);
@@ -1035,6 +1021,8 @@ public abstract class BaseExecutor implements Runnable {
         public int level() { return 1; }
     }
 
+
+    //-------------------------------------------------------------------------------
     public class TimeFramePoint {
         public final TimeFrameType m_type;
         public final long m_start;
@@ -1051,6 +1039,7 @@ public abstract class BaseExecutor implements Runnable {
         }
     }
 
+
     //-------------------------------------------------------------------------------
     public enum TopSource {
         top_subscribe {
@@ -1064,6 +1053,7 @@ public abstract class BaseExecutor implements Runnable {
         };
         public Color color() { return null; }
     }
+
 
     //-------------------------------------------------------------------------------
     public class TopDataPoint {

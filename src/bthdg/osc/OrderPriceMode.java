@@ -10,9 +10,11 @@ import java.math.RoundingMode;
 
 //-------------------------------------------------------------------------------
 public enum OrderPriceMode {
-
     MID_OR_MARKET("mid_or_market") {
-        @Override public boolean isMarketPrice(BaseExecutor baseExecutor, double orderSize) {
+        @Override public boolean isMarketPrice(BaseExecutor baseExecutor, double orderSize, boolean tooOldTick) {
+            if (tooOldTick) {
+                return true;
+            }
             double avgFillSize = baseExecutor.getAvgFillSize();
             return (avgFillSize == 0) ? false : (orderSize > avgFillSize);
         }
@@ -21,7 +23,10 @@ public enum OrderPriceMode {
         }
     },
     MID_THEN_MARKET("mid_then_market") {
-        @Override public boolean isMarketPrice(BaseExecutor baseExecutor, double orderSize) {
+        @Override public boolean isMarketPrice(BaseExecutor baseExecutor, double orderSize, boolean tooOldTick) {
+            if (tooOldTick) {
+                return true;
+            }
             int orderPlaceAttemptCounter = baseExecutor.m_orderPlaceAttemptCounter;
             return (orderPlaceAttemptCounter != 0);
         }
@@ -40,7 +45,7 @@ public enum OrderPriceMode {
         }
     },
     MARKET("market") {
-        @Override public boolean isMarketPrice(BaseExecutor baseExecutor, double orderSize) {
+        @Override public boolean isMarketPrice(BaseExecutor baseExecutor, double orderSize, boolean tooOldTick) {
             return true;
         }
     },
@@ -186,15 +191,10 @@ public enum OrderPriceMode {
 
     public String getType() { return m_type; }
 
+    public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) { return 0; }
+    public boolean isMarketPrice(BaseExecutor baseExecutor, double orderSize, boolean tooOldTick) { return false; }
+
     protected static void log(String s) { Log.log(s); }
-
-    public double calcOrderPrice(BaseExecutor baseExecutor, Exchange exchange, double directionAdjusted, OrderSide needOrderSide) {
-        return 0;
-    }
-
-    public boolean isMarketPrice(BaseExecutor baseExecutor, double orderSize) {
-        return false;
-    }
 
     public static OrderPriceMode get(String orderAlgoStr) {
         for (OrderPriceMode orderPriceMode : OrderPriceMode.values()) {
