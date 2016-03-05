@@ -3,13 +3,10 @@ package bthdg.tres.alg;
 import bthdg.ChartAxe;
 import bthdg.Log;
 import bthdg.exch.Direction;
-import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
 import bthdg.util.Colors;
 
-import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ItemEvent;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -20,10 +17,9 @@ public class TresAlgoWatcher extends BaseAlgoWatcher {
     private Direction m_lastDirection;
     private Double m_lastPeakPrice;
     public double m_totalPriceRatio = 1.0;
-    private boolean m_doPaint = false;
-    private List<AlgoWatcherPoint> m_paintPoints = new ArrayList<AlgoWatcherPoint>();
     private long m_lastTickTime;
 
+    @Override public double totalPriceRatio() { return m_totalPriceRatio; }
 
     private static void log(String s) { Log.log(s); }
 
@@ -31,20 +27,19 @@ public class TresAlgoWatcher extends BaseAlgoWatcher {
         super(tresExchData, algo);
     }
 
-
     @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
         super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
 
         if (m_doPaint) {
-            clonePoints(xTimeAxe);
-            paintPoints(g, xTimeAxe, yPriceAxe);
+            List<AlgoWatcherPoint> points = clonePoints(xTimeAxe);
+            paintPoints(g, xTimeAxe, yPriceAxe, points);
         }
     }
 
-    private void clonePoints(ChartAxe xTimeAxe) {
+    private List<AlgoWatcherPoint> clonePoints(ChartAxe xTimeAxe) {
         double minTime = xTimeAxe.m_min;
         double maxTime = xTimeAxe.m_max;
-        m_paintPoints.clear();
+        List<AlgoWatcherPoint> paintPoints = new ArrayList<AlgoWatcherPoint>();
         AlgoWatcherPoint rightPlusPoint = null; // paint one extra point at right side
         synchronized (m_points) {
             for (Iterator<AlgoWatcherPoint> it = m_points.descendingIterator(); it.hasNext(); ) {
@@ -55,21 +50,22 @@ public class TresAlgoWatcher extends BaseAlgoWatcher {
                     continue;
                 }
                 if (rightPlusPoint != null) {
-                    m_paintPoints.add(rightPlusPoint);
+                    paintPoints.add(rightPlusPoint);
                     rightPlusPoint = null;
                 }
-                m_paintPoints.add(point);
+                paintPoints.add(point);
                 if (timestamp < minTime) { break; }
             }
         }
+        return paintPoints;
     }
 
-    private void paintPoints(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe) {
+    private void paintPoints(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, List<AlgoWatcherPoint> paintPoints) {
         int fontHeight = g.getFont().getSize();
         int lastX = Integer.MAX_VALUE;
         int lastY = Integer.MAX_VALUE;
         AlgoWatcherPoint lastPoint = null;
-        for (AlgoWatcherPoint point : m_paintPoints) {
+        for (AlgoWatcherPoint point : paintPoints) {
             long millis = point.m_millis;
             int x = xTimeAxe.getPoint(millis);
             double price = point.m_price;
@@ -139,24 +135,6 @@ public class TresAlgoWatcher extends BaseAlgoWatcher {
 //                m_points.add(data);
 //            }
         }
-    }
-
-    public JComponent getController(final TresCanvas canvas) {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 1, 0));
-        Color color = m_algo.getColor();
-        panel.setBorder(BorderFactory.createMatteBorder(2, 2, 2, 2, color));
-        panel.setBackground(color);
-        JCheckBox checkBox = new JCheckBox(m_algo.m_name, m_doPaint) {
-            @Override protected void fireItemStateChanged(ItemEvent event) {
-                super.fireItemStateChanged(event);
-                m_doPaint = (event.getStateChange() == ItemEvent.SELECTED);
-                canvas.repaint();
-            }
-        };
-        checkBox.setOpaque(false);
-        panel.add(checkBox);
-        panel.add(m_algo.getController(canvas));
-        return panel;
     }
 
 

@@ -1,23 +1,40 @@
 package bthdg.tres.alg;
 
+import bthdg.ChartAxe;
 import bthdg.Log;
+import bthdg.exch.*;
+import bthdg.osc.BaseExecutor;
 import bthdg.tres.TresExchData;
+import bthdg.util.Colors;
 import bthdg.util.Utils;
+
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 public class FineAlgoWatcher extends BaseAlgoWatcher {
     public static final double MIN_MOVE = 0.033;
     private static final long MOVE_DELAY = 5000; // every 5 sec
+    private static final Pair PAIR = Pair.BTC_CNH;
+
+    private final Exchange m_exchange;
     private double m_lastPrice;
-
-    private Balance m_startBalance;
-    private Balance m_balance;
     private long m_lastMoveMillis;
-
+    private AccountData m_initAcctData;
+    private AccountData m_accountData;
+    private TopsData m_initTopsData = new TopsData();
+    private TopsData m_topsData = new TopsData();
+    private double m_valuateToInit;
+    private double m_valuateFromInit;
+    private final LinkedList<TresExchData.OrderPoint> m_orders = new LinkedList<TresExchData.OrderPoint>();
 
     private static void log(String s) { Log.log(s); }
 
     public FineAlgoWatcher(TresExchData tresExchData, TresAlgo algo) {
         super(tresExchData, algo);
+        m_exchange = m_tresExchData.m_ws.exchange();
     }
 
     @Override public void onValueChange() {
@@ -28,75 +45,145 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
         log("onValueChange: lastTickTime=" + lastTickTime + "; lastPrice=" + lastPrice);
 
         if ((lastPrice != 0) && (lastTickTime != 0)) {
-            if (m_startBalance == null) {
-                m_startBalance = new Balance(lastPrice, 1);
-                m_balance = new Balance(lastPrice, 1);
-                log(" startBalance=" + m_startBalance);
+            m_topsData.put(PAIR, new TopData(lastPrice, lastPrice, lastPrice));
+            Currency currencyFrom = PAIR.m_from;
+            Currency currencyTo = PAIR.m_to;
+
+            if (m_initAcctData == null) { // first run
+                m_initAcctData = new AccountData(m_exchange, 0);
+                m_initAcctData.setAvailable(currencyFrom, lastPrice);
+                m_initAcctData.setAvailable(currencyTo, 1);
+                m_initTopsData.put(PAIR, new TopData(lastPrice, lastPrice, lastPrice));
+                log(" initAcctData: PAIR=" + PAIR + "; currencyFrom=" + currencyFrom + "; currencyTo=" + currencyTo);
+
+                m_valuateToInit = m_initAcctData.evaluateAll(m_initTopsData, currencyTo, m_exchange);
+                m_valuateFromInit = m_initAcctData.evaluateAll(m_initTopsData, currencyFrom, m_exchange);
+                log("  INIT:  valuate" + currencyTo + "=" + m_valuateToInit + " " + currencyTo + "; valuate" + currencyFrom + "=" + m_valuateFromInit + " " + currencyFrom);
+
+
+                m_accountData = m_initAcctData.copy();
+                log("  start acctData=" + m_initAcctData);
+
             } else {
                 double direction = m_algo.getDirectionAdjusted(); // UP/DOWN
-                double distribution = m_balance.distribution(lastPrice);
-                double move = direction - distribution;
-                log(" direction=" + Utils.format8(direction) + "; distribution=" + Utils.format8(distribution));
-                double valuateInTwo = m_balance.valuateInTwo(lastPrice);
-                double moveInTwo = valuateInTwo * move / 2;
-                log("  valuateInTwo=" + Utils.format8(valuateInTwo) + "; moveInTwo=" + Utils.format8(moveInTwo));
+                log(" direction=" + Utils.format8(direction));
+                double needBuyTo = m_accountData.calcNeedBuyTo(direction, PAIR, m_topsData, m_exchange);
+                log(" needBuy" + currencyTo + "=" + Utils.format8(needBuyTo));
 
-                if (moveInTwo > MIN_MOVE) {
+                double absOrderSize = Math.abs(needBuyTo);
+                OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
+                log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+
+                double exchMinOrderToCreate = m_exchange.minOrderToCreate(PAIR);
+                if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= MIN_MOVE)) {
                     long timeDiff = lastTickTime - m_lastMoveMillis;
                     if (timeDiff > MOVE_DELAY) {
-                        log("   balance in: " + m_balance);
-                        m_balance.moveInTwo(moveInTwo, lastPrice);
-                        log("    balance out: " + m_balance);
+                        log("   account in: " + m_accountData);
+                        m_accountData.move(currencyFrom, currencyTo, needBuyTo, m_topsData);
+                        log("   account out: " + m_accountData);
+
+                        double gain = totalPriceRatio();
+                        log("    gain: " + Utils.format8(gain));
+
+                        OrderData orderData = new OrderData(PAIR, needOrderSide, lastPrice, absOrderSize);
+                        TresExchData.OrderPoint orderPoint = new TresExchData.OrderPoint(orderData, 0, lastPrice, lastPrice, BaseExecutor.TopSource.top_fetch, gain);
+                        synchronized (m_orders) {
+                            m_orders.add(orderPoint);
+                        }
                         m_lastMoveMillis = lastTickTime;
                     } else {
                         log("   need wait. timeDiff=" + timeDiff);
                     }
                 } else {
-                    log("   small amount to move: " + moveInTwo);
+                    log("   small amount to move: " + Utils.format8(absOrderSize));
                 }
             }
             m_lastPrice = lastPrice;
         }
     }
 
-    // ----------------------------------------------------------
-    private static class Balance {
-        private double m_one;
-        private double m_two;
+    @Override public double totalPriceRatio() {
+        Currency currencyFrom = PAIR.m_from; // cnh=from
+        Currency currencyTo = PAIR.m_to;     // btc=to
 
-        public Balance(double one, int two) {
-            m_one = one;
-            m_two = two;
-        }
+        double valuateToNow = m_accountData.evaluateAll(m_topsData, currencyTo, m_exchange);
+        double valuateFromNow = m_accountData.evaluateAll(m_topsData, currencyFrom, m_exchange);
 
-        @Override public String toString() {
-            return "Balance[one=" + Utils.format5(m_one) + "; two=" + Utils.format5(m_two) + "]";
-        }
+        double gainTo = valuateToNow / m_valuateToInit;
+        double gainFrom = valuateFromNow / m_valuateFromInit;
 
-        public double distribution(double price) {
-            double one = m_one / price;
-            double sum = one + m_two;
-            double distribution = (one/sum)*2-1;
-            return distribution;
-        }
+        double gainAvg = (gainTo + gainFrom) / 2;
+        return gainAvg;
+    }
 
-        public double valuateInTwo(double price) {
-            double one = m_one / price;
-            double sum = one + m_two;
-            return sum;
-        }
+    @Override public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {
+        super.paint(g, xTimeAxe, yPriceAxe, cursorPoint);
 
-        public void moveInTwo(double move, double price) {
-            double oneInTwo = m_one / price;
-            double sumInTwo = oneInTwo + m_two;
-            double moveInTwo = (sumInTwo * move) /2;
-
-            double twoInOne = m_two * price;
-            double sumInOne = m_one + twoInOne;
-            double moveInOne = (sumInOne * move) /2;
-
-            m_one -= moveInOne;
-            m_two += moveInTwo;
+        if (m_doPaint) {
+            List<TresExchData.OrderPoint> points = clonePoints(xTimeAxe);
+            paintPoints(g, xTimeAxe, yPriceAxe, points);
         }
     }
+
+    private List<TresExchData.OrderPoint> clonePoints(ChartAxe xTimeAxe) {
+        double minTime = xTimeAxe.m_min;
+        double maxTime = xTimeAxe.m_max;
+        List<TresExchData.OrderPoint> paintPoints = new ArrayList<TresExchData.OrderPoint>();
+        TresExchData.OrderPoint rightPlusPoint = null; // paint one extra point at right side
+        synchronized (m_orders) {
+            for (Iterator<TresExchData.OrderPoint> it = m_orders.descendingIterator(); it.hasNext(); ) {
+                TresExchData.OrderPoint point = it.next();
+                long timestamp = point.m_tickAge;
+                if (timestamp > maxTime) {
+                    rightPlusPoint = point;
+                    continue;
+                }
+                if (rightPlusPoint != null) {
+                    paintPoints.add(rightPlusPoint);
+                    rightPlusPoint = null;
+                }
+                paintPoints.add(point);
+                if (timestamp < minTime) { break; }
+            }
+        }
+        return paintPoints;
+    }
+
+    private void paintPoints(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, List<TresExchData.OrderPoint> points) {
+        int fontHeight = g.getFont().getSize();
+        int lastX = Integer.MAX_VALUE;
+        int lastY = Integer.MAX_VALUE;
+//        TresExchData.OrderPoint lastPoint = null;
+        for (TresExchData.OrderPoint point : points) {
+            long millis = point.m_tickAge;
+            OrderData order = point.m_order;
+            double price = order.m_price;
+
+            int x = xTimeAxe.getPoint(millis);
+            int y = yPriceAxe.getPointReverse(price);
+            if (lastX != Integer.MAX_VALUE) {
+                g.setColor(Colors.BEGIE);
+//                g.setColor((lastPoint.m_priceRatio > 1) ? Color.GREEN : Color.RED);
+                g.drawLine(lastX, lastY, x, y);
+            } else {
+                g.setColor(Colors.BEGIE);
+                g.drawRect(x - 1, y - 1, 2, 2);
+            }
+
+            g.drawString(String.format("p: %1$,.2f", price), x, y + fontHeight);
+
+//            double priceRatio = point.m_priceRatio;
+//            g.setColor((priceRatio > 1) ? Color.GREEN : Color.RED);
+//            g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight * 2);
+
+            double totalPriceRatio = point.m_gainAvg;
+            g.setColor((totalPriceRatio > 1) ? Color.GREEN : Color.RED);
+            g.drawString(String.format("t: %1$,.5f", totalPriceRatio), x, y + fontHeight * 3);
+
+//            lastPoint = point;
+            lastX = x;
+            lastY = y;
+        }
+    }
+
 }

@@ -190,6 +190,25 @@ public class AccountData {
         return error;
     }
 
+    public void move(Currency currencyFrom, Currency currencyTo, double amountTo, TopsData topsData) {
+        double amountFrom = topsData.convert(currencyTo, currencyFrom, amountTo, m_exchange);
+        double availableFrom = available(currencyFrom);
+        double newAvailableFrom = availableFrom - amountFrom;
+        if (newAvailableFrom < 0) {
+            throw new RuntimeException("Error account move. from=" + currencyFrom + "; to=" + currencyTo + "; amountTo=" + amountTo
+                    + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; on " + this);
+        }
+        setAvailable(currencyFrom, newAvailableFrom);
+
+        double availableTo = available(currencyTo);
+        double newAvailableTo = availableTo + amountTo;
+        if (newAvailableTo < 0) {
+            throw new RuntimeException("Error account move. from=" + currencyFrom + "; to=" + currencyTo + "; amountTo=" + amountTo
+                    + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; availableTo=" + availableTo + "; on " + this);
+        }
+        setAvailable(currencyTo, newAvailableTo);
+    }
+
     public double getFee(Exchange exchange, Pair pair) {
         return exchange.getFee(pair, m_fee);
     }
@@ -306,5 +325,27 @@ public class AccountData {
             log("Warning: unable to cancel order without id: " + od);
             return null;
         }
+    }
+
+    public double calcNeedBuyTo(double directionAdjusted, Pair pair, TopsData topsData, Exchange exchange) {
+        Currency currencyFrom = pair.m_from; // cnh=from
+        Currency currencyTo = pair.m_to;     // btc=to
+
+        double valuateTo = evaluateAll(topsData, currencyTo, exchange);
+        double valuateFrom = evaluateAll(topsData, currencyFrom, exchange);
+        log("  valuate" + currencyTo + "=" + Utils.format8(valuateTo) + " " + currencyTo + "; valuate" + currencyFrom + "=" + Utils.format8(valuateFrom) + " " + currencyFrom);
+
+        double haveTo = getAllValue(currencyTo);
+        double haveFrom = getAllValue(currencyFrom);
+        log("  have" + currencyTo + "=" + Utils.format8(haveTo) + " " + currencyTo + "; have" + currencyFrom + "=" + Utils.format8(haveFrom) + " " + currencyFrom + "; on account=" + this);
+
+        double needTo = (1 + directionAdjusted) / 2 * valuateTo;
+        double needFrom = (1 - directionAdjusted) / 2 * valuateFrom;
+        log("  need" + currencyTo + "=" + Utils.format8(needTo) + " " + currencyTo + "; need" + currencyFrom + "=" + Utils.format8(needFrom) + " " + currencyFrom);
+
+        double needBuyTo = needTo - haveTo;
+        double needSellCnh = haveFrom - needFrom;
+        log("  directionAdjusted=" + Utils.format8(directionAdjusted) + "; needBuy" + currencyTo + "=" + Utils.format8(needBuyTo) + "; needSell" + currencyFrom + "=" + Utils.format8(needSellCnh));
+        return needBuyTo;
     }
 }
