@@ -29,6 +29,8 @@ import java.util.logging.Logger;
 public class OkCoinWs extends BaseWs {
     private static final TimeZone TZ = TimeZone.getTimeZone("Asia/Hong_Kong"); // utc+08:00 Beijing, Hong Kong, Urumqi
     private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH); // 09:26:02
+    public static final int PING_TIMEOUT = 10000;
+
     static {
         sdf.setTimeZone(TZ);
 
@@ -112,6 +114,7 @@ public class OkCoinWs extends BaseWs {
     private Runnable m_callback;
     private Thread m_pingThread;
     private int m_reconnectCounter = 0;
+    private boolean m_gotTrades;
 
     private static void log(String s) { Log.log("OK: "+s); }
     private static void err(String s, Throwable e) { Log.err("OK: "+s, e); }
@@ -192,16 +195,24 @@ System.out.println("Received message: " + message);
     private void startPingThread() {
         m_pingThread = new Thread() {
             @Override public void run() {
+                log("ping thread started. " + this);
                 try {
+                    int counter = 0;
                     while (!isInterrupted() && !m_stopped && (m_pingThread == this)) {
                         try {
                             synchronized (this) {
-                                wait(10000);
+                                wait(PING_TIMEOUT);
                             }
                         } catch (InterruptedException e) {
                             err("ping error: " + e, e);
                         }
-                        sendPing();
+                        sendPing(counter++);
+                        if (counter == 3) { // check if trades start flowing after 30 sec after connect
+                            if (!m_gotTrades) {
+                                log("ERROR: trades not started flowing after 30 sec. terminating for reconnect...");
+                                m_session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "terminating for reconnect"));
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     err("ping thread error: " + e, e);
@@ -229,7 +240,7 @@ System.out.println("Received message: " + message);
                         } catch (InterruptedException e) {
                             err("ping error: " + e, e);
                         }
-                        ok.sendPing();
+                        ok.sendPing(0);
                     }
                     log("ping thread finished");
                 }
@@ -240,7 +251,11 @@ System.out.println("Received message: " + message);
                     log(" connected on " + this);
                     try {
 //                        ok.subscribeExecs(Tres.PAIR, new IExecsListener() {});
-                        ok.subscribeAcct(new IAcctListener() {});
+                        ok.subscribeAcct(new IAcctListener() {
+                            @Override public void onAccount(AccountData accountData) {
+                                log("onAccount: " + accountData);
+                            }
+                        });
 
                         pingThread.start();
 
@@ -267,14 +282,6 @@ System.out.println("Received message: " + message);
 //"orderId":2032283966,"unTrade":"0","tradeUnitPrice":"2807.28","sigTradePrice":"2807.33","tradeAmount":"0.042","createdDate":1456353407000,"completedTradeAmount":"0.042","averagePrice":"2807.34","id":2032283966,"sigTradeAmount":"0.031","tradePrice":"117.90","tradeType":"sell","status":2}
 // filled
 
-
-
-//{"info":{"free":{"btc":0.64469,"ltc":0,"cny":1031.62907},"freezed":{"btc":0,"ltc":0,"cny":93.36303}}}
-//{"info":{"free":{"btc":0.67769,"ltc":0,"cny":1031.63042},"freezed":{"btc":0,"ltc":0,"cny":0.01887}}}
-//{"info":{"free":{"btc":0.67769,"ltc":0,"cny":774.2204},"freezed":{"btc":0,"ltc":0,"cny":257.4289}}}
-//{"info":{"free":{"btc":0.69669,"ltc":0,"cny":774.2204},"freezed":{"btc":0,"ltc":0,"cny":203.68056}}}
-
-
             log("waiting 60sec");
             Thread.sleep(60000);
             pingThread.interrupt();
@@ -284,11 +291,11 @@ System.out.println("Received message: " + message);
         }
     }
 
-    private void sendPing() {
+    private void sendPing(int counter) {
         if (m_session != null) {
             if (m_session.isOpen()) {
                 try {
-                    log("send ping");
+                    log("send ping. counter=" + counter);
                     m_session.getBasicRemote().sendText("{'event':'ping'}");
                 } catch (IOException e) {
                     err("ping send error", e);
@@ -311,32 +318,34 @@ System.out.println("Received message: " + message);
     }
 
     @Override public void subscribeExecs(Pair pair, IExecsListener listener) throws Exception {
-log("subscribeExecs(pair="+pair+")");
+        log("subscribeExecs(pair=" + pair + ")");
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
         m_execsListener = listener;
         m_channelListeners.put(EXECS_CHANNEL, new MessageHandler.Whole<Object>() {
             @Override public void onMessage(Object json) {
-log("   execsListener.onMessage() json=" + json);
+                log("   execsListener.onMessage() json=" + json);
+                onExecReport(json);
             }
         });
         subscribe(EXECS_CHANNEL, true);
     }
 
     @Override public void subscribeAcct(IAcctListener listener) throws Exception {
-log("subscribeAcct()");
+        log("subscribeAcct()");
         m_acctListener = listener;
         m_channelListeners.put(ACCT_CHANNEL, new MessageHandler.Whole<Object>() {
             @Override public void onMessage(Object json) {
-log("   acctListener.onMessage() json=" + json);
+                log("   acctListener.onMessage() json=" + json);
+                onAccount(json);
             }
         });
         subscribe(ACCT_CHANNEL, true);
     }
 
     @Override public void subscribeTrades(Pair pair, ITradesListener listener) throws Exception {
-log("subscribeTrades() pair=" + pair);
+        log("subscribeTrades() pair=" + pair);
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
@@ -350,7 +359,7 @@ log("subscribeTrades() pair=" + pair);
     }
 
     @Override public void subscribeTop(Pair pair, ITopListener listener) throws Exception {
-log("subscribeTop() pair="+pair);
+        log("subscribeTop() pair=" + pair);
         if (pair != Pair.BTC_CNH) {
             throw new RuntimeException("pair " + pair + " not supported yet");
         }
@@ -451,7 +460,7 @@ log("subscribeTop() pair="+pair);
 //    }
 
     private void onMessage(Object json) {
-log("Received json message (class="+json.getClass()+"): " + json);
+//log("Received json message (class="+json.getClass()+"): " + json);
         // [{ "channel":"ok_btccny_trades","data":[["2228.01","0.2","09:26:02","ask"]]}]
         if (json instanceof JSONArray) {
             JSONArray array = (JSONArray) json;
@@ -471,14 +480,26 @@ log("Received json message (class="+json.getClass()+"): " + json);
 //                                log("  data: " + data);
                         channelListener.onMessage(data);
                     } else {
-                        log("WARNING: no listener for channel '" + channel + "'; keys:" + m_channelListeners.keySet());
+                        log("ERROR: no listener for channel '" + channel + "'; keys:" + m_channelListeners.keySet());
                     }
                 } else {
-                    log("WARNING: got unexpected object in JSONArray. class=" + channelObj.getClass().toGenericString() + "; channelObj=" + channelObj);
+                    log("ERROR: got unexpected object in JSONArray. class=" + channelObj.getClass().toGenericString() + "; channelObj=" + channelObj);
                 }
             }
+        } else if (json instanceof JSONObject) {
+            JSONObject obj = (JSONObject) json;
+            String event = (String) obj.get("event");
+            if (event != null) {
+                if (event.equals("pong")) {
+                    log("got PONG");
+                } else {
+                    log("ERROR: got unexpected JSONObject event message. class=" + json.getClass().toGenericString() + "; json=" + json);
+                }
+            } else {
+                log("ERROR: got unexpected JSONObject message. class=" + json.getClass().toGenericString() + "; json=" + json);
+            }
         } else {
-            log("WARNING: got unexpected message. class=" + json.getClass().toGenericString() + "; json=" + json);
+            log("ERROR: got unexpected message. class=" + json.getClass().toGenericString() + "; json=" + json);
         }
     }
 
@@ -577,8 +598,14 @@ log("Received json message (class="+json.getClass()+"): " + json);
                     m_messageHandler = new MessageHandler.Whole<String>() {
                         @Override public void onMessage(String message) {
 //log("Received message: " + message);
-                            Object obj = parseJson(message);
-                            OkCoinWs.this.onMessage(obj);
+                            try {
+                                Object obj = parseJson(message);
+                                if (obj != null) {
+                                    OkCoinWs.this.onMessage(obj);
+                                }
+                            } catch (Exception e) {
+                                err("ERROR in message handler: " + e, e);
+                            }
                         }
                     };
                     m_session.addMessageHandler(m_messageHandler);
@@ -587,6 +614,7 @@ log("Received json message (class="+json.getClass()+"): " + json);
                     log(" maxIdleTimeout=" + maxIdleTimeout);
                     callback.run();
                     logInfo();
+                    m_gotTrades = false;
                     startPingThread();
                 }
 
@@ -699,7 +727,7 @@ log("Received json message (class="+json.getClass()+"): " + json);
                 return OUT_CALENDAR.getTimeInMillis();
             }
         } catch (java.text.ParseException e) {
-            log("error parsing time=" + time);
+            log("error parsing time=" + time + ": " + e);
         }
         return 0;
     }
@@ -729,10 +757,113 @@ log("Received json message (class="+json.getClass()+"): " + json);
         }
     }
 
+    private void onExecReport(Object json) {
+        // OrderData{id=2188927630 status=SUBMITTED, pair=BTC_CNH, side=BUY, type=MARKET, amount=0.70100, price=2692.51000, state=MARKET_PLACED, filled=0.00000}
+
+        // {"symbol":"btc_cny",
+        //  "tradeAmount":"0",            for market sell orders: total sell quantity, for limit orders: order quantity
+        // "createdDate":1457216823607,
+        // "orderId":2188927630,
+        // "unTrade":"1887.44",           unfilled amount in cny for market order, unfilled coin quantity for limit order
+        // "completedTradeAmount":"0",    filled 'tradeAmount'
+        // "averagePrice":"0",            average transaction price
+        // "id":2188927630,
+        // "tradePrice":"0",              filled amount
+        // "tradeType":"buy_market",      (buy: buy;sell: sell;buy_market: buy at market price;sell_market: sell at market price)
+        // "status":0,                    status: -1: cancelled, 0: pending, 1: partially filled, 2: fully filled, 4: cancel request in process
+        // "tradeUnitPrice":"1887.44"}    for market buy orders: total buy amount, for limit orders: order rate
+
+        // {"symbol":"btc_cny",
+        // "orderId":2188927630,
+        // "unTrade":"1698.97",
+        // "tradeUnitPrice":"1887.44",
+        // "sigTradePrice":"2692.43",     rate in a single transaction
+        // "tradeAmount":"0",
+        // "createdDate":1457216823000,
+        // "completedTradeAmount":"0.07",
+        // "averagePrice":"2692.43",
+        // "id":2188927630,
+        // "sigTradeAmount":"0.07",       quantity in a single transaction
+        // "tradePrice":"188.47",
+        // "tradeType":"buy_market",
+        // "status":1}
+
+        // {"symbol":"btc_cny",
+        // "orderId":2188927630,
+        // "unTrade":"0",
+        // "tradeUnitPrice":"1887.44",
+        // "sigTradePrice":"2692.51",
+        // "tradeAmount":"0",
+        // "createdDate":1457216823000,
+        // "completedTradeAmount":"0.701",
+        // "averagePrice":"2692.49",
+        // "id":2188927630,
+        // "sigTradeAmount":"0.462",
+        // "tradePrice":"1887.43",
+        // "tradeType":"buy_market",
+        // "status":2}
+
+        if (json instanceof JSONObject) {
+            JSONObject execItem = (JSONObject) json;
+            Object orderIdObj = execItem.get("orderId");
+            long orderId = Utils.getLong(orderIdObj);
+
+            Object statusObj = execItem.get("status");
+            long status = Utils.getLong(statusObj);
+            OrderStatus os = parseOrderStatus(status);
+
+            Object averagePriceObj = execItem.get("averagePrice");
+            double averagePrice = Utils.getDouble(averagePriceObj);
+
+            Exec exec = new Exec(Long.toString(orderId), os, averagePrice);
+            log("    onExec: " + exec);
+            if (m_execsListener != null) {
+                m_execsListener.onExec(exec);
+            }
+        } else {
+            log("error in onExecReport() class=" + ((json == null) ? "null" : json.getClass().toGenericString()) + "; json=" + json);
+        }
+    }
+
+    private OrderStatus parseOrderStatus(long status) {
+        // status: -1: cancelled, 0: pending, 1: partially filled, 2: fully filled, 4: cancel request in process
+        if (status == 0) {
+            return OrderStatus.SUBMITTED;
+        }
+        if (status == 1) {
+            return OrderStatus.PARTIALLY_FILLED;
+        }
+        if (status == 2) {
+            return OrderStatus.FILLED;
+        }
+        if (status == 4) {
+            return OrderStatus.CANCELING;
+        }
+        if (status == -1) {
+            return OrderStatus.CANCELLED;
+        }
+        log("ERROR in parseOrderStatus() status=" + status);
+        return null;
+    }
+
+    // {"info":
+    //  {"free":{"btc":0.41269,"ltc":0,"cny":101.0033},
+    //   "freezed":{"btc":0,"ltc":0,"cny":1887.4698}}}
+    private void onAccount(Object json) {
+        if (json != null) {
+            AccountData accountData = OkCoin.parseAccountWs(json);
+            log("    onAccount: " + accountData);
+            if (m_acctListener != null) {
+                m_acctListener.onAccount(accountData);
+            }
+        }
+    }
+
     // [{"channel":"ok_sub_spotcny_btc_trades",
 //   ""data":[["2064568242","2715.55","0.719","08:26:05","ask"],
 //           ["2064568243","2715.55","0.027","08:26:05","bid"]
     protected void onTrades(Object json) {
+        m_gotTrades = true;
         //log("   tradesDataListener.onMessage() json=" + json);
         if (json instanceof JSONArray) {
             JSONArray array = (JSONArray) json;

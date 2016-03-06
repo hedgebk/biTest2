@@ -1,9 +1,7 @@
 package bthdg.tres;
 
 import bthdg.Log;
-import bthdg.exch.OrderData;
-import bthdg.exch.TradeData;
-import bthdg.exch.TradeDataLight;
+import bthdg.exch.*;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.BaseAlgoWatcher;
 import bthdg.tres.alg.FineAlgoWatcher;
@@ -117,9 +115,15 @@ public class TresExchData {
                     m_executor.initImpl();
 
                     m_ws.subscribeExecs(Tres.PAIR, new IExecsListener() {
+                        @Override public void onExec(Exec exec) {
+                            m_executor.onExec(exec);
+                        }
                     });
 
                     m_ws.subscribeAcct(new IAcctListener() {
+                        @Override public void onAccount(AccountData accountData) {
+                            m_executor.onAccount(accountData);
+                        }
                     });
 
                     m_ws.subscribeTop(Tres.PAIR, new ITopListener() {

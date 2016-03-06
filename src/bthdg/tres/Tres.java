@@ -197,11 +197,14 @@ public class Tres {
     }
 
     private void init2() {
-        createExchData();
-
         if (m_processLogs) {
             m_silentConsole = true;
             m_logProcessing = true;
+        }
+
+        createExchData();
+
+        if (m_processLogs) {
             TresLogProcessor logProcessor = new TresLogProcessor(m_config, m_exchDatas);
             logProcessor.start();
         } else {

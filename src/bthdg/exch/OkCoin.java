@@ -296,10 +296,30 @@ public class OkCoin extends BaseExch {
         AccountData accountData = parseFunds(free, freezed);
         return accountData;
 
-        // {"info":{"funds":{"free":{"btc":"0","cny":"0","ltc":"0"},"freezed":{"btc":"0","cny":"0","ltc":"0"}}},"result":true}
+        // {"info":
+        //  {"funds":
+        //   {"free":{"btc":"0","cny":"0","ltc":"0"},
+        //    "freezed":{"btc":"0","cny":"0","ltc":"0"}}},"result":true}
+    }
+
+    public static AccountData parseAccountWs(Object obj) {
+        JSONObject jObj = (JSONObject) obj;
+        if (LOG_PARSE) {
+            log("OkCoin.parseAccountWs() " + jObj);
+        }
+
+        JSONObject info = (JSONObject) jObj.get("info");
+        JSONObject free = (JSONObject) info.get("free");
+        JSONObject freezed = (JSONObject) info.get("freezed");
+        AccountData accountData = parseFunds(free, freezed);
+        return accountData;
+
+        // {"info":
+        //  {"free":{"btc":0.41269,"ltc":0,"cny":101.0033},
+        //   "freezed":{"btc":0,"ltc":0,"cny":1887.4698}}}
     }
     private static AccountData parseFunds(JSONObject free, JSONObject freezed) {
-        AccountData accountData = new AccountData(Exchange.OKCOIN, Double.MAX_VALUE);
+        AccountData accountData = new AccountData(Exchange.OKCOIN, 0);
         double btc = Utils.getDouble(free.get("btc"));
         accountData.setAvailable(Currency.BTC, btc);
         double ltc = Utils.getDouble(free.get("ltc"));

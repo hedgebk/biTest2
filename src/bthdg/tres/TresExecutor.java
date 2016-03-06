@@ -11,6 +11,7 @@ import bthdg.ws.IWs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
@@ -580,6 +581,86 @@ public class TresExecutor extends BaseExecutor {
         return ret;
     }
 
+    public void onExec(Exec exec) {
+        log("onExec() posting ExecTask; exec=" + exec);
+        addTaskFirst(new ExecTask(exec));
+    }
+
+    private void processExec(Exec exec) throws Exception {
+        log("processExec() exec=" + exec);
+        final String orderId = exec.m_orderId;
+        if (m_order != null) {
+            if (m_order.m_orderId.equals(orderId)) {
+                log(" exec for pending order: m_order=" + m_order);
+                boolean fill = processIfFill(exec, orderId, m_order);
+                if (fill) {
+                    log("  got FILL pending order: m_order=" + m_order);
+                    m_order = null;
+                    setState(TresState.NONE);
+                }
+                return;
+            }
+        }
+
+        for (OrderData pendingMktOrder : m_pendingMktOrders) {
+            if (pendingMktOrder.m_orderId.equals(orderId)) {
+                log(" exec for pending mkt order: m_order=" + pendingMktOrder);
+                boolean fill = processIfFill(exec, orderId, pendingMktOrder);
+                if (fill) {
+                    log("  got FILL pending mkt order: m_order=" + pendingMktOrder);
+                    m_pendingMktOrders.remove(pendingMktOrder);
+                    log("   removed from pendingMktOrders. now size=" + m_pendingMktOrders.size());
+                }
+                return;
+            }
+        }
+
+        log(" ERROR exec for not known order: exec=" + exec);
+    }
+
+    private boolean processIfFill(Exec exec, String orderId, OrderData order) throws Exception {
+        final OrderStatus orderStatus = exec.m_orderStatus;
+        // for now process only FILL acync execs
+        if (orderStatus == OrderStatus.FILLED) {
+            log("  got order FILL");
+
+            HashMap<String, OrdersData.OrdData> map = new HashMap<String, OrdersData.OrdData>();
+            double amount = order.m_amount;
+            double averagePrice = exec.m_averagePrice;
+            OrdersData.OrdData ordData = new OrdersData.OrdData(orderId, amount, amount, 0, averagePrice, 0, "filled", null, order.m_side, order.m_type);
+            ordData.m_avgPrice = averagePrice;
+            log("   simulate fill with: " + ordData);
+            ordData.m_orderStatus = orderStatus;
+            map.put(orderId, ordData);
+            final OrdersData ordersData = new OrdersData(map);
+
+            IIterationContext.BaseIterationContext iContext = new IIterationContext.BaseIterationContext() {
+                @Override public OrdersData getLiveOrders(Exchange exchange) throws Exception {
+                    return ordersData;
+                }
+            };
+            checkOrderState(iContext, order);
+            return true;
+        }
+        return false;
+    }
+
+    public void onAccount(AccountData accountData) {
+        log("onAccount() posting AccountTask; accountData=" + accountData);
+        addTask(new AccountTask(accountData));
+    }
+
+    private void processAccount(AccountData accountData) {
+        log("processAccount() accountData=" + accountData);
+
+        m_account = accountData;
+
+        Currency currencyTo = m_pair.m_to;     // btc=to
+        double valuateTo = m_account.evaluateAll(m_topsData, currencyTo, m_exchange);
+        log("  valuate" + currencyTo + "=" + valuateTo + " " + currencyTo);
+        m_maySyncAccount = false;
+    }
+
 
     //-------------------------------------------------------------------------------
     public class StopTask extends TaskQueueProcessor.SinglePresenceTask {
@@ -598,11 +679,40 @@ public class TresExecutor extends BaseExecutor {
         }
     }
 
+
     //-------------------------------------------------------------------------------
     public class ResetTask extends TaskQueueProcessor.SinglePresenceTask {
         public ResetTask() {}
         @Override public void process() throws Exception {
             onResetRequested();
+        }
+    }
+
+
+    //-------------------------------------------------------------------------------
+    public class ExecTask extends TaskQueueProcessor.BaseOrderTask {
+        private final Exec m_exec;
+
+        @Override public TaskQueueProcessor.DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) { return null; }
+        public ExecTask(Exec exec) {
+            m_exec = exec;
+        }
+        @Override public void process() throws Exception {
+            processExec(m_exec);
+        }
+    }
+
+
+    //-------------------------------------------------------------------------------
+    public class AccountTask extends TaskQueueProcessor.BaseOrderTask {
+        private final AccountData m_accountData;
+
+        @Override public TaskQueueProcessor.DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) { return null; }
+        public AccountTask(AccountData accountData) {
+            m_accountData = accountData;
+        }
+        @Override public void process() throws Exception {
+            processAccount(m_accountData);
         }
     }
 }
