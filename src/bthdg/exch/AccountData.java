@@ -20,6 +20,7 @@ public class AccountData {
     public boolean m_gotFundDiff;
 
     private static void log(String s) { Log.log(s); }
+    private static void err(String s, Throwable e) { Log.err(s, e); }
 
     // shortcuts
     public double availableUsd() { return available(Currency.USD); }
@@ -43,6 +44,9 @@ public class AccountData {
         m_exchange = exchange;
         m_name = exchange.m_name;
         m_fee = fee;
+        if (fee > 1) {
+            err("invalid AccountData fee = " + fee, new Exception("TRACE"));
+        }
     }
 
     @Override public String toString() {
@@ -190,9 +194,11 @@ public class AccountData {
         return error;
     }
 
-    public void move(Currency currencyFrom, Currency currencyTo, double amountTo, TopsData topsData) {
-        log("   move() currencyFrom=" + currencyFrom + "; currencyTo=" + currencyTo + "; amountTo=" + amountTo);
-        log("    account in: " + this);
+    public void move(Currency currencyFrom, Currency currencyTo, double amountTo, TopsData topsData, boolean verbose) {
+        if (verbose) {
+            log("   move() currencyFrom=" + currencyFrom + "; currencyTo=" + currencyTo + "; amountTo=" + amountTo);
+            log("    account in: " + this);
+        }
         double amountFrom = topsData.convert(currencyTo, currencyFrom, amountTo, m_exchange);
         double availableFrom = available(currencyFrom);
         double newAvailableFrom = availableFrom - amountFrom;
@@ -209,7 +215,9 @@ public class AccountData {
                     + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; availableTo=" + availableTo + "; on " + this);
         }
         setAvailable(currencyTo, newAvailableTo);
-        log("    account out: " + this);
+        if (verbose) {
+            log("    account out: " + this);
+        }
     }
 
     public double getFee(Exchange exchange, Pair pair) {
@@ -330,25 +338,33 @@ public class AccountData {
         }
     }
 
-    public double calcNeedBuyTo(double directionAdjusted, Pair pair, TopsData topsData, Exchange exchange) {
+    public double calcNeedBuyTo(double directionAdjusted, Pair pair, TopsData topsData, Exchange exchange, boolean verbose) {
         Currency currencyFrom = pair.m_from; // cnh=from
         Currency currencyTo = pair.m_to;     // btc=to
 
         double valuateTo = evaluateAll(topsData, currencyTo, exchange);
         double valuateFrom = evaluateAll(topsData, currencyFrom, exchange);
-        log("  valuate" + currencyTo + "=" + Utils.format8(valuateTo) + " " + currencyTo + "; valuate" + currencyFrom + "=" + Utils.format8(valuateFrom) + " " + currencyFrom);
+        if (verbose) {
+            log("  valuate" + currencyTo + "=" + Utils.format8(valuateTo) + " " + currencyTo + "; valuate" + currencyFrom + "=" + Utils.format8(valuateFrom) + " " + currencyFrom);
+        }
 
         double haveTo = getAllValue(currencyTo);
         double haveFrom = getAllValue(currencyFrom);
-        log("  have" + currencyTo + "=" + Utils.format8(haveTo) + " " + currencyTo + "; have" + currencyFrom + "=" + Utils.format8(haveFrom) + " " + currencyFrom + "; on account=" + this);
+        if (verbose) {
+            log("  have" + currencyTo + "=" + Utils.format8(haveTo) + " " + currencyTo + "; have" + currencyFrom + "=" + Utils.format8(haveFrom) + " " + currencyFrom + "; on account=" + this);
+        }
 
         double needTo = (1 + directionAdjusted) / 2 * valuateTo;
         double needFrom = (1 - directionAdjusted) / 2 * valuateFrom;
-        log("  need" + currencyTo + "=" + Utils.format8(needTo) + " " + currencyTo + "; need" + currencyFrom + "=" + Utils.format8(needFrom) + " " + currencyFrom);
+        if (verbose) {
+            log("  need" + currencyTo + "=" + Utils.format8(needTo) + " " + currencyTo + "; need" + currencyFrom + "=" + Utils.format8(needFrom) + " " + currencyFrom);
+        }
 
         double needBuyTo = needTo - haveTo;
         double needSellCnh = haveFrom - needFrom;
-        log("  directionAdjusted=" + Utils.format8(directionAdjusted) + "; needBuy" + currencyTo + "=" + Utils.format8(needBuyTo) + "; needSell" + currencyFrom + "=" + Utils.format8(needSellCnh));
+        if (verbose) {
+            log("  directionAdjusted=" + Utils.format8(directionAdjusted) + "; needBuy" + currencyTo + "=" + Utils.format8(needBuyTo) + "; needSell" + currencyFrom + "=" + Utils.format8(needSellCnh));
+        }
         return needBuyTo;
     }
 }
