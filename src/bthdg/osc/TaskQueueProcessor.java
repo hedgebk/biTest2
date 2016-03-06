@@ -63,16 +63,16 @@ public class TaskQueueProcessor implements Runnable {
             BaseOrderTask nextTask = listIterator.next();
             DuplicateAction duplicateAction = task.isDuplicate(nextTask);
             if (duplicateAction == DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST) {
-                BaseExecutor.log(" replacing as LAST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; processingTask=" + m_processingTask);
+                BaseExecutor.log(" replacing as LAST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
                 task.m_postTime = nextTask.m_postTime;
                 listIterator.remove();
             } else if (duplicateAction == DuplicateAction.REMOVE_ALL_AND_PUT_AS_FIRST) {
-                BaseExecutor.log(" replacing as FIRST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; processingTask=" + m_processingTask);
+                BaseExecutor.log(" replacing as FIRST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
                 task.m_postTime = nextTask.m_postTime;
                 listIterator.remove();
                 addLast = Boolean.FALSE;
             } else if (duplicateAction == DuplicateAction.DO_NOT_ADD) {
-                BaseExecutor.log(" skipping task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; processingTask=" + m_processingTask);
+                BaseExecutor.log(" skipping task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
                 addLast = null; // do not add
                 break;
             }

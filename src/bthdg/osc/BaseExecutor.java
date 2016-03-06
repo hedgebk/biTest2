@@ -503,7 +503,7 @@ public abstract class BaseExecutor implements Runnable {
             return STATE_NO_CHANGE;
         }
 
-        double needBuyTo = m_account.calcNeedBuyTo(directionAdjusted, m_pair, m_topsData, m_exchange);
+        double needBuyTo = m_account.calcNeedBuyTo(directionAdjusted, m_pair, m_topsData, m_exchange, true);
 
         double absOrderSize = Math.abs(needBuyTo);
         OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
