@@ -332,8 +332,6 @@ class TresLogProcessor extends Thread {
         if (m_varyMa != null) {
             varyMa(datas, tres, m_varyMa);
         }
-        varyDouble(datas, tres, OptimizeField.OSC_BAR_SIZE); // bar_size only
-        varyDouble(datas, tres, OptimizeField.BAR_SIZE);     // bar_size + phases
         if (m_varyBarSizeMul != null) {
             varyBarSizeMul(datas, tres, m_varyBarSizeMul);
         }
