@@ -11,7 +11,7 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class EmasAlgo extends TresAlgo {
-    public static double SUM_PEAK_TOLERANCE = 0.3;
+    public static double SUM_PEAK_TOLERANCE = 0.4;
     public static double TEMA_FAST_SIZE = 1.8;
     public static double TEMA_START = 10;
     public static double TEMA_STEP = 5;
@@ -27,14 +27,12 @@ public class EmasAlgo extends TresAlgo {
     protected TripleEmaIndicator m_tema4;
     protected final TresIndicator m_sumIndicator;
     private final SmoochedIndicator m_smoochedSpreadIndicator;
-    private final TresIndicator m_boostedIndicator;
     private boolean m_changed;
     protected Double m_one;
     private Double m_two;
     private Double m_sum;
     private Double m_spread;
     private Double m_smoochedSpread;
-    private final Booster m_booster;
     protected double m_boosted;
 
     protected boolean countSumPeaks() { return false; }
@@ -110,22 +108,12 @@ public class EmasAlgo extends TresAlgo {
         m_sumIndicator = new TresIndicator( "s", SUM_PEAK_TOLERANCE, this ) {
             @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
             @Override public Color getColor() { return Colors.BEGIE; }
+            @Override protected boolean countPeaks() { return countSumPeaks(); }
             @Override protected boolean countHalfPeaks() { return countSumPeaks(); }
             @Override protected boolean useValueAxe() { return true; }
             @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
         };
         m_indicators.add(m_sumIndicator);
-
-        m_boostedIndicator = new TresIndicator( "b", 0, this ) {
-            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-            @Override public Color getColor() { return Colors.LIGHT_MAGNETA; }
-            @Override protected boolean countPeaks() { return false; }
-            @Override protected boolean useValueAxe() { return true; }
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
-        };
-        m_indicators.add(m_boostedIndicator);
-
-        m_booster = new Booster(m_sumIndicator, 1.0);
     }
 
     @Override public void postUpdate(TradeDataLight tdata) {
@@ -147,6 +135,27 @@ public class EmasAlgo extends TresAlgo {
             double bound2 = tema4.m_value;
             double boundTop    = Math.max(bound1, bound2);
             double boundBottom = Math.min(bound1, bound2);
+            double one = valueToBounds(fast, boundTop, boundBottom);
+            if ((m_one == null) || !m_one.equals(one)) {
+                m_one = one;
+            }
+        }
+    }
+
+    protected void recalcOneAsWide() {
+        ChartPoint fastPoint = m_fastEma.getLastPoint();
+        ChartPoint tripleEma10 = m_tema1.getLastPoint();
+        ChartPoint tripleEma15 = m_tema2.getLastPoint();
+        ChartPoint tripleEma20 = m_tema3.getLastPoint();
+        ChartPoint tripleEma25 = m_tema4.getLastPoint();
+        if ((fastPoint != null) && (tripleEma10 != null) && (tripleEma15 != null) && (tripleEma20 != null) && (tripleEma25 != null)) {
+            double fast = fastPoint.m_value;
+            double tema1 = tripleEma10.m_value;
+            double tema2 = tripleEma15.m_value;
+            double tema3 = tripleEma20.m_value;
+            double tema4 = tripleEma25.m_value;
+            double boundTop = Math.max(Math.max(tema1, tema2), Math.max(tema3, tema4));
+            double boundBottom = Math.min(Math.min(tema1, tema2), Math.min(tema3, tema4));
             double one = valueToBounds(fast, boundTop, boundBottom);
             if ((m_one == null) || !m_one.equals(one)) {
                 m_one = one;
@@ -203,16 +212,14 @@ public class EmasAlgo extends TresAlgo {
                 ChartPoint point = new ChartPoint(millis, sum);
                 m_sumIndicator.addBar(point);
 
-                double boosted = m_booster.update();
-                if (m_boosted != boosted) {
-                    m_boosted = boosted;
-                    point = new ChartPoint(millis, boosted);
-                    m_boostedIndicator.addBar(point);
-                }
+                onSumChanged();
+
                 notifyListener();
             }
         }
     }
+
+    protected void onSumChanged() { }
 
     @Override public double lastTickPrice() { return m_fastEma.lastTickPrice(); }
     @Override public long lastTickTime() { return m_fastEma.lastTickTime(); }
@@ -234,27 +241,7 @@ public class EmasAlgo extends TresAlgo {
         public Wide(String name, TresExchData tresExchData) {
             super(name, tresExchData);
         }
-
-        @Override protected void recalcOne() {
-            ChartPoint fastPoint = m_fastEma.getLastPoint();
-            ChartPoint tripleEma10 = m_tema1.getLastPoint();
-            ChartPoint tripleEma15 = m_tema2.getLastPoint();
-            ChartPoint tripleEma20 = m_tema3.getLastPoint();
-            ChartPoint tripleEma25 = m_tema4.getLastPoint();
-            if ((fastPoint != null) && (tripleEma10 != null) && (tripleEma15 != null) && (tripleEma20 != null) && (tripleEma25 != null)) {
-                double fast = fastPoint.m_value;
-                double tema1 = tripleEma10.m_value;
-                double tema2 = tripleEma15.m_value;
-                double tema3 = tripleEma20.m_value;
-                double tema4 = tripleEma25.m_value;
-                double boundTop = Math.max(Math.max(tema1, tema2), Math.max(tema3, tema4));
-                double boundBottom = Math.min(Math.min(tema1, tema2), Math.min(tema3, tema4));
-                double one = valueToBounds(fast, boundTop, boundBottom);
-                if ((m_one == null) || !m_one.equals(one)) {
-                    m_one = one;
-                }
-            }
-        }
+        @Override protected void recalcOne() { recalcOneAsWide(); }
     }
 
 
@@ -265,7 +252,7 @@ public class EmasAlgo extends TresAlgo {
         }
 
         @Override protected boolean countSumPeaks() { return true; }
-        @Override public String getRunAlgoParams() { return "EMAS~f"; }
+        @Override public String getRunAlgoParams() { return "EMAS~f SUM_PEAK=" + SUM_PEAK_TOLERANCE; }
         @Override public double getDirectionAdjusted() {
             return getDirectionAdjustedByPeakWatchers(m_sumIndicator);
         }
@@ -274,19 +261,47 @@ public class EmasAlgo extends TresAlgo {
 
     //===========================================================================
     public static class Boosted extends EmasAlgo {
+        private final TresIndicator m_boostedIndicator;
+        private final Booster m_booster;
+
         @Override public String getRunAlgoParams() { return "EMAS*"; }
         @Override public double getDirectionAdjusted() { return m_boosted; }
+        @Override protected boolean countSumPeaks() { return true; }
 
         public Boosted(TresExchData tresExchData) {
-            super("EMAS*", tresExchData);
+            this("EMAS*", tresExchData);
+        }
+        public Boosted(String name, TresExchData tresExchData) {
+            super(name, tresExchData);
+            m_boostedIndicator = new TresIndicator( "b", 0, this ) {
+                @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+                @Override public Color getColor() { return Colors.LIGHT_MAGNETA; }
+                @Override protected boolean countPeaks() { return false; }
+                @Override protected boolean useValueAxe() { return true; }
+                @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            };
+            m_indicators.add(m_boostedIndicator);
+
+            m_booster = new Booster(m_sumIndicator, 1.0);
+        }
+
+        @Override protected void onSumChanged() {
+            double boosted = m_booster.update();
+            if (m_boosted != boosted) {
+                m_boosted = boosted;
+                long millis = m_fastEma.getLastPoint().m_millis;
+                ChartPoint point = new ChartPoint(millis, boosted);
+                m_boostedIndicator.addBar(point);
+            }
         }
     }
 
 
     //===========================================================================
-    public static class WideBoosted extends Wide {
+    public static class WideBoosted extends Boosted {
         @Override public String getRunAlgoParams() { return "EMAS~*"; }
         @Override public double getDirectionAdjusted() { return m_boosted; }
+        @Override protected void recalcOne() { recalcOneAsWide(); }
 
         public WideBoosted(TresExchData tresExchData) {
             super("EMAS~*", tresExchData);
