@@ -134,9 +134,9 @@ public enum OrderState {
                 }
             } else if ((ordData == null) || (ordData.m_orderStatus == OrderStatus.FILLED)) {
                 log(" liveOrder[" + orderId + "]=" + ordData + ";  EXECUTED");
-                log("   orderPrice=" + orderPrice + "; remained=" + remainedStr);
+                log("   orderPrice=" + orderPrice + "; remainedAmountBefore=" + remainedAmountBefore + "; remainedStr=" + remainedStr);
                 double orderVolume = orderAmount * avgFillPrice;
-                log("   avgFillPrice=" + avgFillPrice + "; orderVolume=" + orderVolume);
+                log("   orderAmount=" + orderAmount + "; avgFillPrice=" + avgFillPrice + " -> orderVolume=" + orderVolume);
                 double fillVolume = orderVolume - volumeBefore;
                 double fillPrice = fillVolume / remainedAmountBefore;
                 log("    volumeBefore=" + volumeBefore + "; fillVolume=" + fillVolume + "; fillPrice=" + fillPrice);
@@ -153,7 +153,8 @@ public enum OrderState {
                 }
                 log("    order at result: " + orderData);
                 if ((orderData.m_type == OrderType.MARKET) && (ordData != null)) {
-                    orderData.m_price = ordData.m_avgPrice; // update order price to avg filled
+                    orderData.m_price = avgFillPrice; // update order price to avg filled
+                    log("     MKT filled - update order price to avg filled: " + orderData);
                 }
             } else {
                 if (ordData.m_orderStatus == OrderStatus.CANCELING) {
