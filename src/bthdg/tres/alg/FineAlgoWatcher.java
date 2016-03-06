@@ -18,6 +18,7 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
     public static final double MIN_MOVE = 0.033;
     private static final long MOVE_DELAY = 5000; // every 5 sec
     private static final Pair PAIR = Pair.BTC_CNH;
+    private final boolean m_verbose;
 
     private final Exchange m_exchange;
     private double m_lastPrice;
@@ -35,6 +36,7 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
     public FineAlgoWatcher(TresExchData tresExchData, TresAlgo algo) {
         super(tresExchData, algo);
         m_exchange = m_tresExchData.m_ws.exchange();
+        m_verbose = !tresExchData.m_tres.m_logProcessing;
     }
 
     @Override public void onValueChange() {
@@ -42,57 +44,92 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
 
         double lastPrice = m_algo.lastTickPrice();
         long lastTickTime = m_algo.lastTickTime();
-        log("onValueChange: lastTickTime=" + lastTickTime + "; lastPrice=" + lastPrice + " .....................................");
+        if (m_verbose) {
+            log("onValueChange: lastTickTime=" + lastTickTime + "; lastPrice=" + lastPrice + " .....................................");
+        }
 
         if ((lastPrice != 0) && (lastTickTime != 0)) {
-            m_topsData.put(PAIR, new TopData(lastPrice, lastPrice, lastPrice));
             Currency currencyFrom = PAIR.m_from;
             Currency currencyTo = PAIR.m_to;
 
             if (m_initAcctData == null) { // first run
+                m_topsData.put(PAIR, new TopData(lastPrice, lastPrice, lastPrice));
+
                 m_initAcctData = new AccountData(m_exchange, 0);
                 m_initAcctData.setAvailable(currencyFrom, lastPrice);
                 m_initAcctData.setAvailable(currencyTo, 1);
                 m_initTopsData.put(PAIR, new TopData(lastPrice, lastPrice, lastPrice));
-                log(" initAcctData: PAIR=" + PAIR + "; currencyFrom=" + currencyFrom + "; currencyTo=" + currencyTo);
+                if (m_verbose) {
+                    log(" initAcctData: PAIR=" + PAIR + "; currencyFrom=" + currencyFrom + "; currencyTo=" + currencyTo);
+                }
 
                 m_valuateToInit = m_initAcctData.evaluateAll(m_initTopsData, currencyTo, m_exchange);
                 m_valuateFromInit = m_initAcctData.evaluateAll(m_initTopsData, currencyFrom, m_exchange);
-                log("  INIT:  valuate" + currencyTo + "=" + m_valuateToInit + " " + currencyTo + "; valuate" + currencyFrom + "=" + m_valuateFromInit + " " + currencyFrom);
+                if (m_verbose) {
+                    log("  INIT:  valuate" + currencyTo + "=" + m_valuateToInit + " " + currencyTo + "; valuate" + currencyFrom + "=" + m_valuateFromInit + " " + currencyFrom);
+                }
 
                 m_accountData = m_initAcctData.copy();
-                log("  start acctData=" + m_initAcctData);
-
+                if (m_verbose) {
+                    log("  start acctData=" + m_initAcctData);
+                }
             } else {
                 double direction = m_algo.getDirectionAdjusted(); // UP/DOWN
-                log(" direction=" + Utils.format8(direction));
-                double needBuyTo = m_accountData.calcNeedBuyTo(direction, PAIR, m_topsData, m_exchange);
-                log(" needBuy" + currencyTo + "=" + Utils.format8(needBuyTo));
+                if (m_verbose) {
+                    log(" direction=" + Utils.format8(direction));
+                }
+
+                m_topsData.put(PAIR, new TopData(lastPrice - AVG_HALF_BID_ASK_DIF, lastPrice + AVG_HALF_BID_ASK_DIF, lastPrice));
+
+                double needBuyTo = m_accountData.calcNeedBuyTo(direction, PAIR, m_topsData, m_exchange, false);
+                if (m_verbose) {
+                    log(" needBuy" + currencyTo + "=" + Utils.format8(needBuyTo));
+                }
+
+                needBuyTo *= 0.95;
+                if (m_verbose) {
+                    log(" needBuy'" + currencyTo + "=" + Utils.format8(needBuyTo));
+                }
+
+                if (needBuyTo > 0) { // buy
+                    lastPrice += AVG_HALF_BID_ASK_DIF;
+                } else { // sell
+                    lastPrice -= AVG_HALF_BID_ASK_DIF;
+                }
 
                 double absOrderSize = Math.abs(needBuyTo);
                 OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
-                log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+                if (m_verbose) {
+                    log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+                }
 
                 double exchMinOrderToCreate = m_exchange.minOrderToCreate(PAIR);
                 if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= MIN_MOVE)) {
                     long timeDiff = lastTickTime - m_lastMoveMillis;
                     if (timeDiff > MOVE_DELAY) {
-                        m_accountData.move(currencyFrom, currencyTo, needBuyTo, m_topsData);
+                        m_accountData.move(currencyFrom, currencyTo, needBuyTo, m_topsData, m_verbose);
 
                         double gain = totalPriceRatio();
-                        log("    gain: " + Utils.format8(gain) + " .....................................");
+                        if (m_verbose) {
+                            log("    gain: " + Utils.format8(gain) + " .....................................");
+                        }
 
                         OrderData orderData = new OrderData(PAIR, needOrderSide, lastPrice, absOrderSize);
+                        orderData.m_placeTime = lastTickTime;
                         TresExchData.OrderPoint orderPoint = new TresExchData.OrderPoint(orderData, 0, lastPrice, lastPrice, BaseExecutor.TopSource.top_fetch, gain);
                         synchronized (m_orders) {
                             m_orders.add(orderPoint);
                         }
                         m_lastMoveMillis = lastTickTime;
                     } else {
-                        log("   need wait. timeDiff=" + timeDiff + " .....................................");
+                        if (m_verbose) {
+                            log("   need wait. timeDiff=" + timeDiff + " .....................................");
+                        }
                     }
                 } else {
-                    log("   small amount to move: " + Utils.format8(absOrderSize) + " .....................................");
+                    if (m_verbose) {
+                        log("   small amount to move: " + Utils.format8(absOrderSize) + " .....................................");
+                    }
                 }
             }
             m_lastPrice = lastPrice;
@@ -118,20 +155,19 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
 
         if (m_doPaint) {
             List<TresExchData.OrderPoint> points = clonePoints(xTimeAxe);
-            log("paint points num=" + points.size());
             paintPoints(g, xTimeAxe, yPriceAxe, points);
         }
     }
 
     private List<TresExchData.OrderPoint> clonePoints(ChartAxe xTimeAxe) {
-        double minTime = xTimeAxe.m_min;
-        double maxTime = xTimeAxe.m_max;
+        long minTime = (long) xTimeAxe.m_min;
+        long maxTime = (long) xTimeAxe.m_max;
         List<TresExchData.OrderPoint> paintPoints = new ArrayList<TresExchData.OrderPoint>();
         TresExchData.OrderPoint rightPlusPoint = null; // paint one extra point at right side
         synchronized (m_orders) {
             for (Iterator<TresExchData.OrderPoint> it = m_orders.descendingIterator(); it.hasNext(); ) {
                 TresExchData.OrderPoint point = it.next();
-                long timestamp = point.m_tickAge;
+                long timestamp = point.m_order.m_placeTime;
                 if (timestamp > maxTime) {
                     rightPlusPoint = point;
                     continue;
@@ -153,7 +189,7 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
         int lastY = Integer.MAX_VALUE;
 //        TresExchData.OrderPoint lastPoint = null;
         for (TresExchData.OrderPoint point : points) {
-            long millis = point.m_tickAge;
+            long millis = point.m_order.m_placeTime;
             OrderData order = point.m_order;
             double price = order.m_price;
 
@@ -168,11 +204,18 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
                 g.drawRect(x - 1, y - 1, 2, 2);
             }
 
+            OrderSide side = order.m_side;
+            boolean isBuy = side.isBuy();
+            Polygon p = new Polygon();
+            p.addPoint(x, isBuy ? y - 10 : y + 10);
+            p.addPoint(x + 5, y);
+            p.addPoint(x - 5, y);
+            g.drawPolygon(p);
+
             g.drawString(String.format("p: %1$,.2f", price), x, y + fontHeight);
 
-//            double priceRatio = point.m_priceRatio;
-//            g.setColor((priceRatio > 1) ? Color.GREEN : Color.RED);
-//            g.drawString(String.format("r: %1$,.5f", priceRatio), x, y + fontHeight * 2);
+            g.setColor(isBuy ? Color.GREEN : Color.RED);
+            g.drawString(String.format("r: %1$,.5f", price), x, y + fontHeight * 2);
 
             double totalPriceRatio = point.m_gainAvg;
             g.setColor((totalPriceRatio > 1) ? Color.GREEN : Color.RED);
