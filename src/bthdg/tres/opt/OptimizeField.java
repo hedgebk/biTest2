@@ -71,6 +71,7 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return Cno3Algo.SMOOTH_RATE; }
         @Override public void set(Tres tres, double value) { Cno3Algo.SMOOTH_RATE = value; }
     },
+
     EMAS_SIZE("emas.size") {
         @Override public double get(Tres tres) { return EmasAlgo.EMA_SIZE; }
         @Override public void set(Tres tres, double value) { EmasAlgo.EMA_SIZE = value; }
@@ -90,6 +91,10 @@ public enum OptimizeField {
     EMAS_STEP("emas.step") {
         @Override public double get(Tres tres) { return EmasAlgo.TEMA_STEP; }
         @Override public void set(Tres tres, double value) { EmasAlgo.TEMA_STEP = value; }
+    },
+    EMAS_SUM_PEAK("emas.sum_peak") {
+        @Override public double get(Tres tres) { return EmasAlgo.SUM_PEAK_TOLERANCE; }
+        @Override public void set(Tres tres, double value) { EmasAlgo.SUM_PEAK_TOLERANCE = value; }
     },
 
     FOUR_EMA_SIZE("4emas.size") {
