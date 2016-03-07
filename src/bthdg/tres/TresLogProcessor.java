@@ -886,7 +886,15 @@ class TresLogProcessor extends Thread {
         String[] split = config.split(";"); // 10.1;30.2;1.3
         double min = Double.parseDouble(split[0]);
         double max = Double.parseDouble(split[1]);
-        double step = Double.parseDouble(split[2]);
+        double step;
+        String stepStr = split[2];
+        if (stepStr.startsWith("s")) { // steps count passes
+            int stepsCount = Integer.parseInt(stepStr.substring(1));
+            step = (max - min) / stepsCount;
+            log(" step=" + Utils.format8(step));
+        } else { // absolute step passed
+            step = Double.parseDouble(stepStr);
+        }
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         String format = optimizeField.getFormat();
         for (double i = min; i <= max; i += step) {
