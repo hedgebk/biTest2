@@ -50,7 +50,7 @@ public abstract class BaseExecutor implements Runnable {
     protected int m_orderPlaceAttemptCounter;
     protected long m_lastProcessDirectionTime;
     public boolean m_feeding;
-    protected OrderPriceMode m_orderPriceMode = OrderPriceMode.PEG_TO_MKT;
+    public OrderPriceMode m_orderPriceMode = OrderPriceMode.PEG_TO_MKT;
     final Utils.DoubleDoubleAverageCalculator m_cancelOrderTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     final Utils.DoubleDoubleAverageCalculator m_initAccountTakesCalc = new Utils.DoubleDoubleAverageCalculator();
     final Utils.DoubleDoubleAverageCalculator m_liveOrdersTakesCalc = new Utils.DoubleDoubleAverageCalculator();

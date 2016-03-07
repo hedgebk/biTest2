@@ -13,4 +13,5 @@ public interface IWs {
     void stop();
     String getPropPrefix();
     void reconnect();
+    int disconnectCount();
 }

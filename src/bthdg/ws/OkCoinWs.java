@@ -545,7 +545,8 @@ System.out.println("Received message: " + message);
 
             ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
                 @Override public boolean onDisconnect(CloseReason closeReason) {
-                    log("ReconnectHandler.onDisconnect() reconnectCount=" + m_reconnectCounter + "; closeReason=" + closeReason);
+                    m_disconnectCount++;
+                    log("ReconnectHandler.onDisconnect() disconnectCount=" + m_disconnectCount + "; reconnectCount=" + m_reconnectCounter + "; closeReason=" + closeReason);
                     m_pingThread = null; // set flag to finish ping thread
                     logInfo();
                     m_reconnectCounter++;
@@ -559,7 +560,8 @@ System.out.println("Received message: " + message);
                 }
 
                 @Override public boolean onConnectFailure(Exception exception) {
-                    log("ReconnectHandler.onConnectFailure() reconnectCount=" + m_reconnectCounter + "; exception=" + exception);
+                    m_disconnectCount++;
+                    log("ReconnectHandler.onConnectFailure() disconnectCount=" + m_disconnectCount + "; reconnectCount=" + m_reconnectCounter + "; exception=" + exception);
                     m_pingThread = null; // set flag to finish ping thread
                     logInfo();
                     m_reconnectCounter++;
