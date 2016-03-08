@@ -38,6 +38,7 @@ import java.util.regex.Pattern;
 class TresLogProcessor extends Thread {
     // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
     private static final Pattern TRE_TRADE_PATTERN = Pattern.compile("onTrade\\[\\w+\\]\\: TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+), time=(\\d+).+");
+    private static final Pattern TRE_TRADE_PATTERN2 = Pattern.compile("onTrade\\[\\w+\\]\\: TrData\\{sz=\\d+\\.\\d+, pr=(\\d+\\.\\d+), tm=(\\d+).+");
     // TresExecutor.gotTop() buy=2150.71; sell=2151.0
     private static final Pattern TRE_TOP_PATTERN = Pattern.compile("TresExecutor.gotTop\\(\\) buy=(\\d+\\.\\d+); sell=(\\d+\\.\\d+)");
     // 1426040622351: State.onTrade(tData=TradeData{amount=5.00000, price=1831.00000, time=1426040623000, tid=0, type=ASK}) on NONE *********************************************
@@ -471,19 +472,21 @@ class TresLogProcessor extends Thread {
                 Number num = maxEntry.getKey(); // best
                 double value = num.doubleValue();
                 boolean isMaxField = (optimizeField == maxField);
-                double newValue = isMaxField ? value : (value + optimizeField.get(tres)) / 2;
-                String newConfig = String.format(optimizeField.getFormat(), newValue);
+                double prevValue = optimizeField.get(tres);
+                double newValue = isMaxField ? value : (value + prevValue) / 2;
+                String format = optimizeField.getFormat();
+                String newConfig = String.format(format, newValue);
                 if (newConfig != null) {
                     sb.append("tre.");
                     sb.append(optimizeField.m_key);
                     sb.append("=");
                     sb.append(newConfig);
                     sb.append("\t\t# ");
-                    if (isMaxField) {
-                        sb.append("max");
-                    }
+                    sb.append(isMaxField ? "max" : "   ");
                     sb.append(" value=");
                     sb.append(Utils.format5(maxEntry.getValue()));
+                    sb.append("\tprev:");
+                    sb.append(String.format(format, prevValue));
                     sb.append("\n");
                 }
             }
@@ -1437,6 +1440,9 @@ class TresLogProcessor extends Thread {
 
     private TradeDataLight parseTradeLine(String line) {
         Matcher matcher = TRE_TRADE_PATTERN.matcher(line);
+        if (!matcher.matches()) {
+            matcher = TRE_TRADE_PATTERN2.matcher(line);
+        }
         if (matcher.matches()) {
             String priceStr = matcher.group(1);
             String timeStr = matcher.group(2);
