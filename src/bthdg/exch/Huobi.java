@@ -416,7 +416,7 @@ public class Huobi extends BaseExch {
             throw new RuntimeException("Account request error: " + msg);
         }
 
-        AccountData accountData = new AccountData(Exchange.HUOBI, Double.MAX_VALUE);
+        AccountData accountData = new AccountData(Exchange.HUOBI, 0);
         double btc = Utils.getDouble(jObj.get("available_btc_display"));
         accountData.setAvailable(Currency.BTC, btc);
         double cny = Utils.getDouble(jObj.get("available_cny_display"));
