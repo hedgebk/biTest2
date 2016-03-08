@@ -40,6 +40,7 @@ public class TresExecutor extends BaseExecutor {
     private double m_lastTradePartRate;
     private boolean m_oldLastTradeReconnectRequested;
     private final List<OrderData> m_pendingMktOrders = new ArrayList<OrderData>();
+    private long m_lastMktPlaceTime;
 
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
@@ -446,6 +447,7 @@ public class TresExecutor extends BaseExecutor {
         OrderType orderType = placeOrder.m_type;
         if (orderType == OrderType.MARKET) {
             m_pendingMktOrders.add(placeOrder);
+            m_lastMktPlaceTime = System.currentTimeMillis();
             log(" added to pendingMktOrders. now num=" + m_pendingMktOrders.size() + " : " + placeOrder);
             m_order = null;
             return STATE_NO_CHANGE;
@@ -455,10 +457,12 @@ public class TresExecutor extends BaseExecutor {
 
     protected int recheckPendingMktOrders() throws Exception {
         boolean isNotEmpty = !m_pendingMktOrders.isEmpty();
-        log(" recheckPendingMktOrders() pendingMktOrders.num=" + m_pendingMktOrders.size());
-        if (isNotEmpty) {
+        long lastMktPlaceTimeDiff = System.currentTimeMillis() - m_lastMktPlaceTime;
+
+        log(" recheckPendingMktOrders() pendingMktOrders.num=" + m_pendingMktOrders.size() + "; lastMktPlaceTimeDiff=" + lastMktPlaceTimeDiff);
+        if (isNotEmpty && (lastMktPlaceTimeDiff > 5000)) { // give MKT orders chance to be executed via WS
             OrderData od = m_pendingMktOrders.get(0);
-            log(" next PendingMktOrder: " + od);
+            log(" first PendingMktOrder: " + od);
             int status = checkOrderState(od);
             if (status == STATE_NO_CHANGE) {
                 log("  MktOrder NOT yet executed: " + od);
