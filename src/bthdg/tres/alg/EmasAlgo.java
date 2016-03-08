@@ -45,8 +45,10 @@ public class EmasAlgo extends TresAlgo {
         super(name, tresExchData);
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
-        m_ema = new EmaIndicator("ema", this, EMA_SIZE); // just to show - not used in calculations
-        m_indicators.add(m_ema);
+        if (EMA_SIZE != 0) {
+            m_ema = new EmaIndicator("ema", this, EMA_SIZE); // just to show - not used in calculations
+            m_indicators.add(m_ema);
+        }
 
         m_fastEma = new TripleEmaIndicator("te", this, TEMA_FAST_SIZE, Color.gray) {
             @Override public void addBar(ChartPoint chartPoint) {
