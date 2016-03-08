@@ -7,11 +7,11 @@ public class TradeData extends TradeDataLight {
     public final long m_tid;
     public final TradeType m_type;
 
-    public TradeData(double amount, double price, long timestamp) {
+    public TradeData(float amount, float price, long timestamp) {
         this(amount, price, timestamp, 0, null);
     }
 
-    public TradeData(double amount, double price, long timestamp, long tid, TradeType type) {
+    public TradeData(float amount, float price, long timestamp, long tid, TradeType type) {
         super(timestamp, price);
         m_amount = amount;
         m_tid = tid;

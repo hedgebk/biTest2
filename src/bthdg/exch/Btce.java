@@ -310,8 +310,8 @@ public class Btce extends BaseExch {
         List<TradeData> trades = new ArrayList<TradeData>(len);
         for (int i = 0; i < len; i++) { // {"amount":7.23385,"timestamp":1391896680,"price":700.7,"tid":29248920,"type":"bid"}
             JSONObject tObj = (JSONObject) array.get(i);
-            double amount = Utils.getDouble(tObj.get("amount"));
-            double price = Utils.getDouble(tObj.get("price"));
+            float amount = Utils.getFloat(tObj.get("amount"));
+            float price = Utils.getFloat(tObj.get("price"));
             long timestamp = Utils.getLong(tObj.get("timestamp")) * 1000;
             long tid = Utils.getLong(tObj.get("tid"));
             String typeStr = (String) tObj.get("type");

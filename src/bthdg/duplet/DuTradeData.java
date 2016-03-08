@@ -11,7 +11,7 @@ public class DuTradeData extends TradeData {
     public final long m_forkId;  // TODO: eliminate - should reside in some wrapper
     public final OrderSide m_orderSide;
 
-    public DuTradeData(double amount, double price, long timestamp, long tid, TradeType type, OrderSide orderSide,
+    public DuTradeData(float amount, float price, long timestamp, long tid, TradeType type, OrderSide orderSide,
                      int exchId, long crossId, long forkId) {
         super( amount, price, timestamp, tid, type );
         m_exchId = exchId;

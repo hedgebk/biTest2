@@ -145,8 +145,8 @@ public class HuobiWs extends BaseWs {
 //                        log("     topBids=" + topBids);
 //                        log("      .length=" + topBids.length());
                     for (int i = 0; i < length; i++) {
-                        Double amt = Utils.getDouble(amount.get(i));
-                        Double prc = Utils.getDouble(price.get(i));
+                        float amt = Utils.getFloat(amount.get(i));
+                        float prc = Utils.getFloat(price.get(i));
                         Integer tm = (Integer) time.get(i);
                         long timestamp = tm * 1000L;
 //                        log("         date=" + new Date(timestamp));
@@ -179,8 +179,8 @@ public class HuobiWs extends BaseWs {
 //                                Double bidPrc = Utils.getDouble(bidPrices.get(j));
 //                                log("         bid[" + j + "] amount=" + bidAmt + "; price=" + bidPrc);
 //                            }
-                        Double askPrc = Utils.getDouble(askPrices.get(i < askAmountsNum ? i : 0));
-                        Double bidPrc = Utils.getDouble(bidPrices.get(i < bidAmountsNum ? i : 0));
+                        double askPrc = Utils.getDouble(askPrices.get(i < askAmountsNum ? i : 0));
+                        double bidPrc = Utils.getDouble(bidPrices.get(i < bidAmountsNum ? i : 0));
 
 //                        log("       trade[" + i + "] timestamp=" + timestamp + "; amt=" + amt + "; prc=" + prc + "; tm=" + tm + ";   BID=" + bidPrc + "; ASK=" + askPrc);
 

@@ -1381,8 +1381,8 @@ class TresLogProcessor extends Thread {
             int min = Integer.parseInt(minStr);
             int sec = Integer.parseInt(secStr);
             int millis = Integer.parseInt(millisStr);
-            double bid = Double.parseDouble(bidStr);
-            double ask = Double.parseDouble(askStr);
+            float bid = Float.parseFloat(bidStr);
+            float ask = Float.parseFloat(askStr);
 //            log(" parsed: year=" + year + "; month=" + month + "; day=" + day + "; hour=" + hour + "; min=" + min + "; sec=" + sec + "; millis=" + millis + "; bid=" + bid + "; ask=" + ask);
 
             long timestamp;
@@ -1391,7 +1391,7 @@ class TresLogProcessor extends Thread {
                 GMT_CALENDAR.set(Calendar.MILLISECOND, millis);
                 timestamp = GMT_CALENDAR.getTimeInMillis();
             }
-            double mid = (bid + ask) / 2;
+            float mid = (bid + ask) / 2;
 
             TradeDataLight tradeData = new TradeDataLight(timestamp, mid);
             return tradeData;
@@ -1466,16 +1466,16 @@ class TresLogProcessor extends Thread {
     }
 
     private TradeDataLight parseTop(String buyStr, String sellStr) {
-        double buy = Double.parseDouble(buyStr);
-        double sell = Double.parseDouble(sellStr);
-        double mid = (buy + sell) / 2;
+        float buy = Float.parseFloat(buyStr);
+        float sell = Float.parseFloat(sellStr);
+        float mid = (buy + sell) / 2;
         return new TradeDataLight(s_lastTradeMillis++, mid);
     }
 
     private TradeDataLight parseTrade(String millisStr, String priceStr) {
         long millis = Long.parseLong(millisStr);
         s_lastTradeMillis = millis;
-        double price = Double.parseDouble(priceStr);
+        float price = Float.parseFloat(priceStr);
         return new TradeDataLight(millis, price);
     }
 

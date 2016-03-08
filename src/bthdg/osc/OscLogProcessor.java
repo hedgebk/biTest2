@@ -231,7 +231,7 @@ public class OscLogProcessor extends BaseChartPaint {
 
     private static void paint() {
         Utils.DoubleMinMaxCalculator<TradeData> priceCalc = new Utils.DoubleMinMaxCalculator<TradeData>(s_trades) {
-            @Override public Double getValue(TradeData tick) { return tick.m_price; }
+            @Override public Double getValue(TradeData tick) { return new Double(tick.m_price); }
         };
 
         Utils.LongMinMaxCalculator<TradeData> timeCalc = new Utils.LongMinMaxCalculator<TradeData>(s_trades) {
@@ -1145,7 +1145,7 @@ public class OscLogProcessor extends BaseChartPaint {
             String priceStr = matcher.group(2);
             System.out.println("GOT TRADE: millisStr=" + millisStr + "; priceStr=" + priceStr);
             long millis = Long.parseLong(millisStr);
-            double price = Double.parseDouble(priceStr);
+            float price = Float.parseFloat(priceStr);
             TradeData tradeData = new TradeData(0, price, millis);
             s_trades.add(tradeData);
 

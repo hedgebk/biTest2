@@ -119,8 +119,8 @@ public class PaintTrace extends BaseChartPaint {
                     long stamp = result.getLong(1);
                     int exchId = result.getInt(2);
                     String side = result.getString(3);
-                    double price = result.getDouble(4);
-                    double amount = result.getDouble(5);
+                    float price = result.getFloat(4);
+                    float amount = result.getFloat(5);
                     long crossId = result.getLong(6);
                     long forkId = result.getLong(7);
 
@@ -139,7 +139,7 @@ public class PaintTrace extends BaseChartPaint {
 
     private static void drawTraces(List<TraceData> traces, List<DuTradeData> trades) {
         Utils.DoubleMinMaxCalculator<DuTradeData> priceCalc0 = new Utils.DoubleMinMaxCalculator<DuTradeData>() {
-            public Double getValue(DuTradeData trade) {return trade.m_price;};
+            @Override public Double getValue(DuTradeData trade) {return new Double(trade.m_price);};
         };
         priceCalc0.calculate(trades);
 
@@ -360,7 +360,7 @@ public class PaintTrace extends BaseChartPaint {
     private static void paintBox(Graphics2D g, ChartAxe timeAxe, ChartAxe priceAxe,
                                  Map.Entry<Long, DuTradeData[]> openEntry, Map.Entry<Long, DuTradeData[]> closeEntry) {
         Utils.DoubleMinMaxCalculator<DuTradeData> priceCalc = new Utils.DoubleMinMaxCalculator<DuTradeData>() {
-            public Double getValue(DuTradeData trade) {return trade.m_price;};
+            @Override public Double getValue(DuTradeData trade) {return new Double(trade.m_price);};
         };
 
         Utils.LongMinMaxCalculator<DuTradeData> timeCalc = new Utils.LongMinMaxCalculator<DuTradeData>() {
@@ -466,7 +466,7 @@ public class PaintTrace extends BaseChartPaint {
             Color color = trade.m_orderSide.isBuy() ? Color.BLUE : Color.RED;
             g.setPaint(color);
             drawX(g, x, y);
-            String str = Fetcher.format(trade.m_price);
+            String str = Fetcher.format(new Double(trade.m_price));
             paintShadedString(g, str, x + 5, y - 5, color);
         }
     }

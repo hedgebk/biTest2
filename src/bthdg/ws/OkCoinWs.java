@@ -892,8 +892,8 @@ System.out.println("Received message: " + message);
 //log("     price=" + priceStr + "; size=" + size + "; time=" + time + "; side=" + side + "; millis=" + millis);
                     if (millis != 0) {
                         long tid = Utils.getLong(tidStr);
-                        double amount = Utils.getDouble(size);
-                        double price = Utils.getDouble(priceStr);
+                        float amount = Utils.getFloat(size);
+                        float price = Utils.getFloat(priceStr);
                         TradeType type = TradeType.get(side);
                         TradeData tdata = new TradeData(amount, price, millis, tid, type);
 //log("      TradeData=" + tdata);

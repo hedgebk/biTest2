@@ -152,6 +152,16 @@ public class Utils {
         }
     }
 
+    public static float getFloat(Object obj) {
+        if(obj instanceof Number) {
+            return ((Number) obj).floatValue();
+        } else if(obj instanceof String) {
+            return Float.parseFloat((String) obj);
+        } else {
+            throw new RuntimeException("un-supported class: " + obj.getClass());
+        }
+    }
+
     public static long getLong(Object obj) {
         if(obj instanceof Long) {
             return (Long) obj;
