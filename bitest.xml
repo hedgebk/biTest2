@@ -218,23 +218,45 @@
         </scp>
     </target>
 
-    <target name="deploy-config">
+    <target name="deploy-config-o">
         <scp verbose="true"
              trust="yes"
-             todir="${export.host}:."
+             todir="${export.host}:./o"
              keyfile="${key.file}">
-            <fileset dir="${module.bitest.basedir}/stage">
+            <fileset dir="${module.bitest.basedir}/stage/o">
                 <include name="keys.properties"/>
             </fileset>
         </scp>
     </target>
 
-    <target name="deploy-jar" depends="jar">
+    <target name="deploy-config-h">
         <scp verbose="true"
              trust="yes"
-             todir="${export.host}:."
+             todir="${export.host}:./h"
              keyfile="${key.file}">
-            <fileset dir="${module.bitest.basedir}/stage">
+            <fileset dir="${module.bitest.basedir}/stage/h">
+                <include name="keys.properties"/>
+            </fileset>
+        </scp>
+    </target>
+
+    <target name="deploy-jar-o" depends="jar">
+        <scp verbose="true"
+             trust="yes"
+             todir="${export.host}:./o"
+             keyfile="${key.file}">
+            <fileset dir="${module.bitest.basedir}/stage/o">
+                <include name="jar.jar"/>
+            </fileset>
+        </scp>
+    </target>
+
+    <target name="deploy-jar-h" depends="jar">
+        <scp verbose="true"
+             trust="yes"
+             todir="${export.host}:./h"
+             keyfile="${key.file}">
+            <fileset dir="${module.bitest.basedir}/stage/h">
                 <include name="jar.jar"/>
             </fileset>
         </scp>
