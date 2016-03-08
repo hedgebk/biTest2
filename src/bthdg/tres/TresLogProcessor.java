@@ -235,6 +235,12 @@ class TresLogProcessor extends Thread {
         if (m_varyCno3Smooch != null) {
             log("varyCno3Smooch=" + m_varyCno3Smooch);
         }
+        String rateStr = config.getProperty("tre.bar_size_to_phases_rate");
+        if (rateStr != null) {
+            double rate = Double.parseDouble(rateStr);
+            OptimizeField.BAR_SIZE_TO_PHASES_RATE = rate;
+            log("bar_size_to_phases_rate=" + rateStr);
+        }
 
         getOptimizeFieldConfigs();
 
@@ -432,7 +438,7 @@ class TresLogProcessor extends Thread {
         checkOptimize(tres, datas);
         checkGrid(tres, datas);
 
-        if(!m_iterated) {
+        if (!m_iterated) {
             tres.m_collectPoints = true;
             Map<String, Double> averageProjected = processAllTicks(datas);
             log("averageProjected: " + averageProjected);
@@ -440,18 +446,59 @@ class TresLogProcessor extends Thread {
     }
 
     private void varyOptimizeFieldsDouble(List<TradesTopsData> datas, Tres tres) throws Exception {
+        Map<OptimizeField, Map.Entry<Number, Double>> optimized = new HashMap<OptimizeField, Map.Entry<Number, Double>>();
+        double maxValue = 0;
+        OptimizeField maxField = null;
+        StringBuilder sb = new StringBuilder();
         for (OptimizeField optimizeField : OptimizeField.values()) {
-            varyDouble(datas, tres, optimizeField);
+            Map.Entry<Number, Double> maxEntry = varyDouble(datas, tres, optimizeField);
+            if (maxEntry != null) {
+                optimized.put(optimizeField, maxEntry);
+                log("   maxEntry: key=" + maxEntry.getKey() + "; value=" + maxEntry.getValue());
+
+                Number key = maxEntry.getKey(); // best
+                double value = maxEntry.getValue();
+                if (value > maxValue) {
+                    maxValue = value;
+                    maxField = optimizeField;
+                    log("   old maxValue=" + maxValue + "; new value=" + value + "; key=" + key + "; maxField=" + maxField);
+                }
+            }
         }
+        for (OptimizeField optimizeField : OptimizeField.values()) {
+            Map.Entry<Number, Double> maxEntry = optimized.get(optimizeField);
+            if (maxEntry != null) {
+                Number num = maxEntry.getKey(); // best
+                double value = num.doubleValue();
+                boolean isMaxField = (optimizeField == maxField);
+                double newValue = isMaxField ? value : (value + optimizeField.get(tres)) / 2;
+                String newConfig = String.format(optimizeField.getFormat(), newValue);
+                if (newConfig != null) {
+                    sb.append("tre.");
+                    sb.append(optimizeField.m_key);
+                    sb.append("=");
+                    sb.append(newConfig);
+                    sb.append("\t\t# ");
+                    if (isMaxField) {
+                        sb.append("max");
+                    }
+                    sb.append(" value=");
+                    sb.append(Utils.format5(maxEntry.getValue()));
+                    sb.append("\n");
+                }
+            }
+        }
+        log("new config ::::::::::::::::::::::::::::::::::\n" + sb.toString());
     }
 
-    private void varyDouble(List<TradesTopsData> datas, Tres tres, OptimizeField optimizeField) throws Exception {
+    private Map.Entry<Number, Double> varyDouble(List<TradesTopsData> datas, Tres tres, OptimizeField optimizeField) throws Exception {
         String config = m_varyConfigs.get(optimizeField);
         if (config != null) {
             String name = optimizeField.m_key;
             log("vary " + name + ": " + config + "; field: " + optimizeField);
-            varyDouble(datas, tres, optimizeField, config);
+            return varyDouble(datas, tres, optimizeField, config);
         }
+        return null;
     }
 
     private void checkGrid(Tres tres, List<TradesTopsData> datas) {
@@ -697,13 +744,13 @@ class TresLogProcessor extends Thread {
         logMax(maxMap, key, "%.6f");
     }
 
-    private void logMax(Map<String, Map.Entry<Number, Double>> maxMap, String key, String format) {
+    private void logMax(Map<String, Map.Entry<Number, Double>> maxMap, String varyKey, String format) {
         for (Map.Entry<String, Map.Entry<Number, Double>> entry : maxMap.entrySet()) {
-            String name = entry.getKey();
+            String algoName = entry.getKey();
             Map.Entry<Number, Double> maxEntry = entry.getValue();
             Number num = maxEntry.getKey();
             Double value = maxEntry.getValue();
-            log(name + "[" + key + "=" + String.format(format, num) + "]=" + value);
+            log(algoName + "[" + varyKey + "=" + String.format(format, num) + "]=" + value);
         }
     }
 
@@ -880,7 +927,7 @@ class TresLogProcessor extends Thread {
         varyDouble(datas, tres, OptimizeField.OSC_PEAK, varyOscPeak);
     }
 
-    private void varyDouble(List<TradesTopsData> datas, Tres tres, OptimizeField optimizeField, String config) throws Exception {
+    private Map.Entry<Number, Double> varyDouble(List<TradesTopsData> datas, Tres tres, OptimizeField optimizeField, String config) throws Exception {
         double old = optimizeField.get(tres);
 
         String[] split = config.split(";"); // 10.1;30.2;1.3
@@ -903,8 +950,11 @@ class TresLogProcessor extends Thread {
         }
         logMax(maxMap, optimizeField.m_key, format);
         optimizeField.set(tres, old);
-    }
 
+        String algoName = tres.m_exchDatas.get(0).m_runAlgoWatcher.m_algo.m_name;
+        Map.Entry<Number, Double> maxEntry = maxMap.get(algoName);
+        return maxEntry;
+    }
 
     private void varyAndPeakTolerance(List<TradesTopsData> datas, String varyAndPeak) throws Exception {
         log("varyAndPeak: " + varyAndPeak);
@@ -1188,17 +1238,6 @@ class TresLogProcessor extends Thread {
         long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
         double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
         double exponent = 1 / runningTimeDays;
-//        log("   running " + Utils.millisToDHMSStr(runningTimeMillis) + "; runningTimeDays="+runningTimeDays);
-
-//        Utils.DoubleDoubleAverageCalculator calc = new Utils.DoubleDoubleAverageCalculator();
-//        for (PhaseData phaseData : exchData.m_phaseDatas) {
-//            TresMaCalculator maCalculator = phaseData.m_maCalculator;
-//            double total = maCalculator.calcToTal();
-//            calc.addValue(total);
-//        }
-//        double averageTotal = calc.getAverage();
-//        double projected = Math.pow(averageTotal, exponent);
-//        ret.put("osc", projected);
 
         for(BaseAlgoWatcher algo : exchData.m_playAlgos) {
             String name = algo.m_algo.m_name;

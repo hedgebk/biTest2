@@ -10,7 +10,7 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return tres.m_barSizeMillis; }
         @Override public void set(Tres tres, double value) {
             tres.m_barSizeMillis = (long) value;
-            tres.m_phases = (int) (value/1000);
+            tres.m_phases = (int) (value * BAR_SIZE_TO_PHASES_RATE);
         }
         @Override public String getFormat() { return "%,.0f"; }
     },
@@ -140,6 +140,8 @@ public enum OptimizeField {
     },
     ;
 
+    public static double BAR_SIZE_TO_PHASES_RATE = 0.001;
+
     public final String m_key;
 
     OptimizeField(String key) {
@@ -149,4 +151,5 @@ public enum OptimizeField {
     public double get(Tres tres) { throw new RuntimeException("not implemented"); }
     public void set(Tres tres, double value) { throw new RuntimeException("not implemented"); }
     public String getFormat() { return "%.6f"; }
+
 }
