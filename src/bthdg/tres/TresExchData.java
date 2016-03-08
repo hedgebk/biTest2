@@ -29,7 +29,7 @@ public class TresExchData {
     public long m_lastTickMillis = 0;
     long m_tickCount;
     final List<BaseAlgoWatcher> m_playAlgos = new ArrayList<BaseAlgoWatcher>();
-    private BaseAlgoWatcher m_runAlgoWatcher;
+    protected BaseAlgoWatcher m_runAlgoWatcher;
     TresAlgo.TresAlgoListener m_algoListener;
 
     public void setFeeding() { m_executor.m_feeding = true; }
@@ -106,7 +106,11 @@ public class TresExchData {
                             // will be processed later as possible
                             m_tradesQueue.addItem(new Runnable() {
                                 @Override public void run() {
-                                    processTrade(tdata);
+                                    try {
+                                        processTrade(tdata);
+                                    } catch (Exception e) {
+                                        err("error processing trade : " + tdata + ": " + e, e);
+                                    }
                                 }
                             });
                         }
