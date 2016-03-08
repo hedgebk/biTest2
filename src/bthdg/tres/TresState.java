@@ -83,7 +83,7 @@ public enum TresState {
     }
 
     public TresState onTrade(TresExecutor executor, TradeDataLight tData, IIterationContext.BaseIterationContext iContext) throws Exception {
-        log("State.onTrade(tData=" + tData + ") on " + this + " *********************************************");
+        log("State.onTrade(tData=" + tData + ") on " + this);
         return null; // no change
     }
 

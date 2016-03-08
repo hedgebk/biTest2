@@ -19,12 +19,12 @@ public class TradeData extends TradeDataLight {
     }
 
     @Override public String toString() {
-        return "TradeData{" +
-                "amount=" + Utils.format5(m_amount) +
-                ", price=" + Utils.format5(m_price) +
-                ", time=" + m_timestamp +
+        return "TrData{" +
+                "sz=" + Utils.format5(m_amount) +
+                ", pr=" + Utils.format5(m_price) +
+                ", tm=" + m_timestamp +
                 ", tid=" + m_tid +
-                ", type=" + m_type +
+                ", typ=" + m_type +
                 '}';
     }
 }
