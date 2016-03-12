@@ -11,6 +11,9 @@ public enum OptimizeField {
         @Override public void set(Tres tres, double value) {
             tres.m_barSizeMillis = (long) value;
             tres.m_phases = (int) (value * BAR_SIZE_TO_PHASES_RATE);
+            if(tres.m_phases < 1) {
+                System.out.println("ERROR: tres.m_phases = " + tres.m_phases);
+            }
         }
         @Override public String getFormat() { return "%,.0f"; }
     },
@@ -31,6 +34,7 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return OscIndicator.PEAK_TOLERANCE; }
         @Override public void set(Tres tres, double value) { OscIndicator.PEAK_TOLERANCE = value; }
     },
+    //------------------------------------------------------------------------------------------
     ARO_LEN("aro.len") {
         @Override public double get(Tres tres) { return AroonIndicator.LENGTH; }
         @Override public void set(Tres tres, double value) { AroonIndicator.LENGTH = (int) value; }
@@ -63,6 +67,7 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return AroonAlgo.SMOOTH_RATE; }
         @Override public void set(Tres tres, double value) { AroonAlgo.SMOOTH_RATE = value; }
     },
+    //------------------------------------------------------------------------------------------
     CNO3_PEAK("cno3.peak") {
         @Override public double get(Tres tres) { return Cno3Algo.SMOOTH_PEAK_TOLERANCE; }
         @Override public void set(Tres tres, double value) { Cno3Algo.SMOOTH_PEAK_TOLERANCE = value; }
@@ -71,7 +76,7 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return Cno3Algo.SMOOTH_RATE; }
         @Override public void set(Tres tres, double value) { Cno3Algo.SMOOTH_RATE = value; }
     },
-
+    //------------------------------------------------------------------------------------------
     EMAS_SIZE("emas.size") {
         @Override public double get(Tres tres) { return EmasAlgo.EMA_SIZE; }
         @Override public void set(Tres tres, double value) { EmasAlgo.EMA_SIZE = value; }
@@ -96,7 +101,7 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return EmasAlgo.SUM_PEAK_TOLERANCE; }
         @Override public void set(Tres tres, double value) { EmasAlgo.SUM_PEAK_TOLERANCE = value; }
     },
-
+    //------------------------------------------------------------------------------------------
     FOUR_EMA_SIZE("4emas.size") {
         @Override public double get(Tres tres) { return FourEmaAlgo.EMA_SIZE; }
         @Override public void set(Tres tres, double value) { FourEmaAlgo.EMA_SIZE = value; }
@@ -120,7 +125,7 @@ public enum OptimizeField {
         @Override public void set(Tres tres, double value) { FourEmaAlgo.START_ZERO_LEVEL = value; }
         @Override public String getFormat() { return "%.8f"; }
     },
-
+    //------------------------------------------------------------------------------------------
     EWO_VELOCITY("ewo.velocity") {
         @Override public double get(Tres tres) { return EwoAlgo.VELOCITY_SIZE; }
         @Override public void set(Tres tres, double value) { EwoAlgo.VELOCITY_SIZE = value; }
