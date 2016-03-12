@@ -81,16 +81,6 @@ class TresLogProcessor extends Thread {
     private boolean m_iterated;
     private HashMap<OptimizeField, String> m_optCfg;
     private HashMap<OptimizeField, String> m_gridCfg;
-    private String m_varyAroLen;
-    private String m_varyAroPeak;
-    private String m_varyAroPeak2;
-    private String m_varyAroPeak3;
-    private String m_varyAroPeak4;
-    private String m_varyAroBarRatioStep;
-    private String m_varyAroBarRatioStepNum;
-    private String m_varyAroSmoothRate;
-    private String m_varyCno3Peak;
-    private String m_varyCno3Smooch;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -195,47 +185,7 @@ class TresLogProcessor extends Thread {
             log("varyCno2Frame=" + m_varyCno2Frame);
         }
 
-        m_varyAroLen = config.getProperty("tre.vary.aro_len");
-        if (m_varyAroLen != null) {
-            log("varyAroLen=" + m_varyAroLen);
-        }
-        m_varyAroPeak = config.getProperty("tre.vary.aro_peak");
-        if (m_varyAroPeak != null) {
-            log("varyAroPeak=" + m_varyAroPeak);
-        }
-        m_varyAroPeak2 = config.getProperty("tre.vary.aro_peak2");
-        if (m_varyAroPeak2 != null) {
-            log("varyAroPeak2=" + m_varyAroPeak2);
-        }
-        m_varyAroPeak3 = config.getProperty("tre.vary.aro_peak3");
-        if (m_varyAroPeak3 != null) {
-            log("varyAroPeak3=" + m_varyAroPeak3);
-        }
-        m_varyAroPeak4 = config.getProperty("tre.vary.aro_peak4");
-        if (m_varyAroPeak4 != null) {
-            log("varyAroPeak4=" + m_varyAroPeak4);
-        }
-        m_varyAroBarRatioStep = config.getProperty("tre.vary.aro_bar_ratio_step");
-        if (m_varyAroBarRatioStep != null) {
-            log("varyAroBarRatioStep=" + m_varyAroBarRatioStep);
-        }
-        m_varyAroBarRatioStepNum = config.getProperty("tre.vary.aro_bar_ratio_step_num");
-        if (m_varyAroBarRatioStepNum != null) {
-            log("varyAroBarRatioStepNum=" + m_varyAroBarRatioStepNum);
-        }
-        m_varyAroSmoothRate = config.getProperty("tre.vary.aro_smooth_rate");
-        if (m_varyAroSmoothRate != null) {
-            log("varyAroSmoothRate=" + m_varyAroSmoothRate);
-        }
 
-        m_varyCno3Peak = config.getProperty("tre.vary.cno3_peak");
-        if (m_varyCno3Peak != null) {
-            log("varyCno3Peak=" + m_varyCno3Peak);
-        }
-        m_varyCno3Smooch = config.getProperty("tre.vary.cno3_smooch");
-        if (m_varyCno3Smooch != null) {
-            log("varyCno3Smooch=" + m_varyCno3Smooch);
-        }
         String rateStr = config.getProperty("tre.bar_size_to_phases_rate");
         if (rateStr != null) {
             double rate = Double.parseDouble(rateStr);
@@ -268,7 +218,7 @@ class TresLogProcessor extends Thread {
         String name = optimizeField.m_key;
         String config = m_config.getProperty("tre.vary." + name);
         if (config != null) {
-            log("vary" + name + "=" + config);
+            log("vary " + name + "=" + config);
             m_varyConfigs.put(optimizeField, config);
         }
     }
@@ -402,38 +352,6 @@ class TresLogProcessor extends Thread {
             varyCno2FrameRate(datas, m_varyCno2Frame);
         }
 
-        if (m_varyAroLen != null) {
-            varyAroLen(datas, tres, m_varyAroLen);
-        }
-        if (m_varyAroPeak != null) {
-            varyAroPeak(datas, tres, m_varyAroPeak);
-        }
-        if (m_varyAroPeak2 != null) {
-            varyAroPeak2(datas, tres, m_varyAroPeak2);
-        }
-        if (m_varyAroPeak3 != null) {
-            varyAroPeak3(datas, tres, m_varyAroPeak3);
-        }
-        if (m_varyAroPeak4 != null) {
-            varyAroPeak4(datas, tres, m_varyAroPeak4);
-        }
-        if (m_varyAroSmoothRate != null) {
-            varyAroSmoothRate(datas, tres, m_varyAroSmoothRate);
-        }
-        if (m_varyAroBarRatioStep != null) {
-            varyAroBarRatioStep(datas, tres, m_varyAroBarRatioStep);
-        }
-        if (m_varyAroBarRatioStepNum != null) {
-            varyAroBarRatioStepNum(datas, tres, m_varyAroBarRatioStepNum);
-        }
-
-        if (m_varyCno3Peak != null) {
-            varyCno3Peak(datas, tres, m_varyCno3Peak);
-        }
-        if (m_varyCno3Smooch != null) {
-            varyCno3Smooch(datas, tres, m_varyCno3Smooch);
-        }
-
         varyOptimizeFieldsDouble(datas, tres);
 
         checkOptimize(tres, datas);
@@ -460,9 +378,9 @@ class TresLogProcessor extends Thread {
                 Number key = maxEntry.getKey(); // best
                 double value = maxEntry.getValue();
                 if (value > maxValue) {
+                    log("   old maxValue=" + maxValue + "; new value=" + value + "; key=" + key + "; maxField=" + maxField);
                     maxValue = value;
                     maxField = optimizeField;
-                    log("   old maxValue=" + maxValue + "; new value=" + value + "; key=" + key + "; maxField=" + maxField);
                 }
             }
         }
@@ -591,7 +509,7 @@ class TresLogProcessor extends Thread {
         try {
             pair1 = optimize.optimize(
                     new ObjectiveFunction(function),
-                    new MaxEval(200),
+                    new MaxEval(250),
                     GoalType.MAXIMIZE,
                     new InitialGuess(startPoint)
             );
@@ -613,7 +531,7 @@ class TresLogProcessor extends Thread {
         try {
             pair2 = optimize.optimize(
                     new ObjectiveFunction(function),
-                    new MaxEval(200),
+                    new MaxEval(250),
                     GoalType.MAXIMIZE,
                     new InitialGuess(startPoint),
                     bounds
@@ -634,7 +552,7 @@ class TresLogProcessor extends Thread {
         try {
             pair3 = optimize.optimize(
                     new ObjectiveFunction(function),
-                    new MaxEval(100),
+                    new MaxEval(150),
                     GoalType.MAXIMIZE,
                     new InitialGuess(startPoint),
                     new MultiDirectionalSimplex(startPoint.length));
@@ -668,8 +586,9 @@ class TresLogProcessor extends Thread {
             OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
             OptimizeField field = fieldConfig.m_field;
             double value = point[i];
-            log(" field[" + field.m_key + "]=" + (value * fieldConfig.m_multiplier) + "(value)");
-            field.set(tres, value);
+            double valueMultiplied = value * fieldConfig.m_multiplier;
+            log(" field[" + field.m_key + "]=" + valueMultiplied + "(value)");
+            field.set(tres, valueMultiplied);
         }
     }
 
@@ -753,7 +672,7 @@ class TresLogProcessor extends Thread {
             Map.Entry<Number, Double> maxEntry = entry.getValue();
             Number num = maxEntry.getKey();
             Double value = maxEntry.getValue();
-            log(algoName + "[" + varyKey + "=" + String.format(format, num) + "]=" + value);
+            log(algoName + "[" + varyKey + "=" + String.format(format, num.doubleValue()) + "]=" + value);
         }
     }
 
@@ -819,56 +738,6 @@ class TresLogProcessor extends Thread {
     private void varyLen1(List<TradesTopsData> datas, Tres tres, String varyLen1) throws Exception {
         log("varyLen1: " + varyLen1);
         varyInteger(datas, tres, OptimizeField.OSC_LEN1, varyLen1);
-    }
-
-    private void varyAroLen(List<TradesTopsData> datas, Tres tres, String varyAroLen) throws Exception {
-        log("varyAroLen: " + varyAroLen);
-        varyInteger(datas, tres, OptimizeField.ARO_LEN, varyAroLen);
-    }
-
-    private void varyAroPeak(List<TradesTopsData> datas, Tres tres, String varyAroPeak) throws Exception {
-        log("varyAroPeak: " + varyAroPeak);
-        varyDouble(datas, tres, OptimizeField.ARO_PEAK, varyAroPeak);
-    }
-
-    private void varyAroPeak2(List<TradesTopsData> datas, Tres tres, String varyAroPeak2) throws Exception {
-        log("varyAroPeak2: " + varyAroPeak2);
-        varyDouble(datas, tres, OptimizeField.ARO_PEAK2, varyAroPeak2);
-    }
-
-    private void varyAroPeak3(List<TradesTopsData> datas, Tres tres, String varyAroPeak3) throws Exception {
-        log("varyAroPeak3: " + varyAroPeak3);
-        varyDouble(datas, tres, OptimizeField.ARO_PEAK3, varyAroPeak3);
-    }
-
-    private void varyAroPeak4(List<TradesTopsData> datas, Tres tres, String varyAroPeak4) throws Exception {
-        log("varyAroPeak4: " + varyAroPeak4);
-        varyDouble(datas, tres, OptimizeField.ARO_PEAK4, varyAroPeak4);
-    }
-
-    private void varyAroBarRatioStep(List<TradesTopsData> datas, Tres tres, String varyAroBarRatioStep) throws Exception {
-        log("varyAroBarRatioStep: " + varyAroBarRatioStep);
-        varyDouble(datas, tres, OptimizeField.ARO_BAR_RATIO_STEP, varyAroBarRatioStep);
-    }
-
-    private void varyAroBarRatioStepNum(List<TradesTopsData> datas, Tres tres, String varyAroBarRatioStepNum) throws Exception {
-        log("varyAroBarRatioStepNum: " + varyAroBarRatioStepNum);
-        varyInteger(datas, tres, OptimizeField.ARO_BAR_RATIO_STEP_NUM, varyAroBarRatioStepNum);
-    }
-
-    private void varyAroSmoothRate(List<TradesTopsData> datas, Tres tres, String varyAroSmoothRate) throws Exception {
-        log("varyAroSmoothRate: " + varyAroSmoothRate);
-        varyDouble(datas, tres, OptimizeField.ARO_SMOOTH_RATE, varyAroSmoothRate);
-    }
-
-    private void varyCno3Peak(List<TradesTopsData> datas, Tres tres, String varyCno3Peak) throws Exception {
-        log("varyCno3Peak: " + varyCno3Peak);
-        varyDouble(datas, tres, OptimizeField.CNO3_PEAK, varyCno3Peak);
-    }
-
-    private void varyCno3Smooch(List<TradesTopsData> datas, Tres tres, String varyCno3Smooch) throws Exception {
-        log("varyCno3Smooch: " + varyCno3Smooch);
-        varyDouble(datas, tres, OptimizeField.CNO3_SMOOTH, varyCno3Smooch);
     }
 
     private void varyLen2(List<TradesTopsData> datas, Tres tres, String varyLen2) throws Exception {
@@ -947,12 +816,16 @@ class TresLogProcessor extends Thread {
         }
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         String format = optimizeField.getFormat();
+// before
+//iterate(datas, old, format, optimizeField.m_key, maxMap);
         for (double i = min; i <= max; i += step) {
             optimizeField.set(tres, i);
             iterate(datas, i, format, optimizeField.m_key, maxMap);
         }
         logMax(maxMap, optimizeField.m_key, format);
         optimizeField.set(tres, old);
+// after
+//iterate(datas, old, format, optimizeField.m_key, maxMap);
 
         String algoName = tres.m_exchDatas.get(0).m_runAlgoWatcher.m_algo.m_name;
         Map.Entry<Number, Double> maxEntry = maxMap.get(algoName);
@@ -1176,8 +1049,9 @@ class TresLogProcessor extends Thread {
     private Map<String, Double> processAllTicks(List<TradesTopsData> datas) throws Exception {
         final AtomicInteger semafore = new AtomicInteger();
         ExecutorService executorService = Executors.newFixedThreadPool(PROCESS_THREADS_NUM);
+        final long[] totalRunningTimeMillis = new long[]{0};
 
-        final Map<String,Utils.DoubleDoubleAverageCalculator> calcMap = new HashMap<String, Utils.DoubleDoubleAverageCalculator>();
+        final Map<String,Double> totalRatioMap = new HashMap<String, Double>();
         for (final TradesTopsData data : datas) {
             synchronized (semafore) {
                 semafore.incrementAndGet();
@@ -1185,18 +1059,28 @@ class TresLogProcessor extends Thread {
             executorService.submit(new Runnable() {
                 @Override public void run() {
                     try {
-                        Map<String, Double> projectedMap = processTicks(data);
+                        ProcessTicksResult processTicksResult = processTicks(data);
+                        Map<String, Double> ratioMap = processTicksResult.m_ratioMap;
+                        long runningTimeMillis = processTicksResult.m_runningTimeMillis;
+
+                        //log(" finished " + data.m_fName + ": runningTimeMillis=" + runningTimeMillis + "(" + Utils.format5(runningTimeDays) + "days); ratioMap=" + ratioMap);
+
                         synchronized (semafore) {
-                            for (Map.Entry<String, Double> e : projectedMap.entrySet()) {
-                                String name = e.getKey();
-                                Double projected = e.getValue();
-                                Utils.DoubleDoubleAverageCalculator calc = calcMap.get(name);
-                                if (calc == null) {
-                                    calc = new Utils.DoubleDoubleAverageCalculator();
-                                    calcMap.put(name, calc);
+                            for (Map.Entry<String, Double> e : ratioMap.entrySet()) {
+                                String algoMame = e.getKey();
+                                Double ratio = e.getValue();
+                                Double totalRatio = totalRatioMap.get(algoMame);
+                                if (totalRatio == null) {
+                                    //log("  algo[" + algoMame + "]: ratio=" + ratio);
+                                    totalRatioMap.put(algoMame, ratio);
+                                } else {
+                                    double newTotalRatio = totalRatio * ratio;
+                                    //log("  algo[" + algoMame + "]: totalRatio=" + totalRatio + "; ratio=" + ratio + "; newTotalRatio=" + newTotalRatio);
+                                    totalRatioMap.put(algoMame, newTotalRatio);
                                 }
-                                calc.addValue(projected);
                             }
+                            totalRunningTimeMillis[0] += runningTimeMillis;
+                            //log(" totalRunningTimeMillis=" + totalRunningTimeMillis[0]);
                             int value = semafore.decrementAndGet();
                             if (value == 0) {
                                 semafore.notify();
@@ -1216,19 +1100,27 @@ class TresLogProcessor extends Thread {
                 log(" nothing to wait");
             }
         }
+
+        // all calculations are done
+        long totalRunningTime = totalRunningTimeMillis[0];
+        double runningTimeDays = ((double) totalRunningTime) / Utils.ONE_DAY_IN_MILLIS;
+        double exponent = 1 / runningTimeDays;
+        //log("all calculations are done: totalRunningTime=" + totalRunningTime + "(" + Utils.format5(runningTimeDays) + "days); exponent=" + exponent);
+
         Map<String, Double> ret = new HashMap<String, Double>();
-        for (Map.Entry<String, Utils.DoubleDoubleAverageCalculator> e : calcMap.entrySet()) {
-            String name = e.getKey();
-            Utils.DoubleDoubleAverageCalculator calc = e.getValue();
-            double averageProjected = calc.getAverage();
-            ret.put(name, averageProjected);
+        for (Map.Entry<String, Double> e : totalRatioMap.entrySet()) {
+            String algoName = e.getKey();
+            Double totalRatio = e.getValue();
+            double projectedRatio = Math.pow(totalRatio, exponent);
+            ret.put(algoName, projectedRatio);
+            //log(" algo[" + algoName + "] totalRatio=" + totalRatio + "; projectedRatio=" + projectedRatio);
         }
         executorService.shutdown();
         return ret;
     }
 
-    private Map<String, Double> processTicks(TradesTopsData data) {
-        Map<String, Double> ret = new HashMap<String, Double>();
+    private ProcessTicksResult processTicks(TradesTopsData data) {
+        Map<String, Double> ratioMap = new HashMap<String, Double>();
 
         List<TradeDataLight> ticks = data.m_trades;
 
@@ -1239,16 +1131,13 @@ class TresLogProcessor extends Thread {
         }
 
         long runningTimeMillis = exchData.m_lastTickMillis - exchData.m_startTickMillis;
-        double runningTimeDays = ((double) runningTimeMillis) / Utils.ONE_DAY_IN_MILLIS;
-        double exponent = 1 / runningTimeDays;
 
         for(BaseAlgoWatcher algo : exchData.m_playAlgos) {
             String name = algo.m_algo.m_name;
             double ratio = algo.totalPriceRatio();
-            double algoProjected = Math.pow(ratio, exponent);
-            ret.put(name, algoProjected);
+            ratioMap.put(name, ratio);
         }
-        return ret;
+        return new ProcessTicksResult(runningTimeMillis, ratioMap);
     }
 
     private List<TradesTopsData> parseFiles(Pattern pattern, File dir) throws Exception {
@@ -1323,17 +1212,10 @@ class TresLogProcessor extends Thread {
         }
     }
 
-
-    // ----------------------------------------------------------------------------
-    private static class TradesTopsData {
-        List<TradeDataLight> m_trades = new ArrayList<TradeDataLight>();
-        List<TradeDataLight> m_tops = new ArrayList<TradeDataLight>();
-    }
-
     private TradesTopsData parseLines(LineReader reader, File file) throws IOException {
         BufferedLineReader blr = new BufferedLineReader(reader);
         try {
-            TradesTopsData ret = new TradesTopsData();
+            TradesTopsData ret = new TradesTopsData(file.getName());
             List<TradeDataLight> trades = ret.m_trades;
             List<TradeDataLight> tops = ret.m_tops;
             long startTime = System.currentTimeMillis();
@@ -1491,5 +1373,29 @@ class TresLogProcessor extends Thread {
             throw new RuntimeException("no property found for key '" + key + "'");
         }
         return ret;
+    }
+
+
+    // --------------------------------------------------------------------------------------
+    private static class ProcessTicksResult{
+        private final long m_runningTimeMillis;
+        private final Map<String, Double> m_ratioMap;
+
+        public ProcessTicksResult(long runningTimeMillis, Map<String, Double> ratioMap) {
+            m_runningTimeMillis = runningTimeMillis;
+            m_ratioMap = ratioMap;
+        }
+    }
+
+
+    // ----------------------------------------------------------------------------
+    private static class TradesTopsData {
+        private final String m_fName;
+        final List<TradeDataLight> m_trades = new ArrayList<TradeDataLight>();
+        final List<TradeDataLight> m_tops = new ArrayList<TradeDataLight>();
+
+        public TradesTopsData(String name) {
+            m_fName = name;
+        }
     }
 }
