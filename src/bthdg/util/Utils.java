@@ -816,7 +816,8 @@ public class Utils {
         @Override protected Double getWeight(Long time, Long lastKey) {
             double age = lastKey - time;
             double minus = age / m_frameSizeMillis;
-            return 1.0 - minus;
+            double weight = 1.0 - minus;
+            return Math.max(0, weight);
         }
     }
 
