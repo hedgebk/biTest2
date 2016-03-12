@@ -1,5 +1,6 @@
 package bthdg.osc;
 
+import bthdg.Log;
 import bthdg.util.Utils;
 
 import java.util.HashMap;
@@ -18,6 +19,8 @@ public class TaskQueueProcessor implements Runnable {
     public void stop() {
         m_run = false;
     }
+
+    protected static void log(String s) { Log.log(s); }
 
     public TaskQueueProcessor() {}
 
@@ -63,16 +66,16 @@ public class TaskQueueProcessor implements Runnable {
             BaseOrderTask nextTask = listIterator.next();
             DuplicateAction duplicateAction = task.isDuplicate(nextTask);
             if (duplicateAction == DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST) {
-                BaseExecutor.log(" replacing as LAST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
+                log(" replacing as LAST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
                 task.m_postTime = nextTask.m_postTime;
                 listIterator.remove();
             } else if (duplicateAction == DuplicateAction.REMOVE_ALL_AND_PUT_AS_FIRST) {
-                BaseExecutor.log(" replacing as FIRST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
+                log(" replacing as FIRST task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
                 task.m_postTime = nextTask.m_postTime;
                 listIterator.remove();
                 addLast = Boolean.FALSE;
             } else if (duplicateAction == DuplicateAction.DO_NOT_ADD) {
-                BaseExecutor.log(" skipping task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
+                log(" skipping task " + nextTask.getClass().getSimpleName() + "; tasksList.size=" + tasksList.size() + "; currently processingTask=" + m_processingTask);
                 addLast = null; // do not add
                 break;
             }
@@ -89,7 +92,7 @@ public class TaskQueueProcessor implements Runnable {
     }
 
     @Override public void run() {
-        BaseExecutor.log("TaskQueueProcessor.queue: started thread");
+        log("TaskQueueProcessor.queue: started thread");
         while (m_run) {
             BaseOrderTask task = null;
             try {
@@ -111,7 +114,7 @@ public class TaskQueueProcessor implements Runnable {
                 BaseExecutor.err("error in TaskQueueProcessor: " + e + "; for task " + task, e );
             }
         }
-        BaseExecutor.log("TaskQueueProcessor.queue: thread finished");
+        log("TaskQueueProcessor.queue: thread finished");
     }
 
     protected BaseOrderTask poolTask() throws InterruptedException {
