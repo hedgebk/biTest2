@@ -139,7 +139,9 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
     @Override public double totalPriceRatio() {
         Currency currencyFrom = PAIR.m_from; // cnh=from
         Currency currencyTo = PAIR.m_to;     // btc=to
-
+        if (m_accountData == null) { // error
+            return 1;
+        }
         double valuateToNow = m_accountData.evaluateAll(m_topsData, currencyTo, m_exchange);
         double valuateFromNow = m_accountData.evaluateAll(m_topsData, currencyFrom, m_exchange);
 
