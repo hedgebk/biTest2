@@ -23,6 +23,10 @@ public class SmoochedIndicator extends TresIndicator {
         if (chartPoint != null) {
             long millis = chartPoint.m_millis;
             double avg = m_avgCounter.add(millis, chartPoint.m_value);
+            if(Double.isInfinite(avg)){
+                avg = m_avgCounter.add(millis, chartPoint.m_value);
+                System.out.println("ERROR: avg isInfinite: " + avg);
+            }
             ChartPoint smoochPoint = new ChartPoint(millis, avg);
             super.addBar(smoochPoint);
         }
