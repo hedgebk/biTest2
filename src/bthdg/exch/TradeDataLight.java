@@ -2,7 +2,9 @@ package bthdg.exch;
 
 import bthdg.util.Utils;
 
-public class TradeDataLight {
+import java.io.Serializable;
+
+public class TradeDataLight implements Serializable {
     public final float m_price;
     public final long m_timestamp;
 

@@ -26,8 +26,7 @@ import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
 import org.apache.commons.math3.util.FastMath;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1204,9 +1203,52 @@ class TresLogProcessor extends Thread {
     }
 
     private TradesTopsData parseFile(File file) throws Exception {
+        File dir = file.getParentFile();
+        File ticksDir = new File(dir, "c");
+        if(!ticksDir.exists()) {
+            ticksDir.mkdirs();
+        }
+        String name = file.getName();
+        File ticksFile = new File(ticksDir, name + ".ticks");
+        if (ticksFile.exists()) {
+            try {
+                FileInputStream fileIn = new FileInputStream(ticksFile);
+                ObjectInputStream in = new ObjectInputStream(fileIn);
+                try {
+                    long startTime = System.currentTimeMillis();
+                    TradesTopsData res = (TradesTopsData) in.readObject();
+                    long endTime = System.currentTimeMillis();
+                    long timeTakes = endTime - startTime;
+log("ticks loaded " + res.m_trades.size() + " in " + timeTakes + "ms. from " + ticksFile.getCanonicalPath());
+                    return res;
+                } finally {
+                    in.close();
+                    fileIn.close();
+                }
+            } catch (Exception e) {
+                err("error reading ticks file: " + e, e);
+            }
+        }
         LineReader reader = new LineReader(file, READ_BUFFER_SIZE);
         try {
-            return parseLines(reader, file);
+            TradesTopsData res = parseLines(reader, file);
+            try {
+                FileOutputStream fileOut = new FileOutputStream(ticksFile);
+                ObjectOutputStream out = new ObjectOutputStream(fileOut);
+                try {
+                    long startTime = System.currentTimeMillis();
+                    out.writeObject(res);
+                    long endTime = System.currentTimeMillis();
+                    long timeTakes = endTime - startTime;
+log("ticks saved " + res.m_trades.size() + " in " + timeTakes + "ms. to " + ticksFile.getCanonicalPath());
+                } finally {
+                    out.close();
+                    fileOut.close();
+                }
+            } catch (Exception e) {
+                err("error writing ticks file: " + e, e);
+            }
+            return res;
         } finally {
             reader.close();
         }
@@ -1389,7 +1431,7 @@ class TresLogProcessor extends Thread {
 
 
     // ----------------------------------------------------------------------------
-    private static class TradesTopsData {
+    private static class TradesTopsData implements Serializable {
         private final String m_fName;
         final List<TradeDataLight> m_trades = new ArrayList<TradeDataLight>();
         final List<TradeDataLight> m_tops = new ArrayList<TradeDataLight>();
