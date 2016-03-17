@@ -188,8 +188,7 @@ class TresLogProcessor extends Thread {
 
         String rateStr = config.getProperty("tre.bar_size_to_phases_rate");
         if (rateStr != null) {
-            double rate = Double.parseDouble(rateStr);
-            OptimizeField.BAR_SIZE_TO_PHASES_RATE = rate;
+            OptimizeField.BAR_SIZE_TO_PHASES_RATE = Double.parseDouble(rateStr);
             log("bar_size_to_phases_rate=" + rateStr);
         }
 
@@ -607,8 +606,7 @@ class TresLogProcessor extends Thread {
             maxs[i] = maxim;
             log("field[" + field.m_key + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
         }
-        SimpleBounds bounds = new SimpleBounds(mins, maxs);
-        return bounds;
+        return new SimpleBounds(mins, maxs);
     }
 
     private double[] buildStartPoint(List<OptimizeFieldConfig> fieldConfigs) {
@@ -1357,8 +1355,7 @@ class TresLogProcessor extends Thread {
             String priceStr = matcher.group(1);
             String millisStr = matcher.group(2);
 //                log("GOT TRADE: millisStr=" + millisStr + "; priceStr=" + priceStr);
-            TradeDataLight tradeData = parseTrade(millisStr, priceStr);
-            return tradeData;
+            return parseTrade(millisStr, priceStr);
         } else {
 //                throw new RuntimeException("not matched OSC_TRADE_PATTERN line: " + line);
             log("not matched OSC_TRADE_PATTERN line: " + line);
@@ -1375,8 +1372,7 @@ class TresLogProcessor extends Thread {
             String priceStr = matcher.group(1);
             String timeStr = matcher.group(2);
 //                log("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
-            TradeDataLight tradeData = parseTrade(timeStr, priceStr);
-            return tradeData;
+            return parseTrade(timeStr, priceStr);
         } else {
             throw new RuntimeException("not matched TRE_TRADE_PATTERN line: " + line);
         }
@@ -1392,8 +1388,7 @@ class TresLogProcessor extends Thread {
             String buyStr = matcher.group(1);
             String sellStr = matcher.group(2);
 //                log("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
-            TradeDataLight tradeData = parseTop(buyStr, sellStr);
-            return tradeData;
+            return parseTop(buyStr, sellStr);
         } else {
             throw new RuntimeException("not matched TRE_TOP_PATTERN line: " + line);
         }
@@ -1436,7 +1431,7 @@ class TresLogProcessor extends Thread {
 
     // ----------------------------------------------------------------------------
     private static class TradesTopsData implements Serializable {
-        private final String m_fName;
+        protected final String m_fName;
         final List<TradeDataLight> m_trades = new ArrayList<TradeDataLight>();
         final List<TradeDataLight> m_tops = new ArrayList<TradeDataLight>();
 

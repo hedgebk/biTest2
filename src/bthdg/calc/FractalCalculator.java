@@ -40,7 +40,7 @@ public class FractalCalculator extends OHLCCalculator {
                 double high4 = m_tick4.m_high;
                 boolean filteredTopF = false;
                 if ((high4 < high2 && high3 <= high2 && high2 >= high1 && high2 > high0)
-                     || (high4 < high3 && high3 >= high2 && high3 > high1 && high2 > high0 && high1 > high0)
+                        || (high4 < high3 && high3 >= high2 && high3 > high1 && high2 > high0 && high1 > high0)
                         || (high4 >= high3 && high3 > high2 && high2 > high1 && high1 > high0)
                         ) {
                     filteredTopF = true;

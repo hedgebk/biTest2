@@ -99,8 +99,7 @@ public abstract class TresIndicator {
             double lastValue = lastBar.m_value;
             ret += lastValue;
         }
-        double avgValue = ret / m_phasedIndicators.size();
-        return avgValue;
+        return ret / m_phasedIndicators.size();
     }
 
     private ChartPoint calcAvg() {

@@ -45,7 +45,6 @@ public class FractalIndicator extends TresIndicator {
                     onBar(tick);
                 }
             };
-
         }
 
         @Override public boolean update(long timestamp, double price) {
