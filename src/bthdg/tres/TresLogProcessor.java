@@ -76,6 +76,7 @@ class TresLogProcessor extends Thread {
     private String m_varyCno2Frame;
     private AtomicInteger cloneCounter = new AtomicInteger(0);
     private long m_linesParsed;
+    private long m_ticksLoaded;
     private long s_lastTradeMillis;
     private boolean m_iterated;
     private HashMap<OptimizeField, String> m_optCfg;
@@ -630,6 +631,7 @@ class TresLogProcessor extends Thread {
     private void varyBarSizeMul(List<TradesTopsData> datas, Tres tres, String varyBarSizeMul) throws Exception {
         log("varyBarSizeMul: " + varyBarSizeMul);
         long old = tres.m_barSizeMillis;
+        int old2 = tres.m_phases;
 
         String[] split = varyBarSizeMul.split(";"); // 2000ms;10000ms;1.1
         long min = Utils.parseDHMSMtoMillis(split[0]);
@@ -637,11 +639,12 @@ class TresLogProcessor extends Thread {
         double mul = Double.parseDouble(split[2]);
         Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
         for (long i = min; i <= max; i = (long) (i * mul)) {
-            tres.m_barSizeMillis = i;
+            OptimizeField.BAR_SIZE.set(tres, i);
             iterate(datas, i, "%d", "varyBarSizeMul", maxMap);
         }
         logMax(maxMap, "varyBarSizeMul");
         tres.m_barSizeMillis = old;
+        tres.m_phases = old2;
     }
 
     private void varyPhases(List<TradesTopsData> datas, Tres tres, String varyPhases) throws Exception {
@@ -1167,6 +1170,7 @@ class TresLogProcessor extends Thread {
                         synchronized (semafore) {
                             if (fileData != null) {
                                 datas.add(fileData);
+                                m_ticksLoaded += fileData.m_trades.size();
                             }
                             int value = semafore.decrementAndGet();
                             if (value == 0) {
@@ -1196,7 +1200,7 @@ class TresLogProcessor extends Thread {
         long endTime = System.currentTimeMillis();
         long timeTakes = endTime - startTime;
         String takesStr = Utils.millisToDHMSStr(timeTakes);
-        log("parsing done in " + takesStr + "; totally parsed " + String.format("%,d", m_linesParsed ) + " lines");
+        log("parsing done in " + takesStr + "; TOTALLY: parsed " + String.format("%,d", m_linesParsed ) + " lines; loaded " + String.format("%,d", m_ticksLoaded ) + " ticks");
 
         executorService.shutdown();
         return datas;
@@ -1219,14 +1223,14 @@ class TresLogProcessor extends Thread {
                     TradesTopsData res = (TradesTopsData) in.readObject();
                     long endTime = System.currentTimeMillis();
                     long timeTakes = endTime - startTime;
-log("ticks loaded " + res.m_trades.size() + " in " + timeTakes + "ms. from " + ticksFile.getCanonicalPath());
+                    log(" loaded " + res.m_trades.size() + " ticks in " + timeTakes + "ms. from " + ticksFile.getCanonicalPath());
                     return res;
                 } finally {
                     in.close();
                     fileIn.close();
                 }
             } catch (Exception e) {
-                err("error reading ticks file: " + e, e);
+                err("error reading ticks file '" + ticksFile + "' : " + e, e);
             }
         }
         LineReader reader = new LineReader(file, READ_BUFFER_SIZE);
@@ -1240,7 +1244,7 @@ log("ticks loaded " + res.m_trades.size() + " in " + timeTakes + "ms. from " + t
                     out.writeObject(res);
                     long endTime = System.currentTimeMillis();
                     long timeTakes = endTime - startTime;
-log("ticks saved " + res.m_trades.size() + " in " + timeTakes + "ms. to " + ticksFile.getCanonicalPath());
+                    log(" saved " + res.m_trades.size() + " ticks in " + timeTakes + "ms. to " + ticksFile.getCanonicalPath());
                 } finally {
                     out.close();
                     fileOut.close();

@@ -90,6 +90,8 @@ public abstract class TresAlgo {
             return new ComboAlgo(tresExchData);
         } else if (algoName.equals("ewo")) {
             return new EwoAlgo(tresExchData);
+        } else if (algoName.equals("fra")) {
+            return new FractalAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }

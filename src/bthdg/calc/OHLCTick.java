@@ -13,6 +13,7 @@ public class OHLCTick {
         m_barEnd = end;
     }
 
+    /** @return true if any field in OHLC tick was changed */
     public boolean update(double price) {
         boolean updated = false;
         if (m_open == 0) {

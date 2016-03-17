@@ -28,10 +28,12 @@ public abstract class BarCalculator {
         m_barsMillisOffset = barsMillisOffset;
     }
 
+    /** @return true if current bar changed */
     public boolean update(long time, double price) {
         return update(time, price, true);
     }
 
+    /** @return true if current bar changed */
     private boolean update(long time, double price, boolean checkJump) {
         if (m_currentBarEnd < time) { // the tick is after current bar ?
             if (m_currentBarStart != 0) {

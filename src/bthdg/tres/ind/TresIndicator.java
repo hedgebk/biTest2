@@ -362,6 +362,7 @@ public abstract class TresIndicator {
         final List<ChartPoint> m_paintPeaks = new ArrayList<ChartPoint>();
         private ChartPoint m_lastBar;
 
+        /** @return true if current bar changed */
         public abstract boolean update(long timestamp, double price);
         public abstract Color getColor();
         public abstract double lastTickPrice();

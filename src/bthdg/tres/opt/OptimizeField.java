@@ -11,8 +11,8 @@ public enum OptimizeField {
         @Override public void set(Tres tres, double value) {
             tres.m_barSizeMillis = (long) value;
             tres.m_phases = (int) (value * BAR_SIZE_TO_PHASES_RATE);
-            if(tres.m_phases < 1) {
-                System.out.println("ERROR: tres.m_phases = " + tres.m_phases);
+            if (tres.m_phases < 1) {
+                System.out.println("ERROR: tres.m_phases = " + tres.m_phases + " for barSize" + value);
             }
         }
         @Override public String getFormat() { return "%,.0f"; }
