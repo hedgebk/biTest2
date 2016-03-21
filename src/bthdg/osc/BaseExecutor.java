@@ -1070,5 +1070,8 @@ public abstract class BaseExecutor implements Runnable {
             m_avgBuy = avgBuy;
             m_avgSell = avgSell;
         }
+
+        public double getMid() { return (m_bid + m_ask) / 2; }
+        public double getAvgMid() { return (m_avgBuy + m_avgSell) / 2; }
     }
 }
