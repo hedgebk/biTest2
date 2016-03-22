@@ -127,8 +127,8 @@ public enum OptimizeField {
     },
     //------------------------------------------------------------------------------------------
     EWO_VELOCITY("ewo.velocity") {
-        @Override public double get(Tres tres) { return EwoAlgo.VELOCITY_SIZE; }
-        @Override public void set(Tres tres, double value) { EwoAlgo.VELOCITY_SIZE = value; }
+        @Override public double get(Tres tres) { return EwoAlgo.Old.VELOCITY_SIZE; }
+        @Override public void set(Tres tres, double value) { EwoAlgo.Old.VELOCITY_SIZE = value; }
     },
     EWO_SLOW_EMA("ewo.slow_ema") {
         @Override public double get(Tres tres) { return EwoAlgo.SLOW_EMA_SIZE; }
@@ -139,9 +139,18 @@ public enum OptimizeField {
         @Override public void set(Tres tres, double value) { EwoAlgo.FAST_EMA_SIZE = value; }
     },
     EWO_ZERO("ewo.zero") {
-        @Override public double get(Tres tres) { return EwoAlgo.START_ZERO_LEVEL; }
-        @Override public void set(Tres tres, double value) { EwoAlgo.START_ZERO_LEVEL = value; }
-        @Override public String getFormat() { return "%.8f"; }
+        @Override public double get(Tres tres) { return EwoAlgo.Old.START_ZERO_LEVEL; }
+        @Override public void set(Tres tres, double value) { EwoAlgo.Old.START_ZERO_LEVEL = value; }
+        @Override public String getFormat() { return "%.9f"; }
+    },
+    EWO_N_ZERO("ewoN.zero") {
+        @Override public double get(Tres tres) { return EwoAlgo.New.START_ZERO_LEVEL; }
+        @Override public void set(Tres tres, double value) { EwoAlgo.New.START_ZERO_LEVEL = value; }
+        @Override public String getFormat() { return "%.9f"; }
+    },
+    EWO_SMOOTH("ewo.smooth") {
+        @Override public double get(Tres tres) { return EwoAlgo.Old.SMOOTH_RATE; }
+        @Override public void set(Tres tres, double value) { EwoAlgo.Old.SMOOTH_RATE = value; }
     },
     ;
 
