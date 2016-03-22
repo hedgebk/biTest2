@@ -9,7 +9,7 @@ import java.awt.*;
 import java.awt.event.ItemEvent;
 
 public abstract class BaseAlgoWatcher implements TresAlgo.TresAlgoListener {
-    public static double AVG_HALF_BID_ASK_DIF = 0.06;
+    public static double AVG_HALF_BID_ASK_DIF = 0.10;
 
     protected final TresExchData m_tresExchData;
     public final TresAlgo m_algo;
