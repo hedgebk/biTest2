@@ -36,8 +36,9 @@ import java.util.regex.Pattern;
 
 class TresLogProcessor extends Thread {
     // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
-    private static final Pattern TRE_TRADE_PATTERN = Pattern.compile("onTrade\\[\\w+\\]\\: TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+), time=(\\d+).+");
-    private static final Pattern TRE_TRADE_PATTERN2 = Pattern.compile("onTrade\\[\\w+\\]\\: TrData\\{sz=\\d+\\.\\d+, pr=(\\d+\\.\\d+), tm=(\\d+).+");
+    private static final Pattern TRE_TRADE_PATTERN = Pattern.compile("(?:\\d+\\: )onTrade\\[\\w+\\]\\: TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+), time=(\\d+).+");
+    // 1458208504106: onTrade[OKCOIN]: TrData{sz=0.07300, pr=2739.91992, tm=1458208512000, tid=2205210581, typ=BID}
+    private static final Pattern TRE_TRADE_PATTERN2 = Pattern.compile("(?:\\d+\\: )onTrade\\[\\w+\\]\\: TrData\\{sz=\\d+\\.\\d+, pr=(\\d+\\.\\d+), tm=(\\d+).+");
     // TresExecutor.gotTop() buy=2150.71; sell=2151.0
     private static final Pattern TRE_TOP_PATTERN = Pattern.compile("TresExecutor.gotTop\\(\\) buy=(\\d+\\.\\d+); sell=(\\d+\\.\\d+)");
     // 1426040622351: State.onTrade(tData=TradeData{amount=5.00000, price=1831.00000, time=1426040623000, tid=0, type=ASK}) on NONE *********************************************
@@ -45,9 +46,9 @@ class TresLogProcessor extends Thread {
     private static final Pattern FX_TRADE_PATTERN = Pattern.compile("EUR/USD,(\\d\\d\\d\\d)(\\d\\d)(\\d\\d) (\\d\\d):(\\d\\d):(\\d\\d).(\\d\\d\\d),(\\d+\\.\\d+),(\\d+.\\d+)");
 
     private static final Calendar GMT_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.ENGLISH);
-    public static final int READ_BUFFER_SIZE = 1024 * 128;
-    public static final int PARSE_THREADS_NUM = 2;
-    public static final int PROCESS_THREADS_NUM = 8;
+    private static final int READ_BUFFER_SIZE = 1024 * 128;
+    private static final int PARSE_THREADS_NUM = 3;
+    private static final int PROCESS_THREADS_NUM = 8;
     private final Config m_config;
     private Map<OptimizeField, String> m_varyConfigs = new HashMap<OptimizeField, String>();
 
@@ -85,7 +86,7 @@ class TresLogProcessor extends Thread {
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
-    public TresLogProcessor(Config config, ArrayList<TresExchData> exchDatas) {
+    TresLogProcessor(Config config, ArrayList<TresExchData> exchDatas) {
         m_config = config;
         init(config);
         m_exchData = exchDatas.get(0);
@@ -551,7 +552,7 @@ class TresLogProcessor extends Thread {
         try {
             pair3 = optimize.optimize(
                     new ObjectiveFunction(function),
-                    new MaxEval(150),
+                    new MaxEval(250),
                     GoalType.MAXIMIZE,
                     new InitialGuess(startPoint),
                     new MultiDirectionalSimplex(startPoint.length));
@@ -1154,26 +1155,30 @@ class TresLogProcessor extends Thread {
             final String name = file.getName();
             if (pattern.matcher(name).matches()) {
                 synchronized (semafore) {
-                    semafore.incrementAndGet();
+                    int get = semafore.incrementAndGet();
                 }
                 executorService.submit(new Runnable() {
                     @Override public void run() {
-                        log("next file to parse: " + name);
-                        TradesTopsData fileData = null;
                         try {
-                            fileData = parseFile(file);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        synchronized (semafore) {
-                            if (fileData != null) {
-                                datas.add(fileData);
-                                m_ticksLoaded += fileData.m_trades.size();
+                            log("next file to parse: " + name);
+                            TradesTopsData fileData = null;
+                            try {
+                                fileData = parseFile(file);
+                            } catch (Throwable t) {
+                                err("parse error in file " + name + " : " + t, t);
                             }
-                            int value = semafore.decrementAndGet();
-                            if (value == 0) {
-                                semafore.notify();
+                            synchronized (semafore) {
+                                if (fileData != null) {
+                                    datas.add(fileData);
+                                    m_ticksLoaded += fileData.m_trades.size();
+                                }
+                                int value = semafore.decrementAndGet();
+                                if (value == 0) {
+                                    semafore.notify();
+                                }
                             }
+                        } catch (Throwable t) {
+                            err("file " + name + " parse error: " + t, t);
                         }
                     }
                 });
@@ -1212,43 +1217,53 @@ class TresLogProcessor extends Thread {
         }
         String name = file.getName();
         File ticksFile = new File(ticksDir, name + ".ticks");
-        if (ticksFile.exists()) {
-            try {
-                FileInputStream fileIn = new FileInputStream(ticksFile);
-                ObjectInputStream in = new ObjectInputStream(fileIn);
+        boolean nonCurrentFiles = !name.equals("tres.log") && !name.equals("tres2.log");
+        if (nonCurrentFiles) {
+            if (ticksFile.exists()) {
                 try {
-                    long startTime = System.currentTimeMillis();
-                    TradesTopsData res = (TradesTopsData) in.readObject();
-                    long endTime = System.currentTimeMillis();
-                    long timeTakes = endTime - startTime;
-                    log(" loaded " + res.m_trades.size() + " ticks in " + timeTakes + "ms. from " + ticksFile.getCanonicalPath());
-                    return res;
-                } finally {
-                    in.close();
-                    fileIn.close();
+                    FileInputStream fileIn = new FileInputStream(ticksFile);
+                    ObjectInputStream in = new ObjectInputStream(fileIn);
+                    try {
+                        long startTime = System.currentTimeMillis();
+                        TradesTopsData res = (TradesTopsData) in.readObject();
+                        long endTime = System.currentTimeMillis();
+                        long timeTakes = endTime - startTime;
+                        log(" loaded " + res.m_trades.size() + " ticks in " + timeTakes + "ms. from " + ticksFile.getCanonicalPath());
+                        return res;
+                    } finally {
+                        in.close();
+                        fileIn.close();
+                    }
+                } catch (InvalidClassException ice) {
+                    err("error reading ticks file '" + ticksFile + "' : " + ice, ice);
+                    log(" deleting file " + ticksFile.getCanonicalPath());
+                    ticksFile.delete();
+                } catch (Exception e) {
+                    err("error reading ticks file '" + ticksFile + "' : " + e, e);
                 }
-            } catch (Exception e) {
-                err("error reading ticks file '" + ticksFile + "' : " + e, e);
             }
         }
+
         LineReader reader = new LineReader(file, READ_BUFFER_SIZE);
         try {
             TradesTopsData res = parseLines(reader, file);
-            try {
-                FileOutputStream fileOut = new FileOutputStream(ticksFile);
-                ObjectOutputStream out = new ObjectOutputStream(fileOut);
+            if (nonCurrentFiles) {
                 try {
-                    long startTime = System.currentTimeMillis();
-                    out.writeObject(res);
-                    long endTime = System.currentTimeMillis();
-                    long timeTakes = endTime - startTime;
-                    log(" saved " + res.m_trades.size() + " ticks in " + timeTakes + "ms. to " + ticksFile.getCanonicalPath());
-                } finally {
-                    out.close();
-                    fileOut.close();
+                    FileOutputStream fileOut = new FileOutputStream(ticksFile);
+                    ObjectOutputStream out = new ObjectOutputStream(fileOut);
+                    try {
+                        long startTime = System.currentTimeMillis();
+                        out.writeObject(res);
+                        long endTime = System.currentTimeMillis();
+                        long timeTakes = endTime - startTime;
+                        log(" saved " + res.m_trades.size() + " ticks in " + timeTakes + "ms. to " + ticksFile.getCanonicalPath());
+                    } finally {
+                        out.close();
+                        fileOut.close();
+                    }
+                } catch (Exception e) {
+                    err("error writing ticks file: " + e, e);
                 }
-            } catch (Exception e) {
-                err("error writing ticks file: " + e, e);
             }
             return res;
         } finally {
@@ -1331,10 +1346,11 @@ class TresLogProcessor extends Thread {
     }
 
     private TradeDataLight parseLineForTrade(String line) {
-        if (line.startsWith("onTrade[") && line.contains("]: TradeData{")) {
+        if (line.contains("onTrade[") && (line.contains("]: TradeData{") || line.contains("]: TrData{") )) {
+            // 1458208642424: onTrade[OKCOIN]: TrData{sz=0.05600, pr=2739.83008, tm=1458208650000, tid=2205223497, typ=ASK}
             return parseTradeLine(line);
-        } else if (line.contains(": State.onTrade(")) {
-            return parseOscTradeLine(line);
+//        } else if (line.contains(": State.onTrade(")) {
+//            return parseOscTradeLine(line);
         } else if (line.startsWith("EUR/USD,")) { // fx
             return parseFxTradeLine(line);
         }
@@ -1374,7 +1390,8 @@ class TresLogProcessor extends Thread {
 //                log("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
             return parseTrade(timeStr, priceStr);
         } else {
-            throw new RuntimeException("not matched TRE_TRADE_PATTERN line: " + line);
+            log("ERROR: not matched TRE_TRADE_PATTERN(2) line: " + line);
+            return null;
         }
     }
 
@@ -1422,7 +1439,7 @@ class TresLogProcessor extends Thread {
         private final long m_runningTimeMillis;
         private final Map<String, Double> m_ratioMap;
 
-        public ProcessTicksResult(long runningTimeMillis, Map<String, Double> ratioMap) {
+        ProcessTicksResult(long runningTimeMillis, Map<String, Double> ratioMap) {
             m_runningTimeMillis = runningTimeMillis;
             m_ratioMap = ratioMap;
         }
@@ -1431,11 +1448,13 @@ class TresLogProcessor extends Thread {
 
     // ----------------------------------------------------------------------------
     private static class TradesTopsData implements Serializable {
-        protected final String m_fName;
+        private static final long serialVersionUID = 4963527364511928337L;  // unique id
+
+        final String m_fName;
         final List<TradeDataLight> m_trades = new ArrayList<TradeDataLight>();
         final List<TradeDataLight> m_tops = new ArrayList<TradeDataLight>();
 
-        public TradesTopsData(String name) {
+        TradesTopsData(String name) {
             m_fName = name;
         }
     }
