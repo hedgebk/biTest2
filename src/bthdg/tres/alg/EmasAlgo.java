@@ -1,6 +1,5 @@
 package bthdg.tres.alg;
 
-import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.exch.TradeDataLight;
 import bthdg.tres.ChartPoint;
@@ -25,8 +24,9 @@ public class EmasAlgo extends TresAlgo {
     protected TripleEmaIndicator m_tema2;
     protected TripleEmaIndicator m_tema3;
     protected TripleEmaIndicator m_tema4;
-    protected final TresIndicator m_sumIndicator;
     private final SmoochedIndicator m_smoochedSpreadIndicator;
+    private final TresIndicator m_bidAskMidIndicator;
+    protected final TresIndicator m_sumIndicator;
     private boolean m_changed;
     protected Double m_one;
     private Double m_two;
@@ -34,6 +34,7 @@ public class EmasAlgo extends TresAlgo {
     private Double m_spread;
     private Double m_smoochedSpread;
     protected double m_boosted;
+    private final CursorPainter m_cursorPainter;
 
     protected boolean countSumPeaks() { return false; }
 
@@ -100,7 +101,7 @@ public class EmasAlgo extends TresAlgo {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 ChartPoint lastPoint = getLastPoint();
-                if(lastPoint != null) {
+                if (lastPoint != null) {
                     m_smoochedSpread = lastPoint.m_value;
                 }
             }
@@ -113,9 +114,20 @@ public class EmasAlgo extends TresAlgo {
             @Override protected boolean countPeaks() { return countSumPeaks(); }
             @Override protected boolean countHalfPeaks() { return countSumPeaks(); }
             @Override protected boolean useValueAxe() { return true; }
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected boolean drawZeroLine() { return true; }
         };
         m_indicators.add(m_sumIndicator);
+
+        m_bidAskMidIndicator = new TresIndicator( "L", 0, this ) {
+            @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+            @Override public Color getColor() { return Colors.SKY; }
+            @Override protected boolean countPeaks() { return false; }
+            @Override protected boolean usePriceAxe() { return true; }
+            @Override protected boolean drawZeroLine() { return true; }
+        };
+        m_indicators.add(m_bidAskMidIndicator);
+
+        m_cursorPainter = new CursorPainter(m_bidAskMidIndicator, barSizeMillis / 6, 4);
     }
 
     @Override public void postUpdate(TradeDataLight tdata) {
@@ -175,20 +187,22 @@ public class EmasAlgo extends TresAlgo {
             double tema15 = tripleEma15.m_value;
             double tema20 = tripleEma20.m_value;
             double tema25 = tripleEma25.m_value;
-            double boundTop    = Math.max(tema15, Math.max(tema20, tema25));
-            double boundBottom = Math.min(tema15, Math.min(tema20, tema25));
-            double two = valueToBounds(tema10, boundTop, boundBottom);
-            if ((m_two == null) || !m_two.equals(two)) {
-                m_two = two;
-            }
+            if (!Double.isInfinite(tema10) && !Double.isInfinite(tema15) && !Double.isInfinite(tema20) && !Double.isInfinite(tema25)) {
+                double boundTop = Math.max(tema15, Math.max(tema20, tema25));
+                double boundBottom = Math.min(tema15, Math.min(tema20, tema25));
+                double two = valueToBounds(tema10, boundTop, boundBottom);
+                if ((m_two == null) || !m_two.equals(two)) {
+                    m_two = two;
+                }
 
-            boundTop    = Math.max(tema10, boundTop);
-            boundBottom = Math.min(tema10, boundBottom);
-            double spread = boundTop - boundBottom;
-            if ((m_spread == null) || !m_spread.equals(spread)) {
-                m_spread = spread;
-                ChartPoint point = new ChartPoint(tripleEma10.m_millis, spread);
-                m_smoochedSpreadIndicator.addBar(point);
+                boundTop = Math.max(tema10, boundTop);
+                boundBottom = Math.min(tema10, boundBottom);
+                double spread = boundTop - boundBottom;
+                if ((m_spread == null) || !m_spread.equals(spread)) {
+                    m_spread = spread;
+                    ChartPoint point = new ChartPoint(tripleEma10.m_millis, spread);
+                    m_smoochedSpreadIndicator.addBar(point);
+                }
             }
         }
     }
@@ -210,13 +224,16 @@ public class EmasAlgo extends TresAlgo {
 
             if ((m_sum == null) || !m_sum.equals(sum)) {
                 m_sum = sum;
-                long millis = m_fastEma.getLastPoint().m_millis;
-                ChartPoint point = new ChartPoint(millis, sum);
-                m_sumIndicator.addBar(point);
+                ChartPoint lastPoint = m_fastEma.getLastPoint();
+                if (lastPoint != null) {
+                    long millis = lastPoint.m_millis;
+                    ChartPoint point = new ChartPoint(millis, sum);
+                    m_sumIndicator.addBar(point);
 
-                onSumChanged();
+                    onSumChanged();
 
-                notifyListener();
+                    notifyListener();
+                }
             }
         }
     }
@@ -280,7 +297,7 @@ public class EmasAlgo extends TresAlgo {
                 @Override public Color getColor() { return Colors.LIGHT_MAGNETA; }
                 @Override protected boolean countPeaks() { return false; }
                 @Override protected boolean useValueAxe() { return true; }
-                @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+                @Override protected boolean drawZeroLine() { return true; }
             };
             m_indicators.add(m_boostedIndicator);
 
