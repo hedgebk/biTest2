@@ -14,7 +14,7 @@ public abstract class ConsoleReader extends Thread {
         super("ConsoleReader");
     }
 
-    public void run() {
+    @Override public void run() {
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             while(!isInterrupted()) {

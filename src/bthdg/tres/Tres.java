@@ -96,9 +96,9 @@ public class Tres {
             s_inst.start();
 
             if (s_inst.m_isLocal) {
-                new IntConsoleReader().run();
+                new IntConsoleReader().start();
             }
-            Thread.sleep(120000);
+//            Thread.sleep(120000);
         } catch (Exception e) {
             e.printStackTrace();
         }
