@@ -3,6 +3,7 @@ package bthdg.tres.alg;
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.exch.TradeDataLight;
+import bthdg.osc.BaseExecutor;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresCanvas;
@@ -19,6 +20,7 @@ public abstract class TresAlgo {
     public final String m_name;
     public final TresExchData m_tresExchData;
     public final List<TresIndicator> m_indicators = new ArrayList<TresIndicator>();
+    public final List<TresIndicator> m_topIndicators = new ArrayList<TresIndicator>();
     private TresAlgoListener m_listener;
 
     public abstract double lastTickPrice();
@@ -29,6 +31,8 @@ public abstract class TresAlgo {
     public Direction getDirection() { return null; } // UP/DOWN
     public void preUpdate(TradeDataLight tdata) { /*noop*/ }
     public void postUpdate(TradeDataLight tdata) { /*noop*/ }
+    public void preUpdate(BaseExecutor.TopDataPoint topDataPoint) { /*noop*/ }
+    public void postUpdate(BaseExecutor.TopDataPoint topDataPoint) { /*noop*/ }
 
     public TresAlgo(String name, TresExchData tresExchData) {
         m_name = name;
@@ -89,7 +93,9 @@ public abstract class TresAlgo {
         } else if (algoName.equals("combo")) {
             return new ComboAlgo(tresExchData);
         } else if (algoName.equals("ewo")) {
-            return new EwoAlgo(tresExchData);
+            return new EwoAlgo.Old(tresExchData);
+        } else if (algoName.equals("ewoN")) {
+            return new EwoAlgo.New(tresExchData);
         } else if (algoName.equals("fra")) {
             return new FractalAlgo(tresExchData);
         }
