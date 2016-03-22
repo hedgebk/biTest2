@@ -1,6 +1,5 @@
 package bthdg.tres.alg;
 
-import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
@@ -187,7 +186,7 @@ public class Cno2Algo extends TresAlgo {
             minMaxCalculator.m_minValue = -max;
             minMaxCalculator.m_maxValue = max;
         }
-        @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+        @Override protected boolean drawZeroLine() { return true; }
     }
 
     // ======================================================================================

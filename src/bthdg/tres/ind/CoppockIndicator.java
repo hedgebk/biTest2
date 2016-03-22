@@ -1,6 +1,5 @@
 package bthdg.tres.ind;
 
-import bthdg.ChartAxe;
 import bthdg.calc.CoppockCalculator;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
@@ -34,11 +33,7 @@ public class CoppockIndicator extends TresIndicator {
         minMaxCalculator.m_maxValue = max;
     }
 
-    @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
-        g.setColor(COPPOCK_COLOR);
-        int y = yAxe.getPointReverse(0);
-        g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
-    }
+    @Override protected boolean drawZeroLine() { return true; }
 
     public static class PhasedCoppockIndicator extends TresPhasedIndicator {
         public static int WMA_LENGTH = 13; // 10

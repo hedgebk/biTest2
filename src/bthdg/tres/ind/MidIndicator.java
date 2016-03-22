@@ -1,6 +1,5 @@
 package bthdg.tres.ind;
 
-import bthdg.ChartAxe;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.alg.TresAlgo;
@@ -24,7 +23,7 @@ public class MidIndicator extends TresIndicator {
         minMaxCalculator.m_minValue = -max;
         minMaxCalculator.m_maxValue = max;
     }
-    @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+    @Override protected boolean drawZeroLine() { return true; }
 
     public void addBar1(ChartPoint chartPoint1) {
         if (chartPoint1 != null) {

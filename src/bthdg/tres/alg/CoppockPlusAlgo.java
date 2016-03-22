@@ -1,6 +1,5 @@
 package bthdg.tres.alg;
 
-import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
@@ -57,7 +56,7 @@ public class CoppockPlusAlgo extends CoppockAlgo {
                 ChartPoint lastPoint = getLastPoint();
                 m_velRateIndicator.addBar(lastPoint);
             }
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected boolean drawZeroLine() { return true; }
         };
         m_indicators.add(m_averageVelocityIndicator);
 

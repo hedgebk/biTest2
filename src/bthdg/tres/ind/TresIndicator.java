@@ -111,6 +111,9 @@ public abstract class TresIndicator {
                 return null; // not fully ready
             }
             double lastValue = lastBar.m_value;
+            if (Double.isNaN(lastValue)) {
+                return null; // not fully ready
+            }
             long barEnd = lastBar.m_millis;
             maxBarEnd = Math.max(maxBarEnd, barEnd);
             ret += lastValue;
@@ -187,7 +190,19 @@ public abstract class TresIndicator {
     }
 
     protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) { }
-    protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {}
+    protected boolean drawZeroLine() { return false; }
+
+    protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
+        if (drawZeroLine()) {
+            drawZeroHLine(g, xTimeAxe, yAxe);
+        }
+    }
+
+    protected void drawZeroHLine(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
+        g.setColor(getColor());
+        int y = yAxe.getPointReverse(0);
+        g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
+    }
 
     protected static void cloneChartPoints(LinkedList<ChartPoint> points, List<ChartPoint> paintPoints,
                                            ChartAxe xTimeAxe, Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
@@ -340,12 +355,6 @@ public abstract class TresIndicator {
 
     protected void onAvgPeak(TrendWatcher<ChartPoint> trendWatcher) {
         m_algo.onAvgPeak(TresIndicator.this, trendWatcher);
-    }
-
-    protected void drawZeroHLine(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
-        g.setColor(getColor());
-        int y = yAxe.getPointReverse(0);
-        g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
     }
 
 

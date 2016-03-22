@@ -147,12 +147,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
         }
 
         @Override protected boolean countHalfPeaks() { return false; }
-
-        @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
-            g.setColor(getColor());
-            int y = yAxe.getPointReverse(0);
-            g.drawLine(xTimeAxe.getPoint(xTimeAxe.m_min), y, xTimeAxe.getPoint(xTimeAxe.m_max), y);
-        }
+        @Override protected boolean drawZeroLine() { return true; }
 
         @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
             double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
