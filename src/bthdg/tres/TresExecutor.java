@@ -259,13 +259,13 @@ public class TresExecutor extends BaseExecutor {
 
         for (OrderData pOrd : m_pendingMktOrders) {
             OrderSide side = pOrd.m_side;
-            double amount = pOrd.m_amount;
-            if(side == needOrderSide) {
-                log("     we have already pending market of same side:" + pOrd);
-                orderSize -= amount;
+            double remained = pOrd.remained();
+            if (side == needOrderSide) {
+                log("     we have already pending market of same side (remained=" + Utils.format5(remained) + "):" + pOrd);
+                orderSize -= remained;
             } else {
-                log("     we have pending market of OPPOSITE side:" + pOrd);
-                orderSize += amount;
+                log("     we have pending market of OPPOSITE side (remained=" + Utils.format5(remained) + "):" + pOrd);
+                orderSize += remained;
             }
             log("      order size adjusted to: " + orderSize);
         }
