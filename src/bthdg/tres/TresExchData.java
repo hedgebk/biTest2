@@ -22,6 +22,7 @@ public class TresExchData {
     final LinkedList<TradeDataLight> m_trades = new LinkedList<TradeDataLight>();
     public final PhaseData[] m_phaseDatas;
     final TresExecutor m_executor;
+    private boolean m_hasTopIndicators;
     Queue<Runnable> m_tradesQueue;
     final LinkedList<OrderPoint> m_orders = new LinkedList<OrderPoint>();
     public double m_lastPrice;
@@ -51,6 +52,7 @@ public class TresExchData {
         if (tres.m_algosArr != null) {
             for (String algoName : tres.m_algosArr) {
                 TresAlgo algo = TresAlgo.get(algoName, this);
+                m_hasTopIndicators |= !algo.m_topIndicators.isEmpty();
 //                TresAlgoWatcher algoWatcher = new TresAlgoWatcher(this, algo);
                 BaseAlgoWatcher algoWatcher = new FineAlgoWatcher(this, algo);
                 m_playAlgos.add(algoWatcher);
@@ -190,16 +192,25 @@ public class TresExchData {
     }
 
     public void onTop(final BaseExecutor.TopDataPoint topDataPoint) {
-        // TODO: add top feed support to algos
-//        m_tradesQueue.addItem(new Runnable() {
-//            @Override public void run() {
-//                processTop(topDataPoint);
-//            }
-//        });
+        for (BaseAlgoWatcher algoWatcher : m_playAlgos) {
+            algoWatcher.m_algo.preUpdate(topDataPoint);
+        }
+        if (m_hasTopIndicators) {
+            m_tradesQueue.addItem(new Runnable() {
+                @Override public void run() {
+                    processTop(topDataPoint);
+                }
+            });
+        }
+        for (BaseAlgoWatcher algoWatcher : m_playAlgos) {
+            algoWatcher.m_algo.postUpdate(topDataPoint);
+        }
     }
 
     private void processTop(BaseExecutor.TopDataPoint topDataPoint) {
-        // TODO: add top feed support to algos
+        for (PhaseData phaseData : m_phaseDatas) {
+            phaseData.update(topDataPoint);
+        }
     }
 
     public void getState0(StringBuilder sb) {
