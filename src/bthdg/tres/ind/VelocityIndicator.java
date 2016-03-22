@@ -1,6 +1,6 @@
 package bthdg.tres.ind;
 
-import bthdg.ChartAxe;
+import bthdg.Log;
 import bthdg.exch.Direction;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
@@ -24,7 +24,7 @@ public class VelocityIndicator extends TresIndicator {
 
     @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
     @Override public Color getColor() { return Color.orange; }
-    @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+    @Override protected boolean drawZeroLine() { return true; }
 
     @Override public void addBar(ChartPoint chartPoint) {
         if (chartPoint != null) {
@@ -84,7 +84,12 @@ public class VelocityIndicator extends TresIndicator {
 //                System.out.println("    derivativeValue2=" + derivativeValue2);
 //                System.out.println("    done");
 
-                    return derivativeValue2;
+
+if(Double.isNaN(derivativeValue2)) {
+    Log.log("NaN");
+}
+
+                    return Double.isNaN(derivativeValue2) ? 0 : derivativeValue2;
                 }
             }
 
