@@ -1,6 +1,5 @@
 package bthdg.tres.alg;
 
-import bthdg.ChartAxe;
 import bthdg.exch.Direction;
 import bthdg.exch.TradeDataLight;
 import bthdg.tres.ChartPoint;
@@ -74,7 +73,7 @@ public class FourEmaAlgo extends TresAlgo {
             @Override public Color getColor() { return Colors.LIGHT_ORANGE; }
             @Override protected boolean countPeaks() { return false; }
             @Override protected boolean useValueAxe() { return true; }
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected boolean drawZeroLine() { return true; }
         };
         m_indicators.add(m_valIndicator);
 
@@ -83,7 +82,7 @@ public class FourEmaAlgo extends TresAlgo {
             @Override public Color getColor() { return Colors.SKY; }
             @Override protected boolean countPeaks() { return false; }
             @Override protected boolean useValueAxe() { return true; }
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected boolean drawZeroLine() { return true; }
         };
         m_indicators.add(m_levelIndicator);
 
@@ -155,7 +154,7 @@ public class FourEmaAlgo extends TresAlgo {
             @Override public Color getColor() { return Colors.DARK_RED; }
             @Override protected boolean countPeaks() { return false; }
             @Override protected boolean useValueAxe() { return true; }
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected boolean drawZeroLine() { return true; }
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 ChartPoint lastPoint = getLastPoint();
@@ -186,7 +185,7 @@ public class FourEmaAlgo extends TresAlgo {
             @Override public Color getColor() { return Colors.DARK_RED; }
             @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
             @Override protected boolean countPeaks() { return false; }
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected boolean drawZeroLine() { return true; }
         };
         m_indicators.add(m_avgVelocityIndicator);
 
@@ -196,7 +195,7 @@ public class FourEmaAlgo extends TresAlgo {
 //            @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
             @Override protected boolean countPeaks() { return false; }
             @Override protected boolean useValueAxe() { return true; }
-            @Override protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) { drawZeroHLine(g, xTimeAxe, yAxe); }
+            @Override protected boolean drawZeroLine() { return true; }
         };
         m_indicators.add(m_leveledAvgVelocityIndicator);
     }
