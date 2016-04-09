@@ -25,11 +25,7 @@ public abstract class EwoAlgo extends TresAlgo {
     private boolean m_changed2;
     private double m_ewo2;
 
-    public EwoAlgo(TresExchData tresExchData) {
-        this("Ewo", tresExchData);
-    }
-
-    public EwoAlgo(String name, TresExchData tresExchData) {
+    private EwoAlgo(String name, TresExchData tresExchData) {
         super(name, tresExchData);
 //        final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
@@ -150,9 +146,9 @@ public abstract class EwoAlgo extends TresAlgo {
 
     //======================================================================
     public static class Old extends EwoAlgo {
-        public static double START_ZERO_LEVEL = 0.000001;
-        public static double VELOCITY_SIZE = 1.0;
-        public static double SMOOTH_RATE = 0.1;
+        public static double START_ZERO_LEVEL = 0.000001; // "ewo.zero"
+        public static double VELOCITY_SIZE = 1.0; // "ewo.velocity"
+        public static double SMOOTH_RATE = 0.1; // "ewo.smooth"
 
         //    private final SmoochedIndicator m_smoochedEwo2Indicator;
         private final VelocityIndicator m_ewo2VelocityIndicator;
@@ -164,7 +160,7 @@ public abstract class EwoAlgo extends TresAlgo {
         @Override public double getDirectionAdjusted() { return m_updated; }
         @Override public String getRunAlgoParams() { return "EWO"; }
 
-        public Old(TresExchData tresExchData) {
+        Old(TresExchData tresExchData) {
             super("Ewo", tresExchData);
             final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
 
@@ -239,7 +235,7 @@ public abstract class EwoAlgo extends TresAlgo {
         @Override public double getDirectionAdjusted() { return m_updated; }
         @Override public String getRunAlgoParams() { return "EWOn"; }
 
-        public New(TresExchData tresExchData) {
+        New(TresExchData tresExchData) {
             super("EwoN", tresExchData);
             m_zeroLeveler = new ZeroLeveler(START_ZERO_LEVEL);
 

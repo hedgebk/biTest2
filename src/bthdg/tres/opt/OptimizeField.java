@@ -3,6 +3,7 @@ package bthdg.tres.opt;
 import bthdg.tres.Tres;
 import bthdg.tres.alg.*;
 import bthdg.tres.ind.AroonIndicator;
+import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.OscIndicator;
 
 public enum OptimizeField {
@@ -33,6 +34,11 @@ public enum OptimizeField {
     OSC_PEAK("osc.peak") {
         @Override public double get(Tres tres) { return OscIndicator.PEAK_TOLERANCE; }
         @Override public void set(Tres tres, double value) { OscIndicator.PEAK_TOLERANCE = value; }
+    },
+    //------------------------------------------------------------------------------------------
+    CCI_PEAK("cci.peak") {
+        @Override public double get(Tres tres) { return CciIndicator.PEAK_TOLERANCE; }
+        @Override public void set(Tres tres, double value) { CciIndicator.PEAK_TOLERANCE = value; }
     },
     //------------------------------------------------------------------------------------------
     ARO_LEN("aro.len") {
@@ -141,12 +147,12 @@ public enum OptimizeField {
     EWO_ZERO("ewo.zero") {
         @Override public double get(Tres tres) { return EwoAlgo.Old.START_ZERO_LEVEL; }
         @Override public void set(Tres tres, double value) { EwoAlgo.Old.START_ZERO_LEVEL = value; }
-        @Override public String getFormat() { return "%.9f"; }
+        @Override public String getFormat() { return "%.10f"; }
     },
     EWO_N_ZERO("ewoN.zero") {
         @Override public double get(Tres tres) { return EwoAlgo.New.START_ZERO_LEVEL; }
         @Override public void set(Tres tres, double value) { EwoAlgo.New.START_ZERO_LEVEL = value; }
-        @Override public String getFormat() { return "%.9f"; }
+        @Override public String getFormat() { return "%.10f"; }
     },
     EWO_SMOOTH("ewo.smooth") {
         @Override public double get(Tres tres) { return EwoAlgo.Old.SMOOTH_RATE; }

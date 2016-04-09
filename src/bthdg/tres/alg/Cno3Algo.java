@@ -10,9 +10,9 @@ import java.awt.*;
 
 public class Cno3Algo extends TresAlgo {
     private static final Color COLOR = new Color(30, 100, 73);
-    public static double SMOOTH_RATE = 0.6;
+    public static double SMOOTH_RATE = 0.6; // "cno3.smooch"
     public static final double AND_PEAK_TOLERANCE = 0.13;
-    public static double SMOOTH_PEAK_TOLERANCE = 0.18;
+    public static double SMOOTH_PEAK_TOLERANCE = 0.18; // "cno3.peak"
 
     private final CciIndicator m_cciIndicator;
     private final CciIndicator.CciAdjustedIndicator m_cciAdjustedIndicator;
