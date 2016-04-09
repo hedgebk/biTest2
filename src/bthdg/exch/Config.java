@@ -103,6 +103,13 @@ public class Config {
             Object key = entry.getKey();
             ret.put(key, value);
         }
+
+        String importFile = ret.getProperty("import");
+        if (importFile != null) {
+            Properties importProps = loadKeys(importFile);
+            ret.putAll(importProps);
+        }
+
         return ret;
     }
 
