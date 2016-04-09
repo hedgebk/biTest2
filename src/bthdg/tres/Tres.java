@@ -457,19 +457,6 @@ public class Tres {
             AroonAlgo.SMOOTH_RATE = aroSmoothRate;
         }
 
-        String cno3PeakStr = m_config.getProperty("tre.cno3_peak");
-        if (cno3PeakStr != null) {
-            log("cno3_peak=" + cno3PeakStr);
-            double cno3Peak = Double.parseDouble(cno3PeakStr);
-            Cno3Algo.SMOOTH_PEAK_TOLERANCE = cno3Peak;
-        }
-        String cno3SmoochStr = m_config.getProperty("tre.cno3_smooch");
-        if (cno3SmoochStr != null) {
-            log("cno3_smooch=" + cno3SmoochStr);
-            double cno3Smooch = Double.parseDouble(cno3SmoochStr);
-            Cno3Algo.SMOOTH_RATE = cno3Smooch;
-        }
-
         Fetcher.MUTE_SOCKET_TIMEOUTS = true;
     }
 

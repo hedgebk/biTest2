@@ -46,8 +46,8 @@ class TresLogProcessor extends Thread {
     private static final Pattern FX_TRADE_PATTERN = Pattern.compile("EUR/USD,(\\d\\d\\d\\d)(\\d\\d)(\\d\\d) (\\d\\d):(\\d\\d):(\\d\\d).(\\d\\d\\d),(\\d+\\.\\d+),(\\d+.\\d+)");
 
     private static final Calendar GMT_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.ENGLISH);
-    private static final int READ_BUFFER_SIZE = 1024 * 128;
-    private static final int PARSE_THREADS_NUM = 3;
+    private static final int READ_BUFFER_SIZE = 1024 * 256;
+    private static final int PARSE_THREADS_NUM = 4;
     private static final int PROCESS_THREADS_NUM = 8;
     private final Config m_config;
     private Map<OptimizeField, String> m_varyConfigs = new HashMap<OptimizeField, String>();
@@ -63,7 +63,6 @@ class TresLogProcessor extends Thread {
     private String m_varyOscPeak;
     private String m_varyCoppPeak;
     private String m_varyAndPeak;
-    private String m_varyCciPeak;
     private String m_varyCciCorr;
     private String m_varyWma;
     private String m_varyLroc;
@@ -134,10 +133,6 @@ class TresLogProcessor extends Thread {
         m_varyAndPeak = config.getProperty("tre.vary.and_peak");
         if (m_varyAndPeak != null) {
             log("varyAndPeak=" + m_varyAndPeak);
-        }
-        m_varyCciPeak = config.getProperty("tre.vary.cci_peak");
-        if (m_varyCciPeak != null) {
-            log("varyCciPeak=" + m_varyCciPeak);
         }
         m_varyCciCorr = config.getProperty("tre.vary.cci_corr");
         if (m_varyCciCorr != null) {
@@ -313,9 +308,6 @@ class TresLogProcessor extends Thread {
         if (m_varyAndPeak != null) {
             varyAndPeakTolerance(datas, m_varyAndPeak);
         }
-        if (m_varyCciPeak != null) {
-            varyCciPeakTolerance(datas, m_varyCciPeak);
-        }
         if (m_varyCciCorr != null) {
             varyCciCorrection(datas, m_varyCciCorr);
         }
@@ -478,6 +470,16 @@ class TresLogProcessor extends Thread {
                     OptimizeFieldConfig fieldConfig = fieldConfigs.get(i);
                     OptimizeField field = fieldConfig.m_field;
                     double val = value * fieldConfig.m_multiplier;
+                    double min = fieldConfig.m_min;
+                    if (val < min) {
+                        log("doOptimize(algoName=" + algoName + ") too low value=" + val + " of field " + field + "; using min=" + min);
+                        val = min;
+                    }
+                    double max = fieldConfig.m_max;
+                    if (val > max) {
+                        log("doOptimize(algoName=" + algoName + ") too high value=" + val + " of field " + field + "; using max=" + max);
+                        val = max;
+                    }
                     field.set(tres, val);
                     sb.append(field.m_key).append("=").append(Utils.format5(val)).append("(").append(Utils.format5(value)).append("); ");
                 }
@@ -587,7 +589,8 @@ class TresLogProcessor extends Thread {
             OptimizeField field = fieldConfig.m_field;
             double value = point[i];
             double valueMultiplied = value * fieldConfig.m_multiplier;
-            log(" field[" + field.m_key + "]=" + valueMultiplied + "(value)");
+            String formatted = String.format(field.getFormat(), valueMultiplied);
+            log(" field[" + field.m_key + "]=" + formatted + "(value)");
             field.set(tres, valueMultiplied);
         }
     }
@@ -847,23 +850,6 @@ class TresLogProcessor extends Thread {
         }
         logMax(maxMap, "AndPeak");
         CncAlgo.AndIndicator.PEAK_TOLERANCE = old;
-    }
-
-    private void varyCciPeakTolerance(List<TradesTopsData> datas, String varyCciPeak) throws Exception {
-        log("varyCciPeak: " + varyCciPeak);
-        double old = CciIndicator.PEAK_TOLERANCE;
-        String[] split = varyCciPeak.split(";"); // 0.09;0.11;0.001
-        double min = Double.parseDouble(split[0]);
-        double max = Double.parseDouble(split[1]);
-        double step = Double.parseDouble(split[2]);
-        Map<String, Map.Entry<Number, Double>> maxMap = new HashMap<String, Map.Entry<Number, Double>>();
-        for (double i = min; i <= max; i += step) {
-            CciIndicator.PEAK_TOLERANCE = i;
-            iterate(datas, i, "%.3f", "CciPeak", maxMap);
-        }
-        logMax(maxMap, "CciPeak");
-        CciIndicator.PEAK_TOLERANCE = old;
-
     }
 
     private void varyCno2PeakTolerance(List<TradesTopsData> datas, String varyCno2Peak) throws Exception {
@@ -1160,7 +1146,8 @@ class TresLogProcessor extends Thread {
                 executorService.submit(new Runnable() {
                     @Override public void run() {
                         try {
-                            log("next file to parse: " + name);
+                            int remained = semafore.get();
+                            log("next file to parse: " + name + ",  remained " + remained);
                             TradesTopsData fileData = null;
                             try {
                                 fileData = parseFile(file);
