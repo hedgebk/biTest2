@@ -41,7 +41,7 @@ public class TresExchData {
     private static void err(String s, Exception e) { Log.err(s, e); }
 
     @Override public String toString() {
-        return "TresExchData["+m_ws.exchange().name()+"]";
+        return "TresExchData[" + m_ws.exchange().name() + "]";
     }
 
     public TresExchData(Tres tres, IWs ws) {
@@ -66,6 +66,12 @@ public class TresExchData {
         BaseAlgoWatcher algoWatcher = m_playAlgos.get(0);
         m_runAlgoWatcher = algoWatcher;
 
+        int phasesNum = tres.m_phases;
+        m_phaseDatas = new PhaseData[phasesNum];
+        for (int i = 0; i < phasesNum; i++) {
+            m_phaseDatas[i] = new PhaseData(this, i);
+        }
+
         if (BaseExecutor.DO_TRADE) {
             m_algoListener = new TresAlgo.TresAlgoListener() {
                 @Override public void onValueChange() {
@@ -80,19 +86,14 @@ public class TresExchData {
                 }
             };
             m_runAlgoWatcher.setListener(m_algoListener);
-        }
 
-        int phasesNum = tres.m_phases;
-        m_phaseDatas = new PhaseData[phasesNum];
-        for (int i = 0; i < phasesNum; i++) {
-            m_phaseDatas[i] = new PhaseData(this, i);
+            m_tradesQueue = new Queue<Runnable>("tradesQueue") {
+                @Override protected void processItem(Runnable task) {
+                    task.run();
+                }
+            };
+            m_tradesQueue.start();
         }
-        m_tradesQueue = new Queue<Runnable>("tradesQueue") {
-            @Override protected void processItem(Runnable task) {
-                task.run();
-            }
-        };
-        m_tradesQueue.start();
     }
 
     public void start() {
