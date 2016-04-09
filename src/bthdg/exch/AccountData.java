@@ -348,8 +348,12 @@ public class AccountData {
             log("  valuate" + currencyTo + "=" + Utils.format8(valuateTo) + " " + currencyTo + "; valuate" + currencyFrom + "=" + Utils.format8(valuateFrom) + " " + currencyFrom);
         }
 
-        double haveTo = getAllValue(currencyTo);
-        double haveFrom = getAllValue(currencyFrom);
+        double haveFrom = getValueForCurrency(topsData, exchange, verbose, currencyFrom, currencyTo);
+        double haveTo =   getValueForCurrency(topsData, exchange, verbose, currencyTo, currencyFrom);
+
+//        double haveTo = getAllValue(currencyTo);
+//        double haveFrom = getAllValue(currencyFrom);
+
         if (verbose) {
             log("  have" + currencyTo + "=" + Utils.format8(haveTo) + " " + currencyTo + "; have" + currencyFrom + "=" + Utils.format8(haveFrom) + " " + currencyFrom + "; on account=" + this);
         }
@@ -366,5 +370,31 @@ public class AccountData {
             log("  directionAdjusted=" + Utils.format8(directionAdjusted) + "; needBuy" + currencyTo + "=" + Utils.format8(needBuyTo) + "; needSell" + currencyFrom + "=" + Utils.format8(needSellCnh));
         }
         return needBuyTo;
+    }
+
+    private double getValueForCurrency(TopsData topsData, Exchange exchange, boolean verbose, Currency currency, Currency currency2) {
+        double from = 0;
+        Double availableFrom = m_funds.get(currency);
+        if (availableFrom != null) {
+            from += availableFrom;
+        }
+        Double allocatedTo = m_allocatedFunds.get(currency2);
+        if (verbose) {
+            log("  available" + currency + "=" + Utils.format8(from) + " " + currency +
+                    "; allocated" + currency2 + "=" + Utils.format8(allocatedTo) + " " + currency2);
+        }
+        if (allocatedTo != null) {
+            Double rate = topsData.rate(exchange, currency2, currency);
+            if (rate != null) { // if can convert
+                Double allocatedToForFrom = allocatedTo / rate;
+                from += allocatedToForFrom;
+                if (verbose) {
+                    log("   " + currency2 + "->" + currency + " rate=" + Utils.format8(rate) +
+                            "; allocated" + currency2 + "in" + currency + "=" + Utils.format8(allocatedToForFrom) + " " + currency +
+                            "; total" + currency + " = " + Utils.format8(from) + " " + currency);
+                }
+            }
+        }
+        return from;
     }
 }
