@@ -503,106 +503,137 @@ public abstract class BaseExecutor implements Runnable {
             return STATE_NO_CHANGE;
         }
 
-        double needBuyTo = m_account.calcNeedBuyTo(directionAdjusted, m_pair, m_topsData, m_exchange, true);
-
-        double absOrderSize = Math.abs(needBuyTo);
-        OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
-        log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + absOrderSize);
-
         // Pair.BTC_CNH =>  cnh=from   btc=to
         Currency currencyTo = m_pair.m_to;
 
-        double absOrderSizeAdjusted = checkAgainstExistingOrders(needOrderSide, absOrderSize);
-        if(absOrderSize != absOrderSizeAdjusted) {
-            absOrderSize = absOrderSizeAdjusted;
-            log("   absOrderSizeAdjusted=" + absOrderSize);
-            if (absOrderSize < 0) {
-                needOrderSide = needOrderSide.opposite();
-                absOrderSize = -absOrderSize;
-                log("    reversed: needOrderSide=" + needOrderSide + "; absOrderSize=" + absOrderSize);
-            }
-            needBuyTo = needOrderSide.isBuy() ? absOrderSize : -absOrderSize;
-            log("   new needBuy" + currencyTo + "=" + needBuyTo);
-        }
+        double needBuyTo = m_account.calcNeedBuyTo(directionAdjusted, m_pair, m_topsData, m_exchange, true);
+        double placeOrderSize = Math.abs(needBuyTo);
+        log("   needBuyTo=" + Utils.format8(needBuyTo) + " " + currencyTo + "; placeOrderSize=" + Utils.format8(placeOrderSize));
 
         double exchMinOrderToCreate = m_exchange.minOrderToCreate(m_pair);
         double minOrderSizeToCreate = minOrderSizeToCreate();
-        if ((absOrderSize < exchMinOrderToCreate) || (absOrderSize < minOrderSizeToCreate)) {
-            log("small absOrderSize. do nothing. needOrderSide=" + needOrderSide +
-                    "; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
+        if ((placeOrderSize < exchMinOrderToCreate) || (placeOrderSize < minOrderSizeToCreate)) {
+            log("small placeOrderSize=" + Utils.format8(placeOrderSize) + ". do nothing; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
             return doVoidCycle();
         }
 
-        if (absOrderSize != 0) {
-            double orderSizeAdjusted = absOrderSize;
-            if (orderSizeAdjusted > 0) {
-                orderSizeAdjusted = (needOrderSide == OrderSide.BUY) ? orderSizeAdjusted : -orderSizeAdjusted;
-                log("     signed orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted));
+//        double absNeedBuyTo = Math.abs(needBuyTo);
+//        OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
 
-                absOrderSize = checkAgainstExistingOrders(needOrderSide, absOrderSize);
-                if (absOrderSize == 0) { // existingOrder(s) OK - no need to changes
-                    log("     existingOrder(s) OK - no need to changes");
+//        double absOrderSizeAdjusted = checkAgainstExistingOrders(needOrderSide, absNeedBuyTo);
+//        if(absNeedBuyTo != absOrderSizeAdjusted) {
+//            absNeedBuyTo = absOrderSizeAdjusted;
+//            log("   absOrderSizeAdjusted=" + absNeedBuyTo);
+//            if (absNeedBuyTo < 0) {
+//                needOrderSide = needOrderSide.opposite();
+//                absNeedBuyTo = -absNeedBuyTo;
+//                log("    reversed: needOrderSide=" + needOrderSide + "; absNeedBuyTo=" + absNeedBuyTo);
+//            }
+//            needBuyTo = needOrderSide.isBuy() ? absNeedBuyTo : -absNeedBuyTo;
+//            log("   new needBuy" + currencyTo + "=" + needBuyTo);
+//        }
 
-                    return doVoidCycle();
-                }
+        double diff = m_sell - m_buy;
+        double avgDiff = m_sellAvgCounter.get() - m_buyAvgCounter.get();
+        if (diff > avgDiff) {
+            needBuyTo /= 2;
+            log("      bidAskDiff=" + Utils.format8(diff) + "; avgDiff bidAskDiff=" + Utils.format8(avgDiff) + " => HALVING order size; needBuyTo=" + Utils.format8(needBuyTo));
+            placeOrderSize = Math.abs(needBuyTo);
+            if ((placeOrderSize < exchMinOrderToCreate) || (placeOrderSize < minOrderSizeToCreate)) {
+                log("small placeOrderSize=" + Utils.format8(placeOrderSize) + ". do nothing; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
+                return doVoidCycle();
             }
         }
 
-        int ret = cancelOrderIfPresent();
-        if (ret == STATE_NO_CHANGE) { // cancel attempt was not performed
-
-            double canBuyTo = adjustSizeToAvailable(needBuyTo);
+        double canBuyTo = adjustSizeToAvailable(needBuyTo);
+        if(canBuyTo != needBuyTo) {
             log("      needBuy" + currencyTo + " " + Utils.format8(needBuyTo) + " adjusted by Available: canBuy" + currencyTo + "=" + Utils.format8(canBuyTo));
-            double notEnough = Math.abs(needBuyTo - canBuyTo);
-            if (notEnough > minOrderSizeToCreate) {
-                boolean cancelPerformed = cancelOtherOrdersIfNeeded(needOrderSide, notEnough);
-                if (cancelPerformed) {
-                    postRecheckDirection();
-                    return STATE_NONE;
+            placeOrderSize = Math.abs(canBuyTo);
+            if ((placeOrderSize < exchMinOrderToCreate) || (placeOrderSize < minOrderSizeToCreate)) {
+                log("small placeOrderSize=" + Utils.format8(placeOrderSize) + ". do nothing; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
+                return doVoidCycle();
+            }
+        }
+
+        double roundCanBuyTo = m_exchange.roundAmount(canBuyTo, m_pair);
+        placeOrderSize = Math.abs(roundCanBuyTo);
+        OrderSide placeOrderSide = (roundCanBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
+        log("       roundCanBuy" + currencyTo + " " + Utils.format8(roundCanBuyTo) + "; placeOrderSize=" + Utils.format8(placeOrderSize) + "; placeOrderSide=" + placeOrderSide);
+
+        double maxOrderSizeToCreate = maxOrderSizeToCreate();
+        if (placeOrderSize > maxOrderSizeToCreate) {
+            placeOrderSize = maxOrderSizeToCreate;
+            log("      placeOrderSize=" + placeOrderSize + "; maxOrderSizeToCreate=" + maxOrderSizeToCreate + " => CAPPED");
+        }
+
+        if ((placeOrderSize < exchMinOrderToCreate) || (placeOrderSize < minOrderSizeToCreate)) {
+            log("small placeOrderSize=" + placeOrderSize + ". do nothing; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
+            return doVoidCycle();
+        }
+
+        long tickAge = System.currentTimeMillis() - m_topMillis;
+        m_tickAgeCalc.addValue((double) tickAge);
+        double averageTickAge = m_tickAgeCalc.getAverage();
+        boolean tooOldTick = (tickAge > MAX_TICK_AGE_FOR_ORDER);
+        log("   tickAge=" + tickAge + "; averageTickAge=" + averageTickAge + "; tooOldTick=" + tooOldTick);
+
+        OrderType orderType = OrderType.LIMIT;
+        double orderPrice;
+        if (m_orderPriceMode.isMarketPrice(this, placeOrderSize, tooOldTick)) {
+            orderType = OrderType.MARKET;
+            orderPrice = placeOrderSide.isBuy() ? m_sell : m_buy;
+        } else {
+            if (tooOldTick) {
+                boolean freshTopLoaded = onTooOldTick(tickAge);
+                if (freshTopLoaded) {
+                    return STATE_NO_CHANGE;
                 }
+                log("unable to load fresh top - using OLD");
             }
+            orderPrice = calcOrderPrice(m_exchange, directionAdjusted, placeOrderSide);
+        }
 
-            double diff = m_sell - m_buy;
-            double avgDiff = m_sellAvgCounter.get() - m_buyAvgCounter.get();
-            if (diff > avgDiff) {
-                log("      bidAskDiff=" + diff + "; avgDiff bidAskDiff=" + avgDiff + " => HALVING order size");
+
+//        if (absNeedBuyTo != 0) {
+//            double orderSizeAdjusted = absNeedBuyTo;
+//            if (orderSizeAdjusted > 0) {
+//                orderSizeAdjusted = (needOrderSide == OrderSide.BUY) ? orderSizeAdjusted : -orderSizeAdjusted;
+//                log("     signed orderSizeAdjusted=" + Utils.format8(orderSizeAdjusted));
+//
+//                absNeedBuyTo = checkAgainstExistingOrders(needOrderSide, absNeedBuyTo);
+//                if (absNeedBuyTo == 0) { // existingOrder(s) OK - no need to changes
+//                    log("     existingOrder(s) OK - no need to changes");
+//
+//                    return doVoidCycle();
+//                }
+//            }
+//        }
+
+        if (orderType != OrderType.MARKET) { // for now we can hold 1 non-market order
+            int ret = cancelOrderIfPresent();
+            if (ret != STATE_NO_CHANGE) { // cancel attempt was not performed
+                log("order cancel was attempted. time passed. posting recheck direction");
+                postRecheckDirection();
+                return ret;
             }
+        }
 
-            double orderSizeRound = m_exchange.roundAmount(canBuyTo, m_pair);
-            double placeOrderSize = Math.abs(orderSizeRound);
-            log("        orderSizeAdjusted=" + Utils.format8(canBuyTo) + "; orderSizeRound=" + orderSizeRound + "; placeOrderSize=" + Utils.format8(placeOrderSize));
 
-            double maxOrderSizeToCreate = maxOrderSizeToCreate();
-            if (placeOrderSize > maxOrderSizeToCreate) {
-                placeOrderSize = maxOrderSizeToCreate;
-                log("      placeOrderSize=" + placeOrderSize + "; maxOrderSizeToCreate=" + maxOrderSizeToCreate + " => CAPPED");
-            }
+//            double notEnough = Math.abs(needBuyTo - canBuyTo);
+//            if (notEnough > minOrderSizeToCreate) {
+//                boolean cancelPerformed = cancelOtherOrdersIfNeeded(needOrderSide, notEnough);
+//                if (cancelPerformed) {
+//                    postRecheckDirection();
+//                    return STATE_NONE;
+//                }
+//            }
 
-            if ((placeOrderSize >= exchMinOrderToCreate) && (placeOrderSize >= minOrderSizeToCreate)) {
+
+//            if ((placeOrderSize >= exchMinOrderToCreate) && (placeOrderSize >= minOrderSizeToCreate)) {
+
                 if (checkNoOpenOrders()) {
-                    long tickAge = System.currentTimeMillis() - m_topMillis;
-                    m_tickAgeCalc.addValue((double) tickAge);
-                    double averageTickAge = m_tickAgeCalc.getAverage();
-                    boolean tooOldTick = (tickAge > MAX_TICK_AGE_FOR_ORDER);
-                    log("   tickAge=" + tickAge + "; averageTickAge=" + averageTickAge + "; tooOldTick=" + tooOldTick);
 
-                    OrderType orderType = OrderType.LIMIT;
-                    double orderPrice;
-                    if (m_orderPriceMode.isMarketPrice(this, placeOrderSize, tooOldTick)) {
-                        orderType = OrderType.MARKET;
-                        orderPrice = needOrderSide.isBuy() ? m_sell : m_buy;
-                    } else {
-                        if (tooOldTick) {
-                            boolean freshTopLoaded = onTooOldTick(tickAge);
-                            if (freshTopLoaded) {
-                                return STATE_NO_CHANGE;
-                            }
-                            log("unable to load fresh top - using OLD");
-                        }
-                        orderPrice = calcOrderPrice(m_exchange, directionAdjusted, needOrderSide);
-                    }
-
-                    OrderData placeOrder = new OrderData(m_pair, orderType, needOrderSide, orderPrice, placeOrderSize);
+                    OrderData placeOrder = new OrderData(m_pair, orderType, placeOrderSide, orderPrice, placeOrderSize);
                     log("   place orderData=" + placeOrder);
 
                     double buy = m_buy;
@@ -616,17 +647,15 @@ public abstract class BaseExecutor implements Runnable {
                 } else {
                     return STATE_ERROR;
                 }
-            } else {
-                log("warning: small order to create: placeOrderSize=" + placeOrderSize +
-                        "; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
 
-                return doVoidCycle();
-            }
-        } else {
-            log("order cancel was attempted. time passed. posting recheck direction");
-            postRecheckDirection();
-        }
-        return ret;
+//            } else {
+//                log("warning: small order to create: placeOrderSize=" + placeOrderSize +
+//                        "; exchMinOrderToCreate=" + exchMinOrderToCreate + "; minOrderSizeToCreate=" + minOrderSizeToCreate);
+//
+//                return doVoidCycle();
+//            }
+
+//        return ret;
     }
 
     protected int doVoidCycle() throws Exception {
