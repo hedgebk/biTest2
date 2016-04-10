@@ -7,7 +7,7 @@ public class OHLCCalculator extends BarCalculator {
         super(barSize, barsMillisOffset);
     }
 
-    @Override protected boolean updateCurrentBar(long time, double price) {
+    @Override public boolean updateCurrentBar(long time, double price) {
         if (m_tick != null) {
             return m_tick.update(price);
         }

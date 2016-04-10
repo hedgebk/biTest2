@@ -159,14 +159,14 @@ public class TresCanvas extends JComponent {
 
         long barSize = m_tres.m_barSizeMillis;
         if (m_xTimeAxe == null) { // guess for very first pass
-            calcXTimeAxe(width, barSize, phaseData);
+            calcXTimeAxe(width, barSize, exchData);
         }
 
         double lastPrice = exchData.m_lastPrice;
         TresExecutor executor = exchData.m_executor;
         double buyPrice = executor.m_buy;
         double sellPrice = executor.m_sell;
-        List<OHLCTick> ohlcTicksClone = cloneOhlcTicks(phaseData.m_ohlcCalculator.m_ohlcTicks);
+        List<OHLCTick> ohlcTicksClone = cloneOhlcTicks(exchData.m_ohlcCalculator.m_ohlcTicks);
         List<TresExchData.OrderPoint> ordersClone = getOrderClone(exchData);
         List<BaseExecutor.TopDataPoint> topsClone = getTopsClone(executor.m_tops);
         ChartAxe yPriceAxe = calcYPriceAxe(height, lastPrice, buyPrice, sellPrice, ohlcTicksClone, ordersClone, topsClone);
@@ -176,7 +176,7 @@ public class TresCanvas extends JComponent {
 
         int yAxesWidth = paintYAxes(g, height, yPriceAxe, yValueAxe, exchData);
         int chartAreaRight = width - yAxesWidth;
-        calcXTimeAxe(chartAreaRight, barSize, phaseData);
+        calcXTimeAxe(chartAreaRight, barSize, exchData);
 
         if (m_point != null) {
             paintBarHighlight(g, barSize);
@@ -386,8 +386,8 @@ public class TresCanvas extends JComponent {
         g.drawLine(0, y, width, y);
     }
 
-    private void calcXTimeAxe(int areaWidth, long barSize, PhaseData phaseData) {
-        LinkedList<OHLCTick> ohlcTicks = phaseData.m_ohlcCalculator.m_ohlcTicks;
+    private void calcXTimeAxe(int areaWidth, long barSize, TresExchData exchData) {
+        LinkedList<OHLCTick> ohlcTicks = exchData.m_ohlcCalculator.m_ohlcTicks;
         long maxTime = 0;
         OHLCTick lastOhlcTick;
         synchronized (ohlcTicks) {

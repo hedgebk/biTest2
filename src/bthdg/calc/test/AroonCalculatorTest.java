@@ -1,4 +1,6 @@
-package bthdg.calc;
+package bthdg.calc.test;
+
+import bthdg.calc.AroonCalculator;
 
 public class AroonCalculatorTest {
     public static final int BAR_SIZE = 100;

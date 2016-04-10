@@ -37,7 +37,7 @@ public class OscCalculator extends BarCalculator {
     @Override protected void startNewBar(long barStart, long barEnd) {
         m_prevBarClose = m_close;
     }
-    @Override protected boolean updateCurrentBar(long time, double price) {
+    @Override public boolean updateCurrentBar(long time, double price) {
         m_close = price;
         updateCurrentBar(time, false);
         return true;
@@ -46,7 +46,7 @@ public class OscCalculator extends BarCalculator {
         updateCurrentBar(time, true);
     }
 
-    protected void updateCurrentBar(long stamp, boolean finishBar) {
+    public void updateCurrentBar(long stamp, boolean finishBar) {
         if (m_prevBarClose == 0) {
             return;
         }

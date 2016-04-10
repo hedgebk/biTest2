@@ -37,7 +37,7 @@ public class MaCalculator extends BarCalculator {
         return 0;
     }
 
-    @Override protected boolean updateCurrentBar(long time, double price) {
+    @Override public boolean updateCurrentBar(long time, double price) {
         if (m_barData != null) {
             boolean updated = m_type.updateBarData(m_barData, price);
             if (updated) {

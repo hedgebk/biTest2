@@ -1,4 +1,6 @@
-package bthdg.calc;
+package bthdg.calc.test;
+
+import bthdg.calc.OscCalculator;
 
 public class OscCalculatorTest {
 

@@ -32,6 +32,7 @@ public class TresExchData {
     final List<BaseAlgoWatcher> m_playAlgos = new ArrayList<BaseAlgoWatcher>();
     protected BaseAlgoWatcher m_runAlgoWatcher;
     TresAlgo.TresAlgoListener m_algoListener;
+    final TresOHLCCalculator m_ohlcCalculator;
 
     public void setFeeding() { m_executor.m_feeding = true; }
     public void stop() { m_ws.stop(); }
@@ -48,6 +49,8 @@ public class TresExchData {
         m_tres = tres;
         m_ws = ws;
         m_executor = new TresExecutor(this, ws, Tres.PAIR);
+
+        m_ohlcCalculator = new TresOHLCCalculator(tres, 0);
 
         if (tres.m_algosArr != null) {
             for (String algoName : tres.m_algosArr) {
@@ -157,6 +160,8 @@ public class TresExchData {
         }
         m_lastPrice = tdata.m_price;
         long timestamp = tdata.m_timestamp;
+
+        m_ohlcCalculator.update(timestamp, m_lastPrice);
 
         for (BaseAlgoWatcher algoWatcher : m_playAlgos) {
             algoWatcher.m_algo.preUpdate(tdata);

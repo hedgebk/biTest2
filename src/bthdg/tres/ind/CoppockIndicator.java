@@ -1,6 +1,7 @@
 package bthdg.tres.ind;
 
 import bthdg.calc.CoppockCalculator;
+import bthdg.exch.TradeDataLight;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.alg.TresAlgo;
@@ -64,7 +65,9 @@ public class CoppockIndicator extends TresIndicator {
             };
         }
 
-        @Override public boolean update(long timestamp, double price) {
+        @Override public boolean update(TradeDataLight tdata) {
+            long timestamp = tdata.m_timestamp;
+            double price = tdata.m_price;
             return m_calculator.update(timestamp, price);
         }
     }

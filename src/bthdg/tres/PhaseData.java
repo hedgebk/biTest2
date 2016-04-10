@@ -12,7 +12,6 @@ import java.util.List;
 public class PhaseData {
     final TresExchData m_exchData;
     final int m_phaseIndex;
-    final TresOHLCCalculator m_ohlcCalculator;
     private final List<TresIndicator.TresPhasedIndicator> m_phasedTradeIndicators = new ArrayList<TresIndicator.TresPhasedIndicator>();
     private final List<TresIndicator.TresPhasedIndicator> m_phasedTopIndicators = new ArrayList<TresIndicator.TresPhasedIndicator>();
 
@@ -24,8 +23,6 @@ public class PhaseData {
             TresAlgo algo = algoWatcher.m_algo;
             registerPhasedIndicators(exchData, phaseIndex, algo);
         }
-
-        m_ohlcCalculator = new TresOHLCCalculator(exchData.m_tres, phaseIndex);
     }
 
     private void registerPhasedIndicators(TresExchData exchData, int phaseIndex, TresAlgo algo) {
@@ -44,21 +41,18 @@ public class PhaseData {
     }
 
     public void update(TradeDataLight tdata) {
-        long timestamp = tdata.m_timestamp;
-        double price = tdata.m_price;
         for (TresIndicator.TresPhasedIndicator phasedIndicator : m_phasedTradeIndicators) {
             if (phasedIndicator != null) {
-                phasedIndicator.update(timestamp, price);
+                phasedIndicator.update(tdata);
             }
         }
-
-        m_ohlcCalculator.update(timestamp, price);
     }
 
     public void update(BaseExecutor.TopDataPoint topDataPoint) {
+        TradeDataLight tdata = new TradeDataLight(topDataPoint.m_timestamp, (float) topDataPoint.getAvgMid());
         for (TresIndicator.TresPhasedIndicator phasedIndicator : m_phasedTopIndicators) {
             if (phasedIndicator != null) {
-                phasedIndicator.update(topDataPoint.m_timestamp, topDataPoint.getAvgMid());
+                phasedIndicator.update(tdata);
             }
         }
     }

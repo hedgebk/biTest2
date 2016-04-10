@@ -1,4 +1,6 @@
-package bthdg.calc;
+package bthdg.calc.test;
+
+import bthdg.calc.CoppockCalculator;
 
 public class CoppockCalculatorTest {
     public static final int BAR_SIZE = 100;

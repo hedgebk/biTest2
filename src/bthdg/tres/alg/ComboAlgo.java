@@ -115,9 +115,9 @@ public class ComboAlgo extends TresAlgo implements TresAlgo.TresAlgoListener {
             }
         }
 
-        @Override public boolean update(long timestamp, double price) {
+        @Override public boolean update(TradeDataLight tdata) {
             for (TresIndicator.TresPhasedIndicator phasedIndicator : m_phased) {
-                phasedIndicator.update(timestamp, price);
+                phasedIndicator.update(tdata);
             }
             return true;
         }

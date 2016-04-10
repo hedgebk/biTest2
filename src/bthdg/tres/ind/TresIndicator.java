@@ -3,6 +3,7 @@ package bthdg.tres.ind;
 import bthdg.BaseChartPaint;
 import bthdg.ChartAxe;
 import bthdg.exch.Direction;
+import bthdg.exch.TradeDataLight;
 import bthdg.osc.TrendWatcher;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresCanvas;
@@ -371,7 +372,7 @@ public abstract class TresIndicator {
         private ChartPoint m_lastBar;
 
         /** @return true if current bar changed */
-        public abstract boolean update(long timestamp, double price);
+        public abstract boolean update(TradeDataLight tdata);
         public abstract Color getColor();
         public abstract double lastTickPrice();
         public abstract long lastTickTime();

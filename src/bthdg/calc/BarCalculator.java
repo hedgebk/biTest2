@@ -20,7 +20,7 @@ public abstract class BarCalculator {
 
     private static void log(String s) { Log.log(s); }
 
-    public BarCalculator(long barSizeMillis, long barsMillisOffset) {
+    BarCalculator(long barSizeMillis, long barsMillisOffset) {
         if (barSizeMillis == 0) {
             throw new RuntimeException("barSizeMillis==0");
         }
@@ -157,15 +157,15 @@ public abstract class BarCalculator {
         m_pendings.add(price);
     }
 
-    protected long getBarStart(long time) {
+    private long getBarStart(long time) {
         return (time - m_barsMillisOffset) / m_barSizeMillis * m_barSizeMillis + m_barsMillisOffset;
     }
 
     protected abstract void startNewBar(long barStart, long barEnd);
-    protected abstract boolean updateCurrentBar(long time, double price);
+    public abstract boolean updateCurrentBar(long time, double price);
     protected abstract void finishCurrentBar(long time, double price);
 
-    protected static void replaceLastElement(LinkedList<Double> list, double price) {
+    static void replaceLastElement(LinkedList<Double> list, double price) {
         if (!list.isEmpty()) {
             list.set(list.size() - 1, price); // replace last element
         }

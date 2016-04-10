@@ -1,4 +1,6 @@
-package bthdg.calc;
+package bthdg.calc.test;
+
+import bthdg.calc.CciCalculator;
 
 public class CciCalculatorTest {
     public static final int BAR_SIZE = 100;
@@ -21,6 +23,6 @@ public class CciCalculatorTest {
             cciCalculator.update(time, value);
             time += BAR_SIZE;
         }
-        cciCalculator.updateCurrentBar(time, 0);
+        cciCalculator.update(time, 0);
     }
 }

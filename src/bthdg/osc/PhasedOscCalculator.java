@@ -32,7 +32,7 @@ class PhasedOscCalculator extends OscCalculator {
         return barSize * (index % Osc.PHASES) / Osc.PHASES;
     }
 
-    @Override protected void updateCurrentBar(long stamp, boolean finishBar) {
+    @Override public void updateCurrentBar(long stamp, boolean finishBar) {
         super.updateCurrentBar(stamp, finishBar);
         if(finishBar) {
             log(" [" + m_index + "] bar " + m_barNum + "; PREHEAT_BARS_NUM=" + Osc.PREHEAT_BARS_NUM);

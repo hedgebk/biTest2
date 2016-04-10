@@ -35,7 +35,7 @@ public class CciCalculator extends OHLCCalculator {
         }
     }
 
-    @Override protected boolean updateCurrentBar(long time, double price) {
+    @Override public boolean updateCurrentBar(long time, double price) {
         boolean ret = super.updateCurrentBar(time, price);
         if (m_tick != null) {
             double typicalPrice = m_tick.m_close; // this can be HLC or OHLC

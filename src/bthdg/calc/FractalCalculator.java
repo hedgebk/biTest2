@@ -22,7 +22,7 @@ public class FractalCalculator extends OHLCCalculator {
         super.startNewBar(barStart, barEnd);
     }
 
-    @Override protected boolean updateCurrentBar(long time, double price) {
+    @Override public boolean updateCurrentBar(long time, double price) {
         boolean ret = super.updateCurrentBar(time, price);
         if (ret) { // if any ohlc field was changed
             if (!m_allTicksDefined) {

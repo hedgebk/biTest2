@@ -7,7 +7,7 @@ public class CloseCalculator extends BarCalculator {
         super(barSize, barsMillisOffset);
     }
 
-    @Override protected boolean updateCurrentBar(long time, double price) {
+    @Override public boolean updateCurrentBar(long time, double price) {
         m_close = price;
         return true;
     }

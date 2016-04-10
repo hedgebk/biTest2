@@ -42,7 +42,7 @@ public class AroonCalculator extends OHLCCalculator {
         }
     }
 
-    @Override protected boolean updateCurrentBar(long time, double price) {
+    @Override public boolean updateCurrentBar(long time, double price) {
         boolean changed = super.updateCurrentBar(time, price);
         if (changed && m_filled) {
             double close = m_tick.m_close;

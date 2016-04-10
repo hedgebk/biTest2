@@ -59,7 +59,7 @@ public class CoppockCalculator extends BarCalculator {
         }
     }
 
-    @Override protected boolean updateCurrentBar(long time, double price) {
+    @Override public boolean updateCurrentBar(long time, double price) {
         replaceLastElement(m_closesShort, price);
         replaceLastElement(m_closesLong, price);
         if (m_closesShortFilled) {

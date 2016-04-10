@@ -2,6 +2,7 @@ package bthdg.tres.ind;
 
 import bthdg.Log;
 import bthdg.calc.OscTick;
+import bthdg.exch.TradeDataLight;
 import bthdg.tres.*;
 import bthdg.tres.alg.TresAlgo;
 import bthdg.util.Colors;
@@ -70,7 +71,9 @@ public class OscIndicator extends TresIndicator {
             };
         }
 
-        @Override public boolean update(long timestamp, double price) {
+        @Override public boolean update(TradeDataLight tdata) {
+            long timestamp = tdata.m_timestamp;
+            double price = tdata.m_price;
             return m_oscCalculator.update(timestamp, price);
         }
 

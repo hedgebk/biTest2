@@ -42,7 +42,7 @@ public class TresOscCalculator extends OscCalculator {
         m_phaseIndex = phaseIndex;
     }
 
-    @Override protected void updateCurrentBar(long stamp, boolean finishBar) {
+    @Override public void updateCurrentBar(long stamp, boolean finishBar) {
 //        m_updated = false;
         super.updateCurrentBar(stamp, finishBar);
         if (finishBar) {
