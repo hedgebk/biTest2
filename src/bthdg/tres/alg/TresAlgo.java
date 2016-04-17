@@ -15,6 +15,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public abstract class TresAlgo {
     public final String m_name;
@@ -98,15 +99,17 @@ public abstract class TresAlgo {
             return new EwoAlgo.New(tresExchData);
         } else if (algoName.equals("fra")) {
             return new FractalAlgo(tresExchData);
+        } else if (algoName.equals("cmf")) {
+            return new CmfAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
 
 
-    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe, ChartAxe yValueAxe) {
+    int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, Map<String,ChartAxe> yAxes) {
         int width = 0;
         for (TresIndicator indicator : m_indicators) {
-            int axeWidth = indicator.paintYAxe(g, xTimeAxe, right - width, yPriceAxe, yValueAxe);
+            int axeWidth = indicator.paintYAxe(g, xTimeAxe, right - width, yAxes);
             width += axeWidth;
         }
         return width;

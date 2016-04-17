@@ -7,6 +7,7 @@ import bthdg.tres.TresExchData;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
+import java.util.Map;
 
 public abstract class BaseAlgoWatcher implements TresAlgo.TresAlgoListener {
     public static double AVG_HALF_BID_ASK_DIF = 0.10;
@@ -36,8 +37,8 @@ public abstract class BaseAlgoWatcher implements TresAlgo.TresAlgoListener {
         return m_algo.getRunAlgoParams();
     } // proxy call
 
-    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int yRight, ChartAxe yPriceAxe, ChartAxe yValueAxe) {
-        return m_algo.paintYAxe(g, xTimeAxe, yRight, yPriceAxe, yValueAxe);
+    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int yRight, Map<String,ChartAxe> yAxes) {
+        return m_algo.paintYAxe(g, xTimeAxe, yRight, yAxes);
     }
 
     public void paint(Graphics g, ChartAxe xTimeAxe, ChartAxe yPriceAxe, Point cursorPoint) {

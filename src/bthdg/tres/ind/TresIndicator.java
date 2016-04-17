@@ -14,12 +14,13 @@ import bthdg.util.Utils;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.List;
 
 public abstract class TresIndicator {
+    public static final String PRICE_AXE_NAME = "price-axe";
+    public static final String VALUE_AXE_NAME = "value-axe";
+
     private final String m_name;
     public final TresAlgo m_algo;
     private final boolean m_collectPoints;
@@ -43,10 +44,12 @@ public abstract class TresIndicator {
         m_name = name;
         m_algo = algo;
         m_collectPoints = m_algo.m_tresExchData.m_tres.m_collectPoints;
-        if (countPeaks()) {
-            m_peakWatcher = new PeakWatcher(this, peakTolerance);
-            if (countHalfPeaks()) {
-                m_halfPeakWatcher = new PeakWatcher(this, peakTolerance / 2.0);
+        if(peakTolerance > 0) {
+            if (countPeaks()) {
+                m_peakWatcher = new PeakWatcher(this, peakTolerance);
+                if (countHalfPeaks()) {
+                    m_halfPeakWatcher = new PeakWatcher(this, peakTolerance / 2.0);
+                }
             }
         }
     }
@@ -123,7 +126,7 @@ public abstract class TresIndicator {
         return new ChartPoint(maxBarEnd, avgValue);
     }
 
-    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, ChartAxe yPriceAxe, ChartAxe yValueAxe) {
+    public int paintYAxe(Graphics g, ChartAxe xTimeAxe, int right, Map<String,ChartAxe> yAxes) {
         if (doPaint()) {
             Utils.DoubleDoubleMinMaxCalculator minMaxCalculator = new Utils.DoubleDoubleMinMaxCalculator();
             for (TresPhasedIndicator phIndicator : m_phasedIndicators) {
@@ -132,7 +135,7 @@ public abstract class TresIndicator {
                 }
             }
             cloneChartPoints(m_avgPoints, m_avgPaintPoints, xTimeAxe, minMaxCalculator);
-            if (countPeaks()) {
+            if (countPeaks() && (m_peakWatcher != null)) {
                 m_peakWatcher.cloneChartPoints(xTimeAxe, minMaxCalculator);
                 if (m_halfPeakWatcher != null) {
                     m_halfPeakWatcher.cloneChartPoints(xTimeAxe, minMaxCalculator);
@@ -147,23 +150,33 @@ public abstract class TresIndicator {
                 valMin -= extra;
                 valMax += extra;
 
-                if( usePriceAxe() ) {
-                    yPriceAxe.updateBounds(valMin, valMax);
-                    m_yAxe = yPriceAxe;
-                    return 0;
-                } else if( useValueAxe() ) {
-                    yValueAxe.updateBounds(valMin, valMax);
-                    m_yAxe = yValueAxe;
-                    return 0;
-                } else {
+                String yAxeName = getYAxeName();
+                ChartAxe yAxe = yAxes.get(yAxeName);
+                if(yAxe == null) { // new axe
+                    ChartAxe yPriceAxe = yAxes.get(PRICE_AXE_NAME);
                     m_yAxe = new ChartAxe(valMin - extra, valMax + extra, yPriceAxe.m_size);
+                    yAxes.put(yAxeName, m_yAxe);
                     m_yAxe.m_offset = yPriceAxe.m_offset;
                     return paintYAxe(g, right, m_yAxe);
+                } else {
+                    yAxe.updateBounds(valMin, valMax);
+                    m_yAxe = yAxe;
+                    return 0;
                 }
             }
         }
         m_yAxe = null;
         return 0;
+    }
+
+    protected String getYAxeName() {
+        if (usePriceAxe()) {
+            return PRICE_AXE_NAME;
+        } else if (useValueAxe()) {
+            return VALUE_AXE_NAME;
+        } else {
+            return m_name;
+        }
     }
 
     private int paintYAxe(Graphics g, int right, ChartAxe yAxe) {
@@ -180,7 +193,7 @@ public abstract class TresIndicator {
                 }
             }
             paintPoints(g, xTimeAxe, m_yAxe, getColor(), getLineColor(), m_avgPaintPoints);
-            if (countPeaks()) {
+            if (countPeaks() && (m_peakWatcher != null)) {
                 Color peakColor = getPeakColor();
                 m_peakWatcher.paintPeaks(g, xTimeAxe, m_yAxe, peakColor);
                 if (m_halfPeakWatcher != null) {

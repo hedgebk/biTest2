@@ -6,6 +6,7 @@ import bthdg.calc.OHLCTick;
 import bthdg.exch.*;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.BaseAlgoWatcher;
+import bthdg.tres.ind.TresIndicator;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
 
@@ -15,9 +16,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Rectangle2D;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.List;
 
 public class TresCanvas extends JComponent {
@@ -174,7 +173,11 @@ public class TresCanvas extends JComponent {
         ChartAxe yValueAxe = new ChartAxe(0, 0, height - 2);
         yPriceAxe.m_offset = 1;
 
-        int yAxesWidth = paintYAxes(g, height, yPriceAxe, yValueAxe, exchData);
+        Map<String,ChartAxe> yAxes = new HashMap<String, ChartAxe>();
+        yAxes.put(TresIndicator.PRICE_AXE_NAME, yPriceAxe);
+        yAxes.put(TresIndicator.VALUE_AXE_NAME, yValueAxe);
+
+        int yAxesWidth = paintYAxes(g, height, exchData, yAxes);
         int chartAreaRight = width - yAxesWidth;
         calcXTimeAxe(chartAreaRight, barSize, exchData);
 
@@ -227,14 +230,17 @@ public class TresCanvas extends JComponent {
         g.drawString(getBarsShiftStr(), 5, fontHeight * 3 + 5);
     }
 
-    private int paintYAxes(Graphics g, int height, ChartAxe yPriceAxe, ChartAxe yValueAxe, TresExchData exchData) {
+    private int paintYAxes(Graphics g, int height, TresExchData exchData, Map<String,ChartAxe> yAxes) {
+        ChartAxe yPriceAxe = yAxes.get(TresIndicator.PRICE_AXE_NAME);
+
         int yAxesWidth = paintYPriceAxe(g, yPriceAxe);
         int width = getWidth();
         for (BaseAlgoWatcher algoWatcher : exchData.m_playAlgos) {
-            int axeWidth = algoWatcher.paintYAxe(g, m_xTimeAxe, width - yAxesWidth, yPriceAxe, yValueAxe);
+            int axeWidth = algoWatcher.paintYAxe(g, m_xTimeAxe, width - yAxesWidth, yAxes);
             yAxesWidth += axeWidth;
         }
 
+        ChartAxe yValueAxe = yAxes.get(TresIndicator.VALUE_AXE_NAME);
         if ((yValueAxe.m_max != 0) || (yValueAxe.m_min != 0)) {
             Color color = Color.WHITE;
             int valueAxeWidth = yValueAxe.paintYAxe(g, width - yAxesWidth, color);
