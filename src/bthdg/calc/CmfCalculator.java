@@ -1,5 +1,6 @@
 package bthdg.calc;
 
+import bthdg.Log;
 import bthdg.exch.TradeData;
 import bthdg.exch.TradeDataLight;
 
@@ -13,6 +14,8 @@ public class CmfCalculator extends OHLCCalculator {
     private double m_MfVolumesSum;
     private long m_counter;
     public Double m_lastCmf;
+
+    private static void log(String s) { Log.log(s); }
 
     public CmfCalculator(int length, long barSize, long barsMillisOffset) {
         super(barSize, barsMillisOffset);
@@ -34,51 +37,34 @@ public class CmfCalculator extends OHLCCalculator {
         return true;
     }
 
-
     @Override protected void startNewBar(long barStart, long barEnd) {
         super.startNewBar(barStart, barEnd);
         m_volume = 0;
     }
 
-//    @Override protected boolean updateCurrentBar(long time, double price) {
-//        boolean ret = super.updateCurrentBar(time, price);
-//        if (ret) { // if any ohlc field was changed
-//        }
-//        return ret;
-//    }
-
     @Override protected void finishCurrentBar(long time, double price) {
-//        if (m_lastCci != null) {
-//            bar(m_currentBarEnd, m_lastCci);
-//        }
-        double Close = m_tick.m_close;
-        double Low = m_tick.m_low;
-        double High = m_tick.m_high;
+        double close = m_tick.m_close;
+        double low = m_tick.m_low;
+        double high = m_tick.m_high;
 
-        double F6=Close;
-        double E6=Low;
-        double D6=High;
-        double MF_Multiplier=(2*F6-E6-D6)/(D6-E6);
+        double mfMultiplier = (2 * close - low - high) / (high - low);
 
         m_volumesSum -= m_volumes[m_lastIndex];
         m_volumesSum += m_volume;
         System.arraycopy(m_volumes, 0, m_volumes, 1, m_lastIndex);
         m_volumes[0] = m_volume;
-        double H6=m_volume;
-        double G6=MF_Multiplier;
-        double MF_Volume=G6*H6;
+        double mfVolume = mfMultiplier * m_volume;
         m_MfVolumesSum -= m_MfVolumes[m_lastIndex];
-        m_MfVolumesSum += MF_Volume;
+        m_MfVolumesSum += mfVolume;
         System.arraycopy(m_MfVolumes, 0, m_MfVolumes, 1, m_lastIndex);
-        m_MfVolumes[0] = MF_Volume;
+        m_MfVolumes[0] = mfVolume;
 
         m_counter++;
         if (m_counter >= m_length) {
-            m_lastCmf = m_MfVolumesSum/m_volumesSum;
+            m_lastCmf = (m_volumesSum == 0) ? 0.0 : m_MfVolumesSum / m_volumesSum;
+            if (Double.isNaN(m_lastCmf)) {
+                log("NAN");
+            }
         }
-    }
-
-    public void finish() {
-
     }
 }
