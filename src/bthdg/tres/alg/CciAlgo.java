@@ -63,10 +63,11 @@ public class CciAlgo extends TresAlgo {
     }
 
 
-    public static class DirectionIndicator extends TresIndicator {
+    // ===============================================================================================================
+    private static class DirectionIndicator extends TresIndicator {
         public static double PEAK_TOLERANCE = 0.06470;
 
-        public DirectionIndicator(TresAlgo algo) {
+        DirectionIndicator(TresAlgo algo) {
             super("+", PEAK_TOLERANCE, algo);
         }
 
