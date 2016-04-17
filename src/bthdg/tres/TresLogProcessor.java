@@ -2,6 +2,7 @@ package bthdg.tres;
 
 import bthdg.Log;
 import bthdg.exch.Config;
+import bthdg.exch.TradeData;
 import bthdg.exch.TradeDataLight;
 import bthdg.osc.BaseExecutor;
 import bthdg.tres.alg.*;
@@ -34,11 +35,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-class TresLogProcessor extends Thread {
+public class TresLogProcessor extends Thread {
     // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
-    private static final Pattern TRE_TRADE_PATTERN = Pattern.compile("(?:\\d+\\: )onTrade\\[\\w+\\]\\: TradeData\\{amount=\\d+\\.\\d+, price=(\\d+\\.\\d+), time=(\\d+).+");
+    private static final Pattern TRE_TRADE_PATTERN = Pattern.compile("(?:\\d+\\: )onTrade\\[\\w+\\]\\: TradeData\\{amount=(\\d+\\.\\d+), price=(\\d+\\.\\d+), time=(\\d+).+");
     // 1458208504106: onTrade[OKCOIN]: TrData{sz=0.07300, pr=2739.91992, tm=1458208512000, tid=2205210581, typ=BID}
-    private static final Pattern TRE_TRADE_PATTERN2 = Pattern.compile("(?:\\d+\\: )onTrade\\[\\w+\\]\\: TrData\\{sz=\\d+\\.\\d+, pr=(\\d+\\.\\d+), tm=(\\d+).+");
+    private static final Pattern TRE_TRADE_PATTERN2 = Pattern.compile("(?:\\d+\\: )onTrade\\[\\w+\\]\\: TrData\\{sz=(\\d+\\.\\d+), pr=(\\d+\\.\\d+), tm=(\\d+).+");
     // TresExecutor.gotTop() buy=2150.71; sell=2151.0
     private static final Pattern TRE_TOP_PATTERN = Pattern.compile("TresExecutor.gotTop\\(\\) buy=(\\d+\\.\\d+); sell=(\\d+\\.\\d+)");
     // 1426040622351: State.onTrade(tData=TradeData{amount=5.00000, price=1831.00000, time=1426040623000, tid=0, type=ASK}) on NONE *********************************************
@@ -49,6 +50,8 @@ class TresLogProcessor extends Thread {
     private static final int READ_BUFFER_SIZE = 1024 * 256;
     private static final int PARSE_THREADS_NUM = 4;
     private static final int PROCESS_THREADS_NUM = 8;
+    public static boolean PARSE_FULL_TRADES = false;
+
     private final Config m_config;
     private Map<OptimizeField, String> m_varyConfigs = new HashMap<OptimizeField, String>();
 
@@ -1203,7 +1206,8 @@ class TresLogProcessor extends Thread {
             ticksDir.mkdirs();
         }
         String name = file.getName();
-        File ticksFile = new File(ticksDir, name + ".ticks");
+
+        File ticksFile = new File(ticksDir, name + (PARSE_FULL_TRADES ? ".fticks" : ".ticks"));
         boolean nonCurrentFiles = !name.equals("tres.log") && !name.equals("tres2.log");
         if (nonCurrentFiles) {
             if (ticksFile.exists()) {
@@ -1259,15 +1263,27 @@ class TresLogProcessor extends Thread {
     }
 
     private TradesTopsData parseLines(LineReader reader, File file) throws IOException {
+        long fileLength = file.length();
         BufferedLineReader blr = new BufferedLineReader(reader);
         try {
             TradesTopsData ret = new TradesTopsData(file.getName());
             List<TradeDataLight> trades = ret.m_trades;
             List<TradeDataLight> tops = ret.m_tops;
             long startTime = System.currentTimeMillis();
+            long logTime = startTime;
             long linesProcessed = 0;
             String line;
+            long readed = 0;
             while ((line = blr.getLine()) != null) {
+                readed += (line.length() + 1);
+                if (linesProcessed % 100 == 99) {
+                    long now = System.currentTimeMillis();
+                    long timeDelta = now - logTime;
+                    if(timeDelta > 60000) {
+                        log(" parse " + file.getName() + ". processed " + readed + " bytes from " + fileLength + " bytes = " + (((double) readed) / fileLength));
+                        logTime = now;
+                    }
+                }
                 TradeDataLight tData = parseLineForTrade(line);
                 if (tData != null) {
                     trades.add(tData);
@@ -1355,10 +1371,12 @@ class TresLogProcessor extends Thread {
         // 1426040622351: State.onTrade(tData=TradeData{amount=5.00000, price=1831.00000, time=1426040623000, tid=0, type=ASK}) on NONE *********************************************
         Matcher matcher = OSC_TRADE_PATTERN.matcher(line);
         if (matcher.matches()) {
+            // TODO: change OSC_TRADE_PATTERN to extract amount
             String priceStr = matcher.group(1);
-            String millisStr = matcher.group(2);
+            String timeStr = matcher.group(2);
+            String amountStr = matcher.group(3);
 //                log("GOT TRADE: millisStr=" + millisStr + "; priceStr=" + priceStr);
-            return parseTrade(millisStr, priceStr);
+            return parseTrade(timeStr, priceStr, amountStr);
         } else {
 //                throw new RuntimeException("not matched OSC_TRADE_PATTERN line: " + line);
             log("not matched OSC_TRADE_PATTERN line: " + line);
@@ -1367,15 +1385,19 @@ class TresLogProcessor extends Thread {
     }
 
     private TradeDataLight parseTradeLine(String line) {
+        // onTrade[OKCOIN]: TradeData{amount=0.01000, price=1766.62000, time=1437739761000, tid=0, type=BID}
         Matcher matcher = TRE_TRADE_PATTERN.matcher(line);
         if (!matcher.matches()) {
+            // 1458208504106: onTrade[OKCOIN]: TrData{sz=0.07300, pr=2739.91992, tm=1458208512000, tid=2205210581, typ=BID}
             matcher = TRE_TRADE_PATTERN2.matcher(line);
         }
         if (matcher.matches()) {
-            String priceStr = matcher.group(1);
-            String timeStr = matcher.group(2);
+            String amountStr = matcher.group(1);
+            String priceStr = matcher.group(2);
+            String timeStr = matcher.group(3);
+            matcher.reset();
 //                log("GOT TRADE: timeStr=" + timeStr + "; priceStr=" + priceStr + "; amountStr=" + amountStr);
-            return parseTrade(timeStr, priceStr);
+            return parseTrade(timeStr, priceStr, amountStr);
         } else {
             log("ERROR: not matched TRE_TRADE_PATTERN(2) line: " + line);
             return null;
@@ -1405,10 +1427,14 @@ class TresLogProcessor extends Thread {
         return new TradeDataLight(s_lastTradeMillis++, mid);
     }
 
-    private TradeDataLight parseTrade(String millisStr, String priceStr) {
+    private TradeDataLight parseTrade(String millisStr, String priceStr, String amountStr) {
         long millis = Long.parseLong(millisStr);
         s_lastTradeMillis = millis;
         float price = Float.parseFloat(priceStr);
+        if (PARSE_FULL_TRADES) {
+            float amount = Float.parseFloat(amountStr);
+            return new TradeData(amount, price, millis);
+        }
         return new TradeDataLight(millis, price);
     }
 
