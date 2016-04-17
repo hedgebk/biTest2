@@ -2,11 +2,15 @@ package bthdg.util;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.List;
 
 public class LineReader {
+    private static final int MAX_HOLD_BACK_LINES_NUM = 50;
+
+
     private final InputStream m_is;
     private final BufferedReader m_bis;
-    private final ArrayList<String> m_buffer = new ArrayList<String>();
+    private final List<String> m_buffer = new ArrayList<String>();
     public int m_linesReaded = 0;
 
     public LineReader(String logFile) throws FileNotFoundException {
@@ -48,6 +52,11 @@ public class LineReader {
         if (line != null) {
             m_buffer.add(line);
             m_linesReaded++;
+
+            if(m_linesReaded > MAX_HOLD_BACK_LINES_NUM) {
+                int i = m_linesReaded - MAX_HOLD_BACK_LINES_NUM;
+                m_buffer.set(i, null); // do not hold too much back lines
+            }
         }
         return line;
     }
