@@ -25,10 +25,6 @@ public class FractalIndicator extends TresIndicator {
     public static class PhasedFractalIndicator extends TresPhasedIndicator {
         private final FractalCalculator m_calculator;
 
-        @Override public void onBar(ChartPoint lastBar) {
-            super.onBar(lastBar);
-        }
-
         public PhasedFractalIndicator(FractalIndicator fractalIndicator, TresExchData exchData, int phaseIndex) {
             super(fractalIndicator, exchData, phaseIndex, null);
             m_calculator = new FractalCalculator(exchData.m_tres.m_barSizeMillis, exchData.m_tres.getBarOffset(phaseIndex)) {
