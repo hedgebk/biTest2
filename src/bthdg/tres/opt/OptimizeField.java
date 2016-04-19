@@ -162,11 +162,11 @@ public enum OptimizeField {
     //------------------------------------------------------------------------------------------
     CMF_LEN("cmf.len") {
         @Override public double get(Tres tres) { return CmfIndicator.LENGTH; }
-        @Override public void set(Tres tres, double value) { CmfIndicator.LENGTH = (int) value; }
+        @Override public void set(Tres tres, double value) { CmfIndicator.LENGTH = value; }
     },
     CMF_LEN2("cmf.len2") {
         @Override public double get(Tres tres) { return CmfIndicator.LENGTH2; }
-        @Override public void set(Tres tres, double value) { CmfIndicator.LENGTH2 = (int) value; }
+        @Override public void set(Tres tres, double value) { CmfIndicator.LENGTH2 = value; }
     },
     CMF_LEVEL("cmf.level") {
         @Override public double get(Tres tres) { return CmfIndicator.LEVEL; }

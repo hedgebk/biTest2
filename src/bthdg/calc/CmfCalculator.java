@@ -5,8 +5,10 @@ import bthdg.exch.TradeData;
 import bthdg.exch.TradeDataLight;
 
 public class CmfCalculator extends OHLCCalculator {
-    private final int m_length;
+    private final int m_arrayLength;
+    private final double m_length;
     private final int m_lastIndex;
+    private final double m_extra;
     private double m_volume;
     private double[] m_volumes;
     private double[] m_MfVolumes;
@@ -17,12 +19,14 @@ public class CmfCalculator extends OHLCCalculator {
 
     private static void log(String s) { Log.log(s); }
 
-    public CmfCalculator(int length, long barSize, long barsMillisOffset) {
+    public CmfCalculator(double length, long barSize, long barsMillisOffset) {
         super(barSize, barsMillisOffset);
         m_length = length;
-        m_lastIndex = length - 1;
-        m_volumes = new double[length];
-        m_MfVolumes = new double[length];
+        m_arrayLength = (int) length + 1;
+        m_extra = (double) m_arrayLength - m_length;
+        m_lastIndex = m_arrayLength - 1;
+        m_volumes = new double[m_arrayLength];
+        m_MfVolumes = new double[m_arrayLength];
     }
 
     public boolean update(TradeDataLight tdata) {
@@ -47,12 +51,14 @@ public class CmfCalculator extends OHLCCalculator {
         double low = m_tick.m_low;
         double high = m_tick.m_high;
 
-        double mfMultiplier = (2 * close - low - high) / (high - low);
+        double highLowDiff = high - low;
+        double mfMultiplier = (highLowDiff == 0) ? 0 : (2 * close - low - high) / highLowDiff;
 
         m_volumesSum -= m_volumes[m_lastIndex];
         m_volumesSum += m_volume;
         System.arraycopy(m_volumes, 0, m_volumes, 1, m_lastIndex);
         m_volumes[0] = m_volume;
+
         double mfVolume = mfMultiplier * m_volume;
         m_MfVolumesSum -= m_MfVolumes[m_lastIndex];
         m_MfVolumesSum += mfVolume;
@@ -61,7 +67,11 @@ public class CmfCalculator extends OHLCCalculator {
 
         m_counter++;
         if (m_counter >= m_length) {
-            m_lastCmf = (m_volumesSum == 0) ? 0.0 : m_MfVolumesSum / m_volumesSum;
+
+            double volumesSum = m_volumesSum - m_extra * m_volumes[m_lastIndex];
+            double mfVolumesSum = m_MfVolumesSum - m_extra * m_MfVolumes[m_lastIndex];
+
+            m_lastCmf = (m_volumesSum == 0) ? 0.0 : m_MfVolumesSum / volumesSum;
             if (Double.isNaN(m_lastCmf)) {
                 log("NAN");
             }

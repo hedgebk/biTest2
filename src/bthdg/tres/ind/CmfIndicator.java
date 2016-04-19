@@ -12,15 +12,15 @@ import java.awt.*;
 
 public class CmfIndicator extends TresIndicator {
     public static double LEVEL = 0.05;
-    public static int LENGTH = 20;
-    public static int LENGTH2 = 25;
+    public static double LENGTH = 20;
+    public static double LENGTH2 = 25;
 
-    private final int m_length;
+    private final double m_length;
 
     public CmfIndicator(double peakTolerance, TresAlgo algo) {
         this(LENGTH, peakTolerance, algo);
     }
-    public CmfIndicator(int length, double peakTolerance, TresAlgo algo) {
+    public CmfIndicator(double length, double peakTolerance, TresAlgo algo) {
         super("CMF", peakTolerance, algo);
         m_length = length;
         TresLogProcessor.PARSE_FULL_TRADES = true;
@@ -40,7 +40,7 @@ public class CmfIndicator extends TresIndicator {
     private static class PhasedCmfIndicator extends TresPhasedIndicator {
         private final CmfCalculator m_calculator;
 
-        PhasedCmfIndicator(int length, CmfIndicator cmfIndicator, TresExchData exchData, int phaseIndex) {
+        PhasedCmfIndicator(double length, CmfIndicator cmfIndicator, TresExchData exchData, int phaseIndex) {
             super(cmfIndicator, exchData, phaseIndex, null);
             long barSize = exchData.m_tres.m_barSizeMillis;
             long barOffset = exchData.m_tres.getBarOffset(phaseIndex);
