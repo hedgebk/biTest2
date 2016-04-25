@@ -100,7 +100,9 @@ public abstract class TresAlgo {
         } else if (algoName.equals("fra")) {
             return new FractalAlgo(tresExchData);
         } else if (algoName.equals("cmf")) {
-            return new CmfAlgo(tresExchData);
+            return new CmfAlgo.Old(tresExchData);
+        } else if (algoName.equals("cmfN")) {
+            return new CmfAlgo.New(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -148,14 +150,18 @@ public abstract class TresAlgo {
 
     protected static double getDirectionAdjustedByPeakWatchers(TresIndicator indicator) {
         PeakWatcher peakWatcher = indicator.m_peakWatcher;
+        if(peakWatcher==null) {
+            return 0;
+        }
         TrendWatcher<ChartPoint> peakCalculator = peakWatcher.m_avgPeakCalculator;
         Direction direction = peakCalculator.m_direction;
-        PeakWatcher halfPeakWatcher = indicator.m_halfPeakWatcher;
-        TrendWatcher<ChartPoint> halfPeakTrendWatcher = halfPeakWatcher.m_avgPeakCalculator;
-        Direction halfDirection = halfPeakTrendWatcher.m_direction;
         if (direction == null) {
             return 0;
-        } else if (direction == Direction.FORWARD) {
+        }
+        PeakWatcher halfPeakWatcher = indicator.m_halfPeakWatcher;
+        TrendWatcher<ChartPoint> halfPeakTrendWatcher = (halfPeakWatcher == null) ? null : halfPeakWatcher.m_avgPeakCalculator;
+        Direction halfDirection = (halfPeakTrendWatcher == null) ? null : halfPeakTrendWatcher.m_direction;
+        if (direction == Direction.FORWARD) {
             if (halfDirection == null) {
                 return 1.0;
             } else if (halfDirection == Direction.FORWARD) {
