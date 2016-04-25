@@ -4,52 +4,32 @@ import bthdg.tres.alg.TresAlgo;
 
 public class ZeroLeveler {
     private final double m_startLevel;
-    private Boolean m_direction;
-    private Double m_level;
-    private boolean m_active;
+    private double m_maxLevel;
+    private double m_minLevel;
 
     public ZeroLeveler(double startLevel) {
         m_startLevel = startLevel;
+        m_maxLevel = startLevel;
+        m_minLevel = -startLevel;
     }
 
     public double update(double value) {
-        double ret;
-        if (m_direction == null) { // not yet started
-            if (value > m_startLevel) {
-                m_direction = Boolean.TRUE;
-                m_level = value;
-            } else if (value < -m_startLevel) {
-                m_direction = Boolean.FALSE;
-                m_level = value;
-            }
-            ret = 0;
-        } else {
-            if (m_direction) { // up
-                if (value > m_level) {
-                    m_level = value;
-                }
-                ret = TresAlgo.valueToBounds(value, m_level, 0);
-                if (!m_active && (ret < 0)) {
-                    m_active = true; // activate on first zero cross
-                }
-                if (value < -m_startLevel) {
-                    m_direction = Boolean.FALSE;
-                    m_level = value;
-                }
-            } else { // down
-                if (value < m_level) {
-                    m_level = value;
-                }
-                ret = TresAlgo.valueToBounds(value, 0, m_level);
-                if (!m_active && (ret > 0)) {
-                    m_active = true; // activate on first zero cross
-                }
-                if (value > m_startLevel) {
-                    m_direction = Boolean.TRUE;
-                    m_level = value;
-                }
-            }
+        if (value > m_maxLevel) {
+            m_maxLevel = value;
+        } else if (value < m_minLevel) {
+            m_minLevel = value;
         }
-        return m_active ? ret : 0;
+
+        double ret;
+        if (value > 0) {
+            m_minLevel = -m_startLevel;
+            ret = TresAlgo.valueToBounds(value, m_maxLevel, -m_maxLevel);
+        } else if (value < 0) {
+            m_maxLevel = m_startLevel;
+            ret = TresAlgo.valueToBounds(value, -m_minLevel, m_minLevel);
+        } else {
+            ret = 0;
+        }
+        return ret;
     }
 }
