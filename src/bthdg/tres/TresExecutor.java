@@ -124,8 +124,9 @@ public class TresExecutor extends BaseExecutor {
     @Override public void onTrade(TradeDataLight tData) {
         if (DO_TRADE) {
             TradeTask task = new TradeTask(tData);
-            if ((m_order != null) && m_order.m_status.isActive()) {
-                if (tData.m_price == m_order.m_price) { // same price trade - process first
+            OrderData order = m_order; // use local var due to multi-threading
+            if ((order != null) && order.m_status.isActive()) {
+                if (tData.m_price == order.m_price) { // same price trade - process first
                     addTaskFirst(task);
                     return;
                 }
