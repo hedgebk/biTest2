@@ -33,7 +33,6 @@ public abstract class CmfAlgo extends TresAlgo {
             @Override protected boolean drawZeroLine() { return true; }
         };
         m_indicators.add(m_cmfAvgIndicator);
-
     }
 
     private void recalc(long millis) {

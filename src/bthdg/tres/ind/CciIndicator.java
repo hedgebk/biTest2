@@ -40,6 +40,7 @@ public class CciIndicator extends TresIndicator {
         @Override public Color getColor() { return CCI_COLOR; }
         @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
         @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
+        @Override public boolean update(TradeDataLight tdata) { return m_calculator.update(tdata); }
 
         public PhasedCciIndicator(CciIndicator indicator, TresExchData exchData, int phaseIndex) {
             super(indicator, exchData, phaseIndex, PEAK_TOLERANCE);
@@ -51,12 +52,6 @@ public class CciIndicator extends TresIndicator {
                     onBar(tick);
                 }
             };
-        }
-
-        @Override public boolean update(TradeDataLight tdata) {
-            long timestamp = tdata.m_timestamp;
-            double price = tdata.m_price;
-            return m_calculator.update(timestamp, price);
         }
     }
 

@@ -29,10 +29,8 @@ public class CmfCalculator extends OHLCCalculator {
         m_MfVolumes = new double[m_arrayLength];
     }
 
-    public boolean update(TradeDataLight tdata) {
-        long timestamp = tdata.m_timestamp;
-        double price = tdata.m_price;
-        update(timestamp, price);
+    @Override public boolean update(TradeDataLight tdata) {
+        super.update(tdata);
 
         TradeData trData = (TradeData) tdata;
         double amount = trData.m_amount;

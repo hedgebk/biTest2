@@ -1,6 +1,7 @@
 package bthdg.calc;
 
 import bthdg.Log;
+import bthdg.exch.TradeDataLight;
 
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
@@ -169,5 +170,11 @@ public abstract class BarCalculator {
         if (!list.isEmpty()) {
             list.set(list.size() - 1, price); // replace last element
         }
+    }
+
+    public boolean update(TradeDataLight tdata) {
+        long timestamp = tdata.m_timestamp;
+        double price = tdata.m_price;
+        return update(timestamp, price);
     }
 }

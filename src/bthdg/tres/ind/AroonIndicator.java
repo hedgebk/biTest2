@@ -38,6 +38,7 @@ public class AroonIndicator extends TresIndicator {
         @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
         @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
         @Override public double getDirectionAdjusted() { return m_calculator.getDirectionAdjusted(); }
+        @Override public boolean update(TradeDataLight tdata) { return m_calculator.update(tdata); }
 
         public PhasedAroonIndicator(AroonIndicator indicator, TresExchData exchData, int phaseIndex, double barRatio) {
             super(indicator, exchData, phaseIndex, PEAK_TOLERANCE);
@@ -50,12 +51,6 @@ public class AroonIndicator extends TresIndicator {
                     onBar(tick);
                 }
             };
-        }
-
-        @Override public boolean update(TradeDataLight tdata) {
-            long timestamp = tdata.m_timestamp;
-            double price = tdata.m_price;
-            return m_calculator.update(timestamp, price);
         }
     }
 }

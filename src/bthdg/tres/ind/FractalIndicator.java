@@ -44,12 +44,7 @@ public class FractalIndicator extends TresIndicator {
             };
         }
 
-        @Override public boolean update(TradeDataLight tdata) {
-            long timestamp = tdata.m_timestamp;
-            double price = tdata.m_price;
-            return m_calculator.update(timestamp, price);
-        }
-
+        @Override public boolean update(TradeDataLight tdata) { return m_calculator.update(tdata); }
         @Override public Color getColor() { return Color.BLUE; }
         @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
         @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }

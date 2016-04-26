@@ -42,6 +42,7 @@ public class TripleEmaIndicator extends TresIndicator {
         @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
         @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
         @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
+        @Override public boolean update(TradeDataLight tdata) { return m_calculator.update(tdata); }
 //        public int directionInt() { return m_calculator.directionInt(); }
 
         public PhasedTripleEmaIndicator(double emsSize, TripleEmaIndicator indicator, TresExchData exchData, int phaseIndex) {
@@ -59,11 +60,6 @@ public class TripleEmaIndicator extends TresIndicator {
                     }
                 }
             };
-        }
-        @Override public boolean update(TradeDataLight tdata) {
-            long timestamp = tdata.m_timestamp;
-            double price = tdata.m_price;
-            return m_calculator.update(timestamp, price);
         }
 
 //        public int calcDirection() { // [-1 | 0 |  1]

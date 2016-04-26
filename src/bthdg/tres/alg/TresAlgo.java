@@ -103,6 +103,8 @@ public abstract class TresAlgo {
             return new CmfAlgo.Old(tresExchData);
         } else if (algoName.equals("cmfN")) {
             return new CmfAlgo.New(tresExchData);
+        } else if (algoName.equals("sar")) {
+            return new SarAlgo(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }

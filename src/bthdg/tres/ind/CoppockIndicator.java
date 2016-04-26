@@ -36,6 +36,8 @@ public class CoppockIndicator extends TresIndicator {
 
     @Override protected boolean drawZeroLine() { return true; }
 
+
+    //---------------------------------------------------------------------------------------------
     public static class PhasedCoppockIndicator extends TresPhasedIndicator {
         public static int WMA_LENGTH = 13; // 10
         public static int SHORT_ROС_LENGTH = 11;
@@ -47,6 +49,7 @@ public class CoppockIndicator extends TresIndicator {
         @Override public Color getPeakColor() { return COPPOCK_PEAKS_COLOR; }
         @Override public double lastTickPrice() { return m_calculator.m_lastTickPrice; }
         @Override public long lastTickTime() { return m_calculator.m_lastTickTime; }
+        @Override public boolean update(TradeDataLight tdata) { return m_calculator.update(tdata); }
 
         public PhasedCoppockIndicator(CoppockIndicator indicator, TresExchData exchData, int phaseIndex) {
             super(indicator, exchData, phaseIndex, PEAK_TOLERANCE);
@@ -63,12 +66,6 @@ public class CoppockIndicator extends TresIndicator {
                     m_indicator.setLastTickTimePrice(time, price);
                 }
             };
-        }
-
-        @Override public boolean update(TradeDataLight tdata) {
-            long timestamp = tdata.m_timestamp;
-            double price = tdata.m_price;
-            return m_calculator.update(timestamp, price);
         }
     }
 }
