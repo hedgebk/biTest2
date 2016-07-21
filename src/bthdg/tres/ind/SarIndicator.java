@@ -17,7 +17,7 @@ public class SarIndicator extends TresIndicator {
     @Override public Color getColor() { return Colors.BEGIE; }
     @Override protected boolean countPeaks() { return false; }
     @Override protected boolean countHalfPeaks() { return false; }
-//    @Override protected boolean drawZeroLine() { return true; }
+    @Override protected boolean usePriceAxe() { return true; }
 
     @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) {
         return new PhasedSarIndicator(this, exchData, phaseIndex);
@@ -50,9 +50,7 @@ public class SarIndicator extends TresIndicator {
         @Override public boolean update(TradeDataLight tdata) { return m_calculator.update(tdata); }
 
         @Override public double getDirectionAdjusted() {  // [-1 ... 1]
-            return 0;
-//            Double lastCmf = m_calculator.m_lastCmf;
-//            return (lastCmf == null) ? 0 : (lastCmf >= LEVEL) ? 1 : (lastCmf <= -LEVEL) ? -1 : lastCmf / LEVEL;
+            return m_calculator.getDirectionAdjusted();
         }
     }
 }

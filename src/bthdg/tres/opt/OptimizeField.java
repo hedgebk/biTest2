@@ -1,5 +1,6 @@
 package bthdg.tres.opt;
 
+import bthdg.calc.SarCalculator;
 import bthdg.tres.Tres;
 import bthdg.tres.alg.*;
 import bthdg.tres.ind.AroonIndicator;
@@ -171,6 +172,19 @@ public enum OptimizeField {
     CMF_LEVEL("cmf.level") {
         @Override public double get(Tres tres) { return CmfIndicator.LEVEL; }
         @Override public void set(Tres tres, double value) { CmfIndicator.LEVEL = value; }
+    },
+    //------------------------------------------------------------------------------------------
+    SAR_INIT("sar.init") {
+        @Override public double get(Tres tres) { return SarCalculator.INIT_AF; }
+        @Override public void set(Tres tres, double value) { SarCalculator.INIT_AF = value; }
+    },
+    SAR_DELTA("sar.delta") {
+        @Override public double get(Tres tres) { return SarCalculator.DELTA_AF; }
+        @Override public void set(Tres tres, double value) { SarCalculator.DELTA_AF = value; }
+    },
+    SAR_MAX("sar.max") {
+        @Override public double get(Tres tres) { return SarCalculator.MAX_AF; }
+        @Override public void set(Tres tres, double value) { SarCalculator.MAX_AF = value; }
     },
     ;
 

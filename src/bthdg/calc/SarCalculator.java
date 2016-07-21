@@ -130,4 +130,9 @@ public class SarCalculator extends OHLCCalculator {
         m_high = high;
         m_low = low;
     }
+
+
+    public double getDirectionAdjusted() { // [-1 ... 1]
+        return (m_lastSar_ == null) ? 0 : Math.signum(m_lastSar_);
+    }
 }

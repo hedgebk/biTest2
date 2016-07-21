@@ -1,6 +1,7 @@
 package bthdg.tres.alg;
 
 import bthdg.exch.Direction;
+import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.SarIndicator;
 import bthdg.util.Colors;
@@ -13,7 +14,14 @@ public class SarAlgo extends TresAlgo {
     public SarAlgo(TresExchData tresExchData) {
         super("SAR", tresExchData);
         m_sarIndicator = new SarIndicator(this) {
-
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                if (lastPoint != null) {
+//                    recalc(lastPoint.m_millis);
+                    notifyListener();
+                }
+            }
         };
         m_indicators.add(m_sarIndicator);
     }
