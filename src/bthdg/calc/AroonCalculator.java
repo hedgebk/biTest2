@@ -1,13 +1,9 @@
 package bthdg.calc;
 
-import java.util.LinkedList;
 
-public class AroonCalculator extends OHLCCalculator {
-    private final int m_length;
-    private final LinkedList<OHLCTick> m_bars = new LinkedList<OHLCTick>();
+public class AroonCalculator extends OHLCCalculator.OHLCFrameCalculator {
     private Double m_lastHigh;
     private Double m_lastLow;
-    private boolean m_filled;
     public Double m_aroonUp;
     public Double m_aroonDown;
     public Double m_aroonOscillator; // between -1 and 1
@@ -17,20 +13,11 @@ public class AroonCalculator extends OHLCCalculator {
     protected void bar(long barEnd, double value) {}
 
     public AroonCalculator(int length, long barSize, long barsMillisOffset) {
-        super(barSize, barsMillisOffset);
-        m_length = length;
+        super(length, barSize, barsMillisOffset);
     }
 
     @Override protected void startNewBar(long barStart, long barEnd) {
         super.startNewBar(barStart, barEnd);
-        m_bars.add(m_tick);
-        int size = m_bars.size();
-        if (size == m_length) {
-            m_filled = true;
-        }
-        if (size > m_length) {
-            m_bars.removeFirst();
-        }
         m_lastHigh = 0.0;
         m_lastLow = Double.MAX_VALUE;
     }
