@@ -11,9 +11,9 @@ import bthdg.util.Colors;
 import java.awt.*;
 
 public class CmfIndicator extends TresIndicator {
-    public static double LEVEL = 0.05;
-    public static double LENGTH = 20;
-    public static double LENGTH2 = 25;
+    public static double LEVEL = 0.05; // "cmf.level"
+    public static double LENGTH = 20;  // "cmf.len"
+    public static double LENGTH2 = 25; // "cmf.len2"
 
     private final double m_length;
 
