@@ -3,10 +3,7 @@ package bthdg.tres.opt;
 import bthdg.calc.SarCalculator;
 import bthdg.tres.Tres;
 import bthdg.tres.alg.*;
-import bthdg.tres.ind.AroonIndicator;
-import bthdg.tres.ind.CciIndicator;
-import bthdg.tres.ind.CmfIndicator;
-import bthdg.tres.ind.OscIndicator;
+import bthdg.tres.ind.*;
 
 public enum OptimizeField {
     BAR_SIZE("bar_size") {
@@ -24,6 +21,10 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return tres.m_barSizeMillis; }
         @Override public void set(Tres tres, double value) { tres.m_barSizeMillis = (int) value; }
         @Override public String getFormat() { return "%,.0f"; }
+    },
+    HALF_BID_ASK_DIFF("avg_half_bid_ask_diff") {
+        @Override public double get(Tres tres) { return BaseAlgoWatcher.AVG_HALF_BID_ASK_DIF; }
+        @Override public void set(Tres tres, double value) { BaseAlgoWatcher.AVG_HALF_BID_ASK_DIF = value; }
     },
     OSC_LEN1("osc.len1") {
         @Override public double get(Tres tres) { return tres.m_len1; }
@@ -185,6 +186,53 @@ public enum OptimizeField {
     SAR_MAX("sar.max") {
         @Override public double get(Tres tres) { return SarCalculator.MAX_AF; }
         @Override public void set(Tres tres, double value) { SarCalculator.MAX_AF = value; }
+    },
+    //------------------------------------------------------------------------------------------
+    EWO_CMF_SLOW_EMA("ewo_cmf.slow_ema") {
+        @Override public double get(Tres tres) { return EwoCmfAlgo.SLOW_EMA_SIZE; }
+        @Override public void set(Tres tres, double value) { EwoCmfAlgo.SLOW_EMA_SIZE = value; }
+    },
+    EWO_CMF_FAST_EMA("ewo_cmf.fast_ema") {
+        @Override public double get(Tres tres) { return EwoCmfAlgo.FAST_EMA_SIZE; }
+        @Override public void set(Tres tres, double value) { EwoCmfAlgo.FAST_EMA_SIZE = value; }
+    },
+    EWO_CMF_EWO_VELOCITY("ewo_cmf.ewo_velocity") {
+        @Override public double get(Tres tres) { return EwoCmfAlgo.EWO_VELOCITY_SIZE; }
+        @Override public void set(Tres tres, double value) { EwoCmfAlgo.EWO_VELOCITY_SIZE = value; }
+    },
+    EWO_CMF_LEN("ewo_cmf.len") {
+        @Override public double get(Tres tres) { return EwoCmfAlgo.LENGTH; }
+        @Override public void set(Tres tres, double value) { EwoCmfAlgo.LENGTH = value; }
+    },
+    EWO_CMF_LEN2("ewo_cmf.len2") {
+        @Override public double get(Tres tres) { return EwoCmfAlgo.LENGTH2; }
+        @Override public void set(Tres tres, double value) { EwoCmfAlgo.LENGTH2 = value; }
+    },
+    EWO_CMF_CMF_VELOCITY("ewo_cmf.cmf_velocity") {
+        @Override public double get(Tres tres) { return EwoCmfAlgo.CMF_VELOCITY_SIZE; }
+        @Override public void set(Tres tres, double value) { EwoCmfAlgo.CMF_VELOCITY_SIZE = value; }
+    },
+    EWO_CMF_CORRECT_RATE("ewo_cmf.cmf_correct") {
+        @Override public double get(Tres tres) { return EwoCmfAlgo.CMF_CORRECT_RATE; }
+        @Override public void set(Tres tres, double value) { EwoCmfAlgo.CMF_CORRECT_RATE = value; }
+    },
+    EWO_CMF_ZERO("ewo_cmf.zero") {
+        @Override public double get(Tres tres) { return EwoCmfAlgo.START_ZERO_LEVEL; }
+        @Override public void set(Tres tres, double value) { EwoCmfAlgo.START_ZERO_LEVEL = value; }
+        @Override public String getFormat() { return "%.10f"; }
+    },
+    //------------------------------------------------------------------------------------------
+    LRP_LEN("lrp.len") {
+        @Override public double get(Tres tres) { return LinearRegressionPowerIndicator.LENGTH; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowerIndicator.LENGTH = (int) value; }
+    },
+    LRP_POW("lrp.pow") {
+        @Override public double get(Tres tres) { return LinearRegressionPowerIndicator.POW; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowerIndicator.POW = value; }
+    },
+    LRPS_SMOOTH("lrps.smooth") {
+        @Override public double get(Tres tres) { return LinearRegressionPowerAlgo.Smoothed.SMOOCH_RATE; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowerAlgo.Smoothed.SMOOCH_RATE = value; }
     },
     ;
 
