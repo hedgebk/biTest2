@@ -75,21 +75,23 @@ public class TresExchData {
             m_phaseDatas[i] = new PhaseData(this, i);
         }
 
-        if (BaseExecutor.DO_TRADE) {
-            m_algoListener = new TresAlgo.TresAlgoListener() {
-                @Override public void onValueChange() {
-                    if (m_executor.m_initialized) {
-                        m_executor.postRecheckDirection();
-                    } else {
-                        if (!m_tres.m_logProcessing) {
-                            m_executor.init();
+        if (!m_tres.m_logProcessing) {
+            if (BaseExecutor.DO_TRADE) {
+                m_algoListener = new TresAlgo.TresAlgoListener() {
+                    @Override public void onValueChange() {
+                        if (m_executor.m_initialized) {
+                            m_executor.postRecheckDirection();
+                        } else {
+                            if (!m_tres.m_logProcessing) {
+                                m_executor.init();
+                            }
+                            setFeeding();
                         }
-                        setFeeding();
                     }
-                }
-            };
-            m_runAlgoWatcher.setListener(m_algoListener);
+                };
+                m_runAlgoWatcher.setListener(m_algoListener);
 
+            }
             m_tradesQueue = new Queue<Runnable>("tradesQueue") {
                 @Override protected void processItem(Runnable task) {
                     task.run();
