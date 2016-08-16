@@ -35,7 +35,6 @@ public class TripleEmaIndicator extends TresIndicator {
 
     // ======================================================================================
     public static class PhasedTripleEmaIndicator extends TresPhasedIndicator {
-//        private final TripleEmaCalculator m_calculator;
         private final TEmaCalculator m_calculator;
 
         @Override public Color getColor() { return Color.MAGENTA; }
@@ -49,7 +48,6 @@ public class TripleEmaIndicator extends TresIndicator {
             super(indicator, exchData, phaseIndex, null);
             long barSize = exchData.m_tres.m_barSizeMillis;
             long barOffset = exchData.m_tres.getBarOffset(phaseIndex);
-//            m_calculator = new TripleEmaCalculator(emsSize, barSize, barOffset) {
             m_calculator = new TEmaCalculator(emsSize, barSize, barOffset) {
                 @Override protected void finishCurrentBar(long time, double price) {
                     super.finishCurrentBar(time, price);
