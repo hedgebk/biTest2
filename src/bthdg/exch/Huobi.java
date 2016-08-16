@@ -409,11 +409,25 @@ public class Huobi extends BaseExch {
             log("Huobi.parseAccount() " + jObj);
         }
 
-        Long code = (Long) jObj.get("code");
-        if (code != null) {
-            String msg = parseError(jObj);
-            log(" error: " + msg);
-            throw new RuntimeException("Account request error: " + msg);
+        Object codeObj = jObj.get("code");
+        if (codeObj != null) {
+            Long code = null;
+            if (codeObj instanceof Long) {
+                code = (Long) codeObj;
+            } else if (codeObj instanceof String) {
+                try {
+                    code = Long.parseLong((String) codeObj);
+                } catch (NumberFormatException e) { /*noop*/ }
+            }
+
+            if (code != null) {
+                String msg = getErrorString(code);
+                log(" error[code=" + code + "]: " + msg);
+                throw new RuntimeException("Account request error: " + msg);
+            } else {
+                log("Huobi.parseAccount() some error: " + jObj);
+                throw new RuntimeException("Account request error: codeObj: " + codeObj);
+            }
         }
 
         AccountData accountData = new AccountData(Exchange.HUOBI, 0);
@@ -533,10 +547,14 @@ public class Huobi extends BaseExch {
         // {"time":1405207309,"code":2,"msg":"IYTRUTEYW"}
         Long code = (Long) jObj.get("code");
         if (code != null) {
-            String error = ERROR_CODES.get(code);
-            return "errorCode: " + code + ": " + error;
+            return getErrorString(code);
         }
         return "Unable to parse error. msg: " + jObj;
+    }
+
+    private static String getErrorString(Long code) {
+        String error = ERROR_CODES.get(code);
+        return "errorCode: " + code + ": " + error;
     }
 
     public static OrderStatusData parseOrderStatus(Object obj, Pair pair) {
