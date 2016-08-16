@@ -193,11 +193,11 @@ public class TresLogProcessor extends Thread {
 
         getOptimizeFieldConfigs();
 
-        String avgHalfBidAskDiff = config.getProperty("tre.avg_half_bid_ask_diff");
-        if (avgHalfBidAskDiff != null) {
-            log("avgHalfBidAskDiff=" + avgHalfBidAskDiff);
-            BaseAlgoWatcher.AVG_HALF_BID_ASK_DIF = Double.parseDouble(avgHalfBidAskDiff);
-        }
+//        String avgHalfBidAskDiff = config.getProperty("tre.avg_half_bid_ask_diff");
+//        if (avgHalfBidAskDiff != null) {
+//            log("avgHalfBidAskDiff=" + avgHalfBidAskDiff);
+//            BaseAlgoWatcher.AVG_HALF_BID_ASK_DIF = Double.parseDouble(avgHalfBidAskDiff);
+//        }
 
         getOptimizeConfig(config);
         getGridConfig(config);
