@@ -159,7 +159,6 @@
     </target>
 
     <target name="clean.artifact.bitest:web_exploded" description="clean biTest:Web exploded artifact output">
-        <delete dir="${artifact.output.bitest:web_exploded}"/>
     </target>
 
     <target name="artifact.bitest:web_exploded" depends="init.artifacts, compile.module.bitest"
@@ -178,7 +177,6 @@
     </target>
 
     <target name="build.all.artifacts" depends="artifact.bitest:web_exploded" description="Build all artifacts">
-
         <!-- Delete temporary files -->
         <delete dir="${artifacts.temp.dir}"/>
     </target>
@@ -197,10 +195,8 @@
     </target>
 
     <target name="deploy-libs">
-        <scp verbose="true"
-             trust="yes"
-             todir="${export.host}:."
-             keyfile="${key.file}">
+        <scp verbose="true" trust="yes" keyfile="${key.file}"
+             todir="${export.user_host}:." >
             <fileset dir="${module.bitest.basedir}/lib">
                 <include name="commons-math3-3.5.jar"/>
                 <include name="json-org.jar"/>
@@ -219,10 +215,8 @@
     </target>
 
     <target name="deploy-config-o">
-        <scp verbose="true"
-             trust="yes"
-             todir="${export.host}:./o"
-             keyfile="${key.file}">
+        <scp verbose="true" trust="yes" keyfile="${key.file}"
+             todir="${export.user_host}:./o" >
             <fileset dir="${module.bitest.basedir}/stage/o">
                 <include name="keys.properties"/>
             </fileset>
@@ -230,10 +224,8 @@
     </target>
 
     <target name="deploy-config-h">
-        <scp verbose="true"
-             trust="yes"
-             todir="${export.host}:./h"
-             keyfile="${key.file}">
+        <scp verbose="true" trust="yes" keyfile="${key.file}"
+             todir="${export.user_host}:./h" >
             <fileset dir="${module.bitest.basedir}/stage/h">
                 <include name="keys.properties"/>
             </fileset>
@@ -241,10 +233,9 @@
     </target>
 
     <target name="deploy-jar-o" depends="jar">
-        <scp verbose="true"
-             trust="yes"
-             todir="${export.host}:./o"
-             keyfile="${key.file}">
+        <copy file="${module.bitest.basedir}/stage/jar.jar" tofile="${module.bitest.basedir}/stage/o/jar.jar"/>
+        <scp verbose="true" trust="yes" keyfile="${key.file}"
+             todir="${export.user_host}:./o" >
             <fileset dir="${module.bitest.basedir}/stage/o">
                 <include name="jar.jar"/>
             </fileset>
@@ -252,10 +243,9 @@
     </target>
 
     <target name="deploy-jar-h" depends="jar">
-        <scp verbose="true"
-             trust="yes"
-             todir="${export.host}:./h"
-             keyfile="${key.file}">
+        <copy file="${module.bitest.basedir}/stage/jar.jar" tofile="${module.bitest.basedir}/stage/h/jar.jar"/>
+        <scp verbose="true" trust="yes" keyfile="${key.file}"
+             todir="${export.user_host}:./h" >
             <fileset dir="${module.bitest.basedir}/stage/h">
                 <include name="jar.jar"/>
             </fileset>
@@ -263,10 +253,16 @@
     </target>
 
     <target name="grab-logz">
-        <scp verbose="true"
-             trust="yes"
-             keyfile="${key.file}"
-             file="${export.host}:log.7z"
+        <scp verbose="true" trust="yes" keyfile="${key.file}"
+             file="${export.user_host}:log.7z"
+             todir="D:\Logs" />
+    </target>
+
+    <target name="grab-logz-o">
+        <sshexec verbose="true"  trust="yes" keyfile="${key.file}" host="${export.host}" username="ec2-user"
+                 commandResource="commands.txt" />
+        <scp verbose="true"  trust="yes"  keyfile="${key.file}"
+             file="${export.user_host}:o/log.7z"
              todir="D:\Logs" />
     </target>
 
