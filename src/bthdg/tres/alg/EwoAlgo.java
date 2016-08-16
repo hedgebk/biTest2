@@ -12,8 +12,8 @@ import java.awt.*;
 
 // based on Elliot Wave Oscillator
 public abstract class EwoAlgo extends TresAlgo {
-    public static double FAST_EMA_SIZE = 5;
-    public static double SLOW_EMA_SIZE = 35;
+    public static double FAST_EMA_SIZE = 5;  // "ewo.fast_ema"
+    public static double SLOW_EMA_SIZE = 35; // "ewo.slow_ema"
 
     private final TripleEmaIndicator m_fastTEma;
     private final TripleEmaIndicator m_slowTEma;
