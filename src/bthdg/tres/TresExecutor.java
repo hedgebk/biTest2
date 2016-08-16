@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 
 public class TresExecutor extends BaseExecutor {
+    public static final int MKT_ORDER_EXECUTE_WAIT_TIME = 7000;
     public static OrderPriceMode ORDER_PRICE_MODE = OrderPriceMode.MARKET; // OrderPriceMode.MID_TO_MKT; // OrderPriceMode.DEEP_MKT; // OrderPriceMode.DEEP_MKT_AVG; // OrderPriceMode.MKT_AVG; ; // OrderPriceMode.MID;
     public static final int NO_TRADE_TIMEOUT = 30000;
     public static final int RECONNECT_TIMEOUT = 90000;
@@ -389,7 +390,7 @@ public class TresExecutor extends BaseExecutor {
         return tresState;
     }
 
-    protected TresState checkOrderStateInt(IIterationContext.BaseIterationContext iContext, OrderData order) throws Exception {
+    private TresState checkOrderStateInt(IIterationContext.BaseIterationContext iContext, OrderData order) throws Exception {
         order.checkState(iContext, m_exchange, m_account,
                 null, // TODO - implement exec listener, add partial support - to fire partial close orders
                 null);
@@ -402,6 +403,12 @@ public class TresExecutor extends BaseExecutor {
             return TresState.NONE;
         } else if( order.m_status == OrderStatus.ERROR ) {
             log(" order status ERROR. switch to error state: " + order);
+            return TresState.ERROR;
+        } else if( order.m_status == OrderStatus.CANCELLED ) {
+            if (order == m_order) {
+                m_order = null;
+            }
+            log(" order status CANCELLED. forget order and switch to error state: " + order);
             return TresState.ERROR;
         } else {
             log("   have order. not yet FILLED: " + order);
@@ -449,7 +456,7 @@ public class TresExecutor extends BaseExecutor {
         if (orderType == OrderType.MARKET) {
             m_pendingMktOrders.add(placeOrder);
             m_lastMktPlaceTime = System.currentTimeMillis();
-            log(" added to pendingMktOrders. now num=" + m_pendingMktOrders.size() + " : " + placeOrder);
+            log(" added to pendingMktOrders. m_lastMktPlaceTime=" + m_lastMktPlaceTime + "; now num=" + m_pendingMktOrders.size() + " : " + placeOrder);
             m_order = null;
             return STATE_NO_CHANGE;
         }
@@ -461,7 +468,7 @@ public class TresExecutor extends BaseExecutor {
         long lastMktPlaceTimeDiff = System.currentTimeMillis() - m_lastMktPlaceTime;
 
         log(" recheckPendingMktOrders() pendingMktOrders.num=" + m_pendingMktOrders.size() + "; lastMktPlaceTimeDiff=" + lastMktPlaceTimeDiff);
-        if (isNotEmpty && (lastMktPlaceTimeDiff > 5000)) { // give MKT orders chance to be executed via WS
+        if (isNotEmpty && (lastMktPlaceTimeDiff > MKT_ORDER_EXECUTE_WAIT_TIME)) { // give MKT orders chance to be executed via WS
             OrderData od = m_pendingMktOrders.get(0);
             log(" first PendingMktOrder: " + od);
             int status = checkOrderState(od);
