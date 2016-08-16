@@ -105,6 +105,12 @@ public abstract class TresAlgo {
             return new CmfAlgo.New(tresExchData);
         } else if (algoName.equals("sar")) {
             return new SarAlgo(tresExchData);
+        } else if (algoName.equals("ewo_cmf")) {
+            return new EwoCmfAlgo(tresExchData);
+        } else if (algoName.equals("lrp")) {
+            return new LinearRegressionPowerAlgo(tresExchData);
+        } else if (algoName.equals("lrps")) {
+            return new LinearRegressionPowerAlgo.Smoothed(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -208,5 +214,22 @@ public abstract class TresAlgo {
     // ========================================================================================
     public interface TresAlgoListener {
         void onValueChange();
+    }
+
+    // ===============================================================================================================
+    public static class ValueIndicator extends TresIndicator {
+        private final Color m_color;
+
+        ValueIndicator(TresAlgo algo, String name, Color color) {
+            this(algo, name, 0, color);
+        }
+        ValueIndicator(TresAlgo algo, String name, double peakTolerance, Color color) {
+            super(name, peakTolerance, algo);
+            m_color = color;
+        }
+        @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
+        @Override public Color getColor() { return m_color; }
+        @Override protected boolean useValueAxe() { return true; }
+        @Override protected boolean drawZeroLine() { return true; }
     }
 }
