@@ -69,7 +69,7 @@ public class CmfCalculator extends OHLCCalculator {
             double volumesSum = m_volumesSum - m_extra * m_volumes[m_lastIndex];
             double mfVolumesSum = m_MfVolumesSum - m_extra * m_MfVolumes[m_lastIndex];
 
-            m_lastCmf = (m_volumesSum == 0) ? 0.0 : m_MfVolumesSum / volumesSum;
+            m_lastCmf = (volumesSum == 0) ? 0.0 : mfVolumesSum / volumesSum;
             if (Double.isNaN(m_lastCmf)) {
                 log("NAN");
             }
