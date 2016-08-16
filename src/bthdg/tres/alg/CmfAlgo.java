@@ -4,7 +4,7 @@ import bthdg.exch.Direction;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.CmfIndicator;
-import bthdg.tres.ind.TresIndicator;
+import bthdg.tres.ind.VelocityIndicator;
 import bthdg.tres.ind.ZeroLeveler;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
@@ -64,23 +64,6 @@ public abstract class CmfAlgo extends TresAlgo {
 
 
     // ===============================================================================================================
-    private static class ValueIndicator extends TresIndicator {
-        private final Color m_color;
-
-        ValueIndicator(TresAlgo algo, String name, Color color) {
-            this(algo, name, 0, color);
-        }
-        ValueIndicator(TresAlgo algo, String name, double peakTolerance, Color color) {
-            super(name, peakTolerance, algo);
-            m_color = color;
-        }
-        @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
-        @Override public Color getColor() { return m_color; }
-        @Override protected boolean useValueAxe() { return true; }
-        @Override protected boolean drawZeroLine() { return true; }
-    }
-
-    // ===============================================================================================================
     private class CmfIndicatorInt extends CmfIndicator {
         @Override protected String getYAxeName() { return CMF_AXE_NAME; }
         @Override protected boolean drawZeroLine() { return true; }
@@ -101,15 +84,29 @@ public abstract class CmfAlgo extends TresAlgo {
 
     //======================================================================
     public static class Old extends CmfAlgo {
+        public static double VELOCITY_SIZE = 1.0;
+
         private final ValueIndicator m_directionIndicator;
+        private final VelocityIndicator m_velocityIndicator;
 
         public Old(TresExchData tresExchData) {
             super(tresExchData);
+
+            final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
+            long velocitySize = (long) (barSizeMillis * VELOCITY_SIZE);
+            m_velocityIndicator = new VelocityIndicator(this, "cmf_vel", velocitySize, 0) {
+                @Override protected boolean countPeaks() { return false; }
+                @Override public Color getColor() { return Color.magenta; }
+            };
+            m_indicators.add(m_velocityIndicator);
+
             m_directionIndicator = new ValueIndicator(this, "+", Color.red);
             m_indicators.add(m_directionIndicator);
         }
 
         @Override protected void onCmfAvg(double cmfAvg, long millis) {
+            m_velocityIndicator.addBar(new ChartPoint(millis, cmfAvg));
+
             double directionAdjusted = (cmfAvg >= CmfIndicator.LEVEL) ? 1 : (cmfAvg <= -CmfIndicator.LEVEL) ? -1 : cmfAvg / CmfIndicator.LEVEL;
             m_directionIndicator.addBar(new ChartPoint(millis, directionAdjusted));
             notifyListener();
