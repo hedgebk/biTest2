@@ -10,6 +10,8 @@ public class LinearRegressionPowerCalculator extends OHLCCalculator.OHLCFrameCal
     private double m_bull;
     private double m_val;
 
+    public double getVal() { return m_val; }
+
     protected void bar(long currentBarEnd, double val) {}
 
     protected LinearRegressionPowerCalculator(int length, long barSize, long barsMillisOffset) {
@@ -86,11 +88,14 @@ public class LinearRegressionPowerCalculator extends OHLCCalculator.OHLCFrameCal
 //
 //            f_exp_lr(_height, _length)=>_ret = _height + (_height/_length)
 
-            double size = m_bull - m_bear;
-            m_val = (size == 0) ? 0 : (m_bull + m_bear) / size;
+            m_val = calcValue(m_bull, m_bear);
 
         }
         return changed;
+    }
+
+    protected double calcValue(double bull, double bear) {
+        return bull + bear;
     }
 
     private static double f_exp_lr(double height, double length) {
@@ -101,6 +106,18 @@ public class LinearRegressionPowerCalculator extends OHLCCalculator.OHLCFrameCal
         super.finishCurrentBar(time, price);
         if (m_filled) {
             bar(m_currentBarEnd, m_val);
+        }
+    }
+
+    // ----------------------------------------------------------------------------------
+    public static class Normalized extends LinearRegressionPowerCalculator {
+        protected Normalized(int length, long barSize, long barsMillisOffset) {
+            super(length, barSize, barsMillisOffset);
+        }
+
+        @Override protected double calcValue(double bull, double bear) {
+            double size = bull - bear;
+            return (size == 0) ? 0 : (bull + bear) / size;
         }
     }
 }

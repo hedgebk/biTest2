@@ -57,6 +57,7 @@ public class LinearRegressionPowerAlgo extends TresAlgo {
     }
 
 
+    // --------------------------------------------------------------------------
     public static class Smoothed extends LinearRegressionPowerAlgo {
         public static double SMOOCH_RATE = 2;  // "lrps.smooth"
 
