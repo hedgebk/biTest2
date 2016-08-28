@@ -4,6 +4,7 @@ import bthdg.exch.TradeDataLight;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.LinearRegressionPowerIndicator;
+import bthdg.tres.ind.SmoochedIndicator;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
 
@@ -13,6 +14,7 @@ import java.util.List;
 
 
 public class LinearRegressionPowersAlgo extends TresAlgo {
+    public static final String AXE_NAME = "lrp*";
     public static int LEN_STEPS_NUM = 5;
     public static int LEN_STEP_START = 10;
     public static int LEN_STEP = 10;
@@ -22,6 +24,7 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
     protected final int m_phases;
     private double m_lastAvg;
     private final ValueIndicator m_directionIndicator;
+    private final SmoochedIndicator m_smoochedIndicator;
 
     @Override public double lastTickPrice() { return m_lrpaIndicators.get(0).lastTickPrice(); }
     @Override public long lastTickTime() { return m_lrpaIndicators.get(0).lastTickTime(); }
@@ -42,8 +45,23 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
             len += LEN_STEP;
         }
 
-        m_directionIndicator = new ValueIndicator(this, "a", Color.blue);
+        m_directionIndicator = new ValueIndicator(this, "a", Color.blue) {
+            @Override protected boolean useValueAxe() { return false; }
+            @Override protected String getYAxeName() { return AXE_NAME; }
+        };
         m_indicators.add(m_directionIndicator);
+
+        double rate = 1.0;
+        long frameSizeMillis = (long) (rate * m_barSizeMillis);
+        m_smoochedIndicator = new SmoochedIndicator(this, "s", frameSizeMillis, 0) {
+            @Override protected String getYAxeName() { return AXE_NAME; }
+            @Override public Color getColor() { return Color.lightGray; }
+//            @Override public void addBar(ChartPoint chartPoint) {
+//                super.addBar(chartPoint);
+//                onSmoochedBar();
+//            }
+        };
+        m_indicators.add(m_smoochedIndicator);
     }
 
     private double getAverageDirectionAdjusted() {
@@ -62,6 +80,7 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
             long millis = tdata.m_timestamp;
             ChartPoint andPoint = new ChartPoint(millis, avg);
             m_directionIndicator.addBar(andPoint);
+            m_smoochedIndicator.addBar(andPoint);
             notifyListener();
         }
     }
@@ -80,7 +99,8 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
         }
 
         @Override protected boolean drawZeroLine() { return true; }
-        @Override protected boolean useValueAxe() { return true; }
+//        @Override protected boolean useValueAxe() { return true; }
+        @Override protected String getYAxeName() { return AXE_NAME; }
 
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) {
             return new PhasedLinearRegressionPowerIndicator(this, exchData, phaseIndex) {
