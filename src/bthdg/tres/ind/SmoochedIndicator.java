@@ -10,6 +10,10 @@ import java.awt.*;
 public class SmoochedIndicator extends TresIndicator {
     private final Utils.FadingAverageCounter m_avgCounter;
 
+    public SmoochedIndicator(TresAlgo algo, String name, long frameSizeMillis) {
+        this(algo, name, frameSizeMillis, 0);
+    }
+
     public SmoochedIndicator(TresAlgo algo, String name, long frameSizeMillis, double peakTolerance) {
         super(name, peakTolerance, algo);
         m_avgCounter = new Utils.FadingAverageCounter(frameSizeMillis);

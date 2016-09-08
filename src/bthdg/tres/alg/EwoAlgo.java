@@ -130,7 +130,7 @@ public abstract class EwoAlgo extends TresAlgo {
             m_indicators.add(m_ewo2VelocityIndicator);
 
             long frameSizeMillis2 = (long) (SMOOTH_RATE * barSizeMillis);
-            m_smoochedEwo2VelocityIndicator = new SmoochedIndicator(this, "velsm", frameSizeMillis2, 0) {
+            m_smoochedEwo2VelocityIndicator = new SmoochedIndicator(this, "velsm", frameSizeMillis2) {
                 @Override public Color getColor() { return Color.blue; }
                 @Override protected boolean countPeaks() { return false; }
                 @Override protected boolean drawZeroLine() { return true; }

@@ -100,7 +100,7 @@ public class FourEmaAlgo extends TresAlgo {
         };
         m_indicators.add(m_midIndicator);
 
-        m_smoochedMidIndicator = new SmoochedIndicator(this, "ms", (long) (MID_SMOOCH_RATE * barSizeMillis), 0) {
+        m_smoochedMidIndicator = new SmoochedIndicator(this, "ms", (long) (MID_SMOOCH_RATE * barSizeMillis)) {
             @Override protected boolean countPeaks() { return false; }
             @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
             @Override protected boolean usePriceAxe() { return true; }
@@ -130,7 +130,7 @@ public class FourEmaAlgo extends TresAlgo {
         };
         m_indicators.add(m_spreadIndicator);
 
-        m_smoochedSpreadIndicator = new SmoochedIndicator(this, "[]s", (long) (BOUND_SMOOCH_RATE * barSizeMillis), 0) {
+        m_smoochedSpreadIndicator = new SmoochedIndicator(this, "[]s", (long) (BOUND_SMOOCH_RATE * barSizeMillis)) {
             @Override protected boolean countPeaks() { return false; }
             @Override protected ILineColor getLineColor() {
                 return new ILineColor() {
@@ -163,7 +163,7 @@ public class FourEmaAlgo extends TresAlgo {
         };
         m_indicators.add(m_sumIndicator);
 
-        m_smoochedSumIndicator = new SmoochedIndicator(this, "ss", (long) (SUM_SMOOCH_RATE * barSizeMillis), 0) {
+        m_smoochedSumIndicator = new SmoochedIndicator(this, "ss", (long) (SUM_SMOOCH_RATE * barSizeMillis)) {
             @Override protected boolean countPeaks() { return false; }
             @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
             @Override public void addBar(ChartPoint chartPoint) {

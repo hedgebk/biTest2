@@ -127,7 +127,7 @@ public class MmarAlgo extends TresAlgo {
         m_indicators.add(m_andIndicator);
 
         long andSmoochSize = (long) (AND_SMOOCH_SIZE * barSizeMillis);
-        m_smoochedAndIndicator = new SmoochedIndicator(this, "and'", andSmoochSize, 0) {
+        m_smoochedAndIndicator = new SmoochedIndicator(this, "and'", andSmoochSize) {
             @Override protected boolean countPeaks() { return false; }
             @Override public Color getColor() { return Color.WHITE; }
             @Override protected boolean useValueAxe() { return true; }
@@ -150,7 +150,7 @@ public class MmarAlgo extends TresAlgo {
         m_indicators.add(m_midIndicator);
 
         long midSmoochSize = (long) (MID_SMOOCH_SIZE * barSizeMillis);
-        m_smoochedMidIndicator = new SmoochedIndicator(this, "mid'", midSmoochSize, 0) {
+        m_smoochedMidIndicator = new SmoochedIndicator(this, "mid'", midSmoochSize) {
             @Override protected boolean countPeaks() { return false; }
             @Override public Color getColor() { return Colors.TRANSP_LIGHT_CYAN; }
             @Override protected boolean usePriceAxe() { return true; }

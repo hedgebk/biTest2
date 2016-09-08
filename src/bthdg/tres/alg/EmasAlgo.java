@@ -95,7 +95,7 @@ public class EmasAlgo extends TresAlgo {
         };
         m_indicators.add(m_tema4);
 
-        m_smoochedSpreadIndicator = new SmoochedIndicator(this, "[]s", (long) (BOUND_SMOOCH_RATE * barSizeMillis), 0) {
+        m_smoochedSpreadIndicator = new SmoochedIndicator(this, "[]s", (long) (BOUND_SMOOCH_RATE * barSizeMillis)) {
             @Override protected boolean countPeaks() { return false; }
             @Override public Color getColor() { return Color.CYAN; }
             @Override public void addBar(ChartPoint chartPoint) {

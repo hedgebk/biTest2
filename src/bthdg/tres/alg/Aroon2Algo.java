@@ -42,7 +42,7 @@ public class Aroon2Algo extends AroonAlgo {
         };
         m_indicators.add(m_velocityIndicator);
 
-        m_smoochedVelocityIndicator = new SmoochedIndicator(this, "sm", (long) (VELOCITY_SMOOCH_RATE * barSizeMillis), 0) {
+        m_smoochedVelocityIndicator = new SmoochedIndicator(this, "sm", (long) (VELOCITY_SMOOCH_RATE * barSizeMillis)) {
             @Override public void addBar(ChartPoint chartPoint) {
                 super.addBar(chartPoint);
                 ChartPoint lastPoint = getLastPoint();
