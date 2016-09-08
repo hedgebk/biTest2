@@ -71,11 +71,14 @@ public class TopsData {
         PairDirection pd = PairDirection.get(inCurrency, outCurrency);
         Pair pair = pd.m_pair;
         TopData top = getInt(pair);
-        if(top == null) {
+        if (top == null) {
             return null;
         }
-        double rate = top.getMid();
-        if (!pd.isForward()) {
+        boolean forward = pd.isForward();
+        double rate = forward ? top.m_bid : top.m_ask;
+                      // top.getMid();
+
+        if (!forward) {
             rate = 1 / rate;
         }
         return rate;

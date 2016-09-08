@@ -52,13 +52,15 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
             Currency currencyFrom = PAIR.m_from;
             Currency currencyTo = PAIR.m_to;
 
+            double bid = lastPrice - AVG_HALF_BID_ASK_DIF;
+            double ask = lastPrice + AVG_HALF_BID_ASK_DIF;
             if (m_initAcctData == null) { // first run
-                m_topsData.put(PAIR, new TopData(lastPrice, lastPrice, lastPrice));
+                m_topsData.put(PAIR, new TopData(bid, ask, lastPrice));
 
                 m_initAcctData = new AccountData(m_exchange, 0);
                 m_initAcctData.setAvailable(currencyFrom, lastPrice);
                 m_initAcctData.setAvailable(currencyTo, 1);
-                m_initTopsData.put(PAIR, new TopData(lastPrice, lastPrice, lastPrice));
+                m_initTopsData.put(PAIR, new TopData(bid, ask, lastPrice));
                 if (m_verbose) {
                     log(" initAcctData: PAIR=" + PAIR + "; currencyFrom=" + currencyFrom + "; currencyTo=" + currencyTo);
                 }
@@ -78,8 +80,8 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
                 if (m_verbose) {
                     log(" direction=" + Utils.format8(direction));
                 }
-
-                m_topsData.put(PAIR, new TopData(lastPrice - AVG_HALF_BID_ASK_DIF, lastPrice + AVG_HALF_BID_ASK_DIF, lastPrice));
+// here to apply AVG_HALF_BID_ASK_DIF
+                m_topsData.put(PAIR, new TopData(bid, ask, lastPrice));
 
                 double needBuyTo = m_accountData.calcNeedBuyTo(direction, PAIR, m_topsData, m_exchange, false);
                 if (m_verbose) {
@@ -91,11 +93,7 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
                     log(" needBuy'" + currencyTo + "=" + Utils.format8(needBuyTo));
                 }
 
-                if (needBuyTo > 0) { // buy
-                    lastPrice += AVG_HALF_BID_ASK_DIF;
-                } else { // sell
-                    lastPrice -= AVG_HALF_BID_ASK_DIF;
-                }
+                double orderPrice = (needBuyTo > 0) ? ask: bid;
 
                 double absOrderSize = Math.abs(needBuyTo);
                 OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
@@ -114,7 +112,7 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
                             log("    gain: " + Utils.format8(gain) + " .....................................");
                         }
 
-                        OrderData orderData = new OrderData(PAIR, needOrderSide, lastPrice, absOrderSize);
+                        OrderData orderData = new OrderData(PAIR, needOrderSide, orderPrice, absOrderSize);
                         orderData.m_placeTime = lastTickTime;
                         TresExchData.OrderPoint orderPoint = new TresExchData.OrderPoint(orderData, 0, lastPrice, lastPrice, BaseExecutor.TopSource.top_fetch, gain);
                         synchronized (m_orders) {
