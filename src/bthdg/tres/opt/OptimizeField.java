@@ -234,6 +234,30 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return LinearRegressionPowerAlgo.Smoothed.SMOOCH_RATE; }
         @Override public void set(Tres tres, double value) { LinearRegressionPowerAlgo.Smoothed.SMOOCH_RATE = value; }
     },
+    LRPSS_SMOOTH("lrpss.smooth") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.SMOOTH_RATE; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.SMOOTH_RATE = value; }
+    },
+    LRPSS_SMOOTH_GAIN("lrpss.smooth_gain") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.SMOOTH_GAIN_RATE; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.SMOOTH_GAIN_RATE = value; }
+    },
+    LRPSS_GAIN_POW("lrpss.gain_pow") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.GAIN_POW; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.GAIN_POW = value; }
+    },
+    LRPSS_SMOOTH_PRICE("lrpss.smooth_price") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.SMOOTH_PRICE_RATE; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.SMOOTH_PRICE_RATE = value; }
+    },
+    LRPSS_SPREAD("lrpss.spread") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.SPREAD; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.SPREAD = value; }
+    },
+    LRPSS_SPREAD_OFFSET("lrpss.spread_offset") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.OFFSET; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.OFFSET = value; }
+    },
     ;
 
     public static double BAR_SIZE_TO_PHASES_RATE = 0.001;
