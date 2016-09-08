@@ -78,7 +78,7 @@ public class LinearRegressionPowerAlgo extends TresAlgo {
             super(exchData);
 
             final long barSizeMillis = exchData.m_tres.m_barSizeMillis;
-            m_smoochedSumIndicator = new SmoochedIndicator(this, "ss", (long) (SMOOCH_RATE * barSizeMillis), 0) {
+            m_smoochedSumIndicator = new SmoochedIndicator(this, "ss", (long) (SMOOCH_RATE * barSizeMillis)) {
                 @Override protected boolean countPeaks() { return false; }
                 @Override protected ILineColor getLineColor() { return ILineColor.PRICE; }
                 @Override protected boolean useValueAxe() { return true; }
