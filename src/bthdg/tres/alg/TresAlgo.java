@@ -112,7 +112,9 @@ public abstract class TresAlgo {
         } else if (algoName.equals("lrps")) {
             return new LinearRegressionPowerAlgo.Smoothed(tresExchData);
         } else if (algoName.equals("lrp*")) {
-            return new LinearRegressionPowersAlgo(tresExchData);
+            return new LinearRegressionPowersAlgo.Gained(tresExchData);
+        } else if (algoName.equals("lrp**")) {
+            return new LinearRegressionPowersAlgo.Gained2(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
