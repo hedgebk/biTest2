@@ -70,7 +70,7 @@ public class LinearRegressionPowerIndicator extends TresIndicator {
                 super(indicator, exchData, phaseIndex);
             }
 
-            @Override protected LinearRegressionPowerCalculator.Normalized createCalculator(final LinearRegressionPowerIndicator indicator, final long barOffset, final long barSizeMillis) {
+            @Override protected LinearRegressionPowerCalculator.Normalized createCalculator(LinearRegressionPowerIndicator indicator, long barOffset, long barSizeMillis) {
                 return new LinearRegressionPowerCalculator.Normalized(indicator.m_len, barSizeMillis, barOffset) {
                     @Override protected void bar(long barEnd, double val) {
                         onBar(barEnd, val);
