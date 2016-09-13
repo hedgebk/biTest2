@@ -234,9 +234,29 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return LinearRegressionPowerAlgo.Smoothed.SMOOCH_RATE; }
         @Override public void set(Tres tres, double value) { LinearRegressionPowerAlgo.Smoothed.SMOOCH_RATE = value; }
     },
+    LRPSS_STEP_START("lrpss.step_start") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.LEN_STEP_START; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.LEN_STEP_START = (int) value; }
+    },
+    LRPSS_STEPS_NUM("lrpss.steps_num") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.LEN_STEPS_NUM; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.LEN_STEPS_NUM = (int) value; }
+    },
+    LRPSS_STEP_SIZE("lrpss.step_size") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.LEN_STEP_SIZE; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.LEN_STEP_SIZE = (int) value; }
+    },
     LRPSS_SMOOTH("lrpss.smooth") {
         @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.SMOOTH_RATE; }
         @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.SMOOTH_RATE = value; }
+    },
+    LRPSS_GAIN_FROM("lrpss.gain_from") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.SlidingGainer.FROM; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.SlidingGainer.FROM = value; }
+    },
+    LRPSS_GAIN_TO("lrpss.gain_to") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.SlidingGainer.TO; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.SlidingGainer.TO = value; }
     },
     LRPSS_SMOOTH_GAIN("lrpss.smooth_gain") {
         @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.SMOOTH_GAIN_RATE; }
@@ -258,7 +278,7 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.OFFSET; }
         @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.OFFSET = value; }
     },
-    ;
+        ;
 
     public static double BAR_SIZE_TO_PHASES_RATE = 0.001;
 
