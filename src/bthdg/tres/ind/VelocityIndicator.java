@@ -14,6 +14,7 @@ import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import java.awt.*;
 import java.util.Map;
 
+// SplineInterpolated Velocity
 public class VelocityIndicator extends TresIndicator {
     private final VelocityTracker m_velocityTracker;
 
