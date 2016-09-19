@@ -3,9 +3,7 @@ package bthdg.tres.alg;
 import bthdg.exch.TradeDataLight;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
-import bthdg.tres.ind.LinearRegressionPowerIndicator;
-import bthdg.tres.ind.SmoochedIndicator;
-import bthdg.tres.ind.TresIndicator;
+import bthdg.tres.ind.*;
 import bthdg.util.Colors;
 import bthdg.util.Utils;
 
@@ -32,16 +30,17 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
     private double m_lastAvgLrpaValue;
     private long m_lastAvgLrpaTime;
     private final ValueIndicator m_avgLrpaIndicators;
+    private final SmoochedIndicator m_smoochedIndicator;
 
     @Override public double lastTickPrice() { return m_lrpaIndicators.get(0).lastTickPrice(); }
     @Override public long lastTickTime() { return m_lrpaIndicators.get(0).lastTickTime(); }
     @Override public Color getColor() { return Colors.BROWN; }
-    @Override public double getDirectionAdjusted() { return (m_lastAvgLrpaValue > 0) ? 1 : (m_lastAvgLrpaValue < 0) ? -1 : 0; }
-
-    protected void onAvgLrpaChanged(TradeDataLight tdata, ChartPoint avgLrpaPoint) { }
+    @Override public double getDirectionAdjusted() { return 0; }
 
     LinearRegressionPowersAlgo(TresExchData exchData) {
         super("LRPAs", exchData);
+
+        // Lrpas[] -> avgLrpas -> smoochedLrpas
 
         m_barSizeMillis = exchData.m_tres.m_barSizeMillis;
         m_phases = exchData.m_tres.m_phases;
@@ -60,6 +59,32 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
         };
         m_indicators.add(m_avgLrpaIndicators);
 
+        long frameSizeMillis = (long) (SMOOTH_RATE * m_barSizeMillis);
+        m_smoochedIndicator = new SmoochedIndicator(this, "ds", frameSizeMillis) {
+            @Override protected String getYAxeName() { return AXE_NAME; }
+            @Override public Color getColor() { return Color.lightGray; }
+            @Override protected boolean drawZeroLine() { return true; }
+
+            @Override public void addBar(ChartPoint chartPoint) {
+                super.addBar(chartPoint);
+                ChartPoint lastPoint = getLastPoint();
+                if (lastPoint != null) {
+                    double value = lastPoint.m_value;
+                    onSmotchedLpras(lastPoint, value);
+                }
+            }
+
+            @Override protected boolean centerYZeroLine() { return true; }
+        };
+        m_indicators.add(m_smoochedIndicator);
+    }
+
+    protected void onAvgLrpasChanged(TradeDataLight tdata, ChartPoint avgLrpaPoint) {
+        m_smoochedIndicator.addBar(avgLrpaPoint);
+    }
+
+    protected void onSmotchedLpras(ChartPoint lastPoint, double lprasValue) {
+        notifyListener();
     }
 
     private double getAverageDirectionAdjusted() {
@@ -86,7 +111,7 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
                 ChartPoint avgLrpaPoint = new ChartPoint(m_lastAvgLrpaTime, m_lastAvgLrpaValue);
                 m_avgLrpaIndicators.addBar(avgLrpaPoint);
 
-                onAvgLrpaChanged(tdata, avgLrpaPoint);
+                onAvgLrpasChanged(tdata, avgLrpaPoint);
 
                 m_lastAvgLrpaTime = millis;
             }
@@ -161,28 +186,23 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
                     m_max = value;
                     m_value = valueSignum;
                 } else {
-                    double from = FROM * absMax;
                     double to = TO * absMax;
                     if (absValue > to) {
                         return valueSignum; // Math.signum(m_value);
                     }
+                    double from = FROM * absMax;
                     if (absValue < from) {
+                        // collapsing both; value and amx
+                        m_max = (value / FROM) * TO;
+                        m_value = -valueSignum;
+
                         return -valueSignum; // Math.signum(m_value);
                     }
-
                     double mid = (from + to) / 2;
-                    if (absValue >= mid) { // upper half -> go from [1 to -1]
-                        // step down
-                        double offset = absValue - mid;
-                        double length = (to - from) / 2;
-                        m_value = valueSignum * offset / length;
-                    } else {
-                        // collapsing both; value and amx
-                        m_max = value * 2;
-                        m_value = -valueSignum;
-                    }
+                    double offset = absValue - mid;
+                    double length = (to - from) / 2;
+                    m_value = valueSignum * offset / length;
                 }
-
             } else { // first max
                 m_max = value;
                 m_value = valueSignum;
@@ -193,53 +213,96 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
 
 
     // ------------------------------------------------------------------------------------
-    public static  class Gained extends LinearRegressionPowersAlgo {
-        private final SmoochedIndicator m_smoochedIndicator;
-        private final SlidingGainer m_gainer = new SlidingGainer(GAIN_POW);
-        private final ValueIndicator m_gainIndicator;
-        private final SmoochedIndicator m_smoochedGainIndicator;
-        double m_lastSmoochedGain;
+    public static class Vel extends LinearRegressionPowersAlgo {
+        public static double VELOCITY_SIZE = 1.0;
+        public static double VELOCITY_STEP = 2.0;
+        public static int VELOCITY_STEP_COUNT = 2;
+        public static double VELOCITY_FADING = 0.5;
+        public static double VELOCITY_SMOOTH_RATE = 1.0;
+        private static final String VEL_AXE_NAME = "lrp*v";
 
-        @Override public double getDirectionAdjusted() { return m_lastSmoochedGain; }
+        private final SimpleVelocityIndicator m_velocityIndicator;
+        private final SmoochedIndicator m_smoochedVelIndicator;
+        private final SlidingGainerIndicator m_gainIndicator;
 
-        public Gained(TresExchData exchData) {
+        @Override protected void onSmotchedLpras(ChartPoint lastPoint, double lprasValue) {
+            m_velocityIndicator.addBar(lastPoint);
+        }
+        @Override public double getDirectionAdjusted() { return m_gainIndicator.getDirectionAdjusted(); }
+
+        Vel(TresExchData exchData) {
             super(exchData);
 
-            // avgLrpa -> smoochedLrpa -> gain -> smoochedGain
+            // smoochedLrpas -> velocity
 
-            long frameSizeMillis = (long) (SMOOTH_RATE * m_barSizeMillis);
-            m_smoochedIndicator = new SmoochedIndicator(this, "ds", frameSizeMillis) {
-                private double m_lastGainerValue = Double.MAX_VALUE;
-
-                @Override protected String getYAxeName() { return AXE_NAME; }
-                @Override public Color getColor() { return Color.lightGray; }
-                @Override protected boolean drawZeroLine() { return true; }
-
+            long frameSizeMillis = (long) (VELOCITY_SIZE * m_barSizeMillis);
+            m_velocityIndicator = new SimpleVelocityIndicator(this, "v", frameSizeMillis, VELOCITY_STEP, VELOCITY_STEP_COUNT, VELOCITY_FADING) {
+                @Override protected String getYAxeName() { return VEL_AXE_NAME; }
                 @Override public void addBar(ChartPoint chartPoint) {
                     super.addBar(chartPoint);
                     ChartPoint lastPoint = getLastPoint();
                     if (lastPoint != null) {
-                        double value = lastPoint.m_value;
-                        double gainerValue = m_gainer.update(value);
-                        long millis = lastPoint.m_millis;
-                        ChartPoint gainPoint = new ChartPoint(millis, gainerValue);
-                        if (gainerValue != m_lastGainerValue) {
-                            m_lastGainerValue = gainerValue;
-                            m_gainIndicator.addBar(gainPoint);
-                        }
-                        m_smoochedGainIndicator.addBar(gainPoint);
+                        m_smoochedVelIndicator.addBar(lastPoint);
                     }
                 }
+            };
+            m_indicators.add(m_velocityIndicator);
 
-                @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-                    double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
-                    minMaxCalculator.m_minValue = -max;
-                    minMaxCalculator.m_maxValue = max;
+            long frameSizeMillis2 = (long) (VELOCITY_SMOOTH_RATE * m_barSizeMillis);
+            m_smoochedVelIndicator = new SmoochedIndicator(this, "vs", frameSizeMillis2) {
+                @Override protected String getYAxeName() { return VEL_AXE_NAME; }
+                @Override public Color getColor() { return Color.lightGray; }
+                @Override protected boolean drawZeroLine() { return true; }
+                @Override protected boolean centerYZeroLine() { return true; }
+                @Override public void addBar(ChartPoint chartPoint) {
+                    super.addBar(chartPoint);
+                    ChartPoint lastPoint = getLastPoint();
+                    if (lastPoint != null) {
+                        m_gainIndicator.addBar(lastPoint);
+                        notifyListener();
+                    }
                 }
             };
-            m_indicators.add(m_smoochedIndicator);
+            m_indicators.add(m_smoochedVelIndicator);
 
-            m_gainIndicator = new ValueIndicator(this, "g", Color.red);
+            m_gainIndicator = new SlidingGainerIndicator(this, "g", Color.red, GAIN_POW) {
+//                @Override public void addBar(ChartPoint chartPoint) {
+//                    super.addBar(chartPoint);
+//                    ChartPoint lastPoint = getLastPoint();
+//                    if(lastPoint != null) {
+//                        m_smoochedGainIndicator.addBar(chartPoint);
+//                    }
+//                }
+            } ;
+            m_indicators.add(m_gainIndicator);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------
+    public static class Gained extends LinearRegressionPowersAlgo {
+        private final SlidingGainerIndicator m_gainIndicator;
+        protected final SmoochedIndicator m_smoochedGainIndicator;
+        protected double m_lastSmoochedGain;
+
+        @Override public double getDirectionAdjusted() { return m_lastSmoochedGain; }
+        @Override protected void onSmotchedLpras(ChartPoint lastPoint, double lprasValue) {
+            m_gainIndicator.addBar(lastPoint);
+        }
+
+        public Gained(TresExchData exchData) {
+            super(exchData);
+
+            // smoochedLrpa -> SlidingGainer -> smoochedGain
+
+            m_gainIndicator = new SlidingGainerIndicator(this, "g", Color.red, GAIN_POW) {
+                @Override public void addBar(ChartPoint chartPoint) {
+                    super.addBar(chartPoint);
+                    ChartPoint lastPoint = getLastPoint();
+                    if(lastPoint != null) {
+                        m_smoochedGainIndicator.addBar(chartPoint);
+                    }
+                }
+            } ;
             m_indicators.add(m_gainIndicator);
 
             long frameSizeMillis2 = (long) (SMOOTH_GAIN_RATE * m_barSizeMillis);
@@ -247,12 +310,8 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
                 @Override protected boolean useValueAxe() { return true; }
                 @Override public Color getColor() { return Color.MAGENTA; }
                 @Override protected boolean drawZeroLine() { return true; }
+                @Override protected boolean centerYZeroLine() { return true; }
 
-                @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-                    double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
-                    minMaxCalculator.m_minValue = -max;
-                    minMaxCalculator.m_maxValue = max;
-                }
                 @Override public void addBar(ChartPoint chartPoint) {
                     super.addBar(chartPoint);
                     ChartPoint lastPoint = getLastPoint();
@@ -266,10 +325,6 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
                 }
             };
             m_indicators.add(m_smoochedGainIndicator);
-        }
-
-        @Override protected void onAvgLrpaChanged(TradeDataLight tdata, ChartPoint avgLrpaPoint) {
-            m_smoochedIndicator.addBar(avgLrpaPoint);
         }
 
         protected void onSmoochedGain() {
@@ -327,8 +382,8 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
             m_indicators.add(m_mulIndicator);
         }
 
-        @Override protected void onAvgLrpaChanged(TradeDataLight tdata, ChartPoint avgLrpaPoint) {
-            super.onAvgLrpaChanged(tdata, avgLrpaPoint);
+        @Override protected void onAvgLrpasChanged(TradeDataLight tdata, ChartPoint avgLrpaPoint) {
+            super.onAvgLrpasChanged(tdata, avgLrpaPoint);
 
             long millis = tdata.m_timestamp;
             ChartPoint tickPoint = new ChartPoint(millis, tdata.m_price);

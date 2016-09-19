@@ -278,7 +278,28 @@ public enum OptimizeField {
         @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.OFFSET; }
         @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.OFFSET = value; }
     },
-        ;
+
+    LRPSS_VELOCITY_SIZE("lrpss.vel_size") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.Vel.VELOCITY_SIZE; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.Vel.VELOCITY_SIZE = value; }
+    },
+    LRPSS_VELOCITY_STEP("lrpss.vel_step") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.Vel.VELOCITY_STEP; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.Vel.VELOCITY_STEP = value; }
+    },
+    LRPSS_VELOCITY_STEP_COUNT("lrpss.vel_step_count") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.Vel.VELOCITY_STEP_COUNT; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.Vel.VELOCITY_STEP_COUNT = (int) value; }
+    },
+    LRPSS_VELOCITY_SMOOTH_RATE("lrpss.vel_smooth") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.Vel.VELOCITY_SMOOTH_RATE; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.Vel.VELOCITY_SMOOTH_RATE = value; }
+    },
+    LRPSS_VELOCITY_FADING("lrpss.vel_fading") {
+        @Override public double get(Tres tres) { return LinearRegressionPowersAlgo.Vel.VELOCITY_FADING; }
+        @Override public void set(Tres tres, double value) { LinearRegressionPowersAlgo.Vel.VELOCITY_FADING = value; }
+    },
+    ;
 
     public static double BAR_SIZE_TO_PHASES_RATE = 0.001;
 
