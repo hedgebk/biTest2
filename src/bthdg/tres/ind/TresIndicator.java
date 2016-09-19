@@ -203,8 +203,15 @@ public abstract class TresIndicator {
         }
     }
 
-    protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) { }
+    protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
+        if (centerYZeroLine()) {
+            double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
+            minMaxCalculator.m_minValue = -max;
+            minMaxCalculator.m_maxValue = max;
+        }
+    }
     protected boolean drawZeroLine() { return false; }
+    protected boolean centerYZeroLine() { return false; }
 
     protected void preDraw(Graphics g, ChartAxe xTimeAxe, ChartAxe yAxe) {
         if (drawZeroLine()) {
