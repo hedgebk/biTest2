@@ -11,7 +11,6 @@ import bthdg.tres.ind.CursorPainter;
 import bthdg.tres.ind.SmoochedIndicator;
 import bthdg.tres.ind.TresIndicator;
 import bthdg.tres.ind.VelocityIndicator;
-import bthdg.util.Utils;
 
 import java.awt.*;
 
@@ -67,11 +66,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
                 }
             }
             @Override public String toString() { return "CoppockVelocityAlgo.VelocitySmoochedIndicator"; }
-            @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-                double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
-                minMaxCalculator.m_minValue = -max;
-                minMaxCalculator.m_maxValue = max;
-            }
+            @Override protected boolean centerYZeroLine() { return true; }
         };
         m_indicators.add(m_velocitySmoochedIndicator);
 
@@ -148,12 +143,7 @@ public class CoppockVelocityAlgo extends CoppockAlgo {
 
         @Override protected boolean countHalfPeaks() { return false; }
         @Override protected boolean drawZeroLine() { return true; }
-
-        @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-            double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
-            minMaxCalculator.m_minValue = -max;
-            minMaxCalculator.m_maxValue = max;
-        }
+        @Override protected boolean centerYZeroLine() { return true; }
 
         public double calcDirectionAdjusted() {
             if (m_state != null) {

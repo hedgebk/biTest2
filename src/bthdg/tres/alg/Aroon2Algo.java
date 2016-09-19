@@ -7,7 +7,6 @@ import bthdg.tres.ind.SmoochedIndicator;
 import bthdg.tres.ind.TresIndicator;
 import bthdg.tres.ind.VelocityIndicator;
 import bthdg.tres.ind.VelocityRateIndicator;
-import bthdg.util.Utils;
 
 import java.awt.*;
 
@@ -51,11 +50,7 @@ public class Aroon2Algo extends AroonAlgo {
             @Override protected boolean countPeaks() { return false; }
             @Override public Color getColor() { return Color.pink; }
             @Override protected boolean drawZeroLine() { return true; }
-            @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-                double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
-                minMaxCalculator.m_minValue = -max;
-                minMaxCalculator.m_maxValue = max;
-            }
+            @Override protected boolean centerYZeroLine() { return true; }
         };
         m_indicators.add(m_smoochedVelocityIndicator);
 
@@ -95,11 +90,7 @@ public class Aroon2Algo extends AroonAlgo {
         }
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
         @Override public Color getColor() { return Color.CYAN; }
-        @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-            double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
-            minMaxCalculator.m_minValue = -max;
-            minMaxCalculator.m_maxValue = max;
-        }
+        @Override protected boolean centerYZeroLine() { return true; }
     }
 
 

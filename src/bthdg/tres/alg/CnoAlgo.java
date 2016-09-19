@@ -6,7 +6,6 @@ import bthdg.tres.TresExchData;
 import bthdg.tres.ind.CciIndicator;
 import bthdg.tres.ind.OscIndicator;
 import bthdg.tres.ind.TresIndicator;
-import bthdg.util.Utils;
 
 import java.awt.*;
 
@@ -102,10 +101,6 @@ public class CnoAlgo extends TresAlgo {
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
         @Override public Color getColor() { return Color.red; }
         @Override protected boolean countPeaks() { return false; }
-        @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-            double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
-            minMaxCalculator.m_minValue = -max;
-            minMaxCalculator.m_maxValue = max;
-        }
+        @Override protected boolean centerYZeroLine() { return true; }
     }
 }

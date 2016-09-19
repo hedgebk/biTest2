@@ -6,7 +6,6 @@ import bthdg.tres.TresExchData;
 import bthdg.tres.ind.AroonIndicator;
 import bthdg.tres.ind.SmoochedIndicator;
 import bthdg.tres.ind.TresIndicator;
-import bthdg.util.Utils;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -65,11 +64,7 @@ public class AroonAlgo extends TresAlgo {
                 super.addBar(chartPoint);
                 onSmoochedBar();
             }
-            @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-                double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
-                minMaxCalculator.m_minValue = -max;
-                minMaxCalculator.m_maxValue = max;
-            }
+            @Override protected boolean centerYZeroLine() { return true; }
         };
         m_indicators.add(m_smoochedIndicator);
     }

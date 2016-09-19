@@ -4,7 +4,6 @@ import bthdg.exch.Direction;
 import bthdg.tres.ChartPoint;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.*;
-import bthdg.util.Utils;
 
 import java.awt.*;
 
@@ -100,12 +99,7 @@ public class Cno3Algo extends TresAlgo {
         final long barSizeMillis = tresExchData.m_tres.m_barSizeMillis;
         m_smoochedIndicator = new SmoochedIndicator(this, "sm", (long) (SMOOTH_RATE * barSizeMillis), SMOOTH_PEAK_TOLERANCE) {
             @Override protected boolean useValueAxe() { return true; }
-            //            @Override protected boolean countPeaks() { return false; }
-            @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-                double max = Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue));
-                minMaxCalculator.m_minValue = -max;
-                minMaxCalculator.m_maxValue = max;
-            }
+            @Override protected boolean centerYZeroLine() { return true; }
         };
         m_indicators.add(m_smoochedIndicator);
     }
@@ -150,11 +144,7 @@ public class Cno3Algo extends TresAlgo {
         }
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
         @Override public Color getColor() { return Color.CYAN; }
-        @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-            double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
-            minMaxCalculator.m_minValue = -max;
-            minMaxCalculator.m_maxValue = max;
-        }
+        @Override protected boolean centerYZeroLine() { return true; }
 
         @Override public void addBar(ChartPoint chartPoint) {
             if (chartPoint != null) {

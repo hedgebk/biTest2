@@ -6,7 +6,6 @@ import bthdg.tres.Tres;
 import bthdg.tres.TresExchData;
 import bthdg.tres.ind.*;
 import bthdg.util.Colors;
-import bthdg.util.Utils;
 
 import java.awt.*;
 
@@ -107,11 +106,7 @@ public class TreAlgo extends TresAlgo {
         @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
         @Override public Color getColor() {return Colors.LIGHT_MAGNETA; }
 
-        @Override protected void adjustMinMaxCalculator(Utils.DoubleDoubleMinMaxCalculator minMaxCalculator) {
-            double max = Math.max(0.1, Math.max(Math.abs(minMaxCalculator.m_minValue), Math.abs(minMaxCalculator.m_maxValue)));
-            minMaxCalculator.m_minValue = -max;
-            minMaxCalculator.m_maxValue = max;
-        }
+        @Override protected boolean centerYZeroLine() { return true; }
     }
 
 

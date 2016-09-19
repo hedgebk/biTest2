@@ -115,6 +115,8 @@ public abstract class TresAlgo {
             return new LinearRegressionPowersAlgo.Gained(tresExchData);
         } else if (algoName.equals("lrp**")) {
             return new LinearRegressionPowersAlgo.Gained2(tresExchData);
+        } else if (algoName.equals("lrp*v")) {
+            return new LinearRegressionPowersAlgo.Vel(tresExchData);
         }
         throw new RuntimeException("unsupported algo '" + algoName + "'");
     }
@@ -224,7 +226,7 @@ public abstract class TresAlgo {
     public static class ValueIndicator extends TresIndicator {
         private final Color m_color;
 
-        ValueIndicator(TresAlgo algo, String name, Color color) {
+        protected ValueIndicator(TresAlgo algo, String name, Color color) {
             this(algo, name, 0, color);
         }
         ValueIndicator(TresAlgo algo, String name, double peakTolerance, Color color) {
