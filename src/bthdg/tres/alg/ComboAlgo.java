@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class ComboAlgo extends TresAlgo implements TresAlgo.TresAlgoListener {
+public class ComboAlgo extends TresAlgo implements TresAlgo.ITresAlgoListener {
     public static String CONFIG = "emas~,c+o3";
 //    public static String CONFIG = "emas~";
 
@@ -24,6 +24,7 @@ public class ComboAlgo extends TresAlgo implements TresAlgo.TresAlgoListener {
     @Override public long lastTickTime() { return m_tresExchData.m_lastTickMillis; }
     @Override public Color getColor() { return Color.CYAN; }
     @Override public String getRunAlgoParams() { return "Combo: " + CONFIG; }
+    @Override public String getSimulationState() { return "ComboAlgo"; }
 
     public ComboAlgo(TresExchData tresExchData) {
         super("COMBO", tresExchData);

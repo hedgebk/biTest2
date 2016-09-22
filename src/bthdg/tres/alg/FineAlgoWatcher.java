@@ -18,8 +18,8 @@ public class FineAlgoWatcher extends BaseAlgoWatcher {
     public static final double MIN_MOVE = 0.033;
     private static final long MOVE_DELAY = 5000; // every 5 sec
     private static final Pair PAIR = Pair.BTC_CNH;
-    private final boolean m_verbose;
 
+    private final boolean m_verbose;
     private final Exchange m_exchange;
     private double m_lastPrice;
     private long m_lastMoveMillis;
