@@ -84,12 +84,17 @@ public class TresLogProcessor extends Thread {
     private boolean m_iterated;
     private HashMap<OptimizeField, String> m_optCfg;
     private HashMap<OptimizeField, String> m_gridCfg;
+    private List<TradesTopsData> m_datas; // parsed ticks to re-run
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
-    TresLogProcessor(Config config, ArrayList<TresExchData> exchDatas) {
+    TresLogProcessor(Config config, ArrayList<TresExchData> exchDatas, TresLogProcessor m_logProcessor) {
         m_config = config;
+        if(m_logProcessor != null) {
+            m_datas = m_logProcessor.m_datas;
+            log("reusing datas from prev logProcessor");
+        }
         init(config);
         m_exchData = exchDatas.get(0);
     }
@@ -265,9 +270,13 @@ public class TresLogProcessor extends Thread {
 
             File dir = new File(dirPath);
             if (dir.isDirectory()) {
-                List<TradesTopsData> datas = parseFiles(pattern, dir);
+                if (m_datas == null) {
+                    m_datas = parseFiles(pattern, dir);
+                } else {
+                    log("re-using existing datas");
+                }
                 long startTime = System.currentTimeMillis();
-                processAll(datas);
+                processAll(m_datas);
                 long endTime = System.currentTimeMillis();
                 log("takes " + Utils.millisToDHMSStr(endTime - startTime));
             } else {
