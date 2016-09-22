@@ -31,7 +31,7 @@ public class TresExchData {
     long m_tickCount;
     final List<BaseAlgoWatcher> m_playAlgos = new ArrayList<BaseAlgoWatcher>();
     protected BaseAlgoWatcher m_runAlgoWatcher;
-    TresAlgo.TresAlgoListener m_algoListener;
+    TresAlgo.ITresAlgoListener m_algoListener;
     final TresOHLCCalculator m_ohlcCalculator;
 
     public void setFeeding() { m_executor.m_feeding = true; }
@@ -77,7 +77,7 @@ public class TresExchData {
 
         if (!m_tres.m_logProcessing) {
             if (BaseExecutor.DO_TRADE) {
-                m_algoListener = new TresAlgo.TresAlgoListener() {
+                m_algoListener = new TresAlgo.ITresAlgoListener() {
                     @Override public void onValueChange() {
                         if (m_executor.m_initialized) {
                             m_executor.postRecheckDirection();
@@ -87,6 +87,10 @@ public class TresExchData {
                             }
                             setFeeding();
                         }
+                    }
+
+                    @Override public String getSimulationState() {
+                        return "TresAlgo.ITresAlgoListener";
                     }
                 };
                 m_runAlgoWatcher.setListener(m_algoListener);

@@ -643,15 +643,18 @@ public class TresCanvas extends JComponent {
         String avgBidAskDiffStr = (avgBidAskDiff != null) ? Utils.format3(avgBidAskDiff) : "";
         int disconnectCount = exchData.m_ws.disconnectCount();
 
+        double directionAdjusted = exchData.getDirectionAdjusted();
         return new String[]{
                 "avgTickAge: " + Utils.format3(executor.m_tickAgeCalc.getAverage()) + "; avgBidAskDiff=" + avgBidAskDiffStr + "; disconnects=" + disconnectCount,
                 "takes:" + executor.dumpTakesTime(),
                 "wait=" + executor.dumpWaitTime(),
                 "placed=" + executor.m_ordersPlaced
                         + "; filled=" + executor.m_ordersFilled
-                        + "; volume=" + Utils.format3(executor.m_tradeVolume)
-                        + "; avgFillSize=" + Utils.format3(avgFillSize),
-                "dir.adj=" + Utils.format5(exchData.getDirectionAdjusted()) + "; priceMode=" + executor.m_orderPriceMode + "; " + exchData.getRunAlgoParams(),
+                        + "; volume: " + executor.getTradeVolume()
+                        + "; avgFillSize=" + Utils.format3(avgFillSize)
+                        + "; lost=" + Utils.format12(executor.m_totalLostAmount)
+                        + "; lostRAte=" + executor.getLostRate(),
+                "dir.adj=" + Utils.format5(directionAdjusted) + "; priceMode=" + executor.m_orderPriceMode + "; " + exchData.getRunAlgoParams(),
                 "acct: " + executor.m_account,
                 executor.valuateGain(),
                 executor.valuate()
