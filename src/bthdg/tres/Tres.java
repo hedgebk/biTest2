@@ -67,6 +67,7 @@ public class Tres {
     private String m_keystorePwd;
     private Boolean m_isLocal;
     private String[] m_exchangesArr;
+    private TresLogProcessor m_logProcessor; // logProcessor to re-run
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -87,6 +88,14 @@ public class Tres {
     }
 
     public static void main(String[] args) {
+
+//        ProcessBuilder pb = new ProcessBuilder("cmd", "/C start /B /belownormal /WAIT javaws -sdasd");
+//        System.out.println("Before start");
+//        Process start = pb.start();
+//        start.waitFor();
+//        System.out.println("Done");
+//        theThread.setPriority(Thread.MIN_PRIORITY);
+
         try {
             Log.s_impl = new Log.TimestampLog();
 
@@ -205,8 +214,8 @@ public class Tres {
         createExchData();
 
         if (m_processLogs) {
-            TresLogProcessor logProcessor = new TresLogProcessor(m_config, m_exchDatas);
-            logProcessor.start();
+            m_logProcessor = new TresLogProcessor(m_config, m_exchDatas, m_logProcessor);
+            m_logProcessor.start();
         } else {
             for (TresExchData exchData : m_exchDatas) {
                 exchData.start();
@@ -595,6 +604,14 @@ public class Tres {
             writer.print(string);
             writer.print("<br/>");
         }
+
+        for (BaseAlgoWatcher algoWatcher : exchData.m_playAlgos) {
+            String simState = algoWatcher.getSimulationState();
+            writer.print("SYM: ");
+            writer.print(simState);
+            writer.print("<br/>");
+        }
+
         writer.print(getLogInfo());
         writer.print("<a href=/>status</a>; <a href=park>park</a><br/>");
 
