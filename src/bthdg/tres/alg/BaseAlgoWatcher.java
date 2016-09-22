@@ -3,21 +3,22 @@ package bthdg.tres.alg;
 import bthdg.ChartAxe;
 import bthdg.tres.TresCanvas;
 import bthdg.tres.TresExchData;
+import bthdg.util.Utils;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.util.Map;
 
-public abstract class BaseAlgoWatcher implements TresAlgo.TresAlgoListener {
+public abstract class BaseAlgoWatcher implements TresAlgo.ITresAlgoListener {
     public static double AVG_HALF_BID_ASK_DIF = 0.10;
 
     protected final TresExchData m_tresExchData;
     public final TresAlgo m_algo;
-    private TresAlgo.TresAlgoListener m_listener;
+    private TresAlgo.ITresAlgoListener m_listener;
     protected boolean m_doPaint = false;
 
-    public void setListener(TresAlgo.TresAlgoListener listener) { m_listener = listener; }
+    public void setListener(TresAlgo.ITresAlgoListener listener) { m_listener = listener; }
 
     public BaseAlgoWatcher(TresExchData tresExchData, TresAlgo algo) {
         m_tresExchData = tresExchData;
@@ -64,4 +65,8 @@ public abstract class BaseAlgoWatcher implements TresAlgo.TresAlgoListener {
     }
 
     public abstract double totalPriceRatio();
+
+    public String getSimulationState() {
+        return "gain=" + Utils.format8(totalPriceRatio());
+    }
 }
