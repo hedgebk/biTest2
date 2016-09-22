@@ -42,6 +42,7 @@ public class TresExecutor extends BaseExecutor {
     private boolean m_oldLastTradeReconnectRequested;
     private final List<OrderData> m_pendingMktOrders = new ArrayList<OrderData>();
     private long m_lastMktPlaceTime;
+    double m_totalLostAmount;
 
     @Override protected long minOrderLiveTime() { return MIN_ORDER_LIVE_TIME; }
     @Override protected double outOfMarketThreshold() { return OUT_OF_MARKET_THRESHOLD; }
@@ -125,13 +126,14 @@ public class TresExecutor extends BaseExecutor {
     @Override public void onTrade(TradeDataLight tData) {
         if (DO_TRADE) {
             TradeTask task = new TradeTask(tData);
-            OrderData order = m_order; // use local var due to multi-threading
-            if ((order != null) && order.m_status.isActive()) {
-                if (tData.m_price == order.m_price) { // same price trade - process first
-                    addTaskFirst(task);
-                    return;
-                }
-            }
+            // do not change trades order - process as they arrive
+//            OrderData order = m_order; // use local var due to multi-threading
+//            if ((order != null) && order.m_status.isActive()) {
+//                if (tData.m_price == order.m_price) { // same price trade - process first
+//                    addTaskFirst(task);
+//                    return;
+//                }
+//            }
             addTask(task);
         }
         m_lastSeenTradeTime = System.currentTimeMillis();
@@ -593,9 +595,9 @@ public class TresExecutor extends BaseExecutor {
         return ret;
     }
 
-    public void onExec(Exec exec) {
+    void onExec(Exec exec) {
         log("onExec() posting ExecTask; exec=" + exec);
-        addTaskFirst(new ExecTask(exec));
+        addTask(new ExecTask(exec)); // ExecTask tasks are collected in separate sub-queue, so post as last to that sub-queue
     }
 
     private void processExec(Exec exec) throws Exception {
@@ -616,12 +618,19 @@ public class TresExecutor extends BaseExecutor {
 
         for (OrderData pendingMktOrder : m_pendingMktOrders) {
             if (pendingMktOrder.m_orderId.equals(orderId)) {
+                double submitPrice = pendingMktOrder.m_price;
+                double execPrice = exec.m_averagePrice;
                 log(" exec for pending mkt order: m_order=" + pendingMktOrder);
                 boolean fill = processIfFill(exec, orderId, pendingMktOrder);
                 if (fill) {
                     log("  got FILL pending mkt order: m_order=" + pendingMktOrder);
                     m_pendingMktOrders.remove(pendingMktOrder);
                     log("   removed from pendingMktOrders. now size=" + m_pendingMktOrders.size());
+                    double lostPrice = pendingMktOrder.m_side.isBuy() ? execPrice - submitPrice : submitPrice - execPrice;
+                    double orderSize = pendingMktOrder.m_amount;
+                    double lostAmount = lostPrice * orderSize;
+                    m_totalLostAmount += lostAmount;
+                    log("   lostPrice=" + lostPrice + "; orderSize=" + orderSize + "; lostAmount=" + lostAmount + "; m_totalLostAmount=" + m_totalLostAmount + "; lostRate=" + getLostRate());
                 }
                 return;
             }
@@ -673,6 +682,17 @@ public class TresExecutor extends BaseExecutor {
         m_maySyncAccount = false;
     }
 
+    String getLostRate() {
+        Currency currencyFrom = m_pair.m_from;     // chn=from
+        double valuateFrom = m_account.evaluateAll(m_topsData, currencyFrom, m_exchange);
+        return Utils.format12(m_totalLostAmount / valuateFrom);
+    }
+
+    String getTradeVolume() {
+        Double rate = m_topsData.rate(m_exchange, m_pair.m_to, m_pair.m_from);
+        return Utils.format3(m_tradeVolume) + " " + m_pair.m_to + " / " + Utils.format3(m_tradeVolume / rate) + " " + m_pair.m_from;
+    }
+
 
     //-------------------------------------------------------------------------------
     public class StopTask extends TaskQueueProcessor.SinglePresenceTask {
@@ -705,6 +725,7 @@ public class TresExecutor extends BaseExecutor {
     public class ExecTask extends TaskQueueProcessor.BaseOrderTask {
         private final Exec m_exec;
 
+        @Override public boolean compareWithOtherTasksInQueue() { return false; }
         @Override public TaskQueueProcessor.DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) { return null; }
         public ExecTask(Exec exec) {
             m_exec = exec;
@@ -719,6 +740,7 @@ public class TresExecutor extends BaseExecutor {
     public class AccountTask extends TaskQueueProcessor.BaseOrderTask {
         private final AccountData m_accountData;
 
+        @Override public boolean compareWithOtherTasksInQueue() { return false; }
         @Override public TaskQueueProcessor.DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) { return null; }
         public AccountTask(AccountData accountData) {
             m_accountData = accountData;
