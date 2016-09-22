@@ -22,7 +22,7 @@ public abstract class TresAlgo {
     public final TresExchData m_tresExchData;
     public final List<TresIndicator> m_indicators = new ArrayList<TresIndicator>();
     public final List<TresIndicator> m_topIndicators = new ArrayList<TresIndicator>();
-    private TresAlgoListener m_listener;
+    private ITresAlgoListener m_listener;
 
     public abstract double lastTickPrice();
     public abstract long lastTickTime();
@@ -40,7 +40,7 @@ public abstract class TresAlgo {
         m_tresExchData = tresExchData;
     }
 
-    public void setListener(TresAlgoListener listener) { m_listener = listener; }
+    public void setListener(ITresAlgoListener listener) { m_listener = listener; }
 
     public static TresAlgo get(String algoName, TresExchData tresExchData) {
         if (algoName.equals("coppock")) {
@@ -218,8 +218,9 @@ public abstract class TresAlgo {
     }
 
     // ========================================================================================
-    public interface TresAlgoListener {
+    public interface ITresAlgoListener {
         void onValueChange();
+        String getSimulationState();
     }
 
     // ===============================================================================================================
