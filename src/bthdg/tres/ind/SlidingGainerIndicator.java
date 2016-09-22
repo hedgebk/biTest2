@@ -19,7 +19,7 @@ public class SlidingGainerIndicator extends TresAlgo.ValueIndicator {
     @Override public TresPhasedIndicator createPhasedInt(TresExchData exchData, int phaseIndex) { return null; }
     @Override public Color getColor() { return Color.green; }
     @Override public Color getPeakColor() { return Color.green; }
-    @Override public double getDirectionAdjusted() { return m_lastGainerValue; }
+    @Override public double getDirectionAdjusted() { return (m_lastGainerValue == Double.MAX_VALUE) ? 0 : m_lastGainerValue; }
 
     @Override public void addBar(ChartPoint chartPoint) {
         if (chartPoint != null) {
