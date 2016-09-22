@@ -26,7 +26,7 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
 
     private final List<LinearRegressionPowerIndicatorInt> m_lrpaIndicators = new ArrayList<LinearRegressionPowerIndicatorInt>();
     protected final long m_barSizeMillis;
-    private final int m_phases;
+    protected final int m_phases;
     private double m_lastAvgLrpaValue;
     private long m_lastAvgLrpaTime;
     private final ValueIndicator m_avgLrpaIndicators;
@@ -224,6 +224,15 @@ public class LinearRegressionPowersAlgo extends TresAlgo {
         private final SimpleVelocityIndicator m_velocityIndicator;
         private final SmoochedIndicator m_smoochedVelIndicator;
         private final SlidingGainerIndicator m_gainIndicator;
+
+        @Override public String getRunAlgoParams() {
+            return "LRPsV: barSize=" + m_barSizeMillis +
+                    "; phases=" + m_phases +
+                    "; len=[sta=" + LEN_STEP_START + ", ste=" + LEN_STEP_SIZE + ", nu=" + LEN_STEPS_NUM + "]" +
+                    "; smooth=" + SMOOTH_RATE +
+                    "; vel=[si=" + VELOCITY_SIZE + ", ste=" + VELOCITY_STEP + ", nu=" + VELOCITY_STEP_COUNT + ", f=" + VELOCITY_FADING + "]" +
+                    "; gain=[fr=" + SlidingGainer.FROM + ", to=" + SlidingGainer.TO + ", p=" + GAIN_POW + "]";
+        }
 
         @Override protected void onSmotchedLpras(ChartPoint lastPoint, double lprasValue) {
             m_velocityIndicator.addBar(lastPoint);
