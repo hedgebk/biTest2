@@ -958,14 +958,16 @@ public abstract class BaseExecutor implements Runnable {
             m_tData = tData;
         }
 
+        @Override public boolean compareWithOtherTasksInQueue() { return false; }
         @Override public TaskQueueProcessor.DuplicateAction isDuplicate(TaskQueueProcessor.BaseOrderTask other) {
-            if (other instanceof TradeTask) {
-                TradeTask tradeTask = (TradeTask) other;
-                double price = m_tData.m_price;
-                if (tradeTask.m_tData.m_price == price) { // skip same price TradeTask if already scheduled
-                    return TaskQueueProcessor.DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST;
-                }
-            }
+//            if (other instanceof TradeTask) {
+//                TradeTask tradeTask = (TradeTask) other;
+//                double price = m_tData.m_price;
+//                if (tradeTask.m_tData.m_price == price) { // skip same price TradeTask if already scheduled
+//                    return TaskQueueProcessor.DuplicateAction.REMOVE_ALL_AND_PUT_AS_LAST;
+//                }
+//            }
+            // process every trade, even with repeated price
             return null;
         }
 
